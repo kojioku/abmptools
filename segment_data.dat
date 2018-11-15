@@ -1,0 +1,132 @@
+# 'mode': 'charge_only' -> no FMO , charge    , atom ignored
+# 'mode': 'FMO'         ->    FMO , charge    , connect_num, connect, seg_info
+# 'mode': 'solv'        -> no FMO , nummol_seg
+#
+# atom   : [1st segment atom number, 2nd segment atom number, ... ]
+# charge : [1st segment charge, 2nd segment charge, ... ]
+# connect_num : [num of 1st segment broken bond, num of 2nd segment broken bond, ... ]
+# connect : [[atom num of start atom, atom num of end atom], [atom num of start atom, atom num of end atom], ... ]
+# nummol_seg : [num of mol in 1 segment(for cluster solvent)]
+#
+seg_data = [
+                {
+                    'name':'E_rinsan',
+                    'charge':[-1],
+                },
+
+                {
+                    'name':'F_amine',
+                    'charge': [1],
+                },
+
+                {
+                    'name':'G_methylamine',
+                    'charge': [1],
+                },
+
+                {
+                    'name':'M_sio6',
+                    'mode':'FMO',
+                    'atom':[18,18],
+                    'charge': [0,0],
+                    'connect_num':[1,1],
+                    'connect': [[4,5],[11,10]],
+                    'seg_info': [[1, 2, 5, 7, 8, 9, 11, 13, 14, 15, 18, 22, 24, 27, 28, 29, 30, 36],
+                                 [3, 4, 6, 10, 12, 16, 17, 19, 20, 21, 23, 25, 26, 31, 32, 33, 34, 35]],
+                },
+
+                {
+                    'name':'Zm_water_mom',
+                    'nummol_seg': [3],
+                    'cluster_file':['water_trimer.xyz'],
+                    'fix_label':[0, 3, 6]
+                },
+
+                {
+                    'name':'A_propane',
+                    'term':[0, 2],
+                    'repeat': [5]
+                },
+
+                {
+                 'name':'nafionA',
+                 'atom':[7,7],
+                 'charge': [1,-1],
+                 'connect_num':[0,1],
+                 'connect': [[4,7]] ,
+                 'seg_info': [[1,2,3,4,5,6,14],[7,8,9,10,11,12,13]]
+                },
+
+                {
+                    'name':'nafionB',
+                    'atom':[8,11],
+                    'charge': [1,-1],
+                    'connect_num':[0,1],
+                    'connect': [[2,5]],
+                    'seg_info': [[1,2,3,4,12,13,14,15],[5,6,7,8,9,10,11,16,17,18,19]]
+                },
+
+                {
+                    'name':'nafion',
+                    'atom':[7, 6, 6, 6, 6, 6, 6, 6, 10, 7, 5],
+                    'charge':[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1],
+                    'connect_num':[0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    'connect':[[ 2,  3],
+                                [ 4, 14],
+                                [15, 16],
+                                [17, 26],
+                                [27, 28],
+                                [29, 38],
+                                [41, 42],
+                                [42, 50],
+                                [52, 54],
+                                [62, 63]],
+                    'seg_info': [[ 1,  2,  5,  6,  9, 10, 13],
+                                [ 3,  4,  7,  8, 11, 12],
+                                [14, 15, 18, 19, 22, 23],
+                                [16, 17, 20, 21, 24, 25],
+                                [26, 27, 30, 31, 34, 35],
+                                [28, 29, 32, 33, 36, 37],
+                                [38, 39, 40, 41, 43, 44],
+                                [42, 45, 46, 47, 48, 49],
+                                [50, 51, 52, 53, 55, 56, 57, 58, 59, 60],
+                                [54, 61, 62, 67, 68, 69, 70],
+                                [63, 64, 65, 66, 71]],
+                    'term': [13, 49],
+                    'repeat': [5]
+                },
+
+                {
+                    'name':'nafiA',
+                    'atom':[7, 7],
+                    'charge':[1, -1],
+                    'connect_num':[0, 1],
+                    'connect':[[ 2,  3]],
+                    'seg_info': [[ 1,  2,  5,  6,  9, 10, 13],
+                                [ 3,  4,  7,  8, 11, 12, 14]],
+                    'term': [13, 14],
+                },
+
+                {
+                    'name':'nafiAl',
+                    'atom':[7, 7],
+                    'charge':[1, -1],
+                    'connect_num':[0, 1],
+                    'connect':[[ 2,  3]],
+                    'seg_info': [[ 1,  2,  5,  6,  9, 10, 13],
+                                [ 3,  4,  7,  8, 11, 12, 14]],
+                    'term': [14],
+                },
+
+                {
+                    'name':'nafiAT2',
+                    'atom':[7, 7],
+                    'charge':[1, -1],
+                    'connect_num':[0, 1],
+                    'connect':[[ 2,  3]],
+                    'seg_info': [[ 1,  2,  5,  6,  9, 10, 13],
+                                [ 3,  4,  7,  8, 11, 12, 14]],
+                    'term': [14],
+                }
+
+        ]
