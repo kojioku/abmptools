@@ -43,14 +43,8 @@ python setup.py install
 
 ## main 内ファイル構成
 
-set_monomer.py
-getreverse.py
-getudfinfo.py
-udf_to_pdb.py
-checkrun.py
-
 ## example
 python set_monomer -all
-python getreverse.py dpd_@@.bdf 7.1
+python getreverse.py dpd_xxx.bdf 7.1
 
 

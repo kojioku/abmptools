@@ -8,10 +8,14 @@ import re
 import time
 import copy
 import fcewsmb.udf_io as mbu
+import fcews.abinit_io as fab
+import fcewsmb.udfcreate as ufc
+import rmdpd.udfrm_io as rud
 # Matrix operation
 
-class rmap_fmo(mbu.udf_io):
+class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
     def __init__(self):
+        # super().__init__(mainpath)
         pass
 
     def getendatom(self, connect, term):
@@ -219,7 +223,7 @@ class rmap_fmo(mbu.udf_io):
 
         return poly_conf
 
-    def make_abinput_rmap(fname, molnamelist, rec, path, atomnums):
+    def make_abinput_rmap(self, fname, molnamelist, rec, path, atomnums):
         # print make_input_param
 
         # fragment configure reading
@@ -258,7 +262,7 @@ class rmap_fmo(mbu.udf_io):
                     nameid.append(j)
         print("molnameid", nameid)
         # fragment body
-        ajf_fragment = self.write_frag_section(
+        ajf_fragment = self.writemb_frag_section(
             [frag_atom, frag_charge, frag_connect_num, frag_connect, seg_info],
             nameid)
         ajf_fragment = ajf_fragment[:-1]
@@ -290,7 +294,7 @@ class rmap_fmo(mbu.udf_io):
 
         ajf_parameter[1] = """'pdb/""" + name + """.pdb'"""
         ajf_parameter[2] = """'""" + name + '-' + \
-            ajf_method + '-' + ajf_basis_set[1:-1] + """.cpf'"""
+            self.ajf_method + '-' + self.ajf_basis_set[1:-1] + """.cpf'"""
         ajf_body = self.gen_ajf_body(ajf_parameter)
         print(ajf_body, file=ajf_file)
 
@@ -299,12 +303,14 @@ class rmap_fmo(mbu.udf_io):
     def getcontact_rmapfmo(self, rec, uobj, totalMol, inmol, path,  molname, oname, tgtpos, criteria):
 
         uobj.jump(rec)
+        self.moveintocell_rec(_udf_, rec, totalMol)
+
         cell = uobj.get("Structure.Unit_Cell.Cell_Size")
         print("totalmol:",totalMol, "rec", rec)
         # getmolatomnum(_udf_, totalMol)
 
         index = [ i for i in range(totalMol)]
-        molnamelist_orig = self.getnamelist(index, uobj)
+        molnamelist_orig = self.getnamelist(index, uobj, totalMol)
         # print (molnamelist)
 
         # start
@@ -383,22 +389,25 @@ class rmap_fmo(mbu.udf_io):
 
         #fmo param
         self.ajf_method = 'MP2'
-        self.ajf_basis_set = "'6-31Gdag'"
+        self.ajf_basis_set = '6-31Gdag'
         self.solv_flag = False  # True -> in water , False -> in vacuum
-
+        self.verflag = True
+        self.memory = 3000
+        self.npro = 8
+        self.para_job = 1
         # molnamelist: name list for each molecules
         # oname = 'mdout'
-        make_abinput_rmap(molname, molnamelist, oname, path, atomnums)
+        self.make_abinput_rmap(molname, molnamelist, oname, path, atomnums)
         # monomer structure
 
 
-    # def write_frag_section(param, nameid):
+    # def write_frag_section(self, param, nameid):
     #     frag_atom = param[0]
     #     frag_charge = param[1]
     #     frag_connect_num = param[2]
     #     frag_connect = param[3]
     #     seg_info = param[4]
-    #
+
     #     ajf_fragment = ''
     #     # fragment atom
     #     print(frag_atom)
@@ -411,7 +420,7 @@ class rmap_fmo(mbu.udf_io):
     #                     ajf_fragment += '\n'
     #     if count % 10 != 0:
     #         ajf_fragment += '\n'
-    #
+
     #     # fragment charge
     #     count = 0
     #     for i in range(len(nameid)):
@@ -422,7 +431,7 @@ class rmap_fmo(mbu.udf_io):
     #                 ajf_fragment += '\n'
     #     if count % 10 != 0:
     #         ajf_fragment += '\n'
-    #
+
     #     # fragment connect num
     #     count = 0
     #     for i in range(len(nameid)):
@@ -433,7 +442,7 @@ class rmap_fmo(mbu.udf_io):
     #                 ajf_fragment += '\n'
     #     if count % 10 != 0:
     #         ajf_fragment += '\n'
-    #
+
     #     # fragment body
     #     atom_count = 0
     #     for i in range(len(nameid)):
@@ -449,7 +458,7 @@ class rmap_fmo(mbu.udf_io):
     #             if icount % 10 != 0:
     #                 ajf_fragment += '\n'
     #         atom_count += sum(frag_atom[nameid[i]])
-    #
+
     #     print (atom_count)
     #     count = 0
     #     print (count)
@@ -468,20 +477,20 @@ class rmap_fmo(mbu.udf_io):
     #         count += sum(frag_atom[nameid[i]])
     #     return ajf_fragment
 
-    if __name__ == "__main__":
-        # main
-        argvs = sys.argv
-        fname = str(argvs[1])
-        oname = str(argvs[2])
-        _udf_ = UDFManager(fname)
+if __name__ == "__main__":
+    # main
+    argvs = sys.argv
+    fname = str(argvs[1])
+    oname = str(argvs[2])
+    _udf_ = UDFManager(fname)
 
-        totalMol, totalRec = self.gettotalmol_rec(_udf_)
-        self.moveintocell(_udf_, totalRec, totalMol)
+    obj = rmap_fmo()
+    totalMol, totalRec = obj.gettotalmol_rec(_udf_)
 
-        tgtpos = [20.0, 20.0, 20.0]
-        criteria = 50.0
-        molname = ['nafion', 'Bulk_water']
-        path = ['.', '.']
+    tgtpos = [20.0, 20.0, 20.0]
+    criteria = 50.0
+    molname = ['nafion', 'Bulk_water']
+    path = ['.', '.']
 
-        self.getcontact_rmapfmo(
-            totalRec-1, _udf_, totalMol, totalMol, path, molname, oname, tgtpos, criteria)
+    obj.getcontact_rmapfmo(
+        totalRec-1, _udf_, totalMol, totalMol, path, molname, oname, tgtpos, criteria)
