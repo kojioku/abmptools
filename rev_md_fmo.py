@@ -15,7 +15,7 @@ import rmdpd.udfrm_io as rud
 
 class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
     def __init__(self):
-        # super().__init__(mainpath)
+        super().__init__()
         pass
 
     def getendatom(self, connect, term):
