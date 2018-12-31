@@ -292,9 +292,9 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         ajf_file_name = path[0] + "/" + path[1] + "/" + name + ".ajf"
         ajf_file = open(ajf_file_name, 'w')
 
-        ajf_parameter[1] = """'pdb/""" + name + """.pdb'"""
-        ajf_parameter[2] = """'""" + name + '-' + \
-            self.ajf_method + '-' + self.ajf_basis_set[1:-1] + """.cpf'"""
+        ajf_parameter[1] = "'pdb/" + name + ".pdb'"
+        ajf_parameter[2] = "'" + name + '-' + \
+            self.ajf_method + '-' + self.ajf_basis_set + ".cpf'"
         ajf_body = self.gen_ajf_body(ajf_parameter)
         print(ajf_body, file=ajf_file)
 
@@ -388,8 +388,9 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         self.Exportardpos(opath, oname, index, posMol, typenameMol)
 
         #fmo param
-        self.ajf_method = 'MP2'
+        self.ajf_method = 'HF'
         self.ajf_basis_set = '6-31Gdag'
+        self.cpfflag = True
         self.solv_flag = False  # True -> in water , False -> in vacuum
         self.verflag = True
         self.memory = 3000
@@ -412,7 +413,7 @@ if __name__ == "__main__":
     totalMol, totalRec = obj.gettotalmol_rec(_udf_)
 
     tgtpos = [20.0, 20.0, 20.0]
-    criteria = 50.0
+    criteria = 10.0
     molname = ['nafion', 'Bulk_water']
     path = ['.', '.']
 
