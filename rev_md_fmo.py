@@ -16,7 +16,57 @@ import rmdpd.udfrm_io as rud
 class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
     def __init__(self):
         super().__init__()
+        self.ajf_method = 'HF'
+        self.ajf_basis_set = '6-31Gdag'
+        self.cpfflag = True
+        self.solv_flag = False  # True -> in water , False -> in vacuum
+        self.verflag = True
+        self.memory = 3000
+        self.npro = 8
+        self.para_job = 1
+        self.cutmode = 'sphere'
         pass
+
+    def setrfmoparam(self, param_rfmo):
+        try:
+            self.cutmode = param_rfmo['cutmode']
+        except KeyError:
+            self.cutmode = 'sphere'
+
+        try:
+            self.ajf_method = param_rfmo['ajf_method']
+        except KeyError:
+            self.ajf_method = 'HF'
+
+        try:
+            self.ajf_basis_set = param_rfmo['ajf_basis_set']
+        except KeyError:
+            self.ajf_basis_set = '6-31Gdag'
+
+        try:
+            self.cpfflag = param_rfmo['cpfflag']
+        except KeyError:
+            self.cpfflag = True
+
+        try:
+            self.solv_flag = param_rfmo['solv_flag']
+        except KeyError:
+            self.solv_flag = False
+
+        try:
+            self.verflag = param_rfmo['verflag']
+        except KeyError:
+            self.verflag = True
+
+        try:
+            self.memory = param_rfmo['memory']
+        except KeyError:
+            self.memory = 3000
+
+        try:
+            self.npro = param_rfmo['npro']
+        except KeyError:
+            self.npro = 8
 
     def getendatom(self, connect, term):
         flag = False
@@ -328,7 +378,7 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         # print (posMol_orig)
 
 
-        # -- 重心位置が範囲内かで絞る方法 --
+        # 1. -- 重心位置が範囲内かで絞る方法 --
         # centerOfMol = []
         # for i in range(len(posMol_orig)):
         #     centerOfMol.append(getCenter(posMol_orig[i]))
@@ -346,16 +396,34 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         #     if distlist[i] < criteria:
         #         neighborindex.append(i)
 
-        # -- 範囲内に原子が入っているかで絞る方法 --
+        # 2. -- 範囲内に原子が入っているかで絞る方法 --
+        if self.cutmode == 'sphere':
+            print('sphere mode')
+            # -- get neighbor mol --
+            neighborindex = []
+            for i in range(len(posMol_orig)):
+                for j in range(len(posMol_orig[i])):
+                    dist = self.getdist(tgtpos, posMol_orig[i][j])
+                    if dist < criteria:
+                        neighborindex.append(i)
+                        break
 
-        # -- get neighbor mol --
-        neighborindex = []
-        for i in range(len(posMol_orig)):
-            for j in range(len(posMol_orig[i])):
-                dist = self.getdist(tgtpos, posMol_orig[i][j])
-                if dist < criteria:
-                    neighborindex.append(i)
-                    break
+        # 3. -- 球状でなくて正方形で絞る方法
+        if self.cutmode == 'cube':
+            print('cube mode')
+            # -- get neighbor mol --
+            tgtx = [tgtpos[0] - criteria[0], tgtpos[0] + criteria[0]]
+            tgty = [tgtpos[1] - criteria[1], tgtpos[1] + criteria[1]]
+            tgtz = [tgtpos[2] - criteria[2], tgtpos[2] + criteria[2]]
+
+            neighborindex = []
+            for i in range(len(posMol_orig)):
+                for j in range(len(posMol_orig[i])):
+                    if tgtx[0] < posMol_orig[i][j][0] < tgtx[1] and \
+                       tgty[0] < posMol_orig[i][j][1] < tgty[1] and \
+                       tgtz[0] < posMol_orig[i][j][2] < tgtz[1]:
+                        neighborindex.append(i)
+                        break
 
         print(neighborindex)
         # print vec
@@ -388,14 +456,14 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         self.Exportardpos(opath, oname, index, posMol, typenameMol)
 
         #fmo param
-        self.ajf_method = 'HF'
-        self.ajf_basis_set = '6-31Gdag'
-        self.cpfflag = True
-        self.solv_flag = False  # True -> in water , False -> in vacuum
-        self.verflag = True
-        self.memory = 3000
-        self.npro = 8
-        self.para_job = 1
+        # self.ajf_method = 'HF'
+        # self.ajf_basis_set = '6-31Gdag'
+        # self.cpfflag = True
+        # self.solv_flag = False  # True -> in water , False -> in vacuum
+        # self.verflag = True
+        # self.memory = 3000
+        # self.npro = 8
+        # self.para_job = 1
         # molnamelist: name list for each molecules
         # oname = 'mdout'
         self.make_abinput_rmap(molname, molnamelist, oname, path, atomnums)
@@ -411,11 +479,16 @@ if __name__ == "__main__":
 
     obj = rmap_fmo()
     totalMol, totalRec = obj.gettotalmol_rec(_udf_)
-
-    tgtpos = [20.0, 20.0, 20.0]
-    criteria = 10.0
-    molname = ['nafion', 'Bulk_water']
     path = ['.', '.']
+
+    param_read = {}
+    exec(open("input_param", 'r').read(), param_read)
+    param_rfmo = param_read['param']
+    obj.setrfmoparam(param_rfmo)
+
+    tgtpos = param_rfmo['tgtpos']
+    criteria = param_rfmo['criteria']
+    molname = param_rfmo['molname']
 
     obj.getcontact_rmapfmo(
         totalRec-1, _udf_, totalMol, totalMol, path, molname, oname, tgtpos, criteria)

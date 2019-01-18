@@ -1,0 +1,21 @@
+param = {
+            # cut setting
+            'cutmode': 'cube',
+            'tgtpos': [20.0, 20.0, 20.0],
+            'criteria': [20.0, 20.0, 25.0],
+
+            # 'cutmode': 'sphere',
+            # 'criteria': 25.0,
+
+            'molname': ['POPC', 'Bulk_water'],
+            # 'molname': ['nafion', 'Bulk_water'],
+
+            'ajf_method': 'HF',
+            'ajf_basis_set': '6-31Gdag',
+            'cpfflag': True,
+            'solv_flag': False,  # True -> in water , False -> in vacuum,
+            'verflag': True,
+            'memory': 3000,
+            'npro': 8,
+        }
+
