@@ -25,6 +25,7 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         self.npro = 8
         self.para_job = 1
         self.cutmode = 'sphere'
+        self.piedaflag = True
         pass
 
     def setrfmoparam(self, param_rfmo):
@@ -52,6 +53,11 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
             self.solv_flag = param_rfmo['solv_flag']
         except KeyError:
             self.solv_flag = False
+
+        try:
+            self.piedaflag = param_rfmo['piedaflag']
+        except KeyError:
+            self.piedaflag = True
 
         try:
             self.verflag = param_rfmo['verflag']
@@ -350,6 +356,162 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
 
         return
 
+    def getpdbinfo(self, fname):
+
+        print(fname)
+        lines = open(fname,'r').readlines()
+        molnames = []
+        poss = []
+        atypenames = []
+        atomcount = 0
+        for line in lines:
+            itemlist = line.split()
+            # print(itemlist)
+            if len(itemlist) < 3:
+                continue
+            if itemlist[0] == 'ATOM' or itemlist[0] == 'HETATM':
+                molname = itemlist[3]
+                molnames.append(molname)
+                poss.append([float(e) for e in itemlist[5:8]])
+                atypenames.append(itemlist[2])
+                atomcount += 1
+            # over HETATM10000
+            elif len(itemlist[0]) > 6 and itemlist[0][0:6] == 'HETATM':
+                molname = itemlist[2]
+                molnames.append(molname)
+                poss.append([float(e) for e in itemlist[4:7]])
+                atypenames.append(itemlist[1])
+                atomcount += 1
+
+        # print(poss)
+        molname_set = set(molnames)
+        totalatom = atomcount
+        print('totalatom', totalatom)
+        print(molname_set)
+        mol_confs = []
+        for molname in molname_set:
+            mol_confs.append(self.config_read(molname, 0))
+        print(mol_confs)
+        # print(molnames)
+        molnums = {}
+        for molconf in mol_confs:
+            molnums[molconf['name']] = sum(molconf['atom'])
+        print(molnums)
+
+        #search molhead
+        i = 0
+        name_permol = []
+        while True:
+            name_permol.append(molnames[i])
+            atomnum = molnums[molnames[i]]
+            i += atomnum
+            if i + 1> totalatom:
+                break
+            # print(i + 1, molnames[i])
+        print('molnames_permol', name_permol)
+        totalMol = len(name_permol)
+
+        posMols = []
+        count = 0
+        print('totalposs', len(poss))
+        for i in range(totalMol):
+            posMol = []
+            for j in range(molnums[name_permol[i]]):
+                posMol.append(poss[count])
+                count += 1
+            posMols.append(posMol)
+        # print(posMols)
+
+        typenameMols = []
+        count = 0
+        for i in range(totalMol):
+            typenameMol = []
+            for j in range(molnums[name_permol[i]]):
+                typenameMol.append(atypenames[count])
+                count += 1
+            typenameMols.append(typenameMol)
+        # print(typenameMols)
+
+        return totalMol, typenameMols, name_permol, posMols
+
+
+    def getcontact_rmapfmopdb(self, path,  molname, fname, oname, tgtpos, criteria):
+        self.mainpath = '.'
+
+        # print(path, molname, fname, oname, tgtpos, criteria)
+        totalMol, atomnameMol_orig, molnamelist_orig, posMol_orig = self.getpdbinfo(fname)
+
+        print("totalmol:",totalMol)
+        # getmolatomnum(_udf_, totalMol)
+
+
+        # 2. -- 範囲内に原子が入っているかで絞る方法 --
+        if self.cutmode == 'sphere':
+            print('sphere mode')
+            # -- get neighbor mol --
+            neighborindex = []
+            for i in range(len(posMol_orig)):
+                for j in range(len(posMol_orig[i])):
+                    dist = self.getdist(tgtpos, posMol_orig[i][j])
+                    if dist < criteria:
+                        neighborindex.append(i)
+                        break
+
+        # 3. -- 球状でなくて正方形で絞る方法
+        if self.cutmode == 'cube':
+            print('cube mode')
+            # -- get neighbor mol --
+            tgtx = [tgtpos[0] - criteria[0], tgtpos[0] + criteria[0]]
+            tgty = [tgtpos[1] - criteria[1], tgtpos[1] + criteria[1]]
+            tgtz = [tgtpos[2] - criteria[2], tgtpos[2] + criteria[2]]
+
+            neighborindex = []
+            for i in range(len(posMol_orig)):
+                for j in range(len(posMol_orig[i])):
+                    if tgtx[0] < posMol_orig[i][j][0] < tgtx[1] and \
+                       tgty[0] < posMol_orig[i][j][1] < tgty[1] and \
+                       tgtz[0] < posMol_orig[i][j][2] < tgtz[1]:
+                        neighborindex.append(i)
+                        break
+
+        print('neighborindex', neighborindex)
+        # print vec
+        # print("cellsize", cell)
+        posMol = []
+        atomnameMol = []
+        molnamelist = []
+        # for i in range(totalMol):
+        for i in neighborindex:
+        # for i in range(1, 2):
+            posMol.append(posMol_orig[i])
+            atomnameMol.append(atomnameMol_orig[i])
+            molnamelist.append(molnamelist_orig[i])
+
+        # get atomnum
+        atomnums = []
+        for i in range(len(molname)):
+            for j in range(totalMol):
+            # for j in range(1):
+                # print (molname[i], molnamelist_orig[j])
+                if molname[i] == molnamelist_orig[j]:
+                    atomnums.append(len(posMol_orig[j]))
+                    break
+        print ('atomnums', atomnums)
+
+        # print (posMol)
+        opath = 'pdb'
+        # oname = "mdout"
+        if os.path.exists(opath) is False:
+            print(opath)
+            subprocess.call(["mkdir", opath])
+
+        index = [i for i in range(len(posMol))]
+        self.exportardpdb(opath + '/' + oname, index, posMol, atomnameMol, molnamelist)
+
+        self.make_abinput_rmap(molname, molnamelist, oname, path, atomnums)
+        # monomer structure
+
+
     def getcontact_rmapfmo(self, rec, uobj, totalMol, inmol, path,  molname, oname, tgtpos, criteria):
 
         uobj.jump(rec)
@@ -366,11 +528,13 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         # start
         posMol_orig = []
         typenameMol_orig = []
+        atomname_orig = []
 
         t1 = time.time()
         for i in range(totalMol):
             posMol_orig.append(self.getposmol(uobj, i))
             typenameMol_orig.append(self.getAtomtypename(uobj, i))
+            atomname_orig.append(self.getnameAtom(uobj, i))
         t2 = time.time()
         print("elapsed_time:", t2-t1)
 
@@ -431,12 +595,14 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         posMol = []
         typenameMol = []
         molnamelist = []
+        atomnameMol = []
         # for i in range(totalMol):
         for i in neighborindex:
         # for i in range(1, 2):
             posMol.append(posMol_orig[i])
             typenameMol.append(typenameMol_orig[i])
             molnamelist.append(molnamelist_orig[i])
+            atomnameMol.append(atomname_orig[i])
 
         # get atomnum
         atomnums = []
@@ -453,7 +619,8 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         opath = 'pdb'
         # oname = "mdout"
         index = [i for i in range(len(posMol))]
-        self.Exportardpos(opath, oname, index, posMol, typenameMol)
+        self.Exportardpos(opath, oname, index, posMol, atomnameMol)
+        self.exportardpdb(opath + '/' + oname, index, posMol, atomnameMol, molnamelist)
 
         #fmo param
         # self.ajf_method = 'HF'
@@ -468,6 +635,52 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         # oname = 'mdout'
         self.make_abinput_rmap(molname, molnamelist, oname, path, atomnums)
         # monomer structure
+
+
+    def exportardpdb(self, out_file, mollist, posMols, nameAtom, molnames_orig):
+
+        ohead, ext = os.path.splitext(out_file)
+        out_file = ohead + '.pdb'
+
+        # # Export position of mol
+        # head, ext = os.path.splitext(str(iname))
+
+        molids = sorted(set(molnames_orig), key=molnames_orig.index)
+        print(molids)
+
+        molnames = []
+        for molname in molnames_orig:
+            for i in range(len(molids)):
+                if molname == molids[i]:
+                    molnames.append(i)
+
+        # print(molnames)
+        # header
+        # print(out_file)
+        f = open(out_file, "w", newline = "\n")
+        print("COMPND    " + out_file, file=f)
+        print("AUTHOR    " + "GENERATED BY python script in FMOrmap", file=f)
+        f.close()
+
+
+        # aaa = [0.8855]
+        # print '{0[0]:.3f}'.format(aaa)
+        # print pos[0]
+        f = open(out_file, "a+", newline = "\n")
+        tatomlab = 0
+        print('aaaaaaaaa', mollist)
+        for i in mollist:
+            molname = str(molnames[i])
+            Molnum = i
+            posMol = posMols[i]
+            for j in range(len(posMol)):
+                tatomlab += 1
+                list = ["HETATM", str(tatomlab), nameAtom[i][j], molname.zfill(3), str(i), '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), "1.00", "0.00", nameAtom[i][j]]
+                print('{0[0]:<6}{0[1]:>5}{0[2]:>4}{0[3]:>5}{0[4]:>6}{0[5]:>12}{0[6]:>8}{0[7]:>8}{0[8]:>6}{0[9]:>6}{0[10]:>12}'.format(list), file=f)
+        # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
+
+        print("END", file=f)
+        f.close()
 
 
 if __name__ == "__main__":
