@@ -382,6 +382,23 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
                 poss.append([float(e) for e in itemlist[4:7]])
                 atypenames.append(itemlist[1])
                 atomcount += 1
+            head=line[0:5]
+            num=line[6:10]
+            atom=line[12:15]
+            lab=line[16]
+            res=line[17:19]
+            chain=line[21]
+            resname=line[22:25]
+            code=line[26]
+            xcoord=line[30:37]
+            ycoord=line[38:45]
+            zcoord=line[46:53]
+            occ=line[54:59]
+            temp=line[60:65]
+            amark=line[76:77]
+            charge=line[78:79]
+
+
 
         # print(poss)
         molname_set = set(molnames)
@@ -676,11 +693,30 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
             for j in range(len(posMol)):
                 tatomlab += 1
                 list = ["HETATM", str(tatomlab), nameAtom[i][j], molname.zfill(3), str(i), '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), "1.00", "0.00", nameAtom[i][j]]
-                print('{0[0]:<6}{0[1]:>5}{0[2]:>4}{0[3]:>5}{0[4]:>6}{0[5]:>12}{0[6]:>8}{0[7]:>8}{0[8]:>6}{0[9]:>6}{0[10]:>12}'.format(list), file=f)
+                print('{0[0]:<6}{0[1]:>5} {0[2]:>2}   {0[3]:>3}  {0[4]:>4}    {0[5]:>8}{0[6]:>8}{0[7]:>8}{0[8]:>6}{0[9]:>6}{0[10]:>12}'.format(list), file=f)
         # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
 
         print("END", file=f)
         f.close()
+
+#1 1 – 6  HETATM
+#2 7 – 11 原子の通し番号
+# blank 1
+#3 13 – 16    原子名
+#4 17  Alternate location識別子
+#5 18 - 20 残基名
+# blank 1
+#6 22  鎖名
+#7 23 - 26 残基番号
+#8 27  残基の挿入コード
+# blank 3
+#9 31 - 38 原子のX座標の値（Å単位）
+#10 39 - 46 原子のY座標の値（Å単位）
+#11 47 - 54 原子のZ座標の値（Å単位）
+#12 55 - 60 占有率
+#13 61 - 66 温度因子
+#14 77 - 78 元素記号
+#15 79 - 80 原子の電荷
 
 
 if __name__ == "__main__":
