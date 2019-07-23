@@ -363,42 +363,69 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         molnames = []
         poss = []
         atypenames = []
+        heads = []
+        molnames = []
+        atypenames = []
+        labs = []
+        chains = []
+        resnums = []
+        codes = []
+        poss = []
+        occs = []
+        temps = []
+        amarks = []
+        charges = []
+
         atomcount = 0
         for line in lines:
             itemlist = line.split()
             # print(itemlist)
             if len(itemlist) < 3:
                 continue
-            if itemlist[0] == 'ATOM' or itemlist[0] == 'HETATM':
-                molname = itemlist[3]
-                molnames.append(molname)
-                poss.append([float(e) for e in itemlist[5:8]])
-                atypenames.append(itemlist[2])
-                atomcount += 1
-            # over HETATM10000
-            elif len(itemlist[0]) > 6 and itemlist[0][0:6] == 'HETATM':
-                molname = itemlist[2]
-                molnames.append(molname)
-                poss.append([float(e) for e in itemlist[4:7]])
-                atypenames.append(itemlist[1])
-                atomcount += 1
-            head=line[0:5]
-            num=line[6:10]
-            atom=line[12:15]
-            lab=line[16]
-            res=line[17:19]
-            chain=line[21]
-            resname=line[22:25]
-            code=line[26]
-            xcoord=line[30:37]
-            ycoord=line[38:45]
-            zcoord=line[46:53]
-            occ=line[54:59]
-            temp=line[60:65]
-            amark=line[76:77]
-            charge=line[78:79]
+            if line[0:6] == 'HETATM' or line[0:4] == 'ATOM':
+            # if itemlist[0] == 'ATOM' or itemlist[0] == 'HETATM':
+            #     molname = itemlist[3]
+            #     molnames.append(molname)
+            #     poss.append([float(e) for e in itemlist[5:8]])
+            #     # atypenames.append(itemlist[2])
+            #     atypenames.append(line[12:15])
 
+            #     atomcount += 1
+            # # over HETATM10000
+            # elif len(itemlist[0]) > 6 and itemlist[0][0:6] == 'HETATM':
+            #     molname = itemlist[2]
+            #     molnames.append(molname)
+            #     poss.append([float(e) for e in itemlist[4:7]])
+            #     # atypenames.append(itemlist[1])
+            #     atypenames.append(line[12:15])
+                atomcount += 1
 
+                head=line[0:6]
+                num=line[6:11]
+                atypename=line[12:16]
+                lab=line[16]
+                res=line[17:20].strip()
+                chain=line[21]
+                resnum=line[22:26]
+                code=line[26]
+                pos=[float(line[30:38].strip()), float(line[38:45].strip()), float(line[46:53].strip())]
+                occ=line[54:60]
+                temp=line[60:66]
+                amark=line[76:78]
+                charge=line[78:80]
+
+                heads.append(head)
+                molnames.append(res)
+                atypenames.append(atypename)
+                labs.append(lab)
+                chains.append(chain)
+                resnums.append(resnum)
+                codes.append(code)
+                poss.append(pos)
+                occs.append(occ)
+                temps.append(temp)
+                amarks.append(amark)
+                charges.append(charge)
 
         # print(poss)
         molname_set = set(molnames)
@@ -428,35 +455,26 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         print('molnames_permol', name_permol)
         totalMol = len(name_permol)
 
-        posMols = []
-        count = 0
-        print('totalposs', len(poss))
-        for i in range(totalMol):
-            posMol = []
-            for j in range(molnums[name_permol[i]]):
-                posMol.append(poss[count])
-                count += 1
-            posMols.append(posMol)
-        # print(posMols)
+        posMols = self.getpermol(totalMol, molnums, name_permol, poss)
+        typenameMols = self.getpermol(totalMol, molnums, name_permol, atypenames)
+        headMols = self.getpermol(totalMol, molnums, name_permol, heads)
+        labMols = self.getpermol(totalMol, molnums, name_permol, labs)
+        chainMols  = self.getpermol(totalMol, molnums, name_permol, chains)
+        resnumMols  = self.getpermol(totalMol, molnums, name_permol, resnums)
+        codeMols  = self.getpermol(totalMol, molnums, name_permol, codes)
+        occMols  = self.getpermol(totalMol, molnums, name_permol, occs)
+        tempMols  = self.getpermol(totalMol, molnums, name_permol, temps)
+        amarkMols  = self.getpermol(totalMol, molnums, name_permol, amarks)
+        chargeMols = self.getpermol(totalMol, molnums, name_permol, charges)
 
-        typenameMols = []
-        count = 0
-        for i in range(totalMol):
-            typenameMol = []
-            for j in range(molnums[name_permol[i]]):
-                typenameMol.append(atypenames[count])
-                count += 1
-            typenameMols.append(typenameMol)
-        # print(typenameMols)
-
-        return totalMol, typenameMols, name_permol, posMols
+        return totalMol, typenameMols, name_permol, posMols, headMols, labMols, chainMols ,resnumMols ,codeMols ,occMols ,tempMols ,amarkMols ,chargeMols
 
 
     def getcontact_rmapfmopdb(self, path,  molname, fname, oname, tgtpos, criteria):
         self.mainpath = '.'
 
         # print(path, molname, fname, oname, tgtpos, criteria)
-        totalMol, atomnameMol_orig, molnamelist_orig, posMol_orig = self.getpdbinfo(fname)
+        totalMol, atomnameMol_orig, molnamelist_orig, posMol_orig, heads_orig, labs_orig, chains_orig ,resnums_orig ,codes_orig ,occs_orig ,temps_orig ,amarks_orig ,charges_orig = self.getpdbinfo(fname)
 
         print("totalmol:",totalMol)
         # getmolatomnum(_udf_, totalMol)
@@ -497,12 +515,30 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         posMol = []
         atomnameMol = []
         molnamelist = []
+        heads = []
+        labs = []
+        chains = []
+        resnums = []
+        codes = []
+        occs = []
+        temps = []
+        amarks = []
+        charges = []
         # for i in range(totalMol):
         for i in neighborindex:
         # for i in range(1, 2):
             posMol.append(posMol_orig[i])
             atomnameMol.append(atomnameMol_orig[i])
             molnamelist.append(molnamelist_orig[i])
+            heads.append(heads_orig[i])
+            labs.append(labs_orig[i])
+            chains.append(chains_orig[i])
+            resnums.append(resnums_orig[i])
+            codes.append(codes_orig[i])
+            occs.append(occs_orig[i])
+            temps.append(temps_orig[i])
+            amarks.append(amarks_orig[i])
+            charges.append(charges_orig[i])
 
         # get atomnum
         atomnums = []
@@ -523,7 +559,7 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
             subprocess.call(["mkdir", opath])
 
         index = [i for i in range(len(posMol))]
-        self.exportardpdb(opath + '/' + oname, index, posMol, atomnameMol, molnamelist)
+        self.exportardpdbfull(opath + '/' + oname, index, posMol, atomnameMol, molnamelist, heads, labs, chains, resnums, codes, occs, temps, amarks, charges)
 
         self.make_abinput_rmap(molname, molnamelist, oname, path, atomnums)
         # monomer structure
@@ -653,6 +689,64 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         self.make_abinput_rmap(molname, molnamelist, oname, path, atomnums)
         # monomer structure
 
+    def exportardpdbfull(self, out_file, mollist, posMols, nameAtom, molnames, heads, labs, chains, resnums, codes, occs, temps, amarks, charges):
+
+        ohead, ext = os.path.splitext(out_file)
+        out_file = ohead + '.pdb'
+
+        # # Export position of mol
+        # head, ext = os.path.splitext(str(iname))
+
+        molid = sorted(set(molnames), key=molnames.index)
+        print(molid)
+
+#         molids = []
+#         for molname in molnames:
+#             for i in range(len(molid)):
+#                 if molname == molid[i]:
+#                     molids.append(i)
+        # print(molnames)
+
+        # header
+        # print(out_file)
+        f = open(out_file, "w", newline = "\n")
+        print("COMPND    " + out_file, file=f)
+        print("AUTHOR    " + "GENERATED BY python script in FMOrmap", file=f)
+        f.close()
+
+        f = open(out_file, "a+", newline = "\n")
+        tatomlab = 0
+        print(mollist)
+        for i in mollist:
+            posMol = posMols[i]
+            for j in range(len(posMol)):
+                tatomlab += 1
+                olist = [heads[i][j], str(tatomlab), nameAtom[i][j], labs[i][j], molnames[i], chains[i][j], str(i), codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
+                print('{0[0]:<6}{0[1]:>5} {0[2]:>4}{0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'.format(olist), file=f)
+        # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
+
+        print("END", file=f)
+        f.close()
+
+    #1 1 – 6  HETATM
+    #2 7 – 11 原子の通し番号
+    # blank 1
+    #3 13 – 16    原子名
+    #4 17  Alternate location識別子
+    #5 18 - 20 残基名
+    # blank 1
+    #6 22  鎖名
+    #7 23 - 26 残基番号
+    #8 27  残基の挿入コード
+    # blank 3
+    #9 31 - 38 原子のX座標の値（Å単位）
+    #10 39 - 46 原子のY座標の値（Å単位）
+    #11 47 - 54 原子のZ座標の値（Å単位）
+    #12 55 - 60 占有率
+    #13 61 - 66 温度因子
+    #14 77 - 78 元素記号
+    #15 79 - 80 原子の電荷
+
 
     def exportardpdb(self, out_file, mollist, posMols, nameAtom, molnames_orig):
 
@@ -679,13 +773,9 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
         print("AUTHOR    " + "GENERATED BY python script in FMOrmap", file=f)
         f.close()
 
-
-        # aaa = [0.8855]
-        # print '{0[0]:.3f}'.format(aaa)
-        # print pos[0]
         f = open(out_file, "a+", newline = "\n")
         tatomlab = 0
-        print('aaaaaaaaa', mollist)
+        print(mollist)
         for i in mollist:
             molname = str(molnames[i])
             Molnum = i
@@ -698,25 +788,6 @@ class rmap_fmo(fab.abinit_io, ufc.udfcreate, rud.udfrm_io):
 
         print("END", file=f)
         f.close()
-
-#1 1 – 6  HETATM
-#2 7 – 11 原子の通し番号
-# blank 1
-#3 13 – 16    原子名
-#4 17  Alternate location識別子
-#5 18 - 20 残基名
-# blank 1
-#6 22  鎖名
-#7 23 - 26 残基番号
-#8 27  残基の挿入コード
-# blank 3
-#9 31 - 38 原子のX座標の値（Å単位）
-#10 39 - 46 原子のY座標の値（Å単位）
-#11 47 - 54 原子のZ座標の値（Å単位）
-#12 55 - 60 占有率
-#13 61 - 66 温度因子
-#14 77 - 78 元素記号
-#15 79 - 80 原子の電荷
 
 
 if __name__ == "__main__":
