@@ -16,6 +16,7 @@ import rmdpd.udfrm_io as rud
 class pdb_io(fab.abinit_io):
     def __init__(self):
         super().__init__()
+        self.amarkflag = False
         pass
 
 
@@ -94,16 +95,16 @@ class pdb_io(fab.abinit_io):
         molname_set = set(molnames)
         totalatom = atomcount
         print('totalatom', totalatom)
-        print(molname_set)
+        print('molname_set', molname_set)
         mol_confs = []
         for molname in molname_set:
             mol_confs.append(self.config_read(molname, 0))
-        print(mol_confs)
-        # print(molnames)
+        print('mol_confs', mol_confs)
+        print('molnames_atom', molnames)
         molnums = {}
         for molconf in mol_confs:
             molnums[molconf['name']] = sum(molconf['atom'])
-        print(molnums)
+        print('molnums', molnums)
 
         #search molhead
         i = 0
@@ -131,6 +132,19 @@ class pdb_io(fab.abinit_io):
         chargeMols = self.getpermol(totalMol, molnums, name_permol, charges)
 
         return totalMol, typenameMols, name_permol, posMols, headMols, labMols, chainMols ,resnumMols ,codeMols ,occMols ,tempMols ,amarkMols ,chargeMols
+
+
+    def getpermol(self, totalMol, molnums, name_permol, datas):
+        datamols = []
+        count = 0
+        for i in range(totalMol):
+            datamol = []
+            for j in range(molnums[name_permol[i]]):
+                datamol.append(datas[count])
+
+                count += 1
+            datamols.append(datamol)
+        return datamols
 
 
     def exportardpdbfull(self, out_file, mollist, posMols, nameAtom, molnames, heads, labs, chains, resnums, codes, occs, temps, amarks, charges):
@@ -161,13 +175,27 @@ class pdb_io(fab.abinit_io):
         f = open(out_file, "a+", newline = "\n")
         tatomlab = 0
         print(mollist)
-        for i in mollist:
-            posMol = posMols[i]
-            for j in range(len(posMol)):
-                tatomlab += 1
-                olist = [heads[i][j], str(tatomlab), nameAtom[i][j], labs[i][j], molnames[i], chains[i][j], str(i), codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
-                print('{0[0]:<6}{0[1]:>5} {0[2]:>4}{0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'.format(olist), file=f)
-        # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
+
+        if self.amarkflag == False:
+
+            for i in mollist:
+                posMol = posMols[i]
+                for j in range(len(posMol)):
+                    tatomlab += 1
+                    olist = [heads[i][j], str(tatomlab), nameAtom[i][j], labs[i][j], molnames[i], chains[i][j], str(i), codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
+                    print('{0[0]:<6}{0[1]:>5} {0[2]:>4}{0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'.format(olist), file=f)
+            # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
+
+
+        else:
+
+            for i in mollist:
+                posMol = posMols[i]
+                for j in range(len(posMol)):
+                    tatomlab += 1
+                    olist = [heads[i][j], str(tatomlab), amarks[i][j], labs[i][j], molnames[i], chains[i][j], str(i), codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
+                    print('{0[0]:<6}{0[1]:>5} {0[2]:>2}  {0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'.format(olist), file=f)
+            # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
 
         print("END", file=f)
         f.close()
@@ -249,7 +277,7 @@ class pdb_io(fab.abinit_io):
             neighborindex = []
             for i in range(len(posMol_orig)):
                 for j in range(len(posMol_orig[i])):
-                    dist = self.getdist(tgtpos, posMol_orig[i][j])
+                    dist = self.getdist(np.array(tgtpos), np.array(posMol_orig[i][j]))
                     if dist < criteria:
                         neighborindex.append(i)
                         break
@@ -270,6 +298,21 @@ class pdb_io(fab.abinit_io):
                        tgtz[0] < posMol_orig[i][j][2] < tgtz[1]:
                         neighborindex.append(i)
                         break
+
+        # 4. -- 溶質からの距離でスクリーニング --
+#         if self.cutmode == 'around':
+#             print('around mode')
+#             # -- get neighbor mol --
+#             neighborindex = []
+#             solutes = [0, 1]
+#             for k in solutes:
+#                 for l in solute
+#                 for i in range(len(posMol_orig)):
+#                     for j in range(len(posMol_orig[i])):
+#                         dist = self.getdist(np.array(tgtpos), np.array(posMol_orig[i][j]))
+#                         if dist < criteria:
+#                             neighborindex.append(i)
+#                             break
 
         print('neighborindex', neighborindex)
         # print vec
@@ -325,4 +368,45 @@ class pdb_io(fab.abinit_io):
 
         self.make_abinput_rmap(molname, molnamelist, oname, path, atomnums)
         # monomer structure
+
+    def movemoltranspdb(self, posVec, transVec):
+        # Parallel shift
+        posVec = posVec + transVec
+        return posVec
+
+    def getpdbcell(self, fname):
+        f = open(fname, 'r').readlines()
+        cell = []
+        for line in f:
+            items = line.split()
+            if line[0:5] == 'CRYST':
+                cell = [float(items[1]), float(items[2]), float(items[3])]
+                break
+        return cell
+
+    def moveintocellpdb(self, posMol, totalMol, cell):
+        # # Move into cell
+        posintoMol = []
+        cell2 = []
+        print(cell)
+        for i in range(3):
+            cell2.append(cell[i]/2.0)
+        print('cell', cell)
+        for i in range(totalMol):
+            transVec = np.array([0., 0., 0.])  # x,y,z
+            centerOfMol = self.getCenter(posMol[i])
+            for j in range(3):
+                if centerOfMol[j] > cell2[j]:
+                    while centerOfMol[j] > cell2[j]:
+                        centerOfMol[j] = centerOfMol[j] - cell[j]
+                        transVec[j] = transVec[j] - cell[j]
+                elif centerOfMol[j] < -cell2[j]:
+                    while centerOfMol[j] < -cell2[j]:
+                        centerOfMol[j] = centerOfMol[j] + cell[j]
+                        transVec[j] = transVec[j] + cell[j]
+
+            posintoMol.append(self.moveMolTrans(posMol[i], transVec))
+
+        print("move_done.")
+        return posintoMol
 

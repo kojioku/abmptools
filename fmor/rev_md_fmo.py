@@ -293,7 +293,8 @@ class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         nummol_seg = []
 
         for i in range(len(fname)):
-            mol_conf = self.config_read(fname[i], atomnums[i])
+            mol_conf = self.config_read(fname[i], 0)
+            # atominfo is applied from segment_data.dat. So 2nd arg = 0
 
             if mol_conf['repeat'][0] != 1:
                 mol_conf = self.getpolyconf_rmapfmo(mol_conf)
