@@ -20,11 +20,15 @@ if __name__ == "__main__":
     argvs = sys.argv
     fname = str(argvs[1])
     oname, ext = os.path.splitext(fname)
-    oname = oname.split()[-1] + '-moved'
+    if ext != '.pdb':
+        oname = oname + ext + '-moved'
+    else:
+        oname = oname + '-moved'
 
     obj = fr.rmap_fmo()
 
     print('infile:', fname)
+    print('oname:', oname)
     print('centered-molid:', tgtmol - 1)
 
     # get pdbinfo

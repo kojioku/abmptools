@@ -150,14 +150,13 @@ class pdb_io(fab.abinit_io):
 
     def exportardpdbfull(self, out_file, mollist, posMols, nameAtom, molnames, heads, labs, chains, resnums, codes, occs, temps, amarks, charges):
 
-        ohead, ext = os.path.splitext(out_file)
-        out_file = ohead + '.pdb'
+        out_file = out_file + '.pdb'
+        print('outfile', out_file)
 
         # # Export position of mol
         # head, ext = os.path.splitext(str(iname))
-
-        molid = sorted(set(molnames), key=molnames.index)
-        print(molid)
+        # molid = sorted(set(molnames), key=molnames.index)
+        # print(molid)
 
 #         molids = []
 #         for molname in molnames:
