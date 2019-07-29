@@ -30,9 +30,9 @@ if __name__ == "__main__":
     param_rfmo = param_read['param']
     obj.setrfmoparam(param_rfmo)
 
-    tgtpos = param_rfmo['tgtpos']
-    criteria = param_rfmo['criteria']
-    molname = param_rfmo['molname']
+    # tgtpos = param_rfmo['tgtpos']
+    # criteria = param_rfmo['criteria']
+    # molname = param_rfmo['molname']
 
     obj.getcontact_rmapfmo(
-        totalRec-1, _udf_, totalMol, totalMol, path, molname, oname, tgtpos, criteria)
+        totalRec-1, _udf_, totalMol, totalMol, path, oname)

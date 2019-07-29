@@ -1,11 +1,14 @@
 param = {
             # cut setting
-            'cutmode': 'cube',
-            'tgtpos': [20.0, 20.0, 20.0],
-            'criteria': [20.0, 20.0, 25.0],
+            # 'cutmode': 'cube',
+            # 'tgtpos': [20.0, 20.0, 20.0],
+            # 'criteria': [20.0, 20.0, 25.0],
 
             # 'cutmode': 'sphere',
             # 'criteria': 25.0,
+
+            'cutmode': 'around',
+            'criteria': 25.0,
 
             'molname': ['POPC', 'Bulk_water'],
             # 'molname': ['nafion', 'Bulk_water'],

@@ -15,7 +15,6 @@ if __name__ == "__main__":
     argvs = sys.argv
     fname = str(argvs[1])
     oname, ext = os.path.splitext(fname)
-    oname = oname.split()[-1] + '-for_abmp'
 
     obj = fr.rmap_fmo()
     path = ['.', '.']
@@ -25,9 +24,12 @@ if __name__ == "__main__":
     param_rfmo = param_read['param']
     obj.setrfmoparam(param_rfmo)
 
-    tgtpos = param_rfmo['tgtpos']
-    criteria = param_rfmo['criteria']
-    molname = param_rfmo['molname']
-    print(molname)
-    obj.getcontact_rmapfmopdb(
-        path, molname, fname, oname, tgtpos, criteria)
+    if obj.cutmode != 'cube':
+        oname = oname.split()[-1] + '-' + obj.cutmode + '-' + str(obj.criteria) + '-for_abmp'
+
+    else:
+        oname = oname.split()[-1] + '-' + obj.cutmode + '-' + str(obj.criteria[0]) + '-' + str(obj.criteria[1]) + '-' + str(obj.criteria[2]) + '-for_abmp'
+
+    print(obj.molname)
+    print(obj.solutes)
+    obj.getcontact_rmapfmopdb(path, fname, oname)

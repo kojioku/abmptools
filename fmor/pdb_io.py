@@ -17,6 +17,7 @@ class pdb_io(fab.abinit_io):
     def __init__(self):
         super().__init__()
         self.amarkflag = False
+        self.solutes = []
         pass
 
 
@@ -260,7 +261,11 @@ class pdb_io(fab.abinit_io):
         print("END", file=f)
         f.close()
 
-    def getcontact_rmapfmopdb(self, path,  molname, fname, oname, tgtpos, criteria):
+    def getcontact_rmapfmopdb(self, path, fname, oname):
+        molname = self.molname
+        criteria = self.criteria
+        tgtpos = self.tgtpos
+        solutes = self.solutes
         self.mainpath = '.'
 
         # print(path, molname, fname, oname, tgtpos, criteria)
@@ -300,19 +305,30 @@ class pdb_io(fab.abinit_io):
                         break
 
         # 4. -- 溶質からの距離でスクリーニング --
-#         if self.cutmode == 'around':
-#             print('around mode')
-#             # -- get neighbor mol --
-#             neighborindex = []
-#             solutes = [0, 1]
-#             for k in solutes:
-#                 for l in solute
-#                 for i in range(len(posMol_orig)):
-#                     for j in range(len(posMol_orig[i])):
-#                         dist = self.getdist(np.array(tgtpos), np.array(posMol_orig[i][j]))
-#                         if dist < criteria:
-#                             neighborindex.append(i)
-#                             break
+        if self.cutmode == 'around':
+            print('around mode')
+            # -- get neighbor mol --
+            neighborindex = []
+            # solutes = [0, 1]
+            for i in self.solutes:
+                neighborindex.append(i)
+            for i in range(len(posMol_orig)):
+                print('check mol', i)
+                nextf = False
+                if i in solutes:
+                   continue
+                for j in range(len(posMol_orig[i])):
+                    if nextf == True:
+                        break
+                    for k in self.solutes:
+                        if nextf == True:
+                            break
+                        for l in range(len(posMol_orig[k])):
+                            dist = self.getdist(np.array(posMol_orig[k][l]), np.array(posMol_orig[i][j]))
+                            if dist < criteria:
+                                neighborindex.append(i)
+                                nextf = True
+                                break
 
         print('neighborindex', neighborindex)
         # print vec
