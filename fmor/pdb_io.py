@@ -273,6 +273,13 @@ class pdb_io(fab.abinit_io):
         print("totalmol:",totalMol)
         # getmolatomnum(_udf_, totalMol)
 
+        # 1. -- 切り取らない場合 --
+        if self.cutmode == 'none':
+            print('none mode')
+            # -- get neighbor mol --
+            neighborindex = []
+            for i in range(totalMol):
+                neighborindex.append(i)
 
         # 2. -- 範囲内に原子が入っているかで絞る方法 --
         if self.cutmode == 'sphere':
@@ -312,7 +319,8 @@ class pdb_io(fab.abinit_io):
             for i in self.solutes:
                 neighborindex.append(i)
             for i in range(len(posMol_orig)):
-                print('check mol', i)
+                if i % 100 == 0:
+                    print('check mol', i)
                 nextf = False
                 if i in solutes:
                    continue

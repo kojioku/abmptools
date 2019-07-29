@@ -13,12 +13,19 @@ import fmor.rev_md_fmo as fr
 if __name__ == "__main__":
     ## -- user setting --
     tgtmol = 2
-    moveflag = False
+    moveflag = True
     ## -- setting end --
 
     # main
     argvs = sys.argv
     fname = str(argvs[1])
+
+    for arg in argvs:
+        if arg == '--move':
+            moveflag == True
+        if arg == '--nomove':
+            moveflag == False
+
     oname, ext = os.path.splitext(fname)
     if ext != '.pdb':
         oname = oname + ext + '-moved'

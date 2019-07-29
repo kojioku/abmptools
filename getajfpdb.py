@@ -24,11 +24,14 @@ if __name__ == "__main__":
     param_rfmo = param_read['param']
     obj.setrfmoparam(param_rfmo)
 
-    if obj.cutmode != 'cube':
-        oname = oname.split()[-1] + '-' + obj.cutmode + '-' + str(obj.criteria) + '-for_abmp'
+    if obj.cutmode == 'sphere' or obj.cutmode == 'around':
+        oname = oname + '-' + obj.cutmode + '-' + str(obj.criteria) + '-for_abmp'
 
-    else:
-        oname = oname.split()[-1] + '-' + obj.cutmode + '-' + str(obj.criteria[0]) + '-' + str(obj.criteria[1]) + '-' + str(obj.criteria[2]) + '-for_abmp'
+    elif obj.cutmode == 'cube':
+        oname = oname + '-' + obj.cutmode + '-' + str(obj.criteria[0]) + '-' + str(obj.criteria[1]) + '-' + str(obj.criteria[2]) + '-for_abmp'
+
+    if obj.cutmode == 'none':
+        oname = oname +  '-for_abmp'
 
     print(obj.molname)
     print(obj.solutes)
