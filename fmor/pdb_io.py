@@ -20,7 +20,6 @@ class pdb_io(fab.abinit_io):
         self.solutes = []
         pass
 
-
     def getpdbinfo(self, fname):
 
         print(fname)
