@@ -1,5 +1,4 @@
 import numpy as np
-from UDFManager import *
 import sys
 import os
 scrdir = os.path.abspath(os.path.dirname(__file__))
@@ -12,12 +11,18 @@ import copy
 import fcews.abinit_io as fab
 import fcewsmb.udfcreate as ufc
 import rmdpd.udfrm_io as rud
+try:
+    from UDFManager import *
+except:
+    pass
 
 class pdb_io(fab.abinit_io):
     def __init__(self):
         super().__init__()
         self.amarkflag = False
         self.solutes = []
+        self.getmode = 'resnum'
+        self.assignmolname = True
         pass
 
     def getpdbinfo(self, fname):
@@ -91,45 +96,129 @@ class pdb_io(fab.abinit_io):
                 amarks.append(amark)
                 charges.append(charge)
 
+
+            totalatom = atomcount
         # print(poss)
-        molname_set = set(molnames)
-        totalatom = atomcount
-        print('totalatom', totalatom)
-        print('molname_set', molname_set)
-        mol_confs = []
-        for molname in molname_set:
-            mol_confs.append(self.config_read(molname, 0))
-        print('mol_confs', mol_confs)
-        print('molnames_atom', molnames)
-        molnums = {}
-        for molconf in mol_confs:
-            molnums[molconf['name']] = sum(molconf['atom'])
-        print('molnums', molnums)
+        if self.getmode == 'rfile':
+            molname_set = set(molnames)
+            print('totalatom', totalatom)
+            print('molname_set', molname_set)
+            mol_confs = []
+            for molname in molname_set:
+                mol_confs.append(self.config_read(molname, 0))
+            print('mol_confs', mol_confs)
+            print('molnames_atom', molnames)
+            molnums = {}
+            for molconf in mol_confs:
+                molnums[molconf['name']] = sum(molconf['atom'])
+            print('molnums', molnums)
 
-        #search molhead
-        i = 0
-        name_permol = []
-        while True:
-            name_permol.append(molnames[i])
-            atomnum = molnums[molnames[i]]
-            i += atomnum
-            if i + 1> totalatom:
-                break
-            # print(i + 1, molnames[i])
-        print('molnames_permol', name_permol)
-        totalMol = len(name_permol)
+            #search molhead
+            i = 0
+            name_permol = []
+            while True:
+                name_permol.append(molnames[i])
+                atomnum = molnums[molnames[i]]
+                i += atomnum
+                if i + 1> totalatom:
+                    break
+                # print(i + 1, molnames[i])
+            print('molnames_permol', name_permol)
+            totalMol = len(name_permol)
 
-        posMols = self.getpermol(totalMol, molnums, name_permol, poss)
-        typenameMols = self.getpermol(totalMol, molnums, name_permol, atypenames)
-        headMols = self.getpermol(totalMol, molnums, name_permol, heads)
-        labMols = self.getpermol(totalMol, molnums, name_permol, labs)
-        chainMols  = self.getpermol(totalMol, molnums, name_permol, chains)
-        resnumMols  = self.getpermol(totalMol, molnums, name_permol, resnums)
-        codeMols  = self.getpermol(totalMol, molnums, name_permol, codes)
-        occMols  = self.getpermol(totalMol, molnums, name_permol, occs)
-        tempMols  = self.getpermol(totalMol, molnums, name_permol, temps)
-        amarkMols  = self.getpermol(totalMol, molnums, name_permol, amarks)
-        chargeMols = self.getpermol(totalMol, molnums, name_permol, charges)
+            posMols = self.getpermol(totalMol, molnums, name_permol, poss)
+            typenameMols = self.getpermol(totalMol, molnums, name_permol, atypenames)
+            headMols = self.getpermol(totalMol, molnums, name_permol, heads)
+            labMols = self.getpermol(totalMol, molnums, name_permol, labs)
+            chainMols  = self.getpermol(totalMol, molnums, name_permol, chains)
+            resnumMols  = self.getpermol(totalMol, molnums, name_permol, resnums)
+            codeMols  = self.getpermol(totalMol, molnums, name_permol, codes)
+            occMols  = self.getpermol(totalMol, molnums, name_permol, occs)
+            tempMols  = self.getpermol(totalMol, molnums, name_permol, temps)
+            amarkMols  = self.getpermol(totalMol, molnums, name_permol, amarks)
+            chargeMols = self.getpermol(totalMol, molnums, name_permol, charges)
+
+        if self.getmode == 'resnum':
+            #search molhead
+            i = 0
+            atomnum = 0
+            name_permol = [molnames[0]]
+            anummols = []
+            # print(resnums)
+            while True:
+                # print(resnums[i])
+                atomnum += 1
+                if i + 1 == totalatom:
+                    anummols.append(atomnum)
+                    break
+                if resnums[i] < resnums[i+1]:
+                    # print(resnums[i], resnums[i+1])
+                    # print(i)
+                    anummols.append(atomnum)
+                    name_permol.append(molnames[i+1])
+                    atomnum = 0
+                i += 1
+                # print(i + 1, molnames[i])
+
+            print(anummols)
+            totalMol = len(anummols)
+            print(totalMol)
+            posMols = self.getpermol2(totalMol, anummols, poss)
+            typenameMols = self.getpermol2(totalMol, anummols, atypenames)
+            headMols = self.getpermol2(totalMol, anummols, heads)
+            labMols = self.getpermol2(totalMol, anummols, labs)
+            chainMols  = self.getpermol2(totalMol, anummols, chains)
+            resnumMols  = self.getpermol2(totalMol, anummols, resnums)
+            codeMols  = self.getpermol2(totalMol, anummols, codes)
+            occMols  = self.getpermol2(totalMol, anummols, occs)
+            tempMols  = self.getpermol2(totalMol, anummols, temps)
+            amarkMols  = self.getpermol2(totalMol, anummols, amarks)
+            chargeMols = self.getpermol2(totalMol, anummols, charges)
+
+            if self.assignmolname == True:
+                moldatas = []
+                moldatas_el = []
+                molidnames = []
+                current = 1
+                # loop for allmol
+                for i in range(totalMol):
+                    if anummols[i] not in moldatas:
+                        # print(moldatas, anummols[i])
+                        moldatas.append(anummols[i])
+                        moldatas_el.append(typenameMols[i])
+                        print(anummols[i], 'append')
+                        molidnames.append('{:0>3}'.format(str(current)))
+                        current += 1
+                        continue
+                    flags = []
+                    print(moldatas)
+                    # loop for databasemol
+                    for k in range(len(moldatas)):
+                        flag = False
+                        if moldatas[k] == anummols[i]:
+                            # loop for batabase-1molatom
+                            for j in range(len(moldatas_el[k])):
+                                if moldatas_el[k][j] != typenameMols[i][j]:
+                                    flag = True
+                                    flags.append(flag)
+                                    break
+                            flags.append(flag)
+                            print(flags)
+
+                            if flag == False:
+                                molidnames.append('{:0>3}'.format(str(k + 1)))
+                                break
+
+                    if True in flags and False not in flags:
+                        print('mol', i, 'different!')
+                        moldatas.append(anummols[i])
+                        moldatas_el.append(typenameMols[i])
+                        molidnames.append('{:0>3}'.format(str(current)))
+                        current += 1
+
+                print(molidnames)
+                name_permol = copy.deepcopy(molidnames)
+                print(moldatas)
 
         return totalMol, typenameMols, name_permol, posMols, headMols, labMols, chainMols ,resnumMols ,codeMols ,occMols ,tempMols ,amarkMols ,chargeMols
 
@@ -144,6 +233,19 @@ class pdb_io(fab.abinit_io):
 
                 count += 1
             datamols.append(datamol)
+        return datamols
+
+    def getpermol2(self, totalMol, anummols, datas):
+        datamols = []
+        # print(anummols)
+        count = 0
+        for i in range(totalMol):
+            datamol = []
+            for j in range(anummols[i]):
+                datamol.append(datas[count])
+                count += 1
+            datamols.append(datamol)
+            # print(datamols)
         return datamols
 
 
@@ -181,7 +283,7 @@ class pdb_io(fab.abinit_io):
                 posMol = posMols[i]
                 for j in range(len(posMol)):
                     tatomlab += 1
-                    olist = [heads[i][j], str(tatomlab), nameAtom[i][j], labs[i][j], molnames[i], chains[i][j], str(i), codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
+                    olist = [heads[i][j], str(tatomlab), nameAtom[i][j], labs[i][j], molnames[i], chains[i][j], str(i + 1), codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
                     print('{0[0]:<6}{0[1]:>5} {0[2]:>4}{0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'.format(olist), file=f)
             # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
 
@@ -192,7 +294,7 @@ class pdb_io(fab.abinit_io):
                 posMol = posMols[i]
                 for j in range(len(posMol)):
                     tatomlab += 1
-                    olist = [heads[i][j], str(tatomlab), amarks[i][j], labs[i][j], molnames[i], chains[i][j], str(i), codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
+                    olist = [heads[i][j], str(tatomlab), amarks[i][j], labs[i][j], molnames[i], chains[i][j], str(i + 1), codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
                     print('{0[0]:<6}{0[1]:>5} {0[2]:>2}  {0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'.format(olist), file=f)
             # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
 
@@ -252,7 +354,7 @@ class pdb_io(fab.abinit_io):
             posMol = posMols[i]
             for j in range(len(posMol)):
                 tatomlab += 1
-                list = ["HETATM", str(tatomlab), nameAtom[i][j], molname.zfill(3), str(i), '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), "1.00", "0.00", nameAtom[i][j]]
+                list = ["HETATM", str(tatomlab), nameAtom[i][j], molname.zfill(3), str(i + 1), '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), "1.00", "0.00", nameAtom[i][j]]
                 print('{0[0]:<6}{0[1]:>5} {0[2]:>2}   {0[3]:>3}  {0[4]:>4}    {0[5]:>8}{0[6]:>8}{0[7]:>8}{0[8]:>6}{0[9]:>6}{0[10]:>12}'.format(list), file=f)
         # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
 

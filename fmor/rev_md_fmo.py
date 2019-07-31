@@ -1,5 +1,8 @@
 import numpy as np
-from UDFManager import *
+try:
+    from UDFManager import *
+except:
+    pass
 import sys
 import os
 scrdir = os.path.abspath(os.path.dirname(__file__))
