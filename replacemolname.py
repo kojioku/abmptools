@@ -2,7 +2,9 @@ import sys
 import os
 
 ## --- user input ---
-replacelists = [['*', '1', 'BEX']]
+replacelists = [['001', 'LIG'], ['002', 'CYC'], ['003', 'NA'], ['004', 'WAT']]
+
+# replacelists = [['*', '1', 'BEX']]
 # infos = [ ['*', '1', 'LIG'], ['*', '2', 'CYC'], ['*', '3', 'AAA']]
 
 
@@ -33,8 +35,12 @@ for i in range(len(argvs)):
         # print('{0:>3}'.format(repinfo[0]) + '     ' + repinfo[1] + ' ')
     for line in lines:
         for repinfo in replacelists:
-            line = line[:-1].replace('{0:>3}'.format(repinfo[0]) + '     ' + repinfo[1] + ' ', '{0:>3}'.format(repinfo[2]) + '     ' + repinfo[1] + ' ')
-        print(line, file=outf)
+            if len(repinfo) == 3:
+                line = line.replace(' {0:>3}'.format(repinfo[0]) + '     ' + repinfo[1] + ' ', '{0:>3}'.format(repinfo[2]) + '     ' + repinfo[1] + ' ')
+            if len(repinfo) == 2:
+                line = line.replace(' {0:>3}'.format(repinfo[0]) + ' ', ' {0:>3}'.format(repinfo[1]) + ' ')
+
+        print(line[:-1], file=outf)
 
     print(out, 'was created.')
 # sed 's/  \*     1 /LIG     1 /g' $1 |sed 's/  \*     2 /CYC     2 /g' > $out
