@@ -371,9 +371,11 @@ class pdb_io(fab.abinit_io):
         tgtpos = self.tgtpos
         solutes = self.solutes
         self.mainpath = '.'
+        self.assignmolname = False
 
         # print(path, molname, fname, oname, tgtpos, criteria)
         totalMol, atomnameMol_orig, molnamelist_orig, posMol_orig, heads_orig, labs_orig, chains_orig ,resnums_orig ,codes_orig ,occs_orig ,temps_orig ,amarks_orig ,charges_orig = self.getpdbinfo(fname)
+        # print(molnamelist_orig)
 
         print("totalmol:",totalMol)
         # getmolatomnum(_udf_, totalMol)
@@ -392,6 +394,24 @@ class pdb_io(fab.abinit_io):
             # -- get neighbor mol --
             neighborindex = []
             for i in range(len(posMol_orig)):
+                # check ion
+                icflag = False
+                if len(self.ionname) != 0:
+                    for ion in self.ionname:
+                        if  molnamelist_orig[i].strip() == ion.strip():
+                            if self.ionmode == 'del':
+                                icflag = True
+                                break
+                            if self.ionmode == 'remain':
+                                icflag = True
+                                neighborindex.append(i)
+                                # print('add mol', i, molnamelist_orig[i])
+                                break
+
+                if icflag == True:
+                    icflag == False
+                    continue
+
                 for j in range(len(posMol_orig[i])):
                     dist = self.getdist(np.array(tgtpos), np.array(posMol_orig[i][j]))
                     if dist < criteria:
@@ -408,6 +428,24 @@ class pdb_io(fab.abinit_io):
 
             neighborindex = []
             for i in range(len(posMol_orig)):
+                # check ion
+                icflag = False
+                if len(self.ionname) != 0:
+                    for ion in self.ionname:
+                        if  molnamelist_orig[i].strip() == ion.strip():
+                            if self.ionmode == 'del':
+                                icflag = True
+                                break
+                            if self.ionmode == 'remain':
+                                icflag = True
+                                neighborindex.append(i)
+                                # print('add mol', i, molnamelist_orig[i])
+                                break
+
+                if icflag == True:
+                    icflag == False
+                    continue
+
                 for j in range(len(posMol_orig[i])):
                     if tgtx[0] < posMol_orig[i][j][0] < tgtx[1] and \
                        tgty[0] < posMol_orig[i][j][1] < tgty[1] and \
@@ -423,7 +461,26 @@ class pdb_io(fab.abinit_io):
             # solutes = [0, 1]
             for i in self.solutes:
                 neighborindex.append(i)
+                # print('add mol', i, molnamelist_orig[i])
             for i in range(len(posMol_orig)):
+                # check ion
+                icflag = False
+                if len(self.ionname) != 0:
+                    for ion in self.ionname:
+                        if  molnamelist_orig[i].strip() == ion.strip():
+                            if self.ionmode == 'del':
+                                icflag = True
+                                break
+                            if self.ionmode == 'remain':
+                                icflag = True
+                                neighborindex.append(i)
+                                # print('add mol', i, molnamelist_orig[i])
+                                break
+
+                if icflag == True:
+                    icflag == False
+                    continue
+
                 if i % 100 == 0:
                     print('check mol', i)
                 nextf = False
@@ -439,8 +496,10 @@ class pdb_io(fab.abinit_io):
                             dist = self.getdist(np.array(posMol_orig[k][l]), np.array(posMol_orig[i][j]))
                             if dist < criteria:
                                 neighborindex.append(i)
+                                # print('add mol', i, molnamelist_orig[i])
                                 nextf = True
                                 break
+
 
         print('neighborindex', neighborindex)
         # print vec
@@ -475,26 +534,31 @@ class pdb_io(fab.abinit_io):
 
         # get atomnum
         atomnums = []
+        tgtmolnames = []
         for i in range(len(molname)):
             for j in range(totalMol):
             # for j in range(1):
                 # print (molname[i], molnamelist_orig[j])
                 if molname[i] == molnamelist_orig[j]:
                     atomnums.append(len(posMol_orig[j]))
+                    tgtmolnames.append(molnamelist_orig[j])
                     break
         print ('atomnums', atomnums)
 
         # print (posMol)
-        opath = 'pdb'
+        opath = 'for_abmp'
         # oname = "mdout"
         if os.path.exists(opath) is False:
             print(opath)
             subprocess.call(["mkdir", opath])
 
+        # if os.path.exists(path[0] + '/' + path[1]) is False:
+            # subprocess.call(["mkdir -p", path[0] + '/' + path[1]])
+
         index = [i for i in range(len(posMol))]
         self.exportardpdbfull(opath + '/' + oname, index, posMol, atomnameMol, molnamelist, heads, labs, chains, resnums, codes, occs, temps, amarks, charges)
 
-        self.make_abinput_rmap(molname, molnamelist, oname, path, atomnums)
+        self.make_abinput_rmap(tgtmolnames, molnamelist, oname, path, atomnums)
         # monomer structure
 
     def movemoltranspdb(self, posVec, transVec):

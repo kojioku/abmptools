@@ -2,7 +2,7 @@ import sys
 import os
 
 ## --- user input ---
-replacelists = [['001', 'LIG'], ['002', 'CYC'], ['003', 'NA'], ['004', 'WAT']]
+replacelists = [['001', 'MRT'], ['002', 'CD7'], ['003', 'NA'], ['004', 'WAT']]
 
 # replacelists = [['*', '1', 'BEX']]
 # infos = [ ['*', '1', 'LIG'], ['*', '2', 'CYC'], ['*', '3', 'AAA']]

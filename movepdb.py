@@ -40,7 +40,7 @@ if __name__ == "__main__":
         fname = argvs[i]
         oname, ext = os.path.splitext(fname)
         if ext != '.pdb':
-            oname = oname + ext + '-moved'
+            oname = oname.split('.pdb')[0] + ext.split('.')[1] + '-moved'
         else:
             oname = oname + '-moved'
 

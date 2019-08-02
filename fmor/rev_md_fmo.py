@@ -93,6 +93,16 @@ class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
             self.solutes = []
 
         try:
+            self.ionname = param_rfmo['ionname']
+        except KeyError:
+            self.ionname = []
+
+        try:
+            self.ionmode = param_rfmo['ionmode']
+        except KeyError:
+            self.ionmode = 'remain'
+
+        try:
             self.memory = param_rfmo['memory']
         except KeyError:
             self.memory = 3000
@@ -308,7 +318,7 @@ class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
 
         return poly_conf
 
-    def make_abinput_rmap(self, fname, molnamelist, rec, path, atomnums):
+    def make_abinput_rmap(self, molset, molnamelist, rec, path, atomnums):
         # print make_input_param
 
         # fragment configure reading
@@ -319,8 +329,11 @@ class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         seg_info = []
         nummol_seg = []
 
-        for i in range(len(fname)):
-            mol_conf = self.config_read(fname[i], atomnums[i])
+        print('molset', molset)
+        # print('atomnums', atomnums)
+        for i in range(len(molset)):
+            print(molset[i], atomnums[i])
+            mol_conf = self.config_read(molset[i], atomnums[i])
             # atominfo is applied from segment_data.dat. So 2nd arg = 0
 
             if mol_conf['repeat'][0] != 1:
@@ -341,12 +354,12 @@ class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         # nummol_seg = [mol1_conf['nummol_seg'], mol2_conf['nummol_seg']]
 
         nameid = []
-        print("molnamelist", molnamelist)
         for i in range(len(molnamelist)):
-            for j in range(len(fname)):
-                if molnamelist[i] == fname[j]:
+            for j in range(len(molset)):
+                if molnamelist[i] == molset[j]:
                     nameid.append(j)
-        print("molnameid", nameid)
+        # print("molnamelist", molnamelist)
+        # print("molnameid", nameid)
         # fragment body
         ajf_fragment = self.writemb_frag_section(
             [frag_atom, frag_charge, frag_connect_num, frag_connect, seg_info],
@@ -364,8 +377,8 @@ class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
             num_fragment += len(frag_atom[nameid[i]])
 
         print("molnum")
-        for i in range(len(nameid)):
-            print("[", nameid.count(i), "]")
+        for i in range(len(molset)):
+            print(molset[i], "[", nameid.count(i), "]")
 
         print("num_fragment")
         print(num_fragment)
@@ -378,7 +391,7 @@ class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         ajf_file_name = path[0] + "/" + path[1] + "/" + name + ".ajf"
         ajf_file = open(ajf_file_name, 'w')
 
-        ajf_parameter[1] = "'pdb/" + name + ".pdb'"
+        ajf_parameter[1] = name + ".pdb'"
         ajf_parameter[2] = "'" + name + '-' + \
             self.ajf_method + '-' + self.ajf_basis_set + ".cpf'"
         ajf_body = self.gen_ajf_body(ajf_parameter)
@@ -512,7 +525,7 @@ class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         print ('atomnums', atomnums)
 
         # print (posMol)
-        opath = 'pdb'
+        opath = 'for_abmp'
         # oname = "mdout"
         index = [i for i in range(len(posMol))]
         self.Exportardpos(opath, oname, index, posMol, atomnameMol)

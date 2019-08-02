@@ -13,26 +13,34 @@ import fmor.rev_md_fmo as fr
 if __name__ == "__main__":
     # main
     argvs = sys.argv
-    fname = str(argvs[1])
-    oname, ext = os.path.splitext(fname)
+    # fname = argvs
 
-    obj = fr.rmap_fmo()
-    path = ['.', '.']
+    for i in range(len(argvs)):
+        if i == 0:
+            continue
+        fname = argvs[i]
+        oname, ext = os.path.splitext(fname)
 
-    param_read = {}
-    exec(open("input_param", 'r').read(), param_read)
-    param_rfmo = param_read['param']
-    obj.setrfmoparam(param_rfmo)
+        obj = fr.rmap_fmo()
+        path = ['.', 'for_abmp']
 
-    if obj.cutmode == 'sphere' or obj.cutmode == 'around':
-        oname = oname + '-' + obj.cutmode + '-' + str(obj.criteria) + '-for_abmp'
+        param_read = {}
+        exec(open("input_param", 'r').read(), param_read)
+        param_rfmo = param_read['param']
+        obj.setrfmoparam(param_rfmo)
 
-    elif obj.cutmode == 'cube':
-        oname = oname + '-' + obj.cutmode + '-' + str(obj.criteria[0]) + '-' + str(obj.criteria[1]) + '-' + str(obj.criteria[2]) + '-for_abmp'
+        if obj.cutmode == 'sphere' or obj.cutmode == 'around':
+            oname = oname + '-' + obj.cutmode + '-' + str(obj.criteria) + '-for_abmp'
 
-    if obj.cutmode == 'none':
-        oname = oname +  '-for_abmp'
+        elif obj.cutmode == 'cube':
+            oname = oname + '-' + obj.cutmode + '-' + str(obj.criteria[0]) + '-' + str(obj.criteria[1]) + '-' + str(obj.criteria[2]) + '-for_abmp'
 
-    print(obj.molname)
-    print(obj.solutes)
-    obj.getcontact_rmapfmopdb(path, fname, oname)
+        if obj.cutmode == 'none':
+            oname = oname +  '-for_abmp'
+
+        print('molset', obj.molname)
+        print('solute', obj.solutes)
+        if len(obj.ionname) != 0:
+            print('ion mode: ', obj.ionmode)
+            print('ion name: ', obj.ionname)
+        obj.getcontact_rmapfmopdb(path, fname, oname)
