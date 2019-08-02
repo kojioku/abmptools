@@ -391,7 +391,7 @@ class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         ajf_file_name = path[0] + "/" + path[1] + "/" + name + ".ajf"
         ajf_file = open(ajf_file_name, 'w')
 
-        ajf_parameter[1] = name + ".pdb'"
+        ajf_parameter[1] = "'" + name + ".pdb'"
         ajf_parameter[2] = "'" + name + '-' + \
             self.ajf_method + '-' + self.ajf_basis_set + ".cpf'"
         ajf_body = self.gen_ajf_body(ajf_parameter)
