@@ -25,11 +25,12 @@ class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         self.ajf_basis_set = '6-31Gdag'
         self.cpfflag = True
         self.solv_flag = False  # True -> in water , False -> in vacuum
-        self.verflag = True
+        self.abinit_ver = True
         self.memory = 3000
         self.npro = 8
         self.para_job = 1
         self.cutmode = 'sphere'
+        self.abinit_ver = 'rev11'
         self.piedaflag = True
         self.molname = []
         self.criteria = []
@@ -68,9 +69,9 @@ class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
             self.piedaflag = True
 
         try:
-            self.verflag = param_rfmo['verflag']
+            self.abinit_ver = param_rfmo['abinit_ver']
         except KeyError:
-            self.verflag = True
+            self.abinit_ver = 'rev11'
 
         try:
             self.molname = param_rfmo['molname']
