@@ -19,7 +19,7 @@ if __name__ == "__main__":
     # move info
     moveflag = True
     tgtmol = 2
-
+    intoflag = True
     ## -- setting end --
 
     # main
@@ -57,6 +57,8 @@ if __name__ == "__main__":
         mollist = [i for i in range(totalMol)]
         cellsize = obj.getpdbcell(fname)
         obj.cellsize = cellsize
+        if len(obj.cellsize) == 0:
+            obj.cellsize = 0
 
         if moveflag == True:
             # get center of solute
@@ -70,11 +72,19 @@ if __name__ == "__main__":
                 posmove = obj.movemoltranspdb(posMol[i], transVec)
                 posmoveMol.append(posmove)
 
-            #
-            posintoMol = obj.moveintocellpdb(posmoveMol, totalMol, cellsize)
+            if intoflag == True:
+                posintoMol = obj.moveintocellpdb(posmoveMol, totalMol, cellsize)
+
+            else:
+                posintoMol = copy.deepcopy(posmoveMol)
 
         else:
-            posintoMol = obj.moveintocellpdb(posMol, totalMol, cellsize)
+            if intoflag == True:
+                posintoMol = obj.moveintocellpdb(posMol, totalMol, cellsize)
+
+            else:
+                posintoMol = copy.deepcopy(posMol)
+
 
         # write
         obj.amarkflag = True

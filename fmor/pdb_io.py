@@ -78,7 +78,7 @@ class pdb_io(fab.abinit_io):
                 chain=line[21]
                 resnum=line[22:26]
                 code=line[26]
-                pos=[float(line[30:38].strip()), float(line[38:45].strip()), float(line[46:53].strip())]
+                pos=[float(line[30:38].strip()), float(line[38:46].strip()), float(line[46:54].strip())]
                 occ=line[54:60]
                 temp=line[60:66]
                 amark=line[76:78]

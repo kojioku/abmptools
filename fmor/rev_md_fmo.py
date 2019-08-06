@@ -44,6 +44,11 @@ class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
             self.cutmode = 'sphere'
 
         try:
+            self.getmode = param_rfmo['getmode']
+        except KeyError:
+            self.getmode = 'resnum'
+
+        try:
             self.ajf_method = param_rfmo['ajf_method']
         except KeyError:
             self.ajf_method = 'HF'
