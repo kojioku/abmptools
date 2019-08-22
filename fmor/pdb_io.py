@@ -70,19 +70,35 @@ class pdb_io(fab.abinit_io):
             #     atypenames.append(line[12:15])
                 atomcount += 1
 
-                head=line[0:6]
-                num=line[6:11]
-                atypename=line[12:16]
-                lab=line[16]
-                res=line[17:20].strip()
-                chain=line[21]
-                resnum=line[22:26]
-                code=line[26]
-                pos=[float(line[30:38].strip()), float(line[38:46].strip()), float(line[46:54].strip())]
-                occ=line[54:60]
-                temp=line[60:66]
-                amark=line[76:78]
-                charge=line[78:80]
+                if atomcount < 100000:
+                    head=line[0:6]
+                    num=line[6:11]
+                    atypename=line[12:16]
+                    lab=line[16]
+                    res=line[17:20].strip()
+                    chain=line[21]
+                    resnum=line[22:26]
+                    code=line[26]
+                    pos=[float(line[30:38].strip()), float(line[38:46].strip()), float(line[46:54].strip())]
+                    occ=line[54:60]
+                    temp=line[60:66]
+                    amark=line[76:78]
+                    charge=line[78:80]
+
+                else:
+                    head=line[0:6]
+                    num=line[6:12]
+                    atypename=line[13:17]
+                    lab=line[17]
+                    res=line[18:21].strip()
+                    chain=line[22]
+                    resnum=line[23:27]
+                    code=line[27]
+                    pos=[float(line[31:39].strip()), float(line[39:47].strip()), float(line[47:55].strip())]
+                    occ=line[55:61]
+                    temp=line[61:67]
+                    amark=line[77:79]
+                    charge=line[79:81]
 
                 heads.append(head)
                 molnames.append(res)
