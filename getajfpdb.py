@@ -38,8 +38,12 @@ if __name__ == "__main__":
         if obj.cutmode == 'none':
             oname = oname +  '-for_abmp'
 
-        print('molset', obj.molname)
-        print('solute', obj.solutes)
+        if obj.cutmode == 'around':
+            print('molset', obj.molname)
+            print('solute', obj.solutes)
+
+        print('piedaflag', obj.piedaflag)
+
         if len(obj.ionname) != 0:
             print('ion mode: ', obj.ionmode)
             print('ion name: ', obj.ionname)
