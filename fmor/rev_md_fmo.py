@@ -394,7 +394,7 @@ class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         # gen ajf file
         # --for one file--
         name = str(rec)
-        ajf_file_name = path[0] + "/" + path[1] + "/" + name + ".ajf"
+        ajf_file_name = path + "/" + name + ".ajf"
         ajf_file = open(ajf_file_name, 'w')
 
         ajf_parameter[1] = "'" + name + ".pdb'"
@@ -548,6 +548,6 @@ class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         # self.para_job = 1
         # molnamelist: name list for each molecules
         # oname = 'mdout'
-        self.make_abinput_rmap(molname, molnamelist, oname, path, atomnums)
+        self.make_abinput_rmap(molname, molnamelist, oname, opath, atomnums)
         # monomer structure
 
