@@ -33,7 +33,7 @@ if __name__ == "__main__":
     # fname = str(argvs[1])
 
     cobj = uio.udfrm_io()
-    tgtmolid += 1
+    tgtmolid -= 1
     totalrec = int((tend - tstart + 1)/interval)
     oname =  os.path.splitext(fhead)[0] + '-' + str(tstart) + '-' + str(tend) + '.log'
 
