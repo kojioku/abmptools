@@ -1,4 +1,3 @@
-from UDFManager import *
 import sys
 import os
 import rmdpd.udfrm_io as uio
@@ -12,10 +11,11 @@ import fmor.rev_md_fmo as fr
 
 
 if __name__ == "__main__":
-    fhead = 'cbzrich-2-for_abmp.pdb'
-    tstart = 1
-    tend = 4
-    interval = 1
+    fhead = 'PVP10x40-CBZ50-20000ps.pdb'
+    tstart = 10100
+#    tend = 10200
+    tend = 37600
+    interval = 10
 
     # tgtname = "Cholesterol"
     tgtname = "CBZ"
@@ -34,42 +34,44 @@ if __name__ == "__main__":
 
     cobj = uio.udfrm_io()
     tgtmolid -= 1
-    totalrec = int((tend - tstart + 1)/interval)
+    totalrec = int((tend - tstart)/interval) +  1
     oname =  os.path.splitext(fhead)[0] + '-' + str(tstart) + '-' + str(tend) + '.log'
 
+    poss = []
+    count = 0
     for i in range(tstart, tend + 1, interval):
+        count += 1
         fname = fhead + '.' + str(i)
         obj = fr.rmap_fmo()
         obj.getmode = mode
         obj.assignmolname = assignmolname
-
+        
         print('infile:', fname)
-
+        
         # get pdbinfo
         totalMol, atomnameMol, molnames, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = obj.getpdbinfo(fname)
         mollist = [i for i in range(totalMol)]
-
-    # get molname list
-    # print(totalmol, totalrec)
-    # print(molnames)
-    print(molnames)
-    totalmol = len(molnames)
-
-    # get target mol index
-    targets = []
-    for i in range(totalmol):
-        if molnames[i] == tgtname:
-            targets.append(i)
-    print('target id', targets)
-# 
-# 
-    # get target posmol for all rec
-    poss = []
-    mol = targets[tgtmolid]
-    print("--- target mol id:", mol, "---")
-
-    for record in range(totalrec):
-        # print(posMol[mol])
+        
+        # get molname list
+        # print(totalmol, totalrec)
+        # print(molnames)
+        if count == 1:
+            print(molnames)
+            totalmol = len(molnames)
+            
+            # get target mol index
+            targets = []
+            for i in range(totalmol):
+                if molnames[i] == tgtname:
+                    targets.append(i)
+            print('target id', targets)
+            
+            # get target posmol for all rec
+            mol = targets[tgtmolid]
+            print("--- target mol id:", mol, "---")
+        
+        #for record in range(totalrec):
+            # print(posMol[mol])
         poss.append(posMol[mol])
 
     print(poss)
