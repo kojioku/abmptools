@@ -46,12 +46,56 @@ class pdb_io(fab.abinit_io):
         amarks = []
         charges = []
 
+        posMols = []
+        typenameMols = []
+        headMols = []
+        labMols = []
+        chainMols = []
+        resnumMols = []
+        codeMols = []
+        occMols = []
+        tempMols = []
+        amarkMols = []
+        chargeMols = []
+        totalMol = 0
+        name_permol = []
+
         atomcount = 0
         for line in lines:
             itemlist = line.split()
             # print(itemlist)
+            if self.getmode == 'TER':
+                if len(itemlist) >= 1 and itemlist[0] == 'TER':
+                    print(itemlist)
+                    posMols.append(poss)
+                    typenameMols.append(atypenames)
+                    headMols.append(heads)
+                    labMols.append(labs)
+                    chainMols.append(chains)
+                    resnumMols.append(resnums)
+                    codeMols.append(codes)
+                    occMols.append(occs)
+                    tempMols.append(temps)
+                    amarkMols.append(amarks)
+                    chargeMols.append(charges)
+                    poss = []
+                    atypenames =[]
+                    heads = []
+                    labs = []
+                    chains = []
+                    resnums = []
+                    codes = []
+                    occs = []
+                    temps = []
+                    amarks = []
+                    charges = []
+                    name_permol.append(totalMol)
+                    totalMol += 1
+                    continue
+
             if len(itemlist) < 3:
                 continue
+
             if line[0:6] == 'HETATM' or line[0:4] == 'ATOM':
             # if itemlist[0] == 'ATOM' or itemlist[0] == 'HETATM':
             #     molname = itemlist[3]
@@ -112,7 +156,6 @@ class pdb_io(fab.abinit_io):
                 temps.append(temp)
                 amarks.append(amark)
                 charges.append(charge)
-
 
             totalatom = atomcount
         # print(poss)
