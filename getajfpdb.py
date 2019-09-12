@@ -22,7 +22,7 @@ if __name__ == "__main__":
         oname, ext = os.path.splitext(fname)
 
         obj = fr.rmap_fmo()
-        path = ['.', 'for_abmp']
+        path = 'for_abmp'
 
         param_read = {}
         exec(open("input_param", 'r').read(), param_read)
