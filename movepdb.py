@@ -13,13 +13,14 @@ import fmor.rev_md_fmo as fr
 if __name__ == "__main__":
     ## -- user setting --
     # read info
-    mode = 'resnum' #rfile, resnum
-    assignmolname = True
+    mode = 'rfile' #rfile, resnum
+    assignmolname = False
+    refreshatmtype = False
 
     # move info
-    moveflag = True
+    moveflag = False
     tgtmol = 2
-    intoflag = True
+    intoflag = False
     ## -- setting end --
 
     # main
@@ -47,6 +48,8 @@ if __name__ == "__main__":
         obj = fr.rmap_fmo()
         obj.getmode = mode
         obj.assignmolname = assignmolname
+        obj.refreshatmtype = refreshatmtype
+
 
         print('infile:', fname)
         print('oname:', oname)
@@ -87,7 +90,6 @@ if __name__ == "__main__":
 
 
         # write
-        obj.amarkflag = True
         obj.exportardpdbfull(oname, mollist, posintoMol, atomnameMol, molnames, heads, labs, chains, resnums, codes, occs, temps, amarks, charges)
 
 
