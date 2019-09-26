@@ -19,10 +19,10 @@ except:
 class pdb_io(fab.abinit_io):
     def __init__(self):
         super().__init__()
-        self.amarkflag = False
         self.solutes = []
         self.getmode = 'resnum'
         self.assignmolname = True
+        self.refreshatmtype = False
         self.cellsize = 0
         pass
 
@@ -340,7 +340,7 @@ class pdb_io(fab.abinit_io):
         tatomlab = 0
         # print(mollist)
 
-        if self.amarkflag == False:
+        if self.refreshatmtype == False:
 
             for i in mollist:
                 posMol = posMols[i]
