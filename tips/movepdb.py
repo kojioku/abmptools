@@ -13,7 +13,7 @@ import fmor.rev_md_fmo as fr
 if __name__ == "__main__":
     ## -- user setting --
     # read info
-    mode = 'rfile' #rfile, resnum
+    mode = 'resnum' #rfile, resnum
     assignmolname = False
     refreshatmtype = False
 
@@ -60,8 +60,15 @@ if __name__ == "__main__":
         mollist = [i for i in range(totalMol)]
         cellsize = obj.getpdbcell(fname)
         obj.cellsize = cellsize
+
+        print('totalMol:', totalMol)
+
         if len(obj.cellsize) == 0:
             obj.cellsize = 0
+            print('cellinfo: None')
+        else:
+            print('cellsize:', obj.cellsize)
+
 
         if moveflag == True:
             # get center of solute

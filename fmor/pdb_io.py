@@ -28,7 +28,8 @@ class pdb_io(fab.abinit_io):
 
     def getpdbinfo(self, fname):
 
-        print(fname)
+        print('--- get pdbinfo ---')
+        print('infile:',  fname)
         lines = open(fname,'r').readlines()
         molnames = []
         poss = []
