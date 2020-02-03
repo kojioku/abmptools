@@ -8,16 +8,20 @@ param = {
             # 'criteria': 25.0,
 
             'cutmode': 'around',
-            'criteria': 25.0,
+            'criteria': 25.0,,
 
-            'molname': ['POPC', 'Bulk_water'],
+            # 'cutmode': 'none',
+
+            'molname': ['000', '001'],
+            # 'molname': ['POPC', 'Bulk_water'],
             # 'molname': ['nafion', 'Bulk_water'],
 
-            'ajf_method': 'HF',
+            'ajf_method': 'MP2',
             'ajf_basis_set': '6-31Gdag',
             'cpfflag': True,
             'solv_flag': False,  # True -> in water , False -> in vacuum,
-            'verflag': True,
+            'abinit_ver': 'rev15',
+            'piedaflag': True,
             'memory': 3000,
             'npro': 8,
         }
