@@ -16,6 +16,7 @@ param = {
             # 'molname': ['POPC', 'Bulk_water'],
             # 'molname': ['nafion', 'Bulk_water'],
 
+            'getmode': 'rfile',
             'ajf_method': 'MP2',
             'ajf_basis_set': '6-31Gdag',
             'cpfflag': True,

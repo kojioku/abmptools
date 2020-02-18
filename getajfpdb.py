@@ -30,10 +30,10 @@ if __name__ == "__main__":
         obj.setrfmoparam(param_rfmo)
 
         if obj.cutmode == 'sphere' or obj.cutmode == 'around':
-            oname = oname + '-' + obj.cutmode + '-' + str(obj.criteria) + '-for_abmp'
+            oname = oname + '-' + obj.cutmode + 'p' + str(obj.tgtpos[0]) + '_' + str(obj.tgtpos[1]) + '_' + str(obj.tgtpos[2]) + '_ar' + str(obj.criteria)
 
         elif obj.cutmode == 'cube':
-            oname = oname + '-' + obj.cutmode + '-' + str(obj.criteria[0]) + '-' + str(obj.criteria[1]) + '-' + str(obj.criteria[2]) + '-for_abmp'
+            oname = oname + '-' + obj.cutmode + 'p' + str(obj.tgtpos[0]) + '_' + str(obj.tgtpos[1]) + '_' + str(obj.tgtpos[2]) + '_x' + str(obj.criteria[0]) + '_y' + str(obj.criteria[1]) + '_z' + str(obj.criteria[2])
 
         if obj.cutmode == 'none':
             oname = oname +  '-for_abmp'
