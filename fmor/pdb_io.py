@@ -616,7 +616,6 @@ class pdb_io(fab.abinit_io):
             # subprocess.call(["mkdir -p", path[0] + '/' + path[1]])
 
         index = [i for i in range(len(posMol))]
-        print('len_posmol'
         self.exportardpdbfull(opath + '/' + oname, index, posMol, atomnameMol, molnamelist, heads, labs, chains, resnums, codes, occs, temps, amarks, charges)
 
         self.make_abinput_rmap(tgtmolnames, molnamelist, oname, path, atomnums)
