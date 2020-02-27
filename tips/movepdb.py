@@ -19,7 +19,13 @@ if __name__ == "__main__":
 
     # move info
     moveflag = False
+    movemode = 'mol' # pos or mol
+
+    # --- mol mode
     tgtmol = 2
+    # --- pos mode 
+    tgtpos = [10.0, 10.0, 10.0]
+
     intoflag = False
     ## -- setting end --
 
@@ -72,7 +78,10 @@ if __name__ == "__main__":
 
         if moveflag == True:
             # get center of solute
-            coctgt = obj.getCenter(posMol[tgtmol-1])
+            if movemode == 'mol':
+                coctgt = obj.getCenter(posMol[tgtmol-1])
+            elif movemode == 'pos':
+                coctgt = tgtpos
             transVec = np.array(-coctgt, dtype='float64')
             # print(transVec)
 
