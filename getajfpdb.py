@@ -29,8 +29,11 @@ if __name__ == "__main__":
         param_rfmo = param_read['param']
         obj.setrfmoparam(param_rfmo)
 
-        if obj.cutmode == 'sphere' or obj.cutmode == 'around':
+        if obj.cutmode == 'sphere':
             oname = oname + '-' + obj.cutmode + 'p' + str(obj.tgtpos[0]) + '_' + str(obj.tgtpos[1]) + '_' + str(obj.tgtpos[2]) + '_ar' + str(obj.criteria)
+
+        elif obj.cutmode == 'around':
+            oname = oname + '-' + obj.cutmode + '_ar' + str(obj.criteria)
 
         elif obj.cutmode == 'cube':
             oname = oname + '-' + obj.cutmode + 'p' + str(obj.tgtpos[0]) + '_' + str(obj.tgtpos[1]) + '_' + str(obj.tgtpos[2]) + '_x' + str(obj.criteria[0]) + '_y' + str(obj.criteria[1]) + '_z' + str(obj.criteria[2])
