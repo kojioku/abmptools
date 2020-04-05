@@ -7,8 +7,9 @@ import re
 import time
 import copy
 import fmor.rev_md_fmo as fr
-# Matrix operation
 
+# Koji Okuwaki: Update 2020/03/22
+# moveintocell and assignmolname
 
 if __name__ == "__main__":
     ## -- user setting --
@@ -23,9 +24,8 @@ if __name__ == "__main__":
 
     # --- mol mode
     tgtmol = 2
-    # --- pos mode 
+    # --- pos mode
     tgtpos = [10.0, 10.0, 10.0]
-
     intoflag = False
     ## -- setting end --
 
@@ -55,7 +55,6 @@ if __name__ == "__main__":
         obj.getmode = mode
         obj.assignmolname = assignmolname
         obj.refreshatmtype = refreshatmtype
-
 
         print('infile:', fname)
         print('oname:', oname)
@@ -103,7 +102,6 @@ if __name__ == "__main__":
 
             else:
                 posintoMol = copy.deepcopy(posMol)
-
 
         # write
         obj.exportardpdbfull(oname, mollist, posintoMol, atomnameMol, molnames, heads, labs, chains, resnums, codes, occs, temps, amarks, charges)
