@@ -1,4 +1,4 @@
-ABMPTools (ABINIT=MP-Tools)
+ABMPTools (ABINIT-MP Tools)
 ====
 
 Overview
