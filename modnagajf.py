@@ -36,7 +36,7 @@ if __name__ == "__main__":
     # get pdbinfo
     totalMol, atomnameMol, molnames, anummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = obj.getpdbinfowrap(pdbname)
     # get ajfinfo
-    fatomnums, fchgs, fbaas, fatminfos, connects = obj.getajfinfo(obj, ajfname)
+    fatomnums, fchgs, fbaas, fatminfos, connects = obj.getajfinfo(ajfname)
     # print(fatomnums, fchgs, fbaas, fatminfos, connects)
 
     # -- devide asn and nag --
@@ -84,7 +84,7 @@ if __name__ == "__main__":
                 break
 
     fatomnums, fchgs, fbaas, connects, fatminfos = obj.modifyfragparam(totalMol, atomnameMol, molnames, anummols, posMol, heads, labs, chains
-                                                                   ,resnums ,codes ,occs ,temps ,amarks ,charges, fatomnums, fchgs, fbaas, fatminfos, connects, bridgeds, doubles, nagatoms)
+                                                                   ,resnums ,codes ,occs ,temps ,amarks ,charges, fatomnums, fchgs, fbaas, fatminfos, connects, bridgeds, doubles, nagatoms, nagmolids, nagbdas)
 
 #     print('new_totalres', len(fatomnums))
 #     print(len(fchgs))

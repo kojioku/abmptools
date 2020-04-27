@@ -13,6 +13,7 @@ import subprocess
 from ctypes import *
 # import setparam as sp
 import mol_io as mi
+import collections
 
 
 class abinit_io(mi.mol_io):
@@ -1165,7 +1166,7 @@ MD='OFF'
         return fatomnums, fchgs, fbaas, fatminfos, connects
 
 
-    def modifyfragparam(self, totalMol, atomnameMol, molnames, anummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges, fatomnums, fchgs, fbaas, fatminfos, connects, bridgeds, doubles, nagatoms):
+    def modifyfragparam(self, totalMol, atomnameMol, molnames, anummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges, fatomnums, fchgs, fbaas, fatminfos, connects, bridgeds, doubles, nagatoms, nagmolids, nagbdas):
         # modify start
         for i in range(len(nagatoms)):
             for j in range(len(fatminfos)):
@@ -1265,7 +1266,7 @@ MD='OFF'
 
     def functor(self, f, l):
         if isinstance(l,list):
-            return [functor(f,i) for i in l]
+            return [self.functor(f,i) for i in l]
         else:
             return f(l)
 
