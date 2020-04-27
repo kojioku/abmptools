@@ -8,7 +8,7 @@ with open('README.md', 'r', encoding='utf-8') as f:
     readme = f.read()
 
 setup(
-    name='AMPTools',
+    name='ABMPTools',
     version='1.0.0',
     description='setup tool for ABINIT-MP',
     long_description=readme,
