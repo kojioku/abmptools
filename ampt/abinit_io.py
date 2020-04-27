@@ -205,7 +205,7 @@ EnergyDecomposition='YES'"""
         if self.submit_system == 'K':
             np = '1'
         else:
-            np = str(int(self.npro/self.para_job)) 
+            np = str(int(self.npro/self.para_job))
 
         ajf_body = """&CNTRL
 ElecState='S1'
@@ -515,7 +515,7 @@ MD='OFF'
                 flag = True
                 # head.append(itemList)
                 continue
-            if itemList[1] == 'Mulliken':
+            if itemList[1] == 'Mulliken' or itemList[2] =='PIEDA':
                 # flag = False
                 break
             if flag is True:
@@ -815,4 +815,457 @@ MD='OFF'
             print("Error! can't get monomer result:", target)
             # sys.exit()
             return 0, 0, 0, 0, 0
+
+    def read_fraginfo(self, fname):
+        frags = []
+        count = 0
+        text = open(fname, "r").readlines()
+        flag = False
+        for i in range(len(text)):
+            itemList = text[i][:-1].split()
+            if len(itemList) < 2:
+                continue
+            if itemList[1] == 'AUTOMATIC' or itemList[1] == 'HYBRID':
+                flag = True
+                continue
+            if itemList[1] == 'MANUAL':
+                manflag = True
+            if itemList[1] == 'system':
+                break
+            if flag is True:
+                count += 1
+            if flag is True and count > 2:
+                if fragmode == 'hybrid':
+                    frags.append(itemList[3] + itemList[1])
+                elif fragmode == 'auto':
+                    frags.append(itemList[2] + itemList[0])
+
+        return frags
+
+
+    def read_pieda(self, fname):
+        ifie = []
+        count = 0
+        text = open(fname, "r").readlines()
+        flag = False
+        # print text
+        for i in range(len(text)):
+            itemList = text[i][:-1].split()
+            # print itemList
+            if len(itemList) < 2:
+                continue
+            if itemList[1] == 'PIEDA':
+                flag = True
+                # head.append(itemList)
+                continue
+            if itemList[1] == 'Mulliken':
+                # flag = False
+                break
+            if flag is True:
+                count += 1
+            if flag is True and count > 2:
+                ifie.append(itemList)
+
+        return ifie
+
+
+    def getconnect(self, idxs, molfrags, df, tgtid, molmode):
+        neighbors_list = []
+        # print(idxs)
+        for idx in idxs:
+            tgtdf = df[df['I'] == idx]
+            tgtdf = tgtdf.append(df[df['J'] == idx])
+            tgtdf_zero = tgtdf[tgtdf['DIST'] == 0.]
+            # print(tgtdf_zero)
+            neighbor_i = [index for index, row in tgtdf_zero.groupby("I")]
+            neighbor_j = [index for index, row in tgtdf_zero.groupby("J")]
+            neighbors = set(neighbor_i + neighbor_j)
+            # print('connect_idx', neighbors)
+            neighbors_list.append(neighbors)
+        neighbors_flat = list(itertools.chain.from_iterable(neighbors_list))
+        # print(idx)
+        # print('neighbors_flat', neighbors_flat)
+
+        newfrags = []
+        for idx in neighbors_flat:
+            if idx == tgtid:
+                if molmode != 'fraginmol':
+                    continue
+            if idx not in molfrags:
+                molfrags.append(idx)
+                newfrags.append(idx)
+
+        return newfrags, molfrags
+
+    def getmolfrags(self, tgtid, df, molmode):
+        molfrags  = [tgtid]
+        newfrags = [tgtid]
+        while True:
+            newfrags, molfrags = self.getconnect(newfrags, molfrags, df, tgtid, molmode)
+            # print (newfrags, molfrags)
+            if len(newfrags) == 0:
+                break
+        molfrags.sort()
+        # print('aaa', molfrags)
+
+        return molfrags
+
+
+    def getallmolfrags(self, logname, df, nf, molmode):
+        alfrags = []
+        molfragss = []
+        for i in range(1, nf+1):
+            if i in alfrags:
+                # print(i, 'already')
+                continue
+            molfrags = self.getmolfrags(i, df, molmode)
+            molfragss.append(molfrags)
+            for j in molfrags:
+                alfrags.append(j)
+        # print(molfragss)
+        return molfragss
+
+
+    def getnf(self, logname, fragmode):
+        if fragmode == 'manual':
+            text = open(logname, "r").readlines()
+            for i in range(len(text)):
+                itemList = text[i][:-1].split()
+                # print(itemList)
+                if len(itemList) < 2:
+                    continue
+                if itemList[:2]== ['NF', '=']:
+                   nf = int(itemList[2])
+                   break
+        return nf
+
+    def getifiedf(self, ifie, column):
+        df = pd.DataFrame(ifie, columns=column)
+        df['I'] = df['I'].astype(int)
+        df['J'] = df['J'].astype(int)
+        df['DIST'] = df['DIST'].astype(float)
+        df['HF-IFIE'] = df['HF-IFIE'].astype(float) * 627.5095
+        df['MP2-IFIE'] = df['MP2-IFIE'].astype(float) * 627.5095
+        df['PR-TYPE1'] = df['PR-TYPE1'].astype(float) * 627.5095
+        df['GRIMME'] = df['GRIMME'].astype(float) * 627.5095
+        df['JUNG'] = df['JUNG'].astype(float) * 627.5095
+        df['HILL'] = df['HILL'].astype(float) * 627.5095
+
+        return df
+
+    def getpiedadf(self, pieda, pcolumn):
+        pidf = pd.DataFrame(pieda, columns=pcolumn)
+        pidf['I'] = pidf['I'].astype(int)
+        pidf['J'] = pidf['J'].astype(int)
+        pidf['ES'] = pidf['ES'].astype(float)
+        pidf['EX'] = pidf['EX'].astype(float)
+        pidf['CT-mix'] = pidf['CT-mix'].astype(float)
+        if abinit_ver >= 17:
+            pidf['Solv(ES)'] = pidf['Solv(ES)'].astype(float)
+        pidf['DI(MP2)'] = pidf['DI(MP2)'].astype(float)
+        pidf['q(I=>J)'] = pidf['q(I=>J)'].astype(float)
+
+        return pidf
+
+
+    def gettgtdf(self, df, dist):
+        print('--- ifie near tgt ', dist, 'angstrom ----')
+        tgtdf = df[df['I'] == tgtid]
+        tgtdf = tgtdf.append(df[df['J'] == tgtid])
+        tgtdf_filter = tgtdf[tgtdf['DIST'] < dist]
+
+        # print(tgtdf)
+        print(tgtdf_filter)
+        # print(tgtdf_filter['J'])
+        return tgtdf, tgtdf_filter
+
+    def gettgtdf_ffmulti(self, df, frag1, frag2):
+        # print('--- ifie frag ', frag1, frag2, '----')
+        tgtdf_filter = df[((df['I'] == frag1) & (df['J'] == frag2)) | ((df['I'] == frag2) & (df['J'] == frag1))]
+        tgtdf_filter = df[((df['I'] == frag1) & (df['J'] == frag2)) | ((df['I'] == frag2) & (df['J'] == frag1))]
+
+        return tgtdf_filter
+
+
+    def getifiesummol(self, df, column):
+        tgtdf_filters = pd.DataFrame(df,columns=column)
+        for i in molfrags:
+            tgtdf = df[df['I'] == i]
+            tgtdf = tgtdf.append(df[df['J'] == i])
+            tgtdf_filter = tgtdf[tgtdf['DIST'] < dist]
+            # print(tgtdf_filter)
+            tgtdf_filters = tgtdf_filters.append(tgtdf_filter)
+
+        # print(tgtdf_filters)
+
+        neighbor_i = [index for index, row in tgtdf_filters.groupby("I")]
+        neighbor_j = [index for index, row in tgtdf_filters.groupby("J")]
+        neighbors= list(set(neighbor_i + neighbor_j))
+        # print(neighbors)
+        neighbors.sort()
+        alreadys = copy.deepcopy(molfrags)
+        contactmolfrags = []
+        for i in neighbors:
+            if i in alreadys:
+                continue
+            molfrag_new = self.getmolfrags(i, df, molmode)
+            contactmolfrags.append(molfrag_new)
+            alreadys = alreadys + molfrag_new
+            # print(alreadys)
+        print('contactmolfrags\n', contactmolfrags)
+
+        # print('-- ifie permol --')
+        ifie_permols = []
+        for contactmolfrag in contactmolfrags:
+            ifie_permol = pd.DataFrame(columns=column)
+            for contact in contactmolfrag:
+                for tgtfrag in molfrags:
+                    # print(contact, tgtfrag)
+                    ifie_permol = ifie_permol.append(df[((df['I'] == contact) & (df['J'] == tgtfrag)) | ((df['I'] == tgtfrag) & (df['J'] == contact))])
+            ifie_permols.append(ifie_permol)
+
+        count = 0
+        ifiesums = [['contactmolfrag', 'tgtmolfrags', 'HF-IFIE', 'MP2-IFIE']]
+        # print('contactmolfrag', 'tgtmolfrags', 'HF-IFIE', 'MP2-IFIE')
+        for datadf in ifie_permols:
+            ifiesums.append([contactmolfrags[count], molfrags, datadf['HF-IFIE'].sum(), datadf['MP2-IFIE'].sum()])
+            count += 1
+
+        return contactmolfrags, ifie_permols, ifiesums
+
+
+    def getpitgtdf(self, pidf, tgtdf_filter):
+        print('--- pieda near tgt ', dist, 'angstrom ----')
+        pitgtdf = pidf[pidf['I'] == tgtid]
+        pitgtdf = pitgtdf.append(pidf[pidf['J'] == tgtid])
+
+        # --- filter ver.1 dist ----
+        pitgtdf_filter =  pd.DataFrame(columns=pcolumn)
+        for i in tgtdf_filter['J']:
+            # print(pitgtdf[pitgtdf['J'] == i])
+            aa = pitgtdf[pitgtdf['J'] == i]
+            pitgtdf_filter = pitgtdf_filter.append(aa)
+
+        # --- filter ver.2 except dimer-es resion ----
+        # pitgtdf_filter = pitgtdf[~(pitgtdf['CT-mix'] == 0.0)]
+        # pitgtdf_filter = pitgtdf_filter[~(pitgtdf_filter['DI(MP2)'] == 0.0)]
+
+        # print(pitgtdf)
+        print(pitgtdf_filter)
+
+        return pitgtdf, pitgtdf_filter
+
+    def getpdbinfowrap(self, fname):
+        # get pdbinfo
+        totalMol, atomnameMol, molnames, nummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = self.getpdbinfo(fname)
+
+        print('totalres', totalMol)
+        # print('atomnameMol', atomnameMol)
+        # print('resnames', molnames)
+        print('res_count', collections.Counter(molnames))
+        # print('nummols', nummols)
+
+        cellsize = self.getpdbcell(fname)
+        self.cellsize = cellsize
+    #
+        if len(self.cellsize) == 0:
+            self.cellsize = 0
+            print('cellinfo: None')
+        else:
+            print('cellsize:', self.cellsize)
+    #
+        return totalMol, atomnameMol, molnames, nummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges
+
+    def getajfinfo(self, fname):
+        lines = open(fname, 'r').readlines()
+        head, ext = os.path.splitext(fname)
+
+        flag = False
+        baseline = 1
+
+        datas = []
+        fatomnums = []
+        fchgs = []
+        fbaas = []
+        nfcount = 0
+        fatminfo = []
+        fatminfos = []
+        connects = []
+        for i in range(len(lines)):
+            itemlist = lines[i].split()
+            if itemlist[0][:2] == 'NF':
+                self.nf = int(itemlist[0].split('=')[-1])
+                nf = self.nf
+                print('NF=', self.nf)
+                if self.nf > 10:
+                    baseline = math.ceil(self.nf/10)
+                    print('n_line', baseline)
+            if itemlist[0] == '&FRAGMENT':
+                flag = True
+                typcount = 0
+                lcount = 0
+                continue
+            # fatom section
+            if flag == True and typcount == 0:
+                fatomnums.append(itemlist)
+                lcount += 1
+                if lcount == baseline:
+                    typcount += 1
+                    lcount = 0
+                    fatomnums = self.flatten(fatomnums)
+                    continue
+            # chg section
+            if flag == True and typcount == 1:
+                fchgs.append(itemlist)
+                lcount += 1
+                if lcount == baseline:
+                    typcount += 1
+                    lcount = 0
+                    fchgs = self.flatten(fchgs)
+                    continue
+
+            # bda section
+            if flag == True and typcount == 2:
+                fbaas.append(itemlist)
+                lcount += 1
+                if lcount == baseline:
+                    typcount += 1
+                    lcount = 0
+                    fbaas = self.flatten(fbaas)
+                    continue
+
+            # seginfo section
+            if flag == True and typcount == 3:
+                # print('typ', typcount)
+                # print(nfcount)
+                fatomnum = fatomnums[nfcount]
+                base2 = math.ceil(int(fatomnum)/10)
+                fatminfo.append(itemlist)
+                lcount += 1
+                if lcount == base2:
+                    nfcount += 1
+                    lcount = 0
+                    fatminfo = self.flatten(fatminfo)
+                    fatminfos.append(fatminfo)
+                    fatminfo = []
+                    if  nfcount > nf - 1:
+                        typcount += 1
+                        lcount = 0
+                        continue
+
+            # bda-baa atom section
+            if flag == True and itemlist[0] == '/':
+                break
+
+            if flag == True and typcount == 4:
+                connects.append(itemlist)
+                connects = self.functor(int, connects)
+                # datas.append(itemlist)
+
+        return fatomnums, fchgs, fbaas, fatminfos, connects
+
+
+    def modifyfragparam(self, totalMol, atomnameMol, molnames, anummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges, fatomnums, fchgs, fbaas, fatminfos, connects, bridgeds, doubles, nagatoms):
+        # modify start
+        for i in range(len(nagatoms)):
+            for j in range(len(fatminfos)):
+                # i: nag mol index
+                # j: ajf fragment index
+
+                # print(fatminfos[j])
+                # print(nagatoms[i][0])
+                dendflag = False
+                dmidflag = False
+                if nagatoms[i][0] in fatminfos[j]: # search (asn + nag)
+                    print('NAG', i, 'frag', j, 'start atom', nagatoms[i][0])
+
+                    # check baa asn atom id
+                    tgtid = j
+                    for bridged in bridgeds:
+                        if tgtid >= bridged:
+                            tgtid += 1
+                    print(molnames[tgtid], resnums[tgtid][0])
+                    print('atomnameMol', tgtid, atomnameMol[tgtid])
+                    baaidx = atomnameMol[tgtid].index(' ND2')
+                    print('asn_baaidx', anummols[tgtid][baaidx])
+
+
+                    tgtbaaid = sum(fbaas[:j+1])
+                    print('tgtbaaid', tgtbaaid)
+
+                    #fatomnums
+                    # j: asn frag id
+                    fatomnums[j] -= len(nagatoms[i])
+                    fatomnums.append(len(nagatoms[i]))
+
+                    print('doubles', doubles)
+                    for double in doubles:
+                        if double[1] == nagmolids[i]:
+                            dendflag = True
+                        if double[0] == nagmolids[i]:
+                            dmidflag = True
+
+                    if dendflag == True:
+                        baaidx = atomnameMol[nagmolids[i-1]].index(' O4 ')
+                        print('baaidx double', baaidx, nagmolids[i-1])
+                        baaatomid = anummols[nagmolids[i-1]][baaidx]
+                        print('baaaaaaaaaaaaaa', baaatomid)
+
+                    # for old(asn) frag
+                    if dendflag == False:
+                        fchgs[j] -= 1
+                        fbaas[j] += 1
+
+                    # for new frag
+                    if dmidflag == True:
+                        fchgs.append(0)
+                        fbaas.append(1)
+                    else:
+                        fchgs.append(1)
+                        fbaas.append(0)
+
+                    #fatminfos
+                    delid = []
+
+                    # get delete atom index in mol j
+                    for k in range(len(nagatoms[i])):
+                        # k: nagatom(in mol) index
+                        for l in range(len(fatminfos[j])):
+                            # l: atom(in fragment) index
+                            if nagatoms[i][k] == fatminfos[j][l]:
+                                delid.append(l)
+                                break
+
+                    print('delid', delid)
+                    dellist = lambda items, indexes: [item for index, item in enumerate(items) if index not in indexes]
+                    fatminfos[j] = dellist(fatminfos[j], delid)
+                    # atomnameMol[tgtid] = dellist(atomnameMol[j], delid)
+                    print('atom-len-check frag', j, ':',  len(fatminfos[j]), '-- mol', j, ':',  len(atomnameMol[tgtid]))
+                    fatminfos.append(nagatoms[i])
+
+                    #connects
+                    print(len(connects))
+                    if dendflag == True:
+                        connects.append([int(nagbdas[i]), int(baaatomid)])
+                        print('connects', nagbdas[i], baaatomid)
+
+                    else:
+                        connects.insert(tgtbaaid, [int(nagbdas[i]), int(anummols[tgtid][baaidx])])
+                        print('connects', nagbdas[i], anummols[tgtid][baaidx])
+                    print(' ')
+        return fatomnums, fchgs, fbaas, connects, fatminfos
+
+    def flatten(self, nested_list):
+        """2重のリストをフラットにする関数"""
+        return [int(e) for inner_list in nested_list for e in inner_list]
+
+    # def listtoint(nested_list):
+    #     """リストの中をintegerに"""
+    #     return [int(e) for inner_list in nested_list for e in inner_list]
+
+    def functor(self, f, l):
+        if isinstance(l,list):
+            return [functor(f,i) for i in l]
+        else:
+            return f(l)
 
