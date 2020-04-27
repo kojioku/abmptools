@@ -12,13 +12,11 @@ import subprocess
 import re
 import time
 import copy
-import fcewsmb.udf_io as mbu
-import fcews.abinit_io as fab
-import fcewsmb.udfcreate as ufc
-import rmdpd.udfrm_io as rud
+import udfcreate as ufc
+import udfrm_io as rud
 import pdb_io as pdio
 
-class rmap_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
+class cutset_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
     def __init__(self):
         super().__init__()
         self.ajf_method = 'HF'

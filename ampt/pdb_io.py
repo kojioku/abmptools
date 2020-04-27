@@ -8,9 +8,7 @@ import subprocess
 import re
 import time
 import copy
-import fcews.abinit_io as fab
-import fcewsmb.udfcreate as ufc
-import rmdpd.udfrm_io as rud
+import abinit_io as fab
 try:
     from UDFManager import *
 except:
@@ -60,6 +58,7 @@ class pdb_io(fab.abinit_io):
         chargeMols = []
         totalMol = 0
         name_permol = []
+        nums = []
 
         atomcount = 0
         for line in lines:
@@ -115,7 +114,24 @@ class pdb_io(fab.abinit_io):
             #     atypenames.append(line[12:15])
                 atomcount += 1
 
-                if atomcount < 100000:
+                try:
+                    num=int(line[6:12])
+                except:
+                    head=line[0:6]
+                    num=line[6:11]
+                    atypename=line[12:16]
+                    lab=line[16]
+                    res=line[17:20].strip()
+                    chain=line[21]
+                    resnum=line[22:26]
+                    code=line[26]
+                    pos=[float(line[30:38].strip()), float(line[38:46].strip()), float(line[46:54].strip())]
+                    occ=line[54:60]
+                    temp=line[60:66]
+                    amark=line[76:78]
+                    charge=line[78:80]
+
+                if num < 100000:
                     head=line[0:6]
                     num=line[6:11]
                     atypename=line[12:16]
@@ -145,6 +161,7 @@ class pdb_io(fab.abinit_io):
                     amark=line[77:79]
                     charge=line[79:81]
 
+                nums.append(num)
                 heads.append(head)
                 molnames.append(res)
                 atypenames.append(atypename)
@@ -187,6 +204,7 @@ class pdb_io(fab.abinit_io):
             print('molnames_permol', name_permol)
             totalMol = len(name_permol)
 
+            numMols = self.getpermol(totalMol, molnums, name_permol, nums)
             posMols = self.getpermol(totalMol, molnums, name_permol, poss)
             typenameMols = self.getpermol(totalMol, molnums, name_permol, atypenames)
             headMols = self.getpermol(totalMol, molnums, name_permol, heads)
@@ -224,6 +242,7 @@ class pdb_io(fab.abinit_io):
             # print(anummols)
             totalMol = len(anummols)
             # print(totalMol)
+            numMols = self.getpermol2(totalMol, anummols, nums)
             posMols = self.getpermol2(totalMol, anummols, poss)
             typenameMols = self.getpermol2(totalMol, anummols, atypenames)
             headMols = self.getpermol2(totalMol, anummols, heads)
@@ -281,7 +300,7 @@ class pdb_io(fab.abinit_io):
                 name_permol = copy.deepcopy(molidnames)
                 # print(moldatas)
 
-        return totalMol, typenameMols, name_permol, posMols, headMols, labMols, chainMols ,resnumMols ,codeMols ,occMols ,tempMols ,amarkMols ,chargeMols
+        return totalMol, typenameMols, name_permol, numMols, posMols, headMols, labMols, chainMols ,resnumMols ,codeMols ,occMols ,tempMols ,amarkMols ,chargeMols
 
 
     def getpermol(self, totalMol, molnums, name_permol, datas):
@@ -339,15 +358,22 @@ class pdb_io(fab.abinit_io):
 
         f = open(out_file, "a+", newline = "\n")
         tatomlab = 0
+        reslab = 0
         # print(mollist)
 
         if self.refreshatmtype == False:
 
             for i in mollist:
                 posMol = posMols[i]
+                reslab += 1
+                if reslab >=10000:
+                    reslab -= 10000
+
                 for j in range(len(posMol)):
                     tatomlab += 1
-                    olist = [heads[i][j], str(tatomlab), nameAtom[i][j], labs[i][j], molnames[i], chains[i][j], str(i + 1), codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
+                    if tatomlab >= 100000:
+                        tatomlab -= 100000
+                    olist = [heads[i][j], str(tatomlab), nameAtom[i][j], labs[i][j], molnames[i], chains[i][j], reslab, codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
                     print('{0[0]:<6}{0[1]:>5} {0[2]:>4}{0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'.format(olist), file=f)
             # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
 
@@ -356,9 +382,15 @@ class pdb_io(fab.abinit_io):
 
             for i in mollist:
                 posMol = posMols[i]
+                reslab += 1
+                if reslab >=10000:
+                    reslab -= 10000
+
                 for j in range(len(posMol)):
                     tatomlab += 1
-                    olist = [heads[i][j], str(tatomlab), amarks[i][j], labs[i][j], molnames[i], chains[i][j], str(i + 1), codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
+                    if tatomlab >= 100000:
+                        tatomlab -= 100000
+                    olist = [heads[i][j], str(tatomlab), amarks[i][j], labs[i][j], molnames[i], chains[i][j], reslab, codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
                     print('{0[0]:<6}{0[1]:>5} {0[2]:>2}  {0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'.format(olist), file=f)
             # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
 
@@ -411,13 +443,21 @@ class pdb_io(fab.abinit_io):
 
         f = open(out_file, "a+", newline = "\n")
         tatomlab = 0
+        reslab = 0
         print(mollist)
         for i in mollist:
             molname = str(molnames[i])
             Molnum = i
             posMol = posMols[i]
+            reslab += 1
+            if reslab >=10000:
+                reslab -= 10000
+
             for j in range(len(posMol)):
                 tatomlab += 1
+                if tatomlab >= 100000:
+                    tatomlab -= 100000
+
                 list = ["HETATM", str(tatomlab), nameAtom[i][j], molname.zfill(3), str(i + 1), '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), "1.00", "0.00", nameAtom[i][j]]
                 print('{0[0]:<6}{0[1]:>5} {0[2]:>2}   {0[3]:>3}  {0[4]:>4}    {0[5]:>8}{0[6]:>8}{0[7]:>8}{0[8]:>6}{0[9]:>6}{0[10]:>12}'.format(list), file=f)
         # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H

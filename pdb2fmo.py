@@ -6,7 +6,7 @@ import subprocess
 import re
 import time
 import copy
-import fmor.rev_md_fmo as fr
+import ampt.cutset_fmo as cutf
 # Matrix operation
 
 
@@ -21,7 +21,7 @@ if __name__ == "__main__":
         fname = argvs[i]
         oname, ext = os.path.splitext(fname)
 
-        obj = fr.rmap_fmo()
+        obj = cutf.cutset_fmo()
         path = 'for_abmp'
 
         param_read = {}
