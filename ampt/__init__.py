@@ -6,4 +6,5 @@ from . import molcalc
 from . import pdb_io
 from . import udfrm_io
 from . import udf_io
+from . import udfcreate
 
