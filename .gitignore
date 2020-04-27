@@ -5,4 +5,5 @@ build
 dist
 tags
 for_abmp
+*.swp
 

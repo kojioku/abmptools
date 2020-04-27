@@ -13,7 +13,19 @@ import subprocess
 from ctypes import *
 # import setparam as sp
 import mol_io as mi
-import collections
+try:
+    import collections
+except:
+    pass
+try:
+    import pandas as pd
+except:
+    pass
+try:
+    import itertools
+except:
+    pass
+
 
 
 class abinit_io(mi.mol_io):
@@ -516,7 +528,7 @@ MD='OFF'
                 flag = True
                 # head.append(itemList)
                 continue
-            if itemList[1] == 'Mulliken' or itemList[2] =='PIEDA':
+            if itemList[1] == 'Mulliken' or itemList[1] =='PIEDA':
                 # flag = False
                 break
             if flag is True:
@@ -525,7 +537,10 @@ MD='OFF'
                 ifie.append(itemList)
 
         if flag is False:
-            print("can't read ifie", fname.split("/")[1])
+            try:
+                print("can't read ifie", fname.split("/")[1])
+            except:
+                pass
 
         for i in range(len(ifie)):
             if float(ifie[i][4]) < -2 or float(ifie[i][5]) < -2:
@@ -961,7 +976,7 @@ MD='OFF'
         pidf['ES'] = pidf['ES'].astype(float)
         pidf['EX'] = pidf['EX'].astype(float)
         pidf['CT-mix'] = pidf['CT-mix'].astype(float)
-        if abinit_ver >= 17:
+        if self.abinit_ver >= 'rev17':
             pidf['Solv(ES)'] = pidf['Solv(ES)'].astype(float)
         pidf['DI(MP2)'] = pidf['DI(MP2)'].astype(float)
         pidf['q(I=>J)'] = pidf['q(I=>J)'].astype(float)

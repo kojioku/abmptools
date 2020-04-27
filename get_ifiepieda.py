@@ -61,7 +61,8 @@ hynum = 3
 # --------------------
 
 # load module
-obj = cutf.cut_fmo()
+obj = cutf.cutset_fmo()
+obj.abinit_ver = 'rev' + str(abinit_ver)
 
 ## step1 setup param
 if molmode == 'ff-multi':
@@ -99,7 +100,7 @@ if molmode == 'fraginmol':
     readpdb = True
 if  readpdb == True:
     obj.assignmolname = False
-    totalMol, atomnameMol, molnames, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = obj.getpdbinfo(pdbname)
+    totalMol, atomnameMol, molnames, nummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = obj.getpdbinfo(pdbname)
     print(molnames)
 
 if molmode == 'ff-multi' and tgt2type == 'molname':
@@ -107,7 +108,7 @@ if molmode == 'ff-multi' and tgt2type == 'molname':
     molnames_perrec = []
     obj.assignmolname = False
     for i in range(len(pdbnames)):
-        totalMol, atomnameMol, molnames, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = obj.getpdbinfo(pdbnames[i])
+        totalMol, atomnameMol, molnames, nummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = obj.getpdbinfo(pdbnames[i])
         nf = obj.getnf(lognames[i], fragmode)
         nfs.append(nf)
         molnames_perrec.append(molnames)
