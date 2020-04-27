@@ -16,6 +16,7 @@ from ctypes import *
 class mol_io():
 
     def __init__(self):
+        print('## load mol io')
         return
 
     def read_mol_name(self, fname):

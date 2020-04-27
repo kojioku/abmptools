@@ -27,10 +27,10 @@ except:
     pass
 
 
-
 class abinit_io(mi.mol_io):
 
     def __init__(self):
+        print('## load abinit io')
         super().__init__()
         # gen_rand: gen_coord
         self.solv_flag = False
