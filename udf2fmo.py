@@ -7,11 +7,11 @@ import subprocess
 import re
 import time
 import copy
-import fcewsmb.udf_io as mbu
-import fcews.abinit_io as fab
-import fcewsmb.udfcreate as ufc
-import rmdpd.udfrm_io as rud
-import fmor.rev_md_fmo as frev
+import ampt.udf_io as mbu
+import ampt.abinit_io as fab
+import ampt.udfcreate as ufc
+import ampt.udfrm_io as rud
+import ampt.cutset_fmo as cutf
 # Matrix operation
 
 if __name__ == "__main__":
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     oname = str(argvs[2])
     _udf_ = UDFManager(fname)
 
-    obj = frev.rmap_fmo()
+    obj = cutf.cutset_fmo()
     totalMol, totalRec = obj.gettotalmol_rec(_udf_)
     path = ['.', '.']
 

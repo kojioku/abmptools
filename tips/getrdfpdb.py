@@ -6,7 +6,7 @@ import subprocess
 import re
 import time
 import copy
-import fmor.rev_md_fmo as fr
+import ampt.cutset_fmo as cutf
 # Matrix operation
 
 
@@ -65,7 +65,7 @@ if __name__ == "__main__":
         else:
             oname = oname + '-moved'
 
-        obj = fr.rmap_fmo()
+        obj = cutf.cutset_fmo()
         obj.getmode = mode
         obj.assignmolname = assignmolname
         obj.refreshatmtype = refreshatmtype

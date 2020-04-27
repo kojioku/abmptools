@@ -6,7 +6,7 @@ import math
 import subprocess
 import re
 from multiprocessing import Pool
-import rmdpd.udfrm_io as udio
+import ampt.udfrm_io as udio
 
 if __name__ == "__main__":
     # main
