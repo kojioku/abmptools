@@ -1094,7 +1094,6 @@ MD='OFF'
 
     def getajfinfo(self, fname):
         lines = open(fname, 'r').readlines()
-        head, ext = os.path.splitext(fname)
 
         flag = False
         baseline = 1
@@ -1284,4 +1283,41 @@ MD='OFF'
             return [self.functor(f,i) for i in l]
         else:
             return f(l)
+
+
+    def getfragdict(self, fnames, ofile):
+        f = open(ofile, 'w')
+
+        print("seg_data = [", file=f)
+        for fname in fnames:
+            head, ext = os.path.splitext(fname)
+            fatomnums, fchgs, fbaas, connects, fatminfos = self.getajfinfo(fname)
+            print("    {", file=f)
+            print("    'name': '" + head.split('/')[-1] + "',", file=f)
+            print("    'atom': ", fatomnums, ',', file=f)
+            print("    'charge': ", fchgs, ',', file=f)
+            print("    'connect_num': ", fbaas, ',', file=f)
+            print("    'seg_info': ", fatminfos, ',', file=f)
+            print("    'connect': ", connects, ',', file=f)
+            end =  """    'nummol_seg': [1],
+    'repeat': [1],
+    'pair_file': [],
+    'multi_xyz': 'none'
+    },"""
+            print(end, file=f)
+
+        print(']', file=f)
+
+        '''
+                seg_conf = {'name': seg_name,
+                            'atom': [seg_atom],
+                            'charge': [0],
+                            'connect_num': [0],
+                            'connect': [],
+                            'seg_info': [[i + 1 for i in range(seg_atom)]],
+                            'nummol_seg': [1],
+                            'repeat': [1],
+                            'pair_file': [],
+                            'multi_xyz': 'none'}
+        '''
 
