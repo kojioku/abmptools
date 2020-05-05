@@ -24,7 +24,7 @@ if __name__ == "__main__":
     movemode = 'mol' # pos or mol
 
     addchain = True
-    addres_start = 307
+    addres_start = 308
     addres_end = 312
     chainlab = 'C'
 

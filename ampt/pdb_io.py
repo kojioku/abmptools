@@ -21,6 +21,7 @@ class pdb_io(fab.abinit_io):
         self.getmode = 'resnum'
         self.assignmolname = True
         self.refreshatmtype = False
+        self.refreshresid = False
         self.cellsize = 0
         pass
 
@@ -361,37 +362,32 @@ class pdb_io(fab.abinit_io):
         reslab = 0
         # print(mollist)
 
-        if self.refreshatmtype == False:
 
-            for i in mollist:
-                posMol = posMols[i]
-                reslab += 1
-                if reslab >=10000:
-                    reslab -= 10000
+        for i in mollist:
+            posMol = posMols[i]
+            reslab += 1
+            if reslab >=10000:
+                reslab -= 10000
 
-                for j in range(len(posMol)):
-                    tatomlab += 1
-                    if tatomlab >= 100000:
-                        tatomlab -= 100000
-                    olist = [heads[i][j], str(tatomlab), nameAtom[i][j], labs[i][j], molnames[i], chains[i][j], reslab, codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
-                    print('{0[0]:<6}{0[1]:>5} {0[2]:>4}{0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'.format(olist), file=f)
-            # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
+            for j in range(len(posMol)):
+                tatomlab += 1
+                if tatomlab >= 100000:
+                    tatomlab -= 100000
 
+                if self.refreshatmtype == False:
+                    atomname = nameAtom[i][j]
+                    form ='{0[0]:<6}{0[1]:>5} {0[2]:>4}{0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'
+                else:
+                    atomname = amarks[i][j]
+                    form ='{0[0]:<6}{0[1]:>5} {0[2]:>2}  {0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'
 
-        else:
+                if self.refreshresid == False:
+                    resid = reslab
+                else:
+                    resid = resnums[i][j]
 
-            for i in mollist:
-                posMol = posMols[i]
-                reslab += 1
-                if reslab >=10000:
-                    reslab -= 10000
-
-                for j in range(len(posMol)):
-                    tatomlab += 1
-                    if tatomlab >= 100000:
-                        tatomlab -= 100000
-                    olist = [heads[i][j], str(tatomlab), amarks[i][j], labs[i][j], molnames[i], chains[i][j], reslab, codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
-                    print('{0[0]:<6}{0[1]:>5} {0[2]:>2}  {0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'.format(olist), file=f)
+                olist = [heads[i][j], str(tatomlab), atomname, labs[i][j], molnames[i], chains[i][j], resid, codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
+                print(form.format(olist), file=f)
             # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
 
         print("END", file=f)

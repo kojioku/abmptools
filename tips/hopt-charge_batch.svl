@@ -1,0 +1,63 @@
+// usage:
+// get argument
+arg = argument [];
+
+// close opened file
+Close [force:1];
+
+// assign argument for valuables
+print arg;
+print head = arg(1);
+print tail = arg(2);
+print stime = arg(3)(1);
+print etime = arg(3)(2);
+print intertime = arg(3)(3);
+
+// structure loop
+index = 0;
+loop
+
+    // assign time infor mation
+    addtime = intertime * index;
+    nowtime =  stime + addtime;
+    if nowtime > etime then break; endif
+
+    // print and assign inp and out name info
+    print 'inpname';
+    print inpname = twrite ['{}{}{}', head, nowtime, tail ];
+    print 'outname';
+    print outname = twrite ['{}{}{}{}', head, nowtime, '-hopt-', tail];
+
+    // read pdbfile
+    ReadPDB inpname;
+
+    // get all atom_keys
+    all = Atoms[];
+
+    // get and set partial charge(using current forcefield)
+    [q, pos] = PartialCharge [all, 'FF'];
+    aSetCharge [all, q];
+    print q;
+
+    // proceed optimize
+    // set fixed for all atoms
+    aSetFixed [[all], [1]];
+    // get hydrogen atom_keys
+    hyds = Atoms[] | aElement Atoms[] == 'H';
+    // set unfix for hydrogen atoms
+    aSetFixed [[hyds], [0]];
+    // set select for hydrogen atoms
+    aSetSelected [[hyds], [1]];
+    // print fix info for all atoms
+    aFixed Atoms[];
+    // MM relaxation
+    MM [ gtest:0.1 ];
+    // write for outname(new-pdb)
+    WritePDB outname;
+    // close file
+    Close [force:1];
+
+    index = index + 1;
+endloop
+
+print 'end';
