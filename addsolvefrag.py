@@ -73,44 +73,36 @@ if __name__ == "__main__":
         atomnumsets.append(0)
 
         fatomnums, fchgs, fbaas, fatminfos, connects = obj.getfragtable(tgtmolsets, atomnumsets, nameidMol)
-        # print(fatminfos)
         # print (frag_atoms, frag_charges)
 
         # gen ajf file
         obj.ajf_method = "MP2"
         obj.ajf_basis_set = "6-31G*"
-        obj.abinit_ver = 'rev10'
+        obj.abinit_ver = 'rev15'
         obj.abinitmp_path = 'abinitmp'
-        obj.pbmolrad = 'vdw'
         obj.pbcnv = 1.0
         obj.piedaflag = False
+        obj.cpfflag = False
+        obj.cmmflag = True
+        obj.npro = 1
+        obj.para_job = 1
 
-        # i, j ,k (mol, frag, component_perfrag) dimension
-        param = [fatomnums], [fchgs], [fbaas], [connects], [fatminfos]
-        ajf_fragment = obj.get_fragsection(param)[:-1]
 
-        ajf_charge = sum(fchgs)
-        ajf_parameter = [ajf_charge, "", "", ajf_fragment, len(fatomnums), 0]
-
-        basis_str = obj.ajf_basis_set
-        print(basis_str)
-        if basis_str == '6-31G*':
-            basis_str = '6-31Gd'
-        ajf_parameter[1] = "'" +  pdbname + "'"
-        ajf_parameter[2] = "'" +  os.path.splitext(ajfname)[0] + '-' + obj.ajf_method + '-' + basis_str + ".cpf'"
-        ajf_body = obj.gen_ajf_body(ajf_parameter)
+        oname = os.path.splitext(pdbname)[0].split('/')[-1] + '_forabmp'
+        readgeom = oname + '.pdb'
+        ajf_body = obj.gen_ajf_bodywrap(fatomnums, fchgs, fbaas, connects, fatminfos, readgeom, ajfname)
 
         # export
         # ajf
         opath = 'for_abmp'
         ajf_oname = opath + '/' + os.path.splitext(pdbname)[0].split('/')[-1] + '-forabmp.ajf'
-        print('oname:', ajf_oname)
+
+        print('ajf_oname:', ajf_oname)
         ajf_file = open(ajf_oname, 'w')
 
         print(ajf_body, file=ajf_file)
 
         # pdb
-        oname = os.path.splitext(pdbname)[0].split('/')[-1] + '_forabmp'
         if os.path.exists(opath) is False:
             print(opath)
             subprocess.call(["mkdir", opath])

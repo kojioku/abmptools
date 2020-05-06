@@ -52,6 +52,8 @@ class abinit_io(mi.mol_io):
         self.pbmolrad = 'vdw'
         self.pbcnv = 1.0
         self.piedaflag = False
+        self.cpfflag = False
+        self.cmmflag = False
         # distlitname
 
         # others
@@ -132,6 +134,26 @@ class abinit_io(mi.mol_io):
             atom_count += sum(frag_atom[0])
         return ajf_fragment
 
+
+    def gen_ajf_bodywrap(self, fatomnums, fchgs, fbaas, connects, fatminfos, readgeom, ajfname):
+        # i, j ,k (mol, frag, component_perfrag) dimension
+        param = [fatomnums], [fchgs], [fbaas], [connects], [fatminfos]
+        ajf_fragment = self.get_fragsection(param)[:-1]
+
+        ajf_charge = sum(fchgs)
+        ajf_parameter = [ajf_charge, "", "", ajf_fragment, len(fatomnums), 0]
+
+        basis_str = self.ajf_basis_set
+        print(basis_str)
+        if basis_str == '6-31G*':
+            basis_str = '6-31Gd'
+        ajf_parameter[1] = "'" +  readgeom + "'"
+        ajf_parameter[2] = "'" +  os.path.splitext(ajfname)[0] + '-' + self.ajf_method + '-' + basis_str + ".cpf'"
+        ajf_body = self.gen_ajf_body(ajf_parameter)
+
+        return ajf_body
+
+
     def gen_ajf_body(self, param, fzctemp="YES"):
         ajf_charge, read_geom, cpf, ajf_fragment, num_fragment, MOME_flag = param
 
@@ -188,9 +210,14 @@ LMOTYP='ANO' """
             if self.piedaflag == True:
                 new_section += """
 PIEDA='YES'"""
+            else:
+                new_section += """
+PIEDA='NO'"""
+
             new_section += """
 /
 """
+
         elif self.abinit_ver == 'mizuho':
             new_section = """
 &DFT
@@ -220,6 +247,7 @@ EnergyDecomposition='YES'"""
         else:
             np = str(int(self.npro/self.para_job))
 
+        # CNTRL NAMELIST
         ajf_body = """&CNTRL
 ElecState='S1'
 Method='""" + str(self.ajf_method) + """'
@@ -251,8 +279,14 @@ Dimer_es_multipole='NO'
 NP=""" + np + """
 MaxSCCcyc=250
 MaxSCCenergy=5.0E-7
+"""
+        if self.cmmflag == True:
+            ajf_body += """Dimer_es_multipole='YES'
+Ldimer_cmm=5.0
 /
+"""
 
+        ajf_body += """
 &SCF
 MaxSCFenergy=1.0E-8
 MaxSCFdensity=1.0E-6
