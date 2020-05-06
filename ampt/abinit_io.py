@@ -1291,7 +1291,7 @@ MD='OFF'
         print("seg_data = [", file=f)
         for fname in fnames:
             head, ext = os.path.splitext(fname)
-            fatomnums, fchgs, fbaas, connects, fatminfos = self.getajfinfo(fname)
+            fatomnums, fchgs, fbaas, fatminfos, connects, = self.getajfinfo(fname)
             print("    {", file=f)
             print("    'name': '" + head.split('/')[-1] + "',", file=f)
             print("    'atom': ", fatomnums, ',', file=f)
@@ -1320,4 +1320,163 @@ MD='OFF'
                             'pair_file': [],
                             'multi_xyz': 'none'}
         '''
+
+    def config_read(self, seg_name, seg_atom):
+            fdata = {}
+            exec(open(self.mainpath + "/segment_data.dat", "r").read(), fdata)
+            seg_data = fdata['seg_data']
+            # print (seg_data)
+            # default data
+            seg_conf = {'name': seg_name,
+                        'atom': [seg_atom],
+                        'charge': [0],
+                        'connect_num': [0],
+                        'connect': [],
+                        'seg_info': [[i + 1 for i in range(seg_atom)]],
+                        'nummol_seg': [1],
+                        'repeat': [1],
+                        'pair_file': [],
+                        'multi_xyz': 'none'}
+
+            # print seg_data[0]
+            for i in range(len(seg_data)):
+                if seg_name == seg_data[i]['name']:
+                    for key, data in seg_data[i].items():
+                        seg_conf[key] = data
+
+            # print "seg_conf =", seg_conf
+                return seg_conf
+
+    def getmb_frag_seclists(self, param, nameid):
+        frag_atom = param[0]
+        frag_charge = param[1]
+        frag_connect_num = param[2]
+        frag_connect = param[3]
+        seg_info = param[4]
+
+        # fragment atom
+        count = 0
+
+        frag_atoms = []
+        for i in range(len(nameid)):
+            for j in range(len(frag_atom[nameid[i]])):
+                    frag_atoms.append(frag_atom[nameid[i]][j])
+                    count += 1
+
+        # fragment charge
+        count = 0
+        frag_charges = []
+        for i in range(len(nameid)):
+            for j in range(len(frag_charge[nameid[i]])):
+                frag_charges.append(frag_charge[nameid[i]][j])
+                count += 1
+
+        # fragment connect num
+        count = 0
+        frag_baanums = []
+        for i in range(len(nameid)):
+            for j in range(len(frag_connect_num[nameid[i]])):
+                frag_baanums.append(frag_connect_num[nameid[i]][j])
+                count += 1
+
+        # fragment body
+        atom_count = 0
+        # i mol  j frag k atom
+        frag_atmlabss = []
+        for i in range(len(nameid)):
+            for j in range(len(seg_info[nameid[i]])):
+                icount = 0
+                frag_atmlabs = []
+                for k in range(len(seg_info[nameid[i]][j])):
+                    icount += 1
+                    frag_atmlabs.append(seg_info[nameid[i]][j][k] + atom_count)
+                frag_atmlabss.append(frag_atmlabs)
+            atom_count += sum(frag_atom[nameid[i]])
+
+        atom_count = 0
+        # connect info
+        frag_connects = []
+        frag_connectss = []
+        for i in range(len(nameid)):
+            for j in range(len(frag_connect[nameid[i]])):
+                frag_connects = []
+                frag_connects.append(frag_connect[nameid[i]][j][0] + atom_count)
+                frag_connects.append(frag_connect[nameid[i]][j][1] + atom_count)
+                frag_connectss.append(frag_connects)
+            atom_count += sum(frag_atom[nameid[i]])
+
+        return frag_atoms, frag_charges, frag_baanums, frag_atmlabss, frag_connectss
+
+
+    def writemb_frag_section(self, param, nameid):
+        frag_atom = param[0]
+        frag_charge = param[1]
+        frag_connect_num = param[2]
+        frag_connect = param[3]
+        seg_info = param[4]
+
+        ajf_fragment = ''
+        # fragment atom
+        count = 0
+        for i in range(len(nameid)):
+            for j in range(len(frag_atom[nameid[i]])):
+                    ajf_fragment += '%8d' % (frag_atom[nameid[i]][j])
+                    count += 1
+                    if count % 10 == 0:
+                        ajf_fragment += '\n'
+        if count % 10 != 0:
+            ajf_fragment += '\n'
+
+        # fragment charge
+        count = 0
+        for i in range(len(nameid)):
+            for j in range(len(frag_charge[nameid[i]])):
+                ajf_fragment += '%8d' % (frag_charge[nameid[i]][j])
+                count += 1
+                if count % 10 == 0:
+                    ajf_fragment += '\n'
+        if count % 10 != 0:
+            ajf_fragment += '\n'
+
+        # fragment connect num
+        count = 0
+        for i in range(len(nameid)):
+            for j in range(len(frag_connect_num[nameid[i]])):
+                ajf_fragment += '%8d' % (frag_connect_num[nameid[i]][j])
+                count += 1
+                if count % 10 == 0:
+                    ajf_fragment += '\n'
+        if count % 10 != 0:
+            ajf_fragment += '\n'
+
+        # fragment body
+        atom_count = 0
+        for i in range(len(nameid)):
+            for j in range(len(seg_info[nameid[i]])):
+                icount = 0
+                for k in range(len(seg_info[nameid[i]][j])):
+                    icount += 1
+                    ajf_fragment += '%8d' % (
+                            seg_info[nameid[i]][j][k] + atom_count)
+                    if icount % 10 is 0:
+                        icount = 0
+                        ajf_fragment += '\n'
+                if icount % 10 != 0:
+                    ajf_fragment += '\n'
+            atom_count += sum(frag_atom[nameid[i]])
+
+        print ('atom_count', atom_count)
+        atom_count = 0
+        # connect info
+        print("frag_atom", frag_atom)
+        for i in range(len(nameid)):
+            for j in range(len(frag_connect[nameid[i]])):
+                ajf_fragment += '%8d' % (
+                        frag_connect[nameid[i]][j][0] + atom_count)
+                ajf_fragment += '%8d' % (
+                        frag_connect[nameid[i]][j][1] + atom_count)
+                ajf_fragment += '\n'
+            atom_count += sum(frag_atom[nameid[i]])
+
+        return ajf_fragment
 
