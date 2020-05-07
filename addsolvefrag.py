@@ -18,6 +18,8 @@ if __name__ == "__main__":
     assignmolname = False
     refreshatmtype = False
     ajfname = '6lu7orig_hip_nowat_hinagata.ajf'
+    solvname = ['WAT', 'NA']
+
     ## -- setting end --
 
     obj = cutf.cutset_fmo()
@@ -40,7 +42,7 @@ if __name__ == "__main__":
         totalMol, atomnameMol, molnameMol, anummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = obj.getpdbinfowrap(pdbname)
 
         # get tgt solvate mol info
-        molname = ['WAT', 'NA']
+        molname = solvname
         atomnumsets = []
         tgtmolsets = []
         for i in range(len(molname)):
