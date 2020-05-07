@@ -97,6 +97,10 @@ if __name__ == "__main__":
         # export
         # ajf
         opath = 'for_abmp'
+        if os.path.exists(opath) is False:
+            print(opath)
+            subprocess.call(["mkdir", opath])
+
         ajf_oname = opath + '/' + os.path.splitext(pdbname)[0].split('/')[-1] + '-forabmp.ajf'
 
         print('ajf_oname:', ajf_oname)
@@ -105,9 +109,6 @@ if __name__ == "__main__":
         print(ajf_body, file=ajf_file)
 
         # pdb
-        if os.path.exists(opath) is False:
-            print(opath)
-            subprocess.call(["mkdir", opath])
 
         index = [i for i in range(len(posMol))]
         obj.exportardpdbfull(opath + '/' + oname, index, posMol, atomnameMol, molnameMol, heads, labs, chains, resnums, codes, occs, temps, amarks, charges)
