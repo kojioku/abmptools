@@ -19,13 +19,28 @@ class pdb_io(fab.abinit_io):
         super().__init__()
         self.solutes = []
         self.getmode = 'resnum'
-        self.assignmolname = True
+        self.assignresname = False
         self.refreshatmtype = False
         self.refreshresid = False
         self.cellsize = 0
+        self.totalRes = []
+        self.atmtypeRes = []
+        self.resnames = []
+        self.gatmlabRes = []
+        self.posRes = []
+        self.headRes = []
+        self.labRes = []
+        self.chainRes = []
+        self.resnumRes = []
+        self.codeRes = []
+        self.occRes = []
+        self.tempRes = []
+        self.amarkRes = []
+        self.chargeRes = []
+
         pass
 
-    def getpdbinfo(self, fname):
+    def readpdb(self, fname):
 
         print('--- get pdbinfo ---')
         print('infile:',  fname)
@@ -46,19 +61,19 @@ class pdb_io(fab.abinit_io):
         amarks = []
         charges = []
 
-        posMols = []
-        typenameMols = []
-        headMols = []
-        labMols = []
-        chainMols = []
-        resnumMols = []
-        codeMols = []
-        occMols = []
-        tempMols = []
-        amarkMols = []
-        chargeMols = []
-        totalMol = 0
-        name_permol = []
+        posRes = []
+        atmtypeRes = []
+        headRes = []
+        labRes = []
+        chainRes = []
+        resnumRes = []
+        codeRes = []
+        occRes = []
+        tempRes = []
+        amarkRes = []
+        chargeRes = []
+        totalRes = 0
+        resnames = []
         nums = []
 
         atomcount = 0
@@ -68,17 +83,17 @@ class pdb_io(fab.abinit_io):
             if self.getmode == 'TER':
                 if len(itemlist) >= 1 and itemlist[0] == 'TER':
                     print(itemlist)
-                    posMols.append(poss)
-                    typenameMols.append(atypenames)
-                    headMols.append(heads)
-                    labMols.append(labs)
-                    chainMols.append(chains)
-                    resnumMols.append(resnums)
-                    codeMols.append(codes)
-                    occMols.append(occs)
-                    tempMols.append(temps)
-                    amarkMols.append(amarks)
-                    chargeMols.append(charges)
+                    posRes.append(poss)
+                    atmtypeRes.append(atypenames)
+                    headRes.append(heads)
+                    labRes.append(labs)
+                    chainRes.append(chains)
+                    resnumRes.append(resnums)
+                    codeRes.append(codes)
+                    occRes.append(occs)
+                    tempRes.append(temps)
+                    amarkRes.append(amarks)
+                    chargeRes.append(charges)
                     poss = []
                     atypenames =[]
                     heads = []
@@ -90,8 +105,8 @@ class pdb_io(fab.abinit_io):
                     temps = []
                     amarks = []
                     charges = []
-                    name_permol.append(totalMol)
-                    totalMol += 1
+                    resnames.append(totalRes)
+                    totalRes += 1
                     continue
 
             if len(itemlist) < 3:
@@ -194,35 +209,35 @@ class pdb_io(fab.abinit_io):
 
             #search molhead
             i = 0
-            name_permol = []
+            resnames = []
             while True:
-                name_permol.append(molnames[i])
+                resnames.append(molnames[i])
                 atomnum = molnums[molnames[i]]
                 i += atomnum
                 if i + 1> totalatom:
                     break
                 # print(i + 1, molnames[i])
-            print('molnames_permol', name_permol)
-            totalMol = len(name_permol)
+            print('molnames_permol', resnames)
+            totalRes = len(resnames)
 
-            numMols = self.getpermol(totalMol, molnums, name_permol, nums)
-            posMols = self.getpermol(totalMol, molnums, name_permol, poss)
-            typenameMols = self.getpermol(totalMol, molnums, name_permol, atypenames)
-            headMols = self.getpermol(totalMol, molnums, name_permol, heads)
-            labMols = self.getpermol(totalMol, molnums, name_permol, labs)
-            chainMols  = self.getpermol(totalMol, molnums, name_permol, chains)
-            resnumMols  = self.getpermol(totalMol, molnums, name_permol, resnums)
-            codeMols  = self.getpermol(totalMol, molnums, name_permol, codes)
-            occMols  = self.getpermol(totalMol, molnums, name_permol, occs)
-            tempMols  = self.getpermol(totalMol, molnums, name_permol, temps)
-            amarkMols  = self.getpermol(totalMol, molnums, name_permol, amarks)
-            chargeMols = self.getpermol(totalMol, molnums, name_permol, charges)
+            gatmlabRes = self.getpermol(totalRes, molnums, resnames, nums)
+            posRes = self.getpermol(totalRes, molnums, resnames, poss)
+            atmtypeRes = self.getpermol(totalRes, molnums, resnames, atypenames)
+            headRes = self.getpermol(totalRes, molnums, resnames, heads)
+            labRes = self.getpermol(totalRes, molnums, resnames, labs)
+            chainRes  = self.getpermol(totalRes, molnums, resnames, chains)
+            resnumRes  = self.getpermol(totalRes, molnums, resnames, resnums)
+            codeRes  = self.getpermol(totalRes, molnums, resnames, codes)
+            occRes  = self.getpermol(totalRes, molnums, resnames, occs)
+            tempRes  = self.getpermol(totalRes, molnums, resnames, temps)
+            amarkRes  = self.getpermol(totalRes, molnums, resnames, amarks)
+            chargeRes = self.getpermol(totalRes, molnums, resnames, charges)
 
         if self.getmode == 'resnum':
             #search molhead
             i = 0
             atomnum = 0
-            name_permol = [molnames[0]]
+            resnames = [molnames[0]]
             anummols = []
             # print(resnums)
             while True:
@@ -235,38 +250,38 @@ class pdb_io(fab.abinit_io):
                     # print(resnums[i], resnums[i+1])
                     # print(i)
                     anummols.append(atomnum)
-                    name_permol.append(molnames[i+1])
+                    resnames.append(molnames[i+1])
                     atomnum = 0
                 i += 1
                 # print(i + 1, molnames[i])
 
             # print(anummols)
-            totalMol = len(anummols)
-            # print(totalMol)
-            numMols = self.getpermol2(totalMol, anummols, nums)
-            posMols = self.getpermol2(totalMol, anummols, poss)
-            typenameMols = self.getpermol2(totalMol, anummols, atypenames)
-            headMols = self.getpermol2(totalMol, anummols, heads)
-            labMols = self.getpermol2(totalMol, anummols, labs)
-            chainMols  = self.getpermol2(totalMol, anummols, chains)
-            resnumMols  = self.getpermol2(totalMol, anummols, resnums)
-            codeMols  = self.getpermol2(totalMol, anummols, codes)
-            occMols  = self.getpermol2(totalMol, anummols, occs)
-            tempMols  = self.getpermol2(totalMol, anummols, temps)
-            amarkMols  = self.getpermol2(totalMol, anummols, amarks)
-            chargeMols = self.getpermol2(totalMol, anummols, charges)
+            totalRes = len(anummols)
+            # print(totalRes)
+            gatmlabRes = self.getpermol2(totalRes, anummols, nums)
+            posRes = self.getpermol2(totalRes, anummols, poss)
+            atmtypeRes = self.getpermol2(totalRes, anummols, atypenames)
+            headRes = self.getpermol2(totalRes, anummols, heads)
+            labRes = self.getpermol2(totalRes, anummols, labs)
+            chainRes  = self.getpermol2(totalRes, anummols, chains)
+            resnumRes  = self.getpermol2(totalRes, anummols, resnums)
+            codeRes  = self.getpermol2(totalRes, anummols, codes)
+            occRes  = self.getpermol2(totalRes, anummols, occs)
+            tempRes  = self.getpermol2(totalRes, anummols, temps)
+            amarkRes  = self.getpermol2(totalRes, anummols, amarks)
+            chargeRes = self.getpermol2(totalRes, anummols, charges)
 
-            if self.assignmolname == True:
+            if self.assignresname == True:
                 moldatas = []
                 moldatas_el = []
                 molidnames = []
                 current = 1
                 # loop for allmol
-                for i in range(totalMol):
+                for i in range(totalRes):
                     if anummols[i] not in moldatas:
                         # print(moldatas, anummols[i])
                         moldatas.append(anummols[i])
-                        moldatas_el.append(typenameMols[i])
+                        moldatas_el.append(atmtypeRes[i])
                         # print(anummols[i], 'append')
                         molidnames.append('{:0>3}'.format(str(current)))
                         current += 1
@@ -279,7 +294,7 @@ class pdb_io(fab.abinit_io):
                         if moldatas[k] == anummols[i]:
                             # loop for batabase-1molatom
                             for j in range(len(moldatas_el[k])):
-                                if moldatas_el[k][j] != typenameMols[i][j]:
+                                if moldatas_el[k][j] != atmtypeRes[i][j]:
                                     flag = True
                                     flags.append(flag)
                                     break
@@ -293,34 +308,50 @@ class pdb_io(fab.abinit_io):
                     if True in flags and False not in flags:
                         # print('mol', i, 'different!')
                         moldatas.append(anummols[i])
-                        moldatas_el.append(typenameMols[i])
+                        moldatas_el.append(atmtypeRes[i])
                         molidnames.append('{:0>3}'.format(str(current)))
                         current += 1
 
                 # print(molidnames)
-                name_permol = copy.deepcopy(molidnames)
+                resnames = copy.deepcopy(molidnames)
                 # print(moldatas)
 
-        return totalMol, typenameMols, name_permol, numMols, posMols, headMols, labMols, chainMols ,resnumMols ,codeMols ,occMols ,tempMols ,amarkMols ,chargeMols
+        self.totalRes = totalRes
+        self.atmtypeRes = atmtypeRes
+        self.resnames = resnames
+        self.gatmlabRes = gatmlabRes
+        self.posRes = posRes
+        self.headRes = headRes
+        self.labRes = labRes
+        self.chainRes = chainRes
+        self.resnumRes = resnumRes
+        self.codeRes = codeRes
+        self.occRes = occRes
+        self.tempRes = tempRes
+        self.amarkRes = amarkRes
+        self.chargeRes = chargeRes
+
+        return self
+        # return totalRes, atmtypeRes, resnames, gatmlabRes, posRes, headRes, labRes, chainRes ,resnumRes ,codeRes ,occRes ,tempRes ,amarkRes ,chargeRes
 
 
-    def getpermol(self, totalMol, molnums, name_permol, datas):
+    def getpermol(self, totalRes, molnums, resnames, datas):
         datamols = []
         count = 0
-        for i in range(totalMol):
+        for i in range(totalRes):
             datamol = []
-            for j in range(molnums[name_permol[i]]):
+            for j in range(molnums[resnames[i]]):
                 datamol.append(datas[count])
 
                 count += 1
             datamols.append(datamol)
         return datamols
 
-    def getpermol2(self, totalMol, anummols, datas):
+    def getpermol2(self, totalRes, anummols, datas):
         datamols = []
         # print(anummols)
         count = 0
-        for i in range(totalMol):
+        for i in range(totalRes):
             datamol = []
             for j in range(anummols[i]):
                 datamol.append(datas[count])
@@ -330,7 +361,9 @@ class pdb_io(fab.abinit_io):
         return datamols
 
 
-    def exportardpdbfull(self, out_file, mollist, posMols, nameAtom, molnames, heads, labs, chains, resnums, codes, occs, temps, amarks, charges):
+#        aobj.exportardpdbfull(opath + '/' + self.readgeom, index, posMol, atomnameMol, self.resnames, heads, labs, chains, resnums, codes, occs, temps, amarks, charges)
+
+    def exportardpdbfull(self, out_file, mollist):
 
         out_file = out_file + '.pdb'
         print('outfile', out_file)
@@ -351,7 +384,7 @@ class pdb_io(fab.abinit_io):
         # print(out_file)
         f = open(out_file, "w", newline = "\n")
         print("COMPND    " + out_file, file=f)
-        print("AUTHOR    " + "GENERATED BY python script in FMOrmap", file=f)
+        print("AUTHOR    " + "GENERATED BY python script in abmptools", file=f)
         if self.cellsize != 0:
             print('CRYST1{0[0]:>9.3f}{0[1]:>9.3f}{0[2]:>9.3f}  90.00  90.00  90.00               1'.format(self.cellsize), file=f)
             # CRYST1   38.376   38.376   38.376  90.00  90.00  90.00               1
@@ -364,29 +397,29 @@ class pdb_io(fab.abinit_io):
 
 
         for i in mollist:
-            posMol = posMols[i]
+            posMol = self.posRes[i]
             reslab += 1
             if reslab >=10000:
                 reslab -= 10000
 
-            for j in range(len(posMol)):
+            for j in range(len(self.posRes)):
                 tatomlab += 1
                 if tatomlab >= 100000:
                     tatomlab -= 100000
 
                 if self.refreshatmtype == False:
-                    atomname = nameAtom[i][j]
+                    atomname = self.atmtypeRes[i][j]
                     form ='{0[0]:<6}{0[1]:>5} {0[2]:>4}{0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'
                 else:
-                    atomname = amarks[i][j]
+                    atomname = self.amarkRes[i][j]
                     form ='{0[0]:<6}{0[1]:>5} {0[2]:>2}  {0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'
 
                 if self.refreshresid == False:
                     resid = reslab
                 else:
-                    resid = resnums[i][j]
+                    resid = resnumRes[i][j]
 
-                olist = [heads[i][j], str(tatomlab), atomname, labs[i][j], molnames[i], chains[i][j], resid, codes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), occs[i][j], temps[i][j], amarks[i][j], charges[i][j]]
+                olist = [heads[i][j], str(tatomlab), atomname, self.labRes[i][j], self.resnames[i], self.chainRes[i][j], resid, self.codeRes[i][j], '{:.3f}'.format(self.posRes[j][0]), '{:.3f}'.format(self.posRes[j][1]), '{:.3f}'.format(self.posRes[j][2]), self.occRes[i][j], self.tempRes[i][j], self.amarkRes[i][j], self.chargeRes[i][j]]
                 print(form.format(olist), file=f)
             # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
 
@@ -412,7 +445,7 @@ class pdb_io(fab.abinit_io):
     #14 77 - 78 元素記号
     #15 79 - 80 原子の電荷
 
-    def exportardpdb(self, out_file, mollist, posMols, nameAtom, molnames_orig):
+    def exportardpdb(self, out_file, mollist, posRes, nameAtom, molnames_orig):
 
         ohead, ext = os.path.splitext(out_file)
         out_file = ohead + '.pdb'
@@ -434,7 +467,7 @@ class pdb_io(fab.abinit_io):
         # print(out_file)
         f = open(out_file, "w", newline = "\n")
         print("COMPND    " + out_file, file=f)
-        print("AUTHOR    " + "GENERATED BY python script in FMOrmap", file=f)
+        print("AUTHOR    " + "GENERATED BY python script in abmptools", file=f)
         f.close()
 
         f = open(out_file, "a+", newline = "\n")
@@ -444,7 +477,7 @@ class pdb_io(fab.abinit_io):
         for i in mollist:
             molname = str(molnames[i])
             Molnum = i
-            posMol = posMols[i]
+            posMol = posRes[i]
             reslab += 1
             if reslab >=10000:
                 reslab -= 10000
@@ -467,21 +500,24 @@ class pdb_io(fab.abinit_io):
         tgtpos = self.tgtpos
         solutes = self.solutes
         self.mainpath = '.'
-        self.assignmolname = False
+        self.assignresname = False
 
         # print(path, molname, fname, oname, tgtpos, criteria)
-        totalMol, atomnameMol_orig, molnamelist_orig, posMol_orig, heads_orig, labs_orig, chains_orig ,resnums_orig ,codes_orig ,occs_orig ,temps_orig ,amarks_orig ,charges_orig = self.getpdbinfo(fname)
-        # print(molnamelist_orig)
+        # (this func)totalRes, self.atmtypeRes, self.resnames, self.posRes, self.headRes, self.labRes, self.chainRes ,self.resnumRes ,self.codeRes ,self.occRes ,self.tempRes ,self.amarkRes ,self.chargeRes = self.getpdbinfo(fname)
+        # (class)    totalRes, atmtypeRes, resnames, gatmlabRes, posRes,     headRes,    labRes,    chainRes , resnumRes ,  codeRes ,  occRes ,  tempRes ,  amarkRes ,  chargeRes
 
-        print("totalmol:",totalMol)
-        # getmolatomnum(_udf_, totalMol)
+        self.readpdb(fname)
+
+
+        print("totalmol:",self.totalRes)
+        # getmolatomnum(_udf_, totalRes)
 
         # 1. -- 切り取らない場合 --
         if self.cutmode == 'none':
             print('none mode')
             # -- get neighbor mol --
             neighborindex = []
-            for i in range(totalMol):
+            for i in range(self.totalRes):
                 neighborindex.append(i)
 
         # 2. -- 範囲内に原子が入っているかで絞る方法 --
@@ -489,27 +525,27 @@ class pdb_io(fab.abinit_io):
             print('sphere mode')
             # -- get neighbor mol --
             neighborindex = []
-            for i in range(len(posMol_orig)):
+            for i in range(len(self.posRes)):
                 # check ion
                 icflag = False
                 if len(self.ionname) != 0:
                     for ion in self.ionname:
-                        if  molnamelist_orig[i].strip() == ion.strip():
+                        if  self.resnames[i].strip() == ion.strip():
                             if self.ionmode == 'del':
                                 icflag = True
                                 break
                             if self.ionmode == 'remain':
                                 icflag = True
                                 neighborindex.append(i)
-                                # print('add mol', i, molnamelist_orig[i])
+                                # print('add mol', i, self.resnames[i])
                                 break
 
                 if icflag == True:
                     icflag == False
                     continue
 
-                for j in range(len(posMol_orig[i])):
-                    dist = self.getdist(np.array(tgtpos), np.array(posMol_orig[i][j]))
+                for j in range(len(self.posRes[i])):
+                    dist = self.getdist(np.array(tgtpos), np.array(self.posRes[i][j]))
                     if dist < criteria:
                         neighborindex.append(i)
                         break
@@ -523,29 +559,29 @@ class pdb_io(fab.abinit_io):
             tgtz = [tgtpos[2] - criteria[2], tgtpos[2] + criteria[2]]
 
             neighborindex = []
-            for i in range(len(posMol_orig)):
+            for i in range(len(self.posRes)):
                 # check ion
                 icflag = False
                 if len(self.ionname) != 0:
                     for ion in self.ionname:
-                        if  molnamelist_orig[i].strip() == ion.strip():
+                        if  self.resnames[i].strip() == ion.strip():
                             if self.ionmode == 'del':
                                 icflag = True
                                 break
                             if self.ionmode == 'remain':
                                 icflag = True
                                 neighborindex.append(i)
-                                # print('add mol', i, molnamelist_orig[i])
+                                # print('add mol', i, self.resnames[i])
                                 break
 
                 if icflag == True:
                     icflag == False
                     continue
 
-                for j in range(len(posMol_orig[i])):
-                    if tgtx[0] < posMol_orig[i][j][0] < tgtx[1] and \
-                       tgty[0] < posMol_orig[i][j][1] < tgty[1] and \
-                       tgtz[0] < posMol_orig[i][j][2] < tgtz[1]:
+                for j in range(len(self.posRes[i])):
+                    if tgtx[0] < self.posRes[i][j][0] < tgtx[1] and \
+                       tgty[0] < self.posRes[i][j][1] < tgty[1] and \
+                       tgtz[0] < self.posRes[i][j][2] < tgtz[1]:
                         neighborindex.append(i)
                         break
 
@@ -557,20 +593,20 @@ class pdb_io(fab.abinit_io):
             # solutes = [0, 1]
             for i in self.solutes:
                 neighborindex.append(i)
-                # print('add mol', i, molnamelist_orig[i])
-            for i in range(len(posMol_orig)):
+                # print('add mol', i, self.resnames[i])
+            for i in range(len(self.posRes)):
                 # check ion
                 icflag = False
                 if len(self.ionname) != 0:
                     for ion in self.ionname:
-                        if  molnamelist_orig[i].strip() == ion.strip():
+                        if  self.resnames[i].strip() == ion.strip():
                             if self.ionmode == 'del':
                                 icflag = True
                                 break
                             if self.ionmode == 'remain':
                                 icflag = True
                                 neighborindex.append(i)
-                                # print('add mol', i, molnamelist_orig[i])
+                                # print('add mol', i, self.resnames[i])
                                 break
 
                 if icflag == True:
@@ -582,17 +618,17 @@ class pdb_io(fab.abinit_io):
                 nextf = False
                 if i in solutes:
                    continue
-                for j in range(len(posMol_orig[i])):
+                for j in range(len(self.posRes[i])):
                     if nextf == True:
                         break
                     for k in self.solutes:
                         if nextf == True:
                             break
-                        for l in range(len(posMol_orig[k])):
-                            dist = self.getdist(np.array(posMol_orig[k][l]), np.array(posMol_orig[i][j]))
+                        for l in range(len(self.posRes[k])):
+                            dist = self.getdist(np.array(self.posRes[k][l]), np.array(self.posRes[i][j]))
                             if dist < criteria:
                                 neighborindex.append(i)
-                                # print('add mol', i, molnamelist_orig[i])
+                                # print('add mol', i, self.resnames[i])
                                 nextf = True
                                 break
 
@@ -600,48 +636,48 @@ class pdb_io(fab.abinit_io):
         print('neighborindex', neighborindex)
         # print vec
         # print("cellsize", cell)
-        posMol = []
-        atomnameMol = []
-        molnamelist = []
-        heads = []
-        labs = []
-        chains = []
-        resnums = []
-        codes = []
-        occs = []
-        temps = []
-        amarks = []
-        charges = []
-        # for i in range(totalMol):
+        posRes = []
+        atmtypeRes = []
+        resnames = []
+        headRes = []
+        labRes = []
+        chainRes = []
+        resnumRes = []
+        codeRes = []
+        occRes = []
+        tempRes = []
+        amarkRes = []
+        chargeRes = []
+        # for i in range(totalRes):
         for i in neighborindex:
         # for i in range(1, 2):
-            posMol.append(posMol_orig[i])
-            atomnameMol.append(atomnameMol_orig[i])
-            molnamelist.append(molnamelist_orig[i])
-            heads.append(heads_orig[i])
-            labs.append(labs_orig[i])
-            chains.append(chains_orig[i])
-            resnums.append(resnums_orig[i])
-            codes.append(codes_orig[i])
-            occs.append(occs_orig[i])
-            temps.append(temps_orig[i])
-            amarks.append(amarks_orig[i])
-            charges.append(charges_orig[i])
+            posRes.append(self.posRes[i])
+            atmtypeRes.append(self.atmtypeRes[i])
+            resnames.append(self.resnames[i])
+            headRes.append(self.headRes[i])
+            labRes.append(self.labRes[i])
+            chainRes.append(self.chainRes[i])
+            resnumRes.append(self.resnumRes[i])
+            codeRes.append(self.codeRes[i])
+            occRes.append(self.occRes[i])
+            tempRes.append(self.tempRes[i])
+            amarkRes.append(self.amarkRes[i])
+            chargeRes.append(self.chargeRes[i])
 
         # get atomnum
         atomnums = []
         tgtmolnames = []
         for i in range(len(molname)):
-            for j in range(totalMol):
+            for j in range(self.totalRes):
             # for j in range(1):
-                # print (molname[i], molnamelist_orig[j])
-                if molname[i] == molnamelist_orig[j]:
-                    atomnums.append(len(posMol_orig[j]))
-                    tgtmolnames.append(molnamelist_orig[j])
+                # print (molname[i], self.resnames[j])
+                if molname[i] == self.resnames[j]:
+                    atomnums.append(len(self.posRess[j]))
+                    tgtmolnames.append(self.resnames[j])
                     break
         print ('atomnums', atomnums)
 
-        # print (posMol)
+        # print (posRes)
         opath = 'for_abmp'
         # oname = "mdout"
         if os.path.exists(opath) is False:
@@ -651,10 +687,11 @@ class pdb_io(fab.abinit_io):
         # if os.path.exists(path[0] + '/' + path[1]) is False:
             # subprocess.call(["mkdir -p", path[0] + '/' + path[1]])
 
-        index = [i for i in range(len(posMol))]
-        self.exportardpdbfull(opath + '/' + oname, index, posMol, atomnameMol, molnamelist, heads, labs, chains, resnums, codes, occs, temps, amarks, charges)
+        # refresh 
+        index = [i for i in range(len(posRes))]
+        self.exportardpdbfull(opath + '/' + oname, index, posRes, atmtypeRes, resnames, headRes, labRes, chainRes, resnumRes, codeRes, occRes, tempRes, amarkRes, chargeRes)
 
-        self.make_abinput_rmap(tgtmolnames, molnamelist, oname, path, atomnums)
+        self.make_abinput_rmap(tgtmolnames, resnames, oname, path, atomnums)
         # monomer structure
 
     def movemoltranspdb(self, posVec, transVec):
@@ -672,7 +709,7 @@ class pdb_io(fab.abinit_io):
                 break
         return cell
 
-    def moveintocellpdb(self, posMol, totalMol, cell):
+    def moveintocellpdb(self, posMol, totalRes, cell):
         # # Move into cell
         posintoMol = []
         cell2 = []
@@ -680,7 +717,7 @@ class pdb_io(fab.abinit_io):
         for i in range(3):
             cell2.append(cell[i]/2.0)
         print('cell', cell)
-        for i in range(totalMol):
+        for i in range(totalRes):
             transVec = np.array([0., 0., 0.])  # x,y,z
             centerOfMol = self.getCenter(posMol[i])
             for j in range(3):
@@ -698,3 +735,23 @@ class pdb_io(fab.abinit_io):
         print("move_done.")
         return posintoMol
 
+    def getpdbinfowrap(self, fname):
+        # get pdbinfo
+        self = self.getpdbinfo(fname)
+
+        print('totalres', self.totalRes)
+        # print('atomnameMol', atomnameMol)
+        # print('resnames', molnames)
+        print('res_count', collections.Counter(self.resnames))
+        # print('nummols', nummols)
+
+        cellsize = self.getpdbcell(fname)
+        self.cellsize = cellsize
+    #
+        if len(self.cellsize) == 0:
+            self.cellsize = 0
+            print('cellinfo: None')
+        else:
+            print('cellsize:', self.cellsize)
+    #
+        return self

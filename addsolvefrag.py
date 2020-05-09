@@ -6,7 +6,7 @@ import subprocess
 import re
 import time
 import copy
-import ampt.cutset_fmo as cutf
+import abmptools as ampt
 import collections
 # Matrix operation
 
@@ -22,10 +22,10 @@ if __name__ == "__main__":
 
     ## -- setting end --
 
-    obj = cutf.cutset_fmo()
-    obj.getmode = mode
-    obj.assignmolname = assignmolname
-    obj.refreshatmtype = refreshatmtype
+    aobj = ampt.setfmo()
+    aobj.getmode = mode
+    aobj.assignmolname = assignmolname
+    aobj.refreshatmtype = refreshatmtype
 
     # main
     pdbnames = []
@@ -39,33 +39,35 @@ if __name__ == "__main__":
         print('inajf', ajfname)
 
         # get pdbinfo
-        totalMol, atomnameMol, molnameMol, anummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = obj.getpdbinfowrap(pdbname)
+#         totalMol, atomnameMol, self.resnames, anummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = aobj.getpdbinfowrap(pdbname)
+        aobj = aobj.getpdbinfowrap(pdbname)
+
 
         # get tgt solvate mol info
         molname = solvname
         atomnumsets = []
         tgtmolsets = []
         for i in range(len(molname)):
-            for j in range(totalMol):
+            for j in range(self.totalRes):
             # for j in range(1):
                 # print (molname[i], molnamelist_orig[j])
-                if molname[i] == molnameMol[j]:
-                    atomnumsets.append(len(posMol[j]))
-                    tgtmolsets.append(molnameMol[j])
+                if molname[i] == self.resnames[j]:
+                    atomnumsets.append(len(self.posRes[j]))
+                    tgtmolsets.append(self.resnames[j])
                     break
         print ('atomnumsets', atomnumsets)
         print('tgtmolsets', tgtmolsets)
 
 
         # get ajfinfo
-        # fatomnumsets, fchgs, fbaas, fatminfos, connects = obj.getajfinfo(ajfname)
+        # fatomnumsets, fchgs, fbaas, fatminfos, connects = aobj.getajfinfo(ajfname)
         # get fraginfo
-        obj.getfragdict([ajfname], 'segment_data.dat')
+        aobj = aobj.getfragdict([ajfname], 'segment_data.dat')
 
         nameidMol = []
-        for i in range(len(molnameMol)):
+        for i in range(len(self.resnames)):
             for j in range(len(tgtmolsets)):
-                if molnameMol[i] == tgtmolsets[j]:
+                if self.resnames[i] == tgtmolsets[j]:
                     nameidMol.append(j)
         # print(nameidMol)
 
@@ -74,34 +76,38 @@ if __name__ == "__main__":
         nameidMol.insert(0, len(tgtmolsets)-1)
         atomnumsets.append(0)
 
-        fatomnums, fchgs, fbaas, fatminfos, connects = obj.getfragtable(tgtmolsets, atomnumsets, nameidMol)
+        # fatomnums, fchgs, fbaas, fatminfos, connects = aobj.getfragtable(tgtmolsets, atomnumsets, nameidMol)
+        aobj = aobj.getfragtable(tgtmolsets, atomnumsets, nameidMol)
         # print (frag_atoms, frag_charges)
 
         # gen ajf file
-        obj.ajf_method = "MP2"
-        obj.ajf_basis_set = "6-31G*"
-        obj.abinit_ver = 'rev15'
-        obj.abinitmp_path = 'abinitmp'
-        obj.pbcnv = 1.0
-        obj.piedaflag = False
-        obj.cpfflag = False
-        obj.cmmflag = True
-        obj.npro = 1
-        obj.para_job = 1
+        aobj.ajf_method = "MP2"
+        aobj.ajf_basis_set = "6-31G*"
+        aobj.abinit_ver = 'rev15'
+        aobj.piedaflag = False
+        aobj.cpfflag = False
+        aobj.cmmflag = True
+        aobj.npro = 1
+        aobj.para_job = 1
+        ohead = os.path.splitext(pdbname)[0].split('/')[-1] + '_forabmp'
+        aobj.readgeom = ohead + '.pdb'
 
+        basis_str = self.ajf_basis_set
+        print(basis_str)
+        if basis_str == '6-31G*':
+            basis_str = '6-31Gd'
 
-        oname = os.path.splitext(pdbname)[0].split('/')[-1] + '_forabmp'
-        readgeom = oname + '.pdb'
-        ajf_body = obj.gen_ajf_bodywrap(fatomnums, fchgs, fbaas, connects, fatminfos, readgeom, ajfname)
+        aobj.writegeom = os.path.splitext(ajfname)[0] + '-' + self.ajf_method + '-' + basis_str + ".cpf'"
+
+        ajf_body = aobj.gen_ajf_bodywrap(aobj)
 
         # export
         # ajf
         opath = 'for_abmp'
+        ajf_oname = opath + '/' + ohead + '.ajf'
         if os.path.exists(opath) is False:
             print(opath)
             subprocess.call(["mkdir", opath])
-
-        ajf_oname = opath + '/' + os.path.splitext(pdbname)[0].split('/')[-1] + '-forabmp.ajf'
 
         print('ajf_oname:', ajf_oname)
         ajf_file = open(ajf_oname, 'w')
@@ -110,23 +116,23 @@ if __name__ == "__main__":
 
         # pdb
 
-        index = [i for i in range(len(posMol))]
-        obj.exportardpdbfull(opath + '/' + oname, index, posMol, atomnameMol, molnameMol, heads, labs, chains, resnums, codes, occs, temps, amarks, charges)
+        index = [i for i in range(len(self.posMol))]
+        aobj.exportardpdbfull(opath + '/' + self.readgeom, index)
 
 
     # print('ajf_fragment', ajf_fragment)
     # print('num_fragment', num_fragment)
     # print('ajf_charge', ajf_charge)
 
-    # obj.bindfraginfo
-    # obj.make_abinput_rmap(tgtmolnames, molnames, oname, opath, atomnums)
+    # aobj.bindfraginfo
+    # aobj.make_abinput_rmap(tgtmolnames, molnames, oname, opath, atomnums)
 
     # get ajfinfo
-    # fatomnums, fchgs, fbaas, fatminfos, connects = obj.getajfinfo(ajfname)
+    # fatomnums, fchgs, fbaas, fatminfos, connects = aobj.getajfinfo(ajfname)
     # print(fatomnums, fchgs, fbaas, fatminfos, connects)
 
 #     param = [fatomnums], [fchgs], [fbaas], [connects], [fatminfos]
-#     ajf_fragment = obj.get_fragsection(param)[:-1]
+#     ajf_fragment = aobj.get_fragsection(param)[:-1]
 #     # print(ajf_fragment)
 #
 #     ajf_charge = sum(fchgs)
@@ -137,21 +143,21 @@ if __name__ == "__main__":
 #     print('oname:', ajf_oname)
 #     ajf_file = open(ajf_oname, 'w')
 #
-#     obj.ajf_method = "MP2"
-#     obj.ajf_basis_set = "6-31G*"
-#     obj.abinit_ver = 'rev10'
-#     obj.abinitmp_path = 'abinitmp'
-#     obj.pbmolrad = 'vdw'
-#     obj.pbcnv = 1.0
-#     obj.piedaflag = False
+#     aobj.ajf_method = "MP2"
+#     aobj.ajf_basis_set = "6-31G*"
+#     aobj.abinit_ver = 'rev10'
+#     aobj.abinitmp_path = 'abinitmp'
+#     aobj.pbmolrad = 'vdw'
+#     aobj.pbcnv = 1.0
+#     aobj.piedaflag = False
 #
-#     basis_str = obj.ajf_basis_set
+#     basis_str = aobj.ajf_basis_set
 #     print(basis_str)
 #     if basis_str == '6-31G*':
 #         basis_str = '6-31Gd'
 #     ajf_parameter[1] = "'" +  pdbname + "'"
-#     ajf_parameter[2] = "'" +  ajfname + '-' + obj.ajf_method + '-' + basis_str + ".cpf'"
-#     ajf_body = obj.gen_ajf_body(ajf_parameter)
+#     ajf_parameter[2] = "'" +  ajfname + '-' + aobj.ajf_method + '-' + basis_str + ".cpf'"
+#     ajf_body = aobj.gen_ajf_body(ajf_parameter)
 #     print(ajf_body, file=ajf_file)
 
 

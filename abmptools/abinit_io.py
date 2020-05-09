@@ -33,44 +33,47 @@ class abinit_io(mi.mol_io):
         print('## load abinit io')
         super().__init__()
         # gen_rand: gen_coord
-        self.solv_flag = False
 
         # submit param
-        self.submit_system = 'none'
         self.npro = 4
-        self.nnode = 0
-        self.para_job = 2
         self.memory = "1800"
         self.queue = None
+        self.solv_flag = False
+        self.abinitmp_path = 'abinitmp'
+        self.mpipath = 'mpirun'
 
         # abinitmp param
         self.ajf_method = "MP2"
         self.ajf_basis_set = "6-31G*"
         self.abinit_ver = 'rev10'
-        self.abinitmp_path = 'abinitmp'
-        self.mpipath = 'mpirun'
         self.pbmolrad = 'vdw'
         self.pbcnv = 1.0
         self.piedaflag = False
         self.cpfflag = False
         self.cmmflag = False
+        self.nofzc_flag = False
+        self.readgeom = ""
+        self.writegeom = ""
+        self.submit_system = None
+        self.autofrag = False
         # distlitname
 
-        # others
-        self.python_path = 'python'
-        self.pynp = 4
-        self.babelflag = False
-        self.targets = []
-        self.mainpath = '.'
-        self.nofzc_flag = False
-        self.fzcnum = 0
-        self.ksubcmd = 'pjsub'
+        # frag table
+        self.fatomnums = []
+        self.fchgs = []
+        self.fbaas = []
+        self.fatminfos = []
+        self.connects = []
 
         return
 
 
-    def get_fragsection(self, param):
-        frag_atom, frag_charge, frag_connect_num, frag_connect, seg_info = param
+    def get_fragsection(self):
+        frag_atom = self.fatomnums
+        frag_charge = self.fchgs
+        frag_connect_num = self.fbaas
+        frag_connect = self.connects
+        seg_info = self.fatminfos
 
         ajf_fragment = ''
         # fragment atom
@@ -135,27 +138,28 @@ class abinit_io(mi.mol_io):
         return ajf_fragment
 
 
-    def gen_ajf_bodywrap(self, fatomnums, fchgs, fbaas, connects, fatminfos, readgeom, ajfname):
+    def gen_ajf_bodywrap(self, inname):
         # i, j ,k (mol, frag, component_perfrag) dimension
-        param = [fatomnums], [fchgs], [fbaas], [connects], [fatminfos]
-        ajf_fragment = self.get_fragsection(param)[:-1]
+        ajf_fragment = self.get_fragsection()[:-1]
 
-        ajf_charge = sum(fchgs)
-        ajf_parameter = [ajf_charge, "", "", ajf_fragment, len(fatomnums), 0]
+        ajf_charge = sum(self.fchgs)
+        ajf_parameter = [ajf_charge, ajf_fragment, len(self.fatomnums), 0]
 
-        basis_str = self.ajf_basis_set
-        print(basis_str)
-        if basis_str == '6-31G*':
-            basis_str = '6-31Gd'
-        ajf_parameter[1] = "'" +  readgeom + "'"
-        ajf_parameter[2] = "'" +  os.path.splitext(ajfname)[0] + '-' + self.ajf_method + '-' + basis_str + ".cpf'"
+        if self.writegeom == "":
+            self.writegeom = os.path.splitext(inname)[0] + '-' + self.ajf_method + '-' + self.ajf_basis_set.replace('*', 'd') + ".cpf'"
+
         ajf_body = self.gen_ajf_body(ajf_parameter)
 
         return ajf_body
 
 
     def gen_ajf_body(self, param, fzctemp="YES"):
-        ajf_charge, read_geom, cpf, ajf_fragment, num_fragment, MOME_flag = param
+        ajf_charge, ajf_fragment, num_fragment, MOME_flag = param
+
+        if self.autofrag == True:
+            auto = 'ON'
+        else:
+            auto = 'OFF'
 
         if self.solv_flag is True:
             solv_section = """
@@ -255,10 +259,10 @@ Nprint=3
 Memory=""" + str(self.memory) + """
 Natom=0
 Charge=""" + str(ajf_charge) + """
-ReadGeom=""" + str(read_geom) + "\n"
+ReadGeom=""" + str(self.readgeom) + "\n"
 
         if self.cpfflag == True:
-            ajf_body += "WriteGeom=" + str(cpf) + "\n"
+            ajf_body += "WriteGeom=" + str(self.writegeom) + "\n"
         ajf_body += """Gradient='NO'
 Vector='OFF'
 CPFBIN='NO'
@@ -270,12 +274,11 @@ G_THSWZ=1.0E-12
 &FMOCNTRL
 FMO='""" + str(use_FMO) + """'
 NBody=2
-AutoFrag='OFF' """ + str(frag_section) + """
+AutoFrag='"""+ auto + """' """ + str(frag_section) + """
 Laoc=0.0
 Lptc=2.0
 esp_ptc_multipole='NO'
 Ldimer=2.0
-Dimer_es_multipole='NO'
 NP=""" + np + """
 MaxSCCcyc=250
 MaxSCCenergy=5.0E-7
@@ -1105,28 +1108,8 @@ MD='OFF'
 
         return pitgtdf, pitgtdf_filter
 
-    def getpdbinfowrap(self, fname):
-        # get pdbinfo
-        totalMol, atomnameMol, molnames, nummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = self.getpdbinfo(fname)
 
-        print('totalres', totalMol)
-        # print('atomnameMol', atomnameMol)
-        # print('resnames', molnames)
-        print('res_count', collections.Counter(molnames))
-        # print('nummols', nummols)
-
-        cellsize = self.getpdbcell(fname)
-        self.cellsize = cellsize
-    #
-        if len(self.cellsize) == 0:
-            self.cellsize = 0
-            print('cellinfo: None')
-        else:
-            print('cellsize:', self.cellsize)
-    #
-        return totalMol, atomnameMol, molnames, nummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges
-
-    def getajfinfo(self, fname):
+    def readajf(self, fname):
         lines = open(fname, 'r').readlines()
 
         flag = False
@@ -1211,7 +1194,13 @@ MD='OFF'
                 connects = self.functor(int, connects)
                 # datas.append(itemlist)
 
-        return fatomnums, fchgs, fbaas, fatminfos, connects
+        self.fatomnums = fatomnums
+        self.fchgs = fchgs
+        self.fbaas = fbaas
+        self.fatminfos = fatminfos
+        self.connects = connects
+        return self
+        # return fatomnums, fchgs, fbaas, fatminfos, connects
 
 
     def modifyfragparam(self, totalMol, atomnameMol, molnames, anummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges, fatomnums, fchgs, fbaas, fatminfos, connects, bridgeds, doubles, nagatoms, nagmolids, nagbdas):
@@ -1325,14 +1314,15 @@ MD='OFF'
         print("seg_data = [", file=f)
         for fname in fnames:
             head, ext = os.path.splitext(fname)
-            fatomnums, fchgs, fbaas, fatminfos, connects, = self.getajfinfo(fname)
+            # fatomnums, fchgs, fbaas, fatminfos, connects, = self.readajf(fname)
+            self = self.readajf(fname)
             print("    {", file=f)
             print("    'name': '" + head.split('/')[-1] + "',", file=f)
-            print("    'atom': ", fatomnums, ',', file=f)
-            print("    'charge': ", fchgs, ',', file=f)
-            print("    'connect_num': ", fbaas, ',', file=f)
-            print("    'seg_info': ", fatminfos, ',', file=f)
-            print("    'connect': ", connects, ',', file=f)
+            print("    'atom': ", self.fatomnums, ',', file=f)
+            print("    'charge': ", self.fchgs, ',', file=f)
+            print("    'connect_num': ", self.fbaas, ',', file=f)
+            print("    'seg_info': ", self.fatminfos, ',', file=f)
+            print("    'connect': ", self.connects, ',', file=f)
             end =  """    'nummol_seg': [1],
     'repeat': [1],
     'pair_file': [],
@@ -1439,7 +1429,14 @@ MD='OFF'
                 frag_connectss.append(frag_connects)
             atom_count += sum(frag_atom[nameid[i]])
 
-        return frag_atoms, frag_charges, frag_baanums, frag_atmlabss, frag_connectss
+        self.fatomnums = [frag_atoms]
+        self.fchgs = [frag_charges]
+        self.fbaas = [frag_baanums]
+        self.fatminfos = [frag_atmlabss]
+        self.connects = [frag_connectss]
+        return  self
+
+        # return frag_atoms, frag_charges, frag_baanums, frag_atmlabss, frag_connectss
 
 
     def writemb_frag_section(self, param, nameid):
@@ -1513,4 +1510,16 @@ MD='OFF'
             atom_count += sum(frag_atom[nameid[i]])
 
         return ajf_fragment
+
+
+    def saveajf(self, oname=None):
+        if oname == None:
+            oname = os.path.splitext(self.readgeom)[0] + '-' + self.ajf_method + '-' + self.ajf_basis_set.replace('*', 'd') + '.ajf'
+
+        ajf_body = self.gen_ajf_bodywrap(oname)
+
+        print('ajf_oname:', oname)
+        ajf_file = open(oname, 'w')
+
+        print(ajf_body, file=ajf_file)
 

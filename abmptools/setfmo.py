@@ -16,7 +16,7 @@ import udfcreate as ufc
 import udfrm_io as rud
 import pdb_io as pdio
 
-class cutset_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
+class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
     def __init__(self):
         super().__init__()
         self.ajf_method = 'HF'
@@ -354,24 +354,27 @@ class cutset_fmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
             nummol_seg.append(mol_conf['nummol_seg'])
 
 
-        frag_atoms, frag_charges, frag_baanums, frag_atmlabs, frag_connects = self.getmb_frag_seclists(
-            [frag_atom, frag_charge, frag_connect_num, frag_connect, seg_info],
+        self = self.getmb_frag_seclists([frag_atom, frag_charge, frag_connect_num, frag_connect, seg_info],
             nameid)
 
-        ajf_charge = 0
-        for i in range(len(nameid)):
-            ajf_charge += sum(frag_charge[nameid[i]])
+        # frag_atoms, frag_charges, frag_baanums, frag_atmlabs, frag_connects = self.getmb_frag_seclists(
+        #     [frag_atom, frag_charge, frag_connect_num, frag_connect, seg_info],
+        #     nameid)
 
-        num_fragment = 0
-        for i in range(len(nameid)):
-            num_fragment += len(frag_atom[nameid[i]])
+        # ajf_charge = 0
+        # for i in range(len(nameid)):
+        #     ajf_charge += sum(frag_charge[nameid[i]])
 
-        print("molnum")
-        for i in range(len(molset)):
-            print(molset[i], "[", nameid.count(i), "]")
+        # num_fragment = 0
+        # for i in range(len(nameid)):
+        #     num_fragment += len(frag_atom[nameid[i]])
 
+        # print("molnum")
+        # for i in range(len(molset)):
+        #     print(molset[i], "[", nameid.count(i), "]")
 
-        return frag_atoms, frag_charges, frag_baanums, frag_atmlabs, frag_connects
+        return self
+        # return frag_atoms, frag_charges, frag_baanums, frag_atmlabs, frag_connects
 
 
     def make_abinput_rmap(self, molset, molnamelist, rec, path, atomnums):
