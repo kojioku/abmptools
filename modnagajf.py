@@ -6,7 +6,7 @@ import subprocess
 import re
 import time
 import copy
-import ampt.cutset_fmo as cutf
+import abmptools as ampt
 import collections
 # Matrix operation
 
@@ -19,10 +19,10 @@ if __name__ == "__main__":
     refreshatmtype = False
     ## -- setting end --
 
-    obj = cutf.cutset_fmo()
-    obj.getmode = mode
-    obj.assignmolname = assignmolname
-    obj.refreshatmtype = refreshatmtype
+    aobj = ampt.setfmo()
+    aobj.getmode = mode
+    aobj.assignmolname = assignmolname
+    aobj.refreshatmtype = refreshatmtype
 
     # main
     argvs = sys.argv
@@ -34,9 +34,33 @@ if __name__ == "__main__":
     print('infile:', pdbname)
 
     # get pdbinfo
-    totalMol, atomnameMol, molnames, anummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = obj.getpdbinfowrap(pdbname)
+    # totalMol, atomnameMol, molnames, anummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = obj.getpdbinfowrap(pdbname)
+    aobj = aobj.getpdbinfowrap(pdbname)
+
+    totalMol = aobj.totalRes
+    atomnameMol = aobj.atmtypeRes
+    molnames = aobj.resnames
+    anummols = aobj.gatmlabRes
+    posMol = aobj.posRes
+    heads = aobj.headRes
+    labs = aobj.labRes
+    chains = aobj.chainRes
+    resnums = aobj.resnumRes
+    codes = aobj.codeRes
+    occs = aobj.occRes
+    temps = aobj.tempRes
+    amarks = aobj.amarkRes
+    charges = aobj.chargeRes
+
     # get ajfinfo
-    fatomnums, fchgs, fbaas, fatminfos, connects = obj.getajfinfo(ajfname)
+    aobj = aobj.readajf(ajfname)
+
+    fatomnums = aobj.fatomnums
+    fchgs = aobj.fchgs
+    fbaas = aobj.fbaas
+    fatminfos = aobj.fatminfos
+    connects = aobj.connects
+
     # print(fatomnums, fchgs, fbaas, fatminfos, connects)
 
     # -- devide asn and nag --
@@ -83,43 +107,23 @@ if __name__ == "__main__":
                 bridgeds.append(cysmolid[i])
                 break
 
-    fatomnums, fchgs, fbaas, connects, fatminfos = obj.modifyfragparam(totalMol, atomnameMol, molnames, anummols, posMol, heads, labs, chains
+    fatomnums, fchgs, fbaas, connects, fatminfos = aobj.modifyfragparam(totalMol, atomnameMol, molnames, anummols, posMol, heads, labs, chains
                                                                    ,resnums ,codes ,occs ,temps ,amarks ,charges, fatomnums, fchgs, fbaas, fatminfos, connects, bridgeds, doubles, nagatoms, nagmolids, nagbdas)
 
-#     print('new_totalres', len(fatomnums))
-#     print(len(fchgs))
-#     print(len(fbaas))
-#     print(len(fatminfos))
-#     print(sum(fbaas))
-#     print(len(connects))
+    aobj.fatomnums = fatomnums
+    aobj.fchgs = fchgs
+    aobj.fbaas = fbaas
+    aobj.connects = connects
+    aobj.fatminfos = fatminfos
 
-    param = [fatomnums], [fchgs], [fbaas], [connects], [fatminfos]
-    ajf_fragment = obj.get_fragsection(param)[:-1]
-    # print(ajf_fragment)
+    aobj.ajf_method = "MP2"
+    aobj.ajf_basis_set = "6-31G*"
+    aobj.abinit_ver = 'rev10'
+    aobj.abinitmp_path = 'abinitmp'
+    aobj.pbmolrad = 'vdw'
+    aobj.pbcnv = 1.0
+    aobj.piedaflag = True
+    aobj.readgeom = pdbname
 
-    ajf_charge = sum(fchgs)
-    ajf_parameter = [ajf_charge, "", "", ajf_fragment, len(fatomnums), 0]
-
-    # gen ajf file
-    ajf_oname = os.path.splitext(ajfname)[0] + 'fragmod.ajf'
-    print('oname:', ajf_oname)
-    ajf_file = open(ajf_oname, 'w')
-
-    obj.ajf_method = "MP2"
-    obj.ajf_basis_set = "6-31G*"
-    obj.abinit_ver = 'rev10'
-    obj.abinitmp_path = 'abinitmp'
-    obj.pbmolrad = 'vdw'
-    obj.pbcnv = 1.0
-    obj.piedaflag = False
-
-    basis_str = obj.ajf_basis_set
-    print(basis_str)
-    if basis_str == '6-31G*':
-        basis_str = '6-31Gd'
-    ajf_parameter[1] = "'" +  pdbname + "'"
-    ajf_parameter[2] = "'" +  os.path.splitext(ajfname)[0] + '-' + obj.ajf_method + '-' + basis_str + ".cpf'"
-    ajf_body = obj.gen_ajf_body(ajf_parameter)
-    print(ajf_body, file=ajf_file)
-
+    aobj.saveajf(os.path.splitext(pdbname)[0] + '-nagfragmod.ajf')
 

@@ -69,11 +69,11 @@ class abinit_io(mi.mol_io):
 
 
     def get_fragsection(self):
-        frag_atom = self.fatomnums
-        frag_charge = self.fchgs
-        frag_connect_num = self.fbaas
-        frag_connect = self.connects
-        seg_info = self.fatminfos
+        frag_atom = [self.fatomnums]
+        frag_charge = [self.fchgs]
+        frag_connect_num = [self.fbaas]
+        frag_connect = [self.connects]
+        seg_info = [self.fatminfos]
 
         ajf_fragment = ''
         # fragment atom
@@ -869,244 +869,6 @@ MD='OFF'
             # sys.exit()
             return 0, 0, 0, 0, 0
 
-    def read_fraginfo(self, fname):
-        frags = []
-        count = 0
-        text = open(fname, "r").readlines()
-        flag = False
-        for i in range(len(text)):
-            itemList = text[i][:-1].split()
-            if len(itemList) < 2:
-                continue
-            if itemList[1] == 'AUTOMATIC' or itemList[1] == 'HYBRID':
-                flag = True
-                continue
-            if itemList[1] == 'MANUAL':
-                manflag = True
-            if itemList[1] == 'system':
-                break
-            if flag is True:
-                count += 1
-            if flag is True and count > 2:
-                if fragmode == 'hybrid':
-                    frags.append(itemList[3] + itemList[1])
-                elif fragmode == 'auto':
-                    frags.append(itemList[2] + itemList[0])
-
-        return frags
-
-
-    def read_pieda(self, fname):
-        ifie = []
-        count = 0
-        text = open(fname, "r").readlines()
-        flag = False
-        # print text
-        for i in range(len(text)):
-            itemList = text[i][:-1].split()
-            # print itemList
-            if len(itemList) < 2:
-                continue
-            if itemList[1] == 'PIEDA':
-                flag = True
-                # head.append(itemList)
-                continue
-            if itemList[1] == 'Mulliken':
-                # flag = False
-                break
-            if flag is True:
-                count += 1
-            if flag is True and count > 2:
-                ifie.append(itemList)
-
-        return ifie
-
-
-    def getconnect(self, idxs, molfrags, df, tgtid, molmode):
-        neighbors_list = []
-        # print(idxs)
-        for idx in idxs:
-            tgtdf = df[df['I'] == idx]
-            tgtdf = tgtdf.append(df[df['J'] == idx])
-            tgtdf_zero = tgtdf[tgtdf['DIST'] == 0.]
-            # print(tgtdf_zero)
-            neighbor_i = [index for index, row in tgtdf_zero.groupby("I")]
-            neighbor_j = [index for index, row in tgtdf_zero.groupby("J")]
-            neighbors = set(neighbor_i + neighbor_j)
-            # print('connect_idx', neighbors)
-            neighbors_list.append(neighbors)
-        neighbors_flat = list(itertools.chain.from_iterable(neighbors_list))
-        # print(idx)
-        # print('neighbors_flat', neighbors_flat)
-
-        newfrags = []
-        for idx in neighbors_flat:
-            if idx == tgtid:
-                if molmode != 'fraginmol':
-                    continue
-            if idx not in molfrags:
-                molfrags.append(idx)
-                newfrags.append(idx)
-
-        return newfrags, molfrags
-
-    def getmolfrags(self, tgtid, df, molmode):
-        molfrags  = [tgtid]
-        newfrags = [tgtid]
-        while True:
-            newfrags, molfrags = self.getconnect(newfrags, molfrags, df, tgtid, molmode)
-            # print (newfrags, molfrags)
-            if len(newfrags) == 0:
-                break
-        molfrags.sort()
-        # print('aaa', molfrags)
-
-        return molfrags
-
-
-    def getallmolfrags(self, logname, df, nf, molmode):
-        alfrags = []
-        molfragss = []
-        for i in range(1, nf+1):
-            if i in alfrags:
-                # print(i, 'already')
-                continue
-            molfrags = self.getmolfrags(i, df, molmode)
-            molfragss.append(molfrags)
-            for j in molfrags:
-                alfrags.append(j)
-        # print(molfragss)
-        return molfragss
-
-
-    def getnf(self, logname, fragmode):
-        if fragmode == 'manual':
-            text = open(logname, "r").readlines()
-            for i in range(len(text)):
-                itemList = text[i][:-1].split()
-                # print(itemList)
-                if len(itemList) < 2:
-                    continue
-                if itemList[:2]== ['NF', '=']:
-                   nf = int(itemList[2])
-                   break
-        return nf
-
-    def getifiedf(self, ifie, column):
-        df = pd.DataFrame(ifie, columns=column)
-        df['I'] = df['I'].astype(int)
-        df['J'] = df['J'].astype(int)
-        df['DIST'] = df['DIST'].astype(float)
-        df['HF-IFIE'] = df['HF-IFIE'].astype(float) * 627.5095
-        df['MP2-IFIE'] = df['MP2-IFIE'].astype(float) * 627.5095
-        df['PR-TYPE1'] = df['PR-TYPE1'].astype(float) * 627.5095
-        df['GRIMME'] = df['GRIMME'].astype(float) * 627.5095
-        df['JUNG'] = df['JUNG'].astype(float) * 627.5095
-        df['HILL'] = df['HILL'].astype(float) * 627.5095
-
-        return df
-
-    def getpiedadf(self, pieda, pcolumn):
-        pidf = pd.DataFrame(pieda, columns=pcolumn)
-        pidf['I'] = pidf['I'].astype(int)
-        pidf['J'] = pidf['J'].astype(int)
-        pidf['ES'] = pidf['ES'].astype(float)
-        pidf['EX'] = pidf['EX'].astype(float)
-        pidf['CT-mix'] = pidf['CT-mix'].astype(float)
-        if self.abinit_ver >= 'rev17':
-            pidf['Solv(ES)'] = pidf['Solv(ES)'].astype(float)
-        pidf['DI(MP2)'] = pidf['DI(MP2)'].astype(float)
-        pidf['q(I=>J)'] = pidf['q(I=>J)'].astype(float)
-
-        return pidf
-
-
-    def gettgtdf(self, df, dist):
-        print('--- ifie near tgt ', dist, 'angstrom ----')
-        tgtdf = df[df['I'] == tgtid]
-        tgtdf = tgtdf.append(df[df['J'] == tgtid])
-        tgtdf_filter = tgtdf[tgtdf['DIST'] < dist]
-
-        # print(tgtdf)
-        print(tgtdf_filter)
-        # print(tgtdf_filter['J'])
-        return tgtdf, tgtdf_filter
-
-    def gettgtdf_ffmulti(self, df, frag1, frag2):
-        # print('--- ifie frag ', frag1, frag2, '----')
-        tgtdf_filter = df[((df['I'] == frag1) & (df['J'] == frag2)) | ((df['I'] == frag2) & (df['J'] == frag1))]
-        tgtdf_filter = df[((df['I'] == frag1) & (df['J'] == frag2)) | ((df['I'] == frag2) & (df['J'] == frag1))]
-
-        return tgtdf_filter
-
-
-    def getifiesummol(self, df, column):
-        tgtdf_filters = pd.DataFrame(df,columns=column)
-        for i in molfrags:
-            tgtdf = df[df['I'] == i]
-            tgtdf = tgtdf.append(df[df['J'] == i])
-            tgtdf_filter = tgtdf[tgtdf['DIST'] < dist]
-            # print(tgtdf_filter)
-            tgtdf_filters = tgtdf_filters.append(tgtdf_filter)
-
-        # print(tgtdf_filters)
-
-        neighbor_i = [index for index, row in tgtdf_filters.groupby("I")]
-        neighbor_j = [index for index, row in tgtdf_filters.groupby("J")]
-        neighbors= list(set(neighbor_i + neighbor_j))
-        # print(neighbors)
-        neighbors.sort()
-        alreadys = copy.deepcopy(molfrags)
-        contactmolfrags = []
-        for i in neighbors:
-            if i in alreadys:
-                continue
-            molfrag_new = self.getmolfrags(i, df, molmode)
-            contactmolfrags.append(molfrag_new)
-            alreadys = alreadys + molfrag_new
-            # print(alreadys)
-        print('contactmolfrags\n', contactmolfrags)
-
-        # print('-- ifie permol --')
-        ifie_permols = []
-        for contactmolfrag in contactmolfrags:
-            ifie_permol = pd.DataFrame(columns=column)
-            for contact in contactmolfrag:
-                for tgtfrag in molfrags:
-                    # print(contact, tgtfrag)
-                    ifie_permol = ifie_permol.append(df[((df['I'] == contact) & (df['J'] == tgtfrag)) | ((df['I'] == tgtfrag) & (df['J'] == contact))])
-            ifie_permols.append(ifie_permol)
-
-        count = 0
-        ifiesums = [['contactmolfrag', 'tgtmolfrags', 'HF-IFIE', 'MP2-IFIE']]
-        # print('contactmolfrag', 'tgtmolfrags', 'HF-IFIE', 'MP2-IFIE')
-        for datadf in ifie_permols:
-            ifiesums.append([contactmolfrags[count], molfrags, datadf['HF-IFIE'].sum(), datadf['MP2-IFIE'].sum()])
-            count += 1
-
-        return contactmolfrags, ifie_permols, ifiesums
-
-
-    def getpitgtdf(self, pidf, tgtdf_filter):
-        print('--- pieda near tgt ', dist, 'angstrom ----')
-        pitgtdf = pidf[pidf['I'] == tgtid]
-        pitgtdf = pitgtdf.append(pidf[pidf['J'] == tgtid])
-
-        # --- filter ver.1 dist ----
-        pitgtdf_filter =  pd.DataFrame(columns=pcolumn)
-        for i in tgtdf_filter['J']:
-            # print(pitgtdf[pitgtdf['J'] == i])
-            aa = pitgtdf[pitgtdf['J'] == i]
-            pitgtdf_filter = pitgtdf_filter.append(aa)
-
-        # --- filter ver.2 except dimer-es resion ----
-        # pitgtdf_filter = pitgtdf[~(pitgtdf['CT-mix'] == 0.0)]
-        # pitgtdf_filter = pitgtdf_filter[~(pitgtdf_filter['DI(MP2)'] == 0.0)]
-
-        # print(pitgtdf)
-        print(pitgtdf_filter)
-
-        return pitgtdf, pitgtdf_filter
 
 
     def readajf(self, fname):
@@ -1125,7 +887,7 @@ MD='OFF'
         connects = []
         for i in range(len(lines)):
             itemlist = lines[i].split()
-            if itemlist[0][:2] == 'NF':
+            if itemlist[0][:2].upper() == 'NF':
                 self.nf = int(itemlist[0].split('=')[-1])
                 nf = self.nf
                 print('NF=', self.nf)
@@ -1429,11 +1191,11 @@ MD='OFF'
                 frag_connectss.append(frag_connects)
             atom_count += sum(frag_atom[nameid[i]])
 
-        self.fatomnums = [frag_atoms]
-        self.fchgs = [frag_charges]
-        self.fbaas = [frag_baanums]
-        self.fatminfos = [frag_atmlabss]
-        self.connects = [frag_connectss]
+        self.fatomnums = frag_atoms
+        self.fchgs = frag_charges
+        self.fbaas = frag_baanums
+        self.fatminfos = frag_atmlabss
+        self.connects = frag_connectss
         return  self
 
         # return frag_atoms, frag_charges, frag_baanums, frag_atmlabss, frag_connectss

@@ -6,7 +6,7 @@ import subprocess
 import re
 import time
 import copy
-import ampt.cutset_fmo as cutf
+import abmptools as ampt
 
 # Koji Okuwaki: Update 2020/03/22
 # moveintocell and assignmolname
@@ -15,19 +15,18 @@ if __name__ == "__main__":
     ## -- user setting --
     # read info
     mode = 'resnum' #rfile, resnum
-    assignmolname = False
-    refreshatmtype = False
+    assignresname = True
+    refreshatmtype = True
     refreshresid = False
 
     # move info
     moveflag = False
     movemode = 'mol' # pos or mol
 
-    addchain = True
+    addchain = False
     addres_start = 308
     addres_end = 312
     chainlab = 'C'
-
 
     addres = [i for i in range(addres_start, addres_end+1)]
 
@@ -60,51 +59,68 @@ if __name__ == "__main__":
         else:
             oname = oname + '-mod'
 
-        obj = cutf.cutset_fmo()
-        obj.getmode = mode
-        obj.assignmolname = assignmolname
-        obj.refreshatmtype = refreshatmtype
-        obj.refresresid = refreshresid
+        aobj = ampt.setfmo()
+        aobj.getmode = mode
+        aobj.assignresname = assignresname
+        aobj.refreshatmtype = refreshatmtype
+        aobj.refresresid = refreshresid
 
         print('infile:', fname)
         print('oname:', oname)
         print('centered-molid:', tgtmol - 1)
 
         # get pdbinfo
-        totalMol, atomnameMol, molnames, nlabmols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = obj.getpdbinfo(fname)
+        # totalMol, atomnameMol, molnames, nlabmols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = obj.getpdbinfo(fname)
+
+        aobj = aobj.getpdbinfowrap(fname)
+        totalMol = aobj.totalRes
+        atomnameMol = aobj.atmtypeRes
+        molnames = aobj.resnames
+        nlabmols = aobj.gatmlabRes
+        posMol = aobj.posRes
+        heads = aobj.headRes
+        labs = aobj.labRes
+        chains = aobj.chainRes
+        resnums = aobj.resnumRes
+        codes = aobj.codeRes
+        occs = aobj.occRes
+        temps = aobj.tempRes
+        amarks = aobj.amarkRes
+        charges = aobj.chargeRes
 
         mollist = [i for i in range(totalMol)]
-        cellsize = obj.getpdbcell(fname)
-        obj.cellsize = cellsize
+#         cellsize = aobj.getpdbcell(fname)
+#         aobj.cellsize = cellsize
 
         print('totalMol:', totalMol)
 
         # print(resnums)
-        print(addres)
-        alreadys = []
-        for i in range(len(resnums)):
-            # print(resnums[i][0])
-            tgt = int(resnums[i][0])
-            if tgt in alreadys:
-                continue
-            if tgt in addres:
-                print(resnums[i])
-                # print(nlabmols[i])
-                for j in range(len(chains[i])):
-                    chains[i][j] = chainlab
-                alreadys.append(tgt)
+        if addchain == True:
+            print(addres)
+            alreadys = []
+            for i in range(len(resnums)):
+                # print(resnums[i][0])
+                tgt = int(resnums[i][0])
+                if tgt in alreadys:
+                    continue
+                if tgt in addres:
+                    print(resnums[i])
+                    # print(nlabmols[i])
+                    for j in range(len(chains[i])):
+                        self.chainRes[i][j] = chainlab
+                    alreadys.append(tgt)
 
-        if len(obj.cellsize) == 0:
-            obj.cellsize = 0
-            print('cellinfo: None')
-        else:
-            print('cellsize:', obj.cellsize)
+#         if len(aobj.cellsize) == 0:
+#             aobj.cellsize = 0
+#             print('cellinfo: None')
+#         else:
+#             print('cellsize:', aobj.cellsize)
 
 
         if moveflag == True:
             # get center of solute
             if movemode == 'mol':
-                coctgt = obj.getCenter(posMol[tgtmol-1])
+                coctgt = aobj.getCenter(posMol[tgtmol-1])
             elif movemode == 'pos':
                 coctgt = tgtpos
             transVec = np.array(-coctgt, dtype='float64')
@@ -113,23 +129,25 @@ if __name__ == "__main__":
             # move
             posmoveMol = []
             for i in range(totalMol):
-                posmove = obj.movemoltranspdb(posMol[i], transVec)
+                posmove = aobj.movemoltranspdb(posMol[i], transVec)
                 posmoveMol.append(posmove)
 
             if intoflag == True:
-                posintoMol = obj.moveintocellpdb(posmoveMol, totalMol, cellsize)
+                posintoMol = aobj.moveintocellpdb(posmoveMol, totalMol, cellsize)
 
             else:
                 posintoMol = copy.deepcopy(posmoveMol)
 
         else:
             if intoflag == True:
-                posintoMol = obj.moveintocellpdb(posMol, totalMol, cellsize)
+                posintoMol = aobj.moveintocellpdb(posMol, totalMol, cellsize)
 
             else:
                 posintoMol = copy.deepcopy(posMol)
 
         # write
-        obj.exportardpdbfull(oname, mollist, posintoMol, atomnameMol, molnames, heads, labs, chains, resnums, codes, occs, temps, amarks, charges)
+        aobj.posRes = posintoMol
+        aobj.exportardpdbfull(oname, mollist)
+
 
 

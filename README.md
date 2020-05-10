@@ -29,5 +29,8 @@ python setup.py install
 ## main 内ファイル構成
 
 ## example
+
+## update
 v1.0.1 create repository
+v1.2.0 reform directory
 

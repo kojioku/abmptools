@@ -9,6 +9,7 @@ import re
 import time
 import copy
 import abinit_io as fab
+import collections
 try:
     from UDFManager import *
 except:
@@ -331,7 +332,7 @@ class pdb_io(fab.abinit_io):
         self.amarkRes = amarkRes
         self.chargeRes = chargeRes
 
-        return self
+        return
         # return totalRes, atmtypeRes, resnames, gatmlabRes, posRes, headRes, labRes, chainRes ,resnumRes ,codeRes ,occRes ,tempRes ,amarkRes ,chargeRes
 
 
@@ -402,7 +403,7 @@ class pdb_io(fab.abinit_io):
             if reslab >=10000:
                 reslab -= 10000
 
-            for j in range(len(self.posRes)):
+            for j in range(len(posMol)):
                 tatomlab += 1
                 if tatomlab >= 100000:
                     tatomlab -= 100000
@@ -419,7 +420,7 @@ class pdb_io(fab.abinit_io):
                 else:
                     resid = resnumRes[i][j]
 
-                olist = [heads[i][j], str(tatomlab), atomname, self.labRes[i][j], self.resnames[i], self.chainRes[i][j], resid, self.codeRes[i][j], '{:.3f}'.format(self.posRes[j][0]), '{:.3f}'.format(self.posRes[j][1]), '{:.3f}'.format(self.posRes[j][2]), self.occRes[i][j], self.tempRes[i][j], self.amarkRes[i][j], self.chargeRes[i][j]]
+                olist = [self.headRes[i][j], str(tatomlab), atomname, self.labRes[i][j], self.resnames[i], self.chainRes[i][j], resid, self.codeRes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), self.occRes[i][j], self.tempRes[i][j], self.amarkRes[i][j], self.chargeRes[i][j]]
                 print(form.format(olist), file=f)
             # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
 
@@ -507,6 +508,19 @@ class pdb_io(fab.abinit_io):
         # (class)    totalRes, atmtypeRes, resnames, gatmlabRes, posRes,     headRes,    labRes,    chainRes , resnumRes ,  codeRes ,  occRes ,  tempRes ,  amarkRes ,  chargeRes
 
         self.readpdb(fname)
+
+        posRes_orig     =    copy.deepcopy(self.posRes)
+        atmtypeRes_orig =copy.deepcopy(    self.atmtypeRes)
+        resnames_orig   =  copy.deepcopy(  self.resnames)
+        headRes_orig    =   copy.deepcopy( self.headRes)
+        labRes_orig     =    copy.deepcopy(self.labRes)
+        chainRes_orig   =  copy.deepcopy(  self.chainRes)
+        resnumRes_orig  = copy.deepcopy(   self.resnumRes)
+        codeRes_orig    =   copy.deepcopy( self.codeRes)
+        occRes_orig     =    copy.deepcopy(self.occRes)
+        tempRes_orig    =   copy.deepcopy( self.tempRes)
+        amarkRes_orig   =  copy.deepcopy(  self.amarkRes)
+        chargeRes_orig  = copy.deepcopy(   self.chargeRes)
 
 
         print("totalmol:",self.totalRes)
@@ -664,6 +678,19 @@ class pdb_io(fab.abinit_io):
             amarkRes.append(self.amarkRes[i])
             chargeRes.append(self.chargeRes[i])
 
+        self.posRes = posRes
+        self.atmtypeRes = atmtypeRes
+        self.resnames = resnames
+        self.headRes = headRes
+        self.labRes = labRes
+        self.chainRes = chainRes
+        self.resnumRes = resnumRes
+        self.codeRes = codeRes
+        self.occRes = occRes
+        self.tempRes = tempRes
+        self.amarkRes = amarkRes
+        self.chargeRes = chargeRes
+
         # get atomnum
         atomnums = []
         tgtmolnames = []
@@ -671,9 +698,9 @@ class pdb_io(fab.abinit_io):
             for j in range(self.totalRes):
             # for j in range(1):
                 # print (molname[i], self.resnames[j])
-                if molname[i] == self.resnames[j]:
-                    atomnums.append(len(self.posRess[j]))
-                    tgtmolnames.append(self.resnames[j])
+                if molname[i] == resnames_orig[j]:
+                    atomnums.append(len(posRes_orig[j]))
+                    tgtmolnames.append(resnames_orig[j])
                     break
         print ('atomnums', atomnums)
 
@@ -684,14 +711,11 @@ class pdb_io(fab.abinit_io):
             print(opath)
             subprocess.call(["mkdir", opath])
 
-        # if os.path.exists(path[0] + '/' + path[1]) is False:
-            # subprocess.call(["mkdir -p", path[0] + '/' + path[1]])
-
         # refresh 
         index = [i for i in range(len(posRes))]
-        self.exportardpdbfull(opath + '/' + oname, index, posRes, atmtypeRes, resnames, headRes, labRes, chainRes, resnumRes, codeRes, occRes, tempRes, amarkRes, chargeRes)
+        self.exportardpdbfull(opath + '/' + oname, index)
 
-        self.make_abinput_rmap(tgtmolnames, resnames, oname, path, atomnums)
+        self.make_abinput_rmap(tgtmolnames, resnames, oname, opath, atomnums)
         # monomer structure
 
     def movemoltranspdb(self, posVec, transVec):
@@ -737,8 +761,7 @@ class pdb_io(fab.abinit_io):
 
     def getpdbinfowrap(self, fname):
         # get pdbinfo
-        self = self.getpdbinfo(fname)
-
+        self.readpdb(fname)
         print('totalres', self.totalRes)
         # print('atomnameMol', atomnameMol)
         # print('resnames', molnames)

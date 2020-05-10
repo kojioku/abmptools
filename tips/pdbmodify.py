@@ -6,7 +6,7 @@ import subprocess
 import re
 import time
 import copy
-import ampt.cutset_fmo as cutf
+import abmptools as ampt
 
 # Koji Okuwaki: Update 2020/03/22
 # moveintocell and assignmolname
@@ -23,7 +23,7 @@ if __name__ == "__main__":
     moveflag = False
     movemode = 'mol' # pos or mol
 
-    addchain = True
+    addchain = False
     addres_start = 307
     addres_end = 312
     chainlab = 'C'
@@ -60,7 +60,7 @@ if __name__ == "__main__":
         else:
             oname = oname + '-mod'
 
-        obj = cutf.cutset_fmo()
+        obj = ampt.setfmo()
         obj.getmode = mode
         obj.assignmolname = assignmolname
         obj.refreshatmtype = refreshatmtype

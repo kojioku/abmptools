@@ -1,7 +1,7 @@
 import sys
 import math
 import os
-import ampt.abinit_io as abio
+import abmptools as ampt
 
 if __name__ == '__main__':
     argvs = sys.argv
@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     ofile = 'segment_data.dat'
 
-    obj = abio.abinit_io()
+    obj = ampt.abinit_io()
     obj.getfragdict(fnames, ofile)
 
 

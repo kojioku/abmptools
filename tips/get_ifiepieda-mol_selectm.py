@@ -17,29 +17,25 @@ import abmptools as ampt
 
 aobj = ampt.anlfmo()
 # --- user setting ---
-aobj.anlmode= 'ff-multi' #frag, 'mol', 'fraginmol', 'ff-multi'
+aobj.anlmode= 'mol' #frag, 'mol', 'fraginmol', 'ff-multi'
 aobj.fragmode = 'manual'  #'hybrid', 'auto', 'manual'
-aobj.dist = 8.0
+aobj.dist = 2.0
 aobj.abinit_ver='rev15'
 
 aobj.start = 1700
 aobj.end = 2700
 aobj.interval = 500
 
-aobj.ilog_head = 'sbecd7_50nsdynamics_namd'
-aobj.ilog_tail = '-moved-sed-around-8.0-for_abmp.log'
-aobj.pdb_head = 'sbecd7_50nsdynamics_namd'
-aobj.pdb_tail = '-moved-sed-around-8.0-for_abmp.pdb'
-
-aobj.tgt2type = 'molname'
+aobj.selecttype = 'molid'
+aobj.tgtmolid= 0
 # aobj.tgt2molname = 'WAT'
 
 print(aobj.tgt2type)
 # ---- user setting end ---
 
 logname = sys.argv[1]
-aobj = aobj.readifiewrap(logname, 'WAT')
-aobj = aobj.filterifiewrap(dist=7.5)
+aobj = aobj.readifiewrap(logname)
+aobj = aobj.filterifiewrap(dist=2.5)
 aobj = aobj.readpiedawrap()
 aobj = aobj.filterpiedawrap()
 

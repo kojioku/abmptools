@@ -6,7 +6,7 @@ import subprocess
 import re
 import time
 import copy
-import ampt.cutset_fmo as cutf
+import abmptools as abmp
 # Matrix operation
 
 
@@ -21,33 +21,33 @@ if __name__ == "__main__":
         fname = argvs[i]
         oname, ext = os.path.splitext(fname)
 
-        obj = cutf.cutset_fmo()
+        aobj = abmp.setfmo()
         path = 'for_abmp'
 
         param_read = {}
         exec(open("input_param", 'r').read(), param_read)
         param_rfmo = param_read['param']
-        obj.setrfmoparam(param_rfmo)
+        aobj.setrfmoparam(param_rfmo)
 
-        if obj.cutmode == 'sphere':
-            oname = oname + '-' + obj.cutmode + 'p' + str(obj.tgtpos[0]) + '_' + str(obj.tgtpos[1]) + '_' + str(obj.tgtpos[2]) + '_ar' + str(obj.criteria)
+        if aobj.cutmode == 'sphere':
+            oname = oname + '-' + aobj.cutmode + 'p' + str(aobj.tgtpos[0]) + '_' + str(aobj.tgtpos[1]) + '_' + str(aobj.tgtpos[2]) + '_ar' + str(aobj.criteria)
 
-        elif obj.cutmode == 'around':
-            oname = oname + '-' + obj.cutmode + '_ar' + str(obj.criteria)
+        elif aobj.cutmode == 'around':
+            oname = oname + '-' + aobj.cutmode + '_ar' + str(aobj.criteria)
 
-        elif obj.cutmode == 'cube':
-            oname = oname + '-' + obj.cutmode + 'p' + str(obj.tgtpos[0]) + '_' + str(obj.tgtpos[1]) + '_' + str(obj.tgtpos[2]) + '_x' + str(obj.criteria[0]) + '_y' + str(obj.criteria[1]) + '_z' + str(obj.criteria[2])
+        elif aobj.cutmode == 'cube':
+            oname = oname + '-' + aobj.cutmode + 'p' + str(aobj.tgtpos[0]) + '_' + str(aobj.tgtpos[1]) + '_' + str(aobj.tgtpos[2]) + '_x' + str(aobj.criteria[0]) + '_y' + str(aobj.criteria[1]) + '_z' + str(aobj.criteria[2])
 
-        if obj.cutmode == 'none':
+        if aobj.cutmode == 'none':
             oname = oname +  '-for_abmp'
 
-        if obj.cutmode == 'around':
-            print('molset', obj.molname)
-            print('solute', obj.solutes)
+        if aobj.cutmode == 'around':
+            print('molset', aobj.molname)
+            print('solute', aobj.solutes)
 
-        print('piedaflag', obj.piedaflag)
+        print('piedaflag', aobj.piedaflag)
 
-        if len(obj.ionname) != 0:
-            print('ion mode: ', obj.ionmode)
-            print('ion name: ', obj.ionname)
-        obj.getcontact_rmapfmopdb(path, fname, oname)
+        if len(aobj.ionname) != 0:
+            print('ion mode: ', aobj.ionmode)
+            print('ion name: ', aobj.ionname)
+        aobj.getcontact_rmapfmopdb(path, fname, oname)

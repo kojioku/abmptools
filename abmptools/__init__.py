@@ -7,4 +7,5 @@ from .pdb_io import pdb_io
 from .udfrm_io import udfrm_io
 from .udf_io import udf_io
 from .udfcreate import udfcreate
+from .anlfmo import anlfmo
 

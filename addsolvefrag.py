@@ -42,32 +42,30 @@ if __name__ == "__main__":
 #         totalMol, atomnameMol, self.resnames, anummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = aobj.getpdbinfowrap(pdbname)
         aobj = aobj.getpdbinfowrap(pdbname)
 
-
         # get tgt solvate mol info
         molname = solvname
         atomnumsets = []
         tgtmolsets = []
         for i in range(len(molname)):
-            for j in range(self.totalRes):
+            for j in range(aobj.totalRes):
             # for j in range(1):
                 # print (molname[i], molnamelist_orig[j])
-                if molname[i] == self.resnames[j]:
-                    atomnumsets.append(len(self.posRes[j]))
-                    tgtmolsets.append(self.resnames[j])
+                if molname[i] == aobj.resnames[j]:
+                    atomnumsets.append(len(aobj.posRes[j]))
+                    tgtmolsets.append(aobj.resnames[j])
                     break
         print ('atomnumsets', atomnumsets)
         print('tgtmolsets', tgtmolsets)
 
-
         # get ajfinfo
         # fatomnumsets, fchgs, fbaas, fatminfos, connects = aobj.getajfinfo(ajfname)
         # get fraginfo
-        aobj = aobj.getfragdict([ajfname], 'segment_data.dat')
+        aobj.getfragdict([ajfname], 'segment_data.dat')
 
         nameidMol = []
-        for i in range(len(self.resnames)):
+        for i in range(len(aobj.resnames)):
             for j in range(len(tgtmolsets)):
-                if self.resnames[i] == tgtmolsets[j]:
+                if aobj.resnames[i] == tgtmolsets[j]:
                     nameidMol.append(j)
         # print(nameidMol)
 
@@ -91,73 +89,20 @@ if __name__ == "__main__":
         aobj.para_job = 1
         ohead = os.path.splitext(pdbname)[0].split('/')[-1] + '_forabmp'
         aobj.readgeom = ohead + '.pdb'
+        aobj.writegeom = os.path.splitext(ajfname)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + ".cpf'"
 
-        basis_str = self.ajf_basis_set
-        print(basis_str)
-        if basis_str == '6-31G*':
-            basis_str = '6-31Gd'
-
-        aobj.writegeom = os.path.splitext(ajfname)[0] + '-' + self.ajf_method + '-' + basis_str + ".cpf'"
-
-        ajf_body = aobj.gen_ajf_bodywrap(aobj)
-
-        # export
-        # ajf
         opath = 'for_abmp'
-        ajf_oname = opath + '/' + ohead + '.ajf'
         if os.path.exists(opath) is False:
             print(opath)
             subprocess.call(["mkdir", opath])
 
-        print('ajf_oname:', ajf_oname)
-        ajf_file = open(ajf_oname, 'w')
+        # ajf_body = aobj.gen_ajf_bodywrap(ohead)
 
-        print(ajf_body, file=ajf_file)
+        ajf_oname = opath + '/' + ohead + '.ajf'
+        aobj.saveajf(ajf_oname)
 
-        # pdb
-
-        index = [i for i in range(len(self.posMol))]
-        aobj.exportardpdbfull(opath + '/' + self.readgeom, index)
-
-
-    # print('ajf_fragment', ajf_fragment)
-    # print('num_fragment', num_fragment)
-    # print('ajf_charge', ajf_charge)
-
-    # aobj.bindfraginfo
-    # aobj.make_abinput_rmap(tgtmolnames, molnames, oname, opath, atomnums)
-
-    # get ajfinfo
-    # fatomnums, fchgs, fbaas, fatminfos, connects = aobj.getajfinfo(ajfname)
-    # print(fatomnums, fchgs, fbaas, fatminfos, connects)
-
-#     param = [fatomnums], [fchgs], [fbaas], [connects], [fatminfos]
-#     ajf_fragment = aobj.get_fragsection(param)[:-1]
-#     # print(ajf_fragment)
-#
-#     ajf_charge = sum(fchgs)
-#     ajf_parameter = [ajf_charge, "", "", ajf_fragment, len(fatomnums), 0]
-#
-#     # gen ajf file
-#     ajf_oname = ajfname + 'fragmod.ajf'
-#     print('oname:', ajf_oname)
-#     ajf_file = open(ajf_oname, 'w')
-#
-#     aobj.ajf_method = "MP2"
-#     aobj.ajf_basis_set = "6-31G*"
-#     aobj.abinit_ver = 'rev10'
-#     aobj.abinitmp_path = 'abinitmp'
-#     aobj.pbmolrad = 'vdw'
-#     aobj.pbcnv = 1.0
-#     aobj.piedaflag = False
-#
-#     basis_str = aobj.ajf_basis_set
-#     print(basis_str)
-#     if basis_str == '6-31G*':
-#         basis_str = '6-31Gd'
-#     ajf_parameter[1] = "'" +  pdbname + "'"
-#     ajf_parameter[2] = "'" +  ajfname + '-' + aobj.ajf_method + '-' + basis_str + ".cpf'"
-#     ajf_body = aobj.gen_ajf_body(ajf_parameter)
-#     print(ajf_body, file=ajf_file)
+        # exportpdb
+        index = [i for i in range(len(aobj.posRes))]
+        aobj.exportardpdbfull(opath + '/' + ohead, index)
 
 

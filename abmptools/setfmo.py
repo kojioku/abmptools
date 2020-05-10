@@ -33,6 +33,7 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         self.molname = []
         self.criteria = []
         self.tgtpos =[]
+        self.mainpath = '.'
         pass
 
     def setrfmoparam(self, param_rfmo):
@@ -443,20 +444,16 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         print(num_fragment)
 
         Si_flag = 0
-        ajf_parameter = [ajf_charge, "", "", ajf_fragment, num_fragment, Si_flag]
+        ajf_parameter = [ajf_charge, ajf_fragment, num_fragment, Si_flag]
         # gen ajf file
         # --for one file--
         name = str(rec)
         ajf_file_name = path + "/" + name + ".ajf"
         ajf_file = open(ajf_file_name, 'w')
 
-        basis_str = self.ajf_basis_set
-        print(basis_str)
-        if basis_str == '6-31G*':
-            basis_str = '6-31Gd'
-        ajf_parameter[1] = "'" + name + ".pdb'"
-        ajf_parameter[2] = "'" + name + '-' + \
-            self.ajf_method + '-' + basis_str + ".cpf'"
+        self.readgeom = "'" + name + ".pdb'"
+        self.writegeom = "'" + name  + '-' + \
+            self.ajf_method + '-' + self.ajf_basis_set.replace('*', 'd') + ".cpf'"
         ajf_body = self.gen_ajf_body(ajf_parameter)
         print(ajf_body, file=ajf_file)
 

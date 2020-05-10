@@ -9,7 +9,7 @@ with open('README.md', 'r', encoding='utf-8') as f:
 
 setup(
     name='ABMPTools',
-    version='1.1.1',
+    version='1.2.0',
     description='setup tool for ABINIT-MP',
     long_description=readme,
     install_requires=[],
