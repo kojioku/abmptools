@@ -17,8 +17,8 @@ if __name__ == "__main__":
     mode = 'resnum' #rfile, resnum
     assignmolname = False
     refreshatmtype = False
-    ajfname = '6lu7orig_hip_nowat_hinagata.ajf'
-    solvname = ['WAT', 'NA']
+    ajfname = '6lu7cov_neu-hinagata.ajf'  #'6lu7orig_hip_nowat_hinagata.ajf'
+    solvname = ['HOH', 'WAT', 'NA']
 
     ## -- setting end --
 
@@ -82,7 +82,7 @@ if __name__ == "__main__":
         aobj.ajf_method = "MP2"
         aobj.ajf_basis_set = "6-31G*"
         aobj.abinit_ver = 'rev15'
-        aobj.piedaflag = False
+        aobj.piedaflag = True
         aobj.cpfflag = False
         aobj.cmmflag = True
         aobj.npro = 1

@@ -15,15 +15,15 @@ if __name__ == "__main__":
     ## -- user setting --
     # read info
     mode = 'resnum' #rfile, resnum
-    assignresname = True
-    refreshatmtype = True
+    assignresname = False
+    refreshatmtype = False
     refreshresid = False
 
     # move info
     moveflag = False
     movemode = 'mol' # pos or mol
 
-    addchain = False
+    addchain = True
     addres_start = 308
     addres_end = 312
     chainlab = 'C'
@@ -107,7 +107,7 @@ if __name__ == "__main__":
                     print(resnums[i])
                     # print(nlabmols[i])
                     for j in range(len(chains[i])):
-                        self.chainRes[i][j] = chainlab
+                        aobj.chainRes[i][j] = chainlab
                     alreadys.append(tgt)
 
 #         if len(aobj.cellsize) == 0:
