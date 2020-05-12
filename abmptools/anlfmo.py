@@ -235,7 +235,7 @@ class anlfmo(pdio.pdb_io):
         pidf['ES'] = pidf['ES'].astype(float)
         pidf['EX'] = pidf['EX'].astype(float)
         pidf['CT-mix'] = pidf['CT-mix'].astype(float)
-        if self.abinit_ver >= 'rev17':
+        if self.abinit_ver == 'rev16' or self.abinit_ver == 'rev17':
             pidf['Solv(ES)'] = pidf['Solv(ES)'].astype(float)
         pidf['DI(MP2)'] = pidf['DI(MP2)'].astype(float)
         pidf['q(I=>J)'] = pidf['q(I=>J)'].astype(float)
@@ -340,6 +340,9 @@ class anlfmo(pdio.pdb_io):
         tgtpdbs = []
         tgttimes = []
 
+        if self.anlmode == 'ff-multi' and self.tgt2type == 'molname':
+            self.rpdbflag = True
+
         print(self.ilog_head)
         if self.anlmode == 'ff-multi':
             # self.readpdb = True
@@ -350,7 +353,8 @@ class anlfmo(pdio.pdb_io):
             for i in range(self.start, self.end+1, self.interval):
                 tgttimes.append(str(i))
                 tgtlogs.append(self.ilog_head + str(i) + self.ilog_tail)
-                tgtpdbs.append(self.pdb_head + str(i) + self.pdb_tail)
+                if self.rpdbflag == True:
+                    tgtpdbs.append(self.pdb_head + str(i) + self.pdb_tail)
             print('tgtlogs', tgtlogs)
             print('anlmode:' ,self.anlmode)
             print('fragmode:', self.fragmode)
@@ -408,7 +412,6 @@ class anlfmo(pdio.pdb_io):
 
 
 
-
     def readifiewrap(self, item1=None, item2=None):
         self.setupreadparm(item1, item2)
         if self.anlmode == 'ff-multi':
@@ -416,6 +419,7 @@ class anlfmo(pdio.pdb_io):
             ifdfs = []
             skips = []
             for i in range(len(self.tgtlogs)):
+                print('read', self.tgtlogs[i])
                 ifie = self.read_ifie(self.tgtlogs[i])
                 ifdfs.append(self.getifiedf(ifie))
                 if len(ifie) == 0:
@@ -791,6 +795,7 @@ class anlfmo(pdio.pdb_io):
                 opieda = 'frag' + str(tgt1frag) + '-frag' + str(tgt2frag) + '-pieda.csv'
                 self.ifdf_filters.to_csv(path + '/' + oifie)
                 self.pidf_filters.to_csv(path + '/' + opieda)
+                print(path + '/' + oifie, path + '/' + opieda, 'was created.')
 
             if tgt2type == 'molname':
                 tgt2molname = self.tgt2molname

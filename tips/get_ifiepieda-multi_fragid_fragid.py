@@ -20,35 +20,37 @@ aobj = ampt.anlfmo()
 aobj.anlmode= 'ff-multi' #frag, 'mol', 'fraginmol', 'ff-multi'
 aobj.fragmode = 'manual'  #'hybrid', 'auto', 'manual'
 aobj.dist = 8.0
-aobj.abinit_ver='rev15'
+aobj.abinit_ver='rev20'
 
-aobj.start = 1700
-aobj.end = 4200
-aobj.interval = 500
+aobj.start = 100
+aobj.end = 2100
+aobj.interval = 1000
 
-aobj.ilog_head = 'sbecd7_50nsdynamics_namd'
-aobj.ilog_tail = '-moved-sed-around-8.0-for_abmp.log'
-aobj.pdb_head = 'sbecd7_50nsdynamics_namd'
-aobj.pdb_tail = '-moved-sed-around-8.0-for_abmp.pdb'
+aobj.ilog_head = '6lu7orig_md0408_163hip'
+aobj.ilog_tail = '-hopt--mod-forabmp_192n-2p-24t.log'
+# aobj.pdb_head = 'sbecd7_50nsdynamics_namd'
+# aobj.pdb_tail = '-moved-sed-around-8.0-for_abmp.pdb'
 
 aobj.tgt2type = 'frag'
 
 print(aobj.tgt2type)
 # ---- user setting end ---
 
-logname = sys.argv[1]
-aobj = aobj.readifiewrap(logname, 3)
+tgt1 = int(sys.argv[1])
+tgt2 = int(sys.argv[2])
+
+aobj = aobj.readifiewrap(tgt1, tgt2)
 aobj = aobj.filterifiewrap(dist=7.5)
 aobj = aobj.readpiedawrap()
 aobj = aobj.filterpiedawrap()
 
 
 #out
-print('ifdf\n', aobj.ifdfs)
-print('ifdf_filter\n', aobj.ifdf_filters)
-print('pidf\n', aobj.pidfs)
+# print('ifdf\n', aobj.ifdfs)
+# print('ifdf_filter\n', aobj.ifdf_filters)
+# print('pidf\n', aobj.pidfs)
 # print('pitgtdf\n', aobj.pitgtdfs)
-print('pitgtdf\n', aobj.pidf_filters)
+# print('pitgtdf\n', aobj.pidf_filters)
 
 
 aobj.writecsvwrap()
