@@ -12,6 +12,7 @@ import re
 import subprocess
 import csv
 import pdb_io as pdio
+import time
 from ctypes import *
 # import setparam as sp
 try:
@@ -68,6 +69,8 @@ class anlfmo(pdio.pdb_io):
         self.tgt2molname = None
         # ------ ff-multi mode ------
         # if tgt2type == 'frag':
+        self.ifdfs = []
+        self.pidfs = []
         self.tgt1frag = None
         self.tgt2frag = None
 
@@ -87,6 +90,8 @@ class anlfmo(pdio.pdb_io):
         # --hybrid mode
         self.hyfrag = None #320
         self.hynum = None
+
+        self.pynp = 3
 
         pass
 
@@ -260,7 +265,6 @@ class anlfmo(pdio.pdb_io):
         frag2 = int(frag2)
         tgtdf_filter = df[((df['I'] == frag1) & (df['J'] == frag2)) | ((df['I'] == frag2) & (df['J'] == frag1))]
         # tgtdf_filter = df[((df['I'] == frag1) & (df['J'] == frag2)) | ((df['I'] == frag2) & (df['J'] == frag1))]
-
         return tgtdf_filter
 
 
@@ -383,11 +387,12 @@ class anlfmo(pdio.pdb_io):
 
 
             # --- print setting ---
-        print('logname:', self.tgtlogs)
-        print('dist:', self.dist)
-        print('tgtfragid:', self.tgtfrag)
+        # print('logname:', self.tgtlogs)
+        # print('dist:', self.dist)
+        # print('tgtfragid:', self.tgtfrag)
         print('anlmode:' , self.anlmode)
         print('fragmode:', self.fragmode)
+        print('np =:', self.pynp)
         # print('tgt2type:', self.tgt2type)
 
         ## read pdb
@@ -410,7 +415,108 @@ class anlfmo(pdio.pdb_io):
             self.readpdb(self.pdbname)
             print(self.resnames)
 
+        # PIEDA
+        if self.abinit_ver == 'rev16' or self.abinit_ver == 'rev17':
+            self.pcolumn = ['I', 'J', 'ES', 'EX', 'CT-mix', 'Solv(ES)', 'DI(MP2)', 'q(I=>J)']
 
+        ### read fraginfo section
+        frags = []
+        if self.fragmode != 'manual':
+            frags = self.read_fraginfo(self.tgtlogs)
+            # print('frags', frags)
+
+        if self.fragmode == 'hybrid':
+            getf = frags.pop(hyfrag-1)
+            for i in range(self.hynum):
+                frags.append(getf)
+            # print('frags', frags)
+
+        self.frags = frags
+
+    def read_ifiepieda(self, fname):
+        ifie = []
+        count = 0
+        pieda = []
+        pcount = 0
+        pflag = False
+
+        try:
+            f = open(fname, "r")
+            text = f.readlines()
+            f.close()
+        except:
+            print("can't open", fname)
+            return ifie
+        flag = False
+        # print text
+        for i in range(len(text)):
+            itemList = text[i][:-1].split()
+            # print itemList
+            if len(itemList) < 2:
+                continue
+            if itemList[1] == 'MP2-IFIE':
+                flag = True
+                # head.append(itemList)
+                continue
+            if itemList[1] == 'PIEDA':
+                flag = False
+                pflag = True
+                continue
+            if flag is True:
+                count += 1
+            if flag is True and count > 2:
+                ifie.append(itemList)
+            # print itemList
+            if len(itemList) < 2:
+                continue
+
+            if itemList[1] == 'PIEDA':
+                pflag = True
+                # head.append(itemList)
+                continue
+            if itemList[1] == 'Mulliken':
+                # flag = False
+                break
+            if pflag is True:
+                pcount += 1
+            if pflag is True and pcount > 2:
+                pieda.append(itemList)
+
+        if flag is False:
+            try:
+                print("can't read ifie", fname.split("/")[1])
+            except:
+                pass
+
+        for i in range(len(ifie)):
+            if float(ifie[i][4]) < -2 or float(ifie[i][5]) < -2:
+                ifie[i][4] = 0.0
+                ifie[i][5] = 0.0
+                ifie[i][6] = 0.0
+
+        return ifie, pieda
+        # print ifie
+
+
+
+#     def readifies(self, tgtlog):
+#         # tgtlog, tgttime = args
+#         print('read', tgtlog)
+#         ifie = self.read_ifie(tgtlog)
+#         ifdfs = self.getifiedf(ifie)
+#         return ifdfs
+
+    def read_ifiepiedas(self, tgtlog):
+        # tgtlog, tgttime = args
+        print('read', tgtlog)
+        ifie, pieda = self.read_ifiepieda(tgtlog)
+        # print('ifie', ifie[0], 'pieda', pieda[0])
+        ifdfs = self.getifiedf(ifie)
+        pidfs = self.getpiedadf(pieda)
+        # print('ifdfs', ifdfs)
+        # print('pidfs', pidfs)
+
+        return [ifdfs, pidfs]
 
     def readifiewrap(self, item1=None, item2=None):
         self.setupreadparm(item1, item2)
@@ -418,40 +524,59 @@ class anlfmo(pdio.pdb_io):
             print('## read multi mode')
             ifdfs = []
             skips = []
-            for i in range(len(self.tgtlogs)):
-                print('read', self.tgtlogs[i])
-                ifie = self.read_ifie(self.tgtlogs[i])
-                ifdfs.append(self.getifiedf(ifie))
-                if len(ifie) == 0:
+            args = []
+            st = time.time()
+            p = Pool(self.pynp)
+            ifpidfs = p.map(self.read_ifiepiedas, self.tgtlogs)
+            p.close()
+            print('read elapsed', time.time() - st)
+
+            for i in range (len(ifpidfs)):
+                # print('len tgt', i, ':', len(ifpidfs[i][0]))
+                if len(ifpidfs[i][0]) == 0:
                     print('Warning: time', self.tgttimes[i], 'not converged: skip data')
                     skips.append(i)
 
             dellist = lambda items, indexes: [item for index, item in enumerate(items) if index not in indexes]
             self.tgttimes = dellist(self.tgttimes,skips)
-            # print(ifdfs)
+            # print('tgttimes', self.tgttimes)
 
             if self.tgt2type == 'molname':
                 print('### read frag info ###')
                 molfragss_perrec = []
                 for i in range(len(self.tgtpdbs)):
-                    molfragss = self.getallmolfrags(self.tgtlogs[i], ifdfs[i], self.nfs[i])
+                    molfragss = self.getallmolfrags(self.tgtlogs[i], ifpidfs[i][0], self.nfs[i])
                     # print('frags_permol\n', molfragss)
                     molfragss_perrec.append(molfragss)
                 # print(molfragss_perrec)
                 # print(len(molnames), len(molfragss))
                 self.molfragss_perrec = molfragss_perrec
 
-            self.ifdfs = ifdfs
+            st = time.time()
+            for i in range(len(ifpidfs)):
+                if len(ifpidfs[i][0]) != 0:
+                    self.ifdfs.append(ifpidfs[i][0])
+                    self.pidfs.append(ifpidfs[i][1])
+            print('elapsed', time.time() - st)
 
         else:
             print('## read single mode')
-            ifie = self.read_ifie(self.tgtlogs)
+            ifie, pieda = self.read_ifiepieda(self.tgtlogs)
             df = self.getifiedf(ifie)
 
             self.ifdf = df
+
+            # pieda = self.read_pieda(self.tgtlogs)
+            pidf = self.getpiedadf(pieda)
+
+            self.pidf = pidf
+
             # self.ifdfs = []
             # self.ifdfs.append(df)
+
+        ### read pieda (from log) section
         return self
+
             # print(df.head())
 
     ### filter section
@@ -637,7 +762,8 @@ class anlfmo(pdio.pdb_io):
             pidfs = []
             for logname in self.tgtlogs:
                 pieda = self.read_pieda(logname)
-                pidfs.append(self.getpiedadf(pieda))
+                if len(pieda) != 0:
+                    pidfs.append(self.getpiedadf(pieda))
 
             self.pidfs = pidfs
         else:
@@ -669,7 +795,19 @@ class anlfmo(pdio.pdb_io):
                 count = 0
                 for pidf in pidfs:
                     # print('read', tgtlogs[count])
-                    pitgtdf_filters = pitgtdf_filters.append(self.gettgtdf_ffmulti(pidf, self.tgt1frag, self.tgt2frag))
+                    pitgtdf_filter = self.gettgtdf_ffmulti(pidf, self.tgt1frag, self.tgt2frag)
+                    if len(pitgtdf_filter) == 0:
+                        # print('times::::::', self.tgttimes[count])
+                        # print(self.ifdf_filters[count]['HF-IFIE'])
+                        esdata = self.ifdf_filters.iat[count, 4]
+                        # print('esdata', esdata)
+
+                        # pitgtdf_filter = pitgtdf_filter.assign(ES=esdata)
+                        pitgtdf_filter = pd.Series(index=self.pcolumn, name=str(count))
+                        pitgtdf_filter.loc['ES'] = esdata
+
+                        # pitgtdf_filter.at[0, 'TIME'] = self.tgttimes[count]
+                    pitgtdf_filters = pitgtdf_filters.append(pitgtdf_filter)
                     count += 1
                 pitgtdf_filters['TIME'] = self.tgttimes
                 # print(pitgtdf_filters)
@@ -823,7 +961,7 @@ class anlfmo(pdio.pdb_io):
             isumname = path + '/' + head + '_ifiesum-mol-' + selecttype + str(tgtid) + 'dist' + str(dist) + '.csv'
             plogdtname = path + '/' + head + '_pieda-mol-' + selecttype + str(tgtid) + 'dist' + str(dist) + '.txt'
             psumname = path + '/' + head + '_piedasum-mol-' + selecttype  + str(tgtid) + 'dist' + str(dist) + '.csv'
- 
+
             # write section
             ilogdt = open(ilogdtname, 'w')
             for ifie_permol in ifie_permols:

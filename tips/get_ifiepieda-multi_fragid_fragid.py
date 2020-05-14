@@ -23,15 +23,17 @@ aobj.dist = 8.0
 aobj.abinit_ver='rev20'
 
 aobj.start = 100
-aobj.end = 2100
+aobj.end = 49100
 aobj.interval = 1000
 
-aobj.ilog_head = '6lu7orig_md0408_163hip'
-aobj.ilog_tail = '-hopt--mod-forabmp_192n-2p-24t.log'
+# ./6lu7_minHSCG_163hip100-hopt--mod_forabmp_192n-2p-24t.log
+aobj.ilog_head = '6lu7_minHSCG_163hip'
+aobj.ilog_tail = '-hopt--mod_forabmp_192n-2p-24t.log'
 # aobj.pdb_head = 'sbecd7_50nsdynamics_namd'
 # aobj.pdb_tail = '-moved-sed-around-8.0-for_abmp.pdb'
 
 aobj.tgt2type = 'frag'
+aobj.pynp = 6
 
 print(aobj.tgt2type)
 # ---- user setting end ---
@@ -41,9 +43,7 @@ tgt2 = int(sys.argv[2])
 
 aobj = aobj.readifiewrap(tgt1, tgt2)
 aobj = aobj.filterifiewrap(dist=7.5)
-aobj = aobj.readpiedawrap()
 aobj = aobj.filterpiedawrap()
-
 
 #out
 # print('ifdf\n', aobj.ifdfs)
