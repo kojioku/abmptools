@@ -17,7 +17,9 @@ if __name__ == "__main__":
     mode = 'resnum' #rfile, resnum
     assignmolname = False
     refreshatmtype = False
-    ajfname = '6lu7cov_neu-hinagata.ajf'  #'6lu7orig_hip_nowat_hinagata.ajf'
+    refreshresid = False
+
+    ajfname = '6lu7nocovneu-nowat-hinagata0516.ajf'   # 6lu7_nocovhip163-nowat-hinagata0516.ajf
     solvname = ['HOH', 'WAT', 'NA']
 
     ## -- setting end --
@@ -26,6 +28,8 @@ if __name__ == "__main__":
     aobj.getmode = mode
     aobj.assignmolname = assignmolname
     aobj.refreshatmtype = refreshatmtype
+    aobj.refreshresid = refreshresid
+
 
     # main
     pdbnames = []
