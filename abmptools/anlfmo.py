@@ -93,6 +93,10 @@ class anlfmo(pdio.pdb_io):
 
         self.pynp = 3
 
+        mydir = os.path.dirname(os.path.abspath(__file__))
+        self.f90sofile = mydir + '/f90/bin/readifiepiedalib.so'
+        self.f90soflag = True
+
         pass
 
 
@@ -518,6 +522,97 @@ class anlfmo(pdio.pdb_io):
 
         return [ifdfs, pidfs]
 
+    def read_ifpif90(self, tgtlog):
+        print('read', tgtlog)
+        f = np.ctypeslib.load_library(self.f90sofile, ".")
+
+        f.readifiepieda_.argtypes = [
+            c_char_p,
+            np.ctypeslib.ndpointer(dtype=np.int32),
+            np.ctypeslib.ndpointer(dtype=np.int32),
+            np.ctypeslib.ndpointer(dtype=np.int32),
+            np.ctypeslib.ndpointer(dtype=np.int32),
+            np.ctypeslib.ndpointer(dtype=np.float64),
+            np.ctypeslib.ndpointer(dtype=np.float64),
+            np.ctypeslib.ndpointer(dtype=np.float64),
+            np.ctypeslib.ndpointer(dtype=np.float64),
+            np.ctypeslib.ndpointer(dtype=np.float64),
+            np.ctypeslib.ndpointer(dtype=np.float64),
+            np.ctypeslib.ndpointer(dtype=np.float64),
+            np.ctypeslib.ndpointer(dtype=np.float64),
+            np.ctypeslib.ndpointer(dtype=np.float64),
+            np.ctypeslib.ndpointer(dtype=np.float64),
+            np.ctypeslib.ndpointer(dtype=np.float64),
+            np.ctypeslib.ndpointer(dtype=np.float64),
+            np.ctypeslib.ndpointer(dtype=np.int32),
+            np.ctypeslib.ndpointer(dtype=np.int32),
+            np.ctypeslib.ndpointer(dtype=np.int32),
+            ]
+
+        instr = tgtlog
+        enc_str = instr.encode('utf-8')
+        instr = create_string_buffer(enc_str)
+
+        ifi = np.empty(10000000, dtype=np.int32)
+        ifj = np.empty(10000000, dtype=np.int32)
+        pii = np.empty(10000000, dtype=np.int32)
+        pij = np.empty(10000000, dtype=np.int32)
+        dist = np.empty(10000000, dtype=np.float64)
+        hfifie = np.empty(10000000, dtype=np.float64)
+        mp2ifie = np.empty(10000000, dtype=np.float64)
+        prtype1 = np.empty(10000000, dtype=np.float64)
+        grimme = np.empty(10000000, dtype=np.float64)
+        jung = np.empty(10000000, dtype=np.float64)
+        hill = np.empty(10000000, dtype=np.float64)
+        es = np.empty(10000000, dtype=np.float64)
+        ex = np.empty(10000000, dtype=np.float64)
+        ct = np.empty(10000000, dtype=np.float64)
+        di = np.empty(10000000, dtype=np.float64)
+        qval = np.empty(10000000, dtype=np.float64)
+        fdimesint = np.empty(10000000, dtype=np.int32)
+        ifpair = np.empty(1, dtype=np.int32)
+        pipair = np.empty(1, dtype=np.int32)
+
+        f.readifiepieda_(instr, ifi, ifj, pii, pij, dist, hfifie, mp2ifie, prtype1, grimme, jung, hill, es, ex, ct, di, qval, fdimesint, ifpair, pipair)
+
+        #check
+        # print ('i', ifi[0], ifj[0])
+        # print ('j', ifi[1], ifj[1])
+        # print ('dist', dist[0:2])
+        # print ('dist', hfifie[0:2])
+        # print ('fdimesint', fdimesint[0:2])
+        print ('ifpair', ifpair, 'pipair', pipair)
+
+        # fdimesstr = []
+        # for i in range(ifpair[0]):
+        #     if fdimesint[i] == 1:
+        #         fdimesstr.append('F')
+        #     elif fdimesint[i] == 2:
+        #         fdimesstr.append('T')
+
+        ifdf = pd.DataFrame(columns=self.icolumn)
+        ifdf['I'] = copy.deepcopy(ifi[:ifpair[0]])
+        ifdf['J'] = copy.deepcopy(ifj[:ifpair[0]])
+        ifdf['DIST'] = copy.deepcopy(dist[:ifpair[0]])
+        ifdf['DIMER-ES'] = copy.deepcopy(fdimesint[:ifpair[0]])
+        ifdf['HF-IFIE'] = copy.deepcopy(hfifie[:ifpair[0]])
+        ifdf['MP2-IFIE'] = copy.deepcopy(mp2ifie[:ifpair[0]])
+        ifdf['PR-TYPE1'] = copy.deepcopy(prtype1[:ifpair[0]])
+        ifdf['GRIMME'] = copy.deepcopy(grimme[:ifpair[0]])
+        ifdf['JUNG'] = copy.deepcopy(jung[:ifpair[0]])
+        ifdf['HILL'] = copy.deepcopy(hill[:ifpair[0]])
+
+        pidf = pd.DataFrame(columns=self.pcolumn)
+        pidf['I'] = copy.deepcopy(pii[:pipair[0]])
+        pidf['J'] = copy.deepcopy(pij[:pipair[0]])
+        pidf['ES'] = copy.deepcopy(es[:pipair[0]])
+        pidf['EX'] = copy.deepcopy(ex[:pipair[0]])
+        pidf['CT-mix'] = copy.deepcopy(ct[:pipair[0]])
+        pidf['DI(MP2)'] = copy.deepcopy(di[:pipair[0]])
+        pidf['q(I=>J)'] = copy.deepcopy(qval[:pipair[0]])
+
+        return [ifdf, pidf]
+
     def readifiewrap(self, item1=None, item2=None):
         self.setupreadparm(item1, item2)
         if self.anlmode == 'ff-multi':
@@ -527,7 +622,11 @@ class anlfmo(pdio.pdb_io):
             args = []
             st = time.time()
             p = Pool(self.pynp)
-            ifpidfs = p.map(self.read_ifiepiedas, self.tgtlogs)
+            if self.f90soflag == True:
+                print("use fortran library")
+                ifpidfs = p.map(self.read_ifpif90, self.tgtlogs)
+            else:
+                ifpidfs = p.map(self.read_ifiepiedas, self.tgtlogs)
             p.close()
             print('read elapsed', time.time() - st)
 

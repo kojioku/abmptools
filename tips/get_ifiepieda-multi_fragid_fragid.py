@@ -27,8 +27,9 @@ aobj.end = 49100
 aobj.interval = 1000
 
 # ./6lu7_minHSCG_163hip100-hopt--mod_forabmp_192n-2p-24t.log
-aobj.ilog_head = '6lu7_minHSCG_163hip'
-aobj.ilog_tail = '-hopt--mod_forabmp_192n-2p-24t.log'
+
+aobj.ilog_head = '6lu7orig_md0408_163hip'
+aobj.ilog_tail = '-hopt--mod-forabmp_192n-2p-24t.log'
 # aobj.pdb_head = 'sbecd7_50nsdynamics_namd'
 # aobj.pdb_tail = '-moved-sed-around-8.0-for_abmp.pdb'
 
