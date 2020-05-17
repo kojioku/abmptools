@@ -33,7 +33,7 @@ aobj.ilog_tail = '-hopt--mod-forabmp_192n-2p-24t.log'
 # aobj.pdb_head = '6lu7orig_md0408_163hip'
 # aobj.pdb_tail = '-hopt--mod_forabmp.pdb'
 
-aobj.tgt2type = 'frag'
+aobj.tgt2type = 'dist'
 aobj.pynp = 4
 aobj.f90soflag = True
 
@@ -41,10 +41,10 @@ print(aobj.tgt2type)
 # ---- user setting end ---
 
 tgt1 = int(sys.argv[1])
-tgt2 = int(sys.argv[2])
+distval = float(sys.argv[2])
 
-aobj = aobj.readifiewrap(tgt1, tgt2)
-aobj = aobj.filterifiewrap()
+aobj = aobj.readifiewrap(tgt1)
+aobj = aobj.filterifiewrap(dist=distval)
 aobj = aobj.filterpiedawrap()
 
 #out

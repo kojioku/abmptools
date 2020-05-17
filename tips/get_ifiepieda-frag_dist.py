@@ -30,9 +30,7 @@ logname = sys.argv[1]
 tgtfragid = sys.argv[2]
 aobj = aobj.readifiewrap(logname, int(tgtfragid))
 aobj = aobj.filterifiewrap()
-aobj = aobj.readpiedawrap()
 aobj = aobj.filterpiedawrap()
-
 
 # print('ifdf\n', aobj.ifdfs)
 # print('ifdf_filter\n', aobj.ifdf_filters)

@@ -254,8 +254,8 @@ class anlfmo(pdio.pdb_io):
 
     def gettgtdf(self, df):
         print('--- ifie near tgt ', self.dist, 'angstrom ----')
-        tgtdf = df[df['I'] == self.tgtfrag]
-        tgtdf = tgtdf.append(df[df['J'] == self.tgtfrag])
+        tgtdf = df[((df['I'] == self.tgtfrag) | (df['J'] == self.tgtfrag))]
+        # tgtdf = tgtdf.append(df[df['J'] == self.tgtfrag])
         tgtdf_filter = tgtdf[tgtdf['DIST'] < self.dist]
 
         # print('tgtdf', tgtdf)
@@ -322,16 +322,17 @@ class anlfmo(pdio.pdb_io):
 
 
     def getpitgtdf(self, pidf, tgtdf_filter):
-        print('--- pieda near tgt ', self.dist, 'angstrom ----')
-        pitgtdf = pidf[pidf['I'] == self.tgtfrag]
-        pitgtdf = pitgtdf.append(pidf[pidf['J'] == self.tgtfrag])
+        # print('--- pieda near tgt ', self.dist, 'angstrom ----')
+        print('--- pieda for tgt frag ----')
+        pitgtdf = pidf[((pidf['I'] == self.tgtfrag) |(pidf['J'] == self.tgtfrag))]
+        # pitgtdf = pitgtdf.append(pidf[pidf['J'] == self.tgtfrag])
 
         # --- filter ver.1 dist ----
-        pitgtdf_filter =  pd.DataFrame(columns=self.pcolumn)
-        for i in tgtdf_filter['J']:
-            # print(pitgtdf[pitgtdf['J'] == i])
-            aa = pitgtdf[pitgtdf['J'] == i]
-            pitgtdf_filter = pitgtdf_filter.append(aa)
+        # pitgtdf_filter =  pd.DataFrame(columns=self.pcolumn)
+        # for i in tgtdf_filter['J']:
+        #     # print(pitgtdf[pitgtdf['J'] == i])
+        #     aa = pitgtdf[pitgtdf['J'] == i]
+        #     pitgtdf_filter = pitgtdf_filter.append(aa)
 
         # --- filter ver.2 except dimer-es resion ----
         # pitgtdf_filter = pitgtdf[~(pitgtdf['CT-mix'] == 0.0)]
@@ -340,10 +341,14 @@ class anlfmo(pdio.pdb_io):
         # print(pitgtdf)
         # print(pitgtdf_filter)
 
-        return pitgtdf, pitgtdf_filter
+        return pitgtdf  #, pitgtdf_filter
 
 
     def setupreadparm(self, item1=None, item2=None):
+        print('anlmode:' ,self.anlmode)
+        print('fragmode:', self.fragmode)
+        print('np =:', self.pynp)
+
         tgtlogs = []
         tgtpdbs = []
         tgttimes = []
@@ -351,12 +356,14 @@ class anlfmo(pdio.pdb_io):
         if self.anlmode == 'ff-multi' and self.tgt2type == 'molname':
             self.rpdbflag = True
 
-        print(self.ilog_head)
+        # print(self.ilog_head)
         if self.anlmode == 'ff-multi':
             # self.readpdb = True
+            print('tgt2type:' ,self.tgt2type)
 
             if item1 != None:
                 self.tgt1frag = item1
+                self.tgtfrag = item1
 
             for i in range(self.start, self.end+1, self.interval):
                 tgttimes.append(str(i))
@@ -364,8 +371,6 @@ class anlfmo(pdio.pdb_io):
                 if self.rpdbflag == True:
                     tgtpdbs.append(self.pdb_head + str(i) + self.pdb_tail)
             print('tgtlogs', tgtlogs)
-            print('anlmode:' ,self.anlmode)
-            print('fragmode:', self.fragmode)
 
             if self.tgt2type == 'frag':
                 if item2 != None:
@@ -394,9 +399,8 @@ class anlfmo(pdio.pdb_io):
         # print('logname:', self.tgtlogs)
         # print('dist:', self.dist)
         # print('tgtfragid:', self.tgtfrag)
-        print('anlmode:' , self.anlmode)
-        print('fragmode:', self.fragmode)
-        print('np =:', self.pynp)
+        # print('anlmode:' , self.anlmode)
+        # print('fragmode:', self.fragmode)
         # print('tgt2type:', self.tgt2type)
 
         ## read pdb
@@ -831,6 +835,43 @@ class anlfmo(pdio.pdb_io):
 
                 print(tgtifdfsum)
                 self.ifdfsum = tgtifdfsum
+
+            if tgt2type == 'dist':
+                print('filter-dist:', self.dist)
+                # get tgt frag id
+                HF_IFIE_sums = []
+                MP2_IFIE_sums = []
+                PR_TYPE1_sums = []
+                GRIMME_sums = []
+                JUNG_sums = []
+                HILL_sums = []
+
+                tgtdf_filters = pd.DataFrame()
+                for ifdf in self.ifdfs:
+                    tgtdf, tgtdf_filter = self.gettgtdf(ifdf)
+                    # print(tgtdf_filter.head())
+                    tgtdf_filters = tgtdf_filters.append(tgtdf_filter)
+
+                    HF_IFIE_sums.append(tgtdf_filter['HF-IFIE'].sum())
+                    MP2_IFIE_sums.append(tgtdf_filter['MP2-IFIE'].sum())
+                    PR_TYPE1_sums.append(tgtdf_filter['PR-TYPE1'].sum())
+                    GRIMME_sums.append(tgtdf_filter['GRIMME'].sum())
+                    JUNG_sums.append(tgtdf_filter['JUNG'].sum())
+                    HILL_sums.append(tgtdf_filter['HILL'].sum())
+
+                tgtifdfsum = pd.DataFrame()
+                tgtifdfsum['HF-IFIE'] = HF_IFIE_sums
+                tgtifdfsum['MP2-IFIE'] = MP2_IFIE_sums
+                tgtifdfsum['PR-TYPE1'] = PR_TYPE1_sums
+                tgtifdfsum['GRIMME'] = GRIMME_sums
+                tgtifdfsum['JUNG'] = JUNG_sums
+                tgtifdfsum['HILL'] = HILL_sums
+                tgtifdfsum['TIME'] = self.tgttimes
+
+                print(tgtifdfsum)
+                self.ifdf_filters = tgtdf_filters
+                self.ifdfsum = tgtifdfsum
+
         return self
 
 
@@ -877,7 +918,7 @@ class anlfmo(pdio.pdb_io):
         # frag-frag mode
         frags = self.frags
         if self.anlmode == 'frag':
-            pitgtdf, pitgtdf_filter = self.getpitgtdf(self.pidf, self.ifdf_filter)
+            pitgtdf = self.getpitgtdf(self.pidf, self.ifdf_filter)
             if self.fragmode != 'manual':
                 # print('len_frags', len(frags))
                 #assign resname(e.g. Gly6)
@@ -890,26 +931,19 @@ class anlfmo(pdio.pdb_io):
         if self.anlmode == 'ff-multi':
             pidfs = self.pidfs
             if self.tgt2type == 'frag':
-                pitgtdf_filters = pd.DataFrame()
+                pitgtdf_filters = pd.DataFrame(columns=self.pcolumn)
+                # print('first', pitgtdf_filters)
+
                 count = 0
                 for pidf in pidfs:
                     # print('read', tgtlogs[count])
                     pitgtdf_filter = self.gettgtdf_ffmulti(pidf, self.tgt1frag, self.tgt2frag)
                     if len(pitgtdf_filter) == 0:
-                        # print('times::::::', self.tgttimes[count])
-                        # print(self.ifdf_filters[count]['HF-IFIE'])
                         esdata = self.ifdf_filters.iat[count, 4]
-                        # print('esdata', esdata)
-
-                        # pitgtdf_filter = pitgtdf_filter.assign(ES=esdata)
-                        pitgtdf_filter = pd.Series(index=self.pcolumn, name=str(count))
-                        pitgtdf_filter.loc['ES'] = esdata
-
-                        # pitgtdf_filter.at[0, 'TIME'] = self.tgttimes[count]
+                        pitgtdf_filter.loc[str(count)] = [self.tgt1frag, self.tgt2frag, esdata, "", "", "", ""]
                     pitgtdf_filters = pitgtdf_filters.append(pitgtdf_filter)
                     count += 1
                 pitgtdf_filters['TIME'] = self.tgttimes
-                # print(pitgtdf_filters)
                 self.pidf_filters = pitgtdf_filters
 
             if self.tgt2type == 'molname':
@@ -943,7 +977,43 @@ class anlfmo(pdio.pdb_io):
 
                 print(pitgtdfsum)
                 self.pidfsum = pitgtdfsum
+            if  self.tgt2type == 'dist':
+                ES_sums = []
+                EX_sums = []
+                CT_sums = []
+                DI_sums = []
+                q_sums = []
 
+                pitgtdfs = pd.DataFrame()
+                for i in range(len(self.pidfs)):
+                    # print(self.pidfs[i].head())
+                    # print('headheadhead', self.ifdf_filters.head())
+                    pitgtdf = self.getpitgtdf(self.pidfs[i], self.ifdf_filters)
+                    if self.fragmode != 'manual':
+                        # print('len_frags', len(frags))
+                        #assign resname(e.g. Gly6)
+                        for i in range(1, len(frags) + 1):
+                            pitgtdf.I = pitgtdf.I.replace(i, frags[i-1])
+                            pitgtdf.J = pitgtdf.J.replace(i, frags[i-1])
+
+                    ES_sums.append(pitgtdf['ES'].sum())
+                    EX_sums.append(pitgtdf['EX'].sum())
+                    CT_sums.append(pitgtdf['CT-mix'].sum())
+                    DI_sums.append(pitgtdf['DI(MP2)'].sum())
+                    q_sums.append(pitgtdf['q(I=>J)'].sum())
+
+                    pitgtdfs = pitgtdfs.append(pitgtdf)
+
+                pitgtdfsum = pd.DataFrame()
+                pitgtdfsum['ES'] = ES_sums
+                pitgtdfsum['EX'] = EX_sums
+                pitgtdfsum['CT-mix'] = CT_sums
+                pitgtdfsum['DI(MP2)'] = DI_sums
+                pitgtdfsum['q(I=>J)'] = q_sums
+                pitgtdfsum['TIME'] = self.tgttimes
+
+                print(pitgtdfsum)
+                self.pidfsum = pitgtdfsum
 
         # mol-mol mode
         if self.anlmode == 'mol':
@@ -1036,10 +1106,21 @@ class anlfmo(pdio.pdb_io):
 
             if tgt2type == 'molname':
                 tgt2molname = self.tgt2molname
-                oifie = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-ifie.csv'
-                opieda = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-pieda.csv'
+                oifie = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-ifiesum.csv'
+                opieda = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-piedasum.csv'
                 self.ifdfsum.to_csv(path + '/' + oifie)
                 self.pidfsum.to_csv(path + '/' + opieda)
+                print(path + '/' + oifie, path + '/' + opieda, 'was created.')
+
+
+            if tgt2type == 'dist':
+                tgt2dist = self.dist
+                oifie = 'frag' + str(tgt1frag) + '-dist' + str(tgt2dist) + '-ifiesum.csv'
+                opieda = 'frag' + str(tgt1frag) + '-piedasum.csv'
+                self.ifdfsum.to_csv(path + '/' + oifie)
+                self.pidfsum.to_csv(path + '/' + opieda)
+                print(path + '/' + oifie, path + '/' + opieda, 'was created.')
+
 
         if self.anlmode == 'mol':
             if head == None:
