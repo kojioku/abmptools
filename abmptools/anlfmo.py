@@ -376,7 +376,7 @@ class anlfmo(pdio.pdb_io):
 
     def gettgtdf_fd(self, df):
         print('--- ifie near tgt ', self.dist, 'angstrom ----')
-        tgtdf = df[((df['I'] == self.tgtfrag) | (df['J'] == self.tgtfrag))]
+        tgtdf = df[(df['I'] == self.tgtfrag) | (df['J'] == self.tgtfrag)]
         # tgtdf = tgtdf.append(df[df['J'] == self.tgtfrag])
         tgtdf_filter = tgtdf[tgtdf['DIST'] < self.dist]
 
@@ -443,27 +443,53 @@ class anlfmo(pdio.pdb_io):
         return contactmolfrags, ifie_permols, ifiesums
 
 
-    def getpitgtdf(self, pidf, tgtdf_filter):
-        # print('--- pieda near tgt ', self.dist, 'angstrom ----')
-        print('--- pieda for tgt frag ----')
-        pitgtdf = pidf[((pidf['I'] == self.tgtfrag) |(pidf['J'] == self.tgtfrag))]
-        # pitgtdf = pitgtdf.append(pidf[pidf['J'] == self.tgtfrag])
+    def getpitgtdf(self, pidf, ifdf_filter):
+        print('--- pieda near tgt ', self.dist, 'angstrom ----')
+        # print('--- pieda for tgt frag ----')
+        tgtdf_filter = pidf[(pidf['I'] == self.tgtfrag) |(pidf['J'] == self.tgtfrag)]
 
-        # --- filter ver.1 dist ----
-        # pitgtdf_filter =  pd.DataFrame(columns=self.pcolumn)
-        # for i in tgtdf_filter['J']:
-        #     # print(pitgtdf[pitgtdf['J'] == i])
-        #     aa = pitgtdf[pitgtdf['J'] == i]
-        #     pitgtdf_filter = pitgtdf_filter.append(aa)
+#         fragids = []
+#         tgtdf = df[(df['I'] == self.tgt1frag) | (df['J'] == self.tgt1frag)]
+#         tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
 
-        # --- filter ver.2 except dimer-es resion ----
-        # pitgtdf_filter = pitgtdf[~(pitgtdf['CT-mix'] == 0.0)]
-        # pitgtdf_filter = pitgtdf_filter[~(pitgtdf_filter['DI(MP2)'] == 0.0)]
+        fragids = []
+        fragis = tgtdf_filter['I'].values.tolist()
+        fragjs = tgtdf_filter['J'].values.tolist()
+        for i in range(len(fragis)):
+            if fragis[i] != self.tgtfrag:
+                fragids.append(fragis[i])
+            else:
+                fragids.append(fragjs[i])
+        print('inside Dimter-ES region', fragids)
 
-        # print(pitgtdf)
-        # print(pitgtdf_filter)
+        allids = []
+        allis = ifdf_filter['I'].values.tolist()
+        alljs = ifdf_filter['J'].values.tolist()
 
-        return pitgtdf  #, pitgtdf_filter
+        for i in range(len(allis)):
+            if allis[i] != self.tgtfrag:
+                allids.append(allis[i])
+            else:
+                allids.append(alljs[i])
+        # print('all pair', allids)
+
+        # complement values from ifdf
+
+        df = ifdf_filter
+        pitgtdf_filters = pd.DataFrame(columns=self.pcolumn)
+        count = 0
+        for i in range(len(allids)):
+            pitgtdf_filter = self.gettgtdf_ff(tgtdf_filter, self.tgtfrag, allids[i])
+            if len(pitgtdf_filter) == 0:
+                esdata = df[(df['I'] == allids[i]) |(df['J'] == allids[i])]['HF-IFIE'].values.tolist()[0]
+                pitgtdf_filters.loc[str(count)] = [int(self.tgtfrag), int(allids[i]), esdata, 0.0, 0.0, 0.0, 0.0]
+            else:
+                pitgtdf_filters = pitgtdf_filters.append(pitgtdf_filter)
+            count +=1
+
+        # print(pitgtdf_filters.head())
+
+        return pitgtdf_filters
 
 
     def setupreadparm(self, item1=None, item2=None):
@@ -795,23 +821,22 @@ class anlfmo(pdio.pdb_io):
 
         else:
             print('## read single mode')
-            ifie, pieda = self.read_ifiepieda(self.tgtlogs)
-            df = self.getifiedf(ifie)
+            if self.f90soflag == True:
+                print("use fortran library")
+                ifpidfs = self.read_ifpif90(self.tgtlogs)
+                self.ifdf = ifpidfs[0]
+                self.pidf = ifpidfs[1]
 
-            self.ifdf = df
+            else:
+                ifie, pieda = self.read_ifiepieda(self.tgtlogs)
+                df = self.getifiedf(ifie)
+                self.ifdf = df
 
-            # pieda = self.read_pieda(self.tgtlogs)
-            pidf = self.getpiedadf(pieda)
+                pidf = self.getpiedadf(pieda)
+                self.pidf = pidf
 
-            self.pidf = pidf
-
-            # self.ifdfs = []
-            # self.ifdfs.append(df)
-
-        ### read pieda (from log) section
         return self
 
-            # print(df.head())
 
     ### filter section
     def filterifiewrap(self, dist=None):
@@ -982,11 +1007,11 @@ class anlfmo(pdio.pdb_io):
                 JUNG_sums = []
                 HILL_sums = []
 
-                tgtdf_filters = pd.DataFrame()
+                tgtdf_filters = []
                 for ifdf in self.ifdfs:
                     tgtdf, tgtdf_filter = self.gettgtdf_fd(ifdf)
-                    # print(tgtdf_filter.head())
-                    tgtdf_filters = tgtdf_filters.append(tgtdf_filter)
+                    # print('tgtdf_filter', tgtdf_filter.head())
+                    tgtdf_filters.append(tgtdf_filter)
 
                     HF_IFIE_sums.append(tgtdf_filter['HF-IFIE'].sum())
                     MP2_IFIE_sums.append(tgtdf_filter['MP2-IFIE'].sum())
@@ -1005,6 +1030,7 @@ class anlfmo(pdio.pdb_io):
                 tgtifdfsum['TIME'] = self.tgttimes
 
                 print(tgtifdfsum)
+                # print('tgtdf_filters', tgtdf_filters)
                 self.ifdf_filters = tgtdf_filters
                 self.ifdfsum = tgtifdfsum
 
@@ -1080,8 +1106,9 @@ class anlfmo(pdio.pdb_io):
                         pitgtdf_filter = self.gettgtdf_ff(pidf, self.tgt1frag, self.tgt2frag)
                         if len(pitgtdf_filter) == 0:
                             esdata = self.ifdf_filters.iat[count, 4]
-                            pitgtdf_filter.loc[str(count)] = [self.tgt1frag, self.tgt2frag, esdata, "", "", "", ""]
-                        pitgtdf_filters = pitgtdf_filters.append(pitgtdf_filter)
+                            pitgtdf_filters.loc[str(count)] = [self.tgt1frag, self.tgt2frag, esdata, 0.0, 0.0, 0.0, 0.0]
+                        else:
+                            pitgtdf_filters = pitgtdf_filters.append(pitgtdf_filter)
                         count += 1
                     pitgtdf_filters['TIME'] = self.tgttimes
                     self.pidf_filters = pitgtdf_filters
@@ -1127,8 +1154,10 @@ class anlfmo(pdio.pdb_io):
                 pitgtdfs = pd.DataFrame()
                 for i in range(len(self.pidfs)):
                     # print(self.pidfs[i].head())
+                    # print(self.ifdf_filters[i].head())
                     # print('headheadhead', self.ifdf_filters.head())
-                    pitgtdf = self.getpitgtdf(self.pidfs[i], self.ifdf_filters)
+
+                    pitgtdf = self.getpitgtdf(self.pidfs[i], self.ifdf_filters[i])
                     if self.fragmode != 'manual':
                         # print('len_frags', len(frags))
                         #assign resname(e.g. Gly6)
@@ -1228,10 +1257,12 @@ class anlfmo(pdio.pdb_io):
             # print(self.pitgtdf.head())
 
             # tgtdf.to_csv(path + '/' + ohead + '-ifie.csv')
-            self.ifdf_filter.to_csv(path + '/' + ohead + '-ifie_' + 'dist' + str(self.dist) + '.csv')
-            self.pitgtdf.to_csv(path + '/' + ohead + '-pieda.csv')
+            oifie = ohead + '-ifie_' + 'dist' + str(self.dist) + '.csv'
+            opieda = ohead + '-pieda_' + 'dist' + str(self.dist) + '.csv'
+            self.ifdf_filter.to_csv(path + '/' + oifie)
+            self.pitgtdf.to_csv(path + '/' + opieda)
 
-            print(ohead + '-ifie.csv', ohead + '-pieda.csv generated.')
+            print(path + '/' + oifie, path + '/' + opieda, 'was generated.')
 
 
         if self.anlmode == 'ff-multi':

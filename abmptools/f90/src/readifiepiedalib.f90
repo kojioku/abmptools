@@ -82,6 +82,9 @@ do i = 1, ifpair
         hfifie(i)=0.
         mp2ifie(i)=0.
         prtype1(i)=0.
+        grimme(i)=0.
+        jung(i)=0.
+        hill(i)=0.
     end if
 
     if ((trim(adjustl(fdimes(i)))) == "F") then
