@@ -12,8 +12,8 @@ module load amber 2> /dev/null
 
 #--user setting--
 # caputure time info(ps)
-stime=100  # please specify the start time of production run
-etime=100100
+stime=1100  # please specify the start time of production run
+etime=101100
 interval=1000
 sampletime=1.0
 

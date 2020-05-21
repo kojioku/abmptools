@@ -16,8 +16,8 @@ module load amber 2> /dev/null
 # caputure time info(ps)
 
 # backbone atone mask
-# backbone="@C,CA,N"
-backbone="@O3',C3',C4',C5',O5',P"
+backbone="@C,CA,N"
+# backbone="@O3',C3',C4',C5',O5',P"
 #--user setting end--
 
 ref=`ls *.a.0.coor`

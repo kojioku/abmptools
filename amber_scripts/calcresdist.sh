@@ -1,4 +1,5 @@
 #!/bin/bash
+# 2020/5/20 v2.0
 module load amber 2> /dev/null
 #--user setting--
 res1=1
