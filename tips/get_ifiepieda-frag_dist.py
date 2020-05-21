@@ -17,7 +17,7 @@ import abmptools as ampt
 
 aobj = ampt.anlfmo()
 # --- user setting ---
-aobj.anlmode= 'frag' #frag, 'mol', 'fraginmol', 'ff-multi'
+aobj.anlmode= 'frag' #frag, 'mol', 'fraginmol', 'multi'
 aobj.fragmode = 'manual'  #'hybrid', 'auto', 'manual'
 aobj.dist = 8.0
 aobj.abinit_ver='rev15'
@@ -28,6 +28,7 @@ print(aobj.tgt2type)
 
 logname = sys.argv[1]
 tgtfragid = sys.argv[2]
+
 aobj = aobj.readifiewrap(logname, int(tgtfragid))
 aobj = aobj.filterifiewrap()
 aobj = aobj.filterpiedawrap()
@@ -52,7 +53,7 @@ fragmode
 dist
 tgt2type
 
-(ff-multi mode)
+(multi mode)
     argv[1]: tgt1frag id,  [2]: tgtmolname or fragid
 (others)
     argv[1]: logname, [2]:tgtid(mol or frag)
@@ -62,7 +63,7 @@ tgt2type
 # pdbname='sbecd7_50nsdynamics_namd2200-moved-sed-around-8.0-for_abmp.pdb'   # 'iss2-spg2-ok20200130opt-for_abmp.pdb'
 # abinit_ver = 16
 #
-# # -- for mol mode or ff-multi mode--
+# # -- for mol mode or multi mode--
 # tgt2type = 'frag' #frag: mol-frag, mol: mol-mol
 #
 # # -- fraginmol mode --
@@ -70,7 +71,7 @@ tgt2type
 # tgt2molname = '000'
 # tgt2_lofrag = 4
 #
-# # ------ ff-multi mode ------
+# # ------ multi mode ------
 # # if tgt2type == 'frag':
 # tgt1frag = eval(sys.argv[1])
 # tgt2frag = int(sys.argv[2])

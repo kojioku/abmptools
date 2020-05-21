@@ -48,7 +48,7 @@ class anlfmo(pdio.pdb_io):
         self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL']
         self.pcolumn = ['I', 'J', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'q(I=>J)']
 
-        self.anlmode= 'frag' #frag, 'mol', 'fraginmol', 'ff-multi'
+        self.anlmode= 'frag' #frag, 'mol', 'fraginmol', 'multi'
         self.fragmode = 'auto'  #'hybrid', 'auto', 'manual'
         self.dist = 10.0
         self.tgtfrag = None
@@ -56,7 +56,7 @@ class anlfmo(pdio.pdb_io):
         self.rpdbflag = False
         self.pdbname = None   # 'iss2-spg2-ok20200130opt-for_abmp.pdb'
 
-        # -- for mol mode or ff-multi mode--
+        # -- for mol mode or multi mode--
         self.tgt2type = 'frag' #frag: mol-frag, mol: mol-mol
 
         # mol - mol mode
@@ -67,7 +67,7 @@ class anlfmo(pdio.pdb_io):
         self.tgt1_lofrag = None
         self.tgt2_lofrag = None
         self.tgt2molname = None
-        # ------ ff-multi mode ------
+        # ------ multi mode ------
         # if tgt2type == 'frag':
         self.ifdfs = []
         self.pidfs = []
@@ -254,7 +254,73 @@ class anlfmo(pdio.pdb_io):
         return pidf
 
 
-    def gettgtpidf_n2tsfs(self):
+    def gettgtpidf_n2ffmatrix(self):
+        print('\n--- generate pieda', str(self.tgt1frag), str(self.tgt2frag), 'ffmatrix ---\n')
+        esdf = pd.DataFrame(index=self.tgt2frag)
+        exdf = pd.DataFrame(index=self.tgt2frag)
+        ctdf = pd.DataFrame(index=self.tgt2frag)
+        count = 0
+
+        df = self.pidf
+        for f1 in self.tgt1frag:
+            fragids = []
+            tgtdf = df[(df['I'] == f1) | (df['J'] == f1)]
+            tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
+
+            fragis = tgtdf_filter['I'].values.tolist()
+            fragjs = tgtdf_filter['J'].values.tolist()
+            for i in range(len(fragis)):
+                if fragis[i] != f1:
+                    fragids.append(fragis[i])
+                else:
+                    fragids.append(fragjs[i])
+            # print(fragids)
+            hfifie = 0
+            mp2corr = 0
+            prmp2corr = 0
+
+            esbuf = tgtdf_filter['ES'].values.tolist()
+            exbuf = tgtdf_filter['EX'].values.tolist()
+            ctbuf = tgtdf_filter['CT-mix'].values.tolist()
+
+            # complement values from ifdf
+            es = []
+            ex = []
+            ct = []
+
+            for i in range(len(self.tgt2frag)):
+                tgtid = self.tgt2frag[i]
+                if tgtid  == f1:
+                    print('error!! target frag1 and target 2 is duplicate!!')
+                    sys.exit()
+                if tgtid in fragids:
+                    es.append(esbuf[fragids.index(tgtid)])
+                    ex.append(exbuf[fragids.index(tgtid)])
+                    ct.append(ctbuf[fragids.index(tgtid)])
+                else:
+                    es.append(self.hfdf.loc[tgtid, str(f1)])
+                    ex.append(0.0)
+                    ct.append(0.0)
+
+            esdf[str(f1)] = es
+            exdf[str(f1)] = ex
+            ctdf[str(f1)] = ct
+
+            count += 1
+
+        print ('ES\n', esdf.head())
+        print ('EX\n', exdf.head())
+        print ('CT\n', ctdf.head())
+
+        self.esdf = esdf
+        self.exdf = exdf
+        self.ctdf = ctdf
+
+        return
+
+
+
+    def gettgtpidf_n2tfmatrix(self):
         esdf = pd.DataFrame(index=self.tgt2frag)
         exdf = pd.DataFrame(index=self.tgt2frag)
         ctdf = pd.DataFrame(index=self.tgt2frag)
@@ -314,8 +380,70 @@ class anlfmo(pdio.pdb_io):
 
         return
 
+    def gettgtdf_n2ffmatrix(self):
+        # gettgtdf_normal to times-frags
+        print('\n--- generate ifie', str(self.tgt1frag), str(self.tgt2frag), 'ffmatrix---\n')
+        hfdf = pd.DataFrame(index=self.tgt2frag)
+        mp2corrdf = pd.DataFrame(index=self.tgt2frag)
+        prmp2corrdf = pd.DataFrame(index=self.tgt2frag)
+        mp2tdf =  pd.DataFrame(index=self.tgt2frag)
+        prmp2tdf = pd.DataFrame(index=self.tgt2frag)
 
-    def gettgtdf_n2tsfs(self):
+        df = self.ifdf
+        count = 0
+        for f1 in self.tgt1frag:
+            fragids = []
+            tgtdf = df[(df['I'] == f1) | (df['J'] == f1)]
+            tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
+
+            # fragis = tgtdf_filter['I'].values.tolist()
+            # fragjs = tgtdf_filter['J'].values.tolist()
+            # for i in range(len(fragis)):
+            #     if fragis[i] != self.tgt1frag:
+            #         fragids.append(fragis[i])
+            #     else:
+            #         fragids.append(fragjs[i])
+            # print(fragids)
+            hfifie = 0
+            mp2corr = 0
+            prmp2corr = 0
+            hfifie = tgtdf_filter['HF-IFIE'].values.tolist()
+            mp2corr = tgtdf_filter['MP2-IFIE'].values.tolist()
+            prmp2corr = tgtdf_filter['PR-TYPE1'].values.tolist()
+
+            mp2total = []
+            prmp2total  = []
+            for i in range(len(hfifie)):
+                mp2total.append(hfifie[i] + mp2corr[i])
+                prmp2total.append(hfifie[i] + prmp2corr[i])
+
+            # print('hfifie', hfifie)
+            # print('tgtfrag', self.tgt2frag)
+
+            hfdf[str(f1)] = hfifie
+            mp2corrdf[str(f1)] = mp2corr
+            prmp2corrdf[str(f1)] = prmp2corr
+            mp2tdf[str(f1)] = mp2total
+            prmp2tdf[str(f1)] = prmp2total
+
+            count += 1
+
+        print ('HF\n', hfdf.head())
+        print ('MP2corr\n', mp2corrdf.head())
+        print ('PRMP2corr\n', prmp2corrdf.head())
+        print ('MP2total\n', mp2tdf.head())
+        print ('PRMP2total\n', prmp2tdf.head())
+
+        self.hfdf = hfdf
+        self.mp2corrdf = mp2corrdf
+        self.prmp2corrdf = prmp2corrdf
+        self.mp2tdf = mp2tdf
+        self.prmp2tdf = prmp2tdf
+
+        return
+
+
+    def gettgtdf_n2tfmatrix(self):
         # gettgtdf_normal to times-frags
         hfdf = pd.DataFrame(index=self.tgt2frag)
         mp2corrdf = pd.DataFrame(index=self.tgt2frag)
@@ -492,7 +620,7 @@ class anlfmo(pdio.pdb_io):
         return pitgtdf_filters
 
 
-    def setupreadparm(self, item1=None, item2=None):
+    def setupreadparm(self, item1=None, item2=None, item3=None):
         print('anlmode:' ,self.anlmode)
         print('fragmode:', self.fragmode)
         print('np =:', self.pynp)
@@ -501,17 +629,23 @@ class anlfmo(pdio.pdb_io):
         tgtpdbs = []
         tgttimes = []
 
-        if self.anlmode == 'ff-multi' and self.tgt2type == 'molname':
+        if self.anlmode == 'multi' and self.tgt2type == 'molname':
             self.rpdbflag = True
 
         # print(self.ilog_head)
-        if self.anlmode == 'ff-multi':
+        if self.anlmode == 'multi':
             # self.readpdb = True
             print('tgt2type:' ,self.tgt2type)
 
             if item1 != None:
-                self.tgt1frag = eval(item1)
-                self.tgtfrag = eval(item1)
+                try:
+                    self.tgt1frag = eval(item1)
+                except:
+                    pass
+                try:
+                    self.tgtfrag = eval(item1)
+                except:
+                    pass
 
             for i in range(self.start, self.end+1, self.interval):
                 tgttimes.append(str(i))
@@ -523,14 +657,17 @@ class anlfmo(pdio.pdb_io):
             if self.tgt2type == 'frag':
                 if item2 != None:
                     print('type', type(item2))
-                    if '-' in item2:
-                        tgt = item2.split('-')
-                        print('tgt', tgt)
-                        self.tgt2frag = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
-                        if self.tgt1frag in self.tgt2frag:
-                            del self.tgt2frag[self.tgt2frag.index(self.tgt1frag)]
+                    if type(item2) == str:
+                        if '-' in item2:
+                            tgt = item2.split('-')
+                            print('tgt', tgt)
+                            self.tgt2frag = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
+                            if self.tgt1frag in self.tgt2frag:
+                                del self.tgt2frag[self.tgt2frag.index(self.tgt1frag)]
+                        else:
+                            self.tgt2frag = eval(item2)
                     else:
-                        self.tgt2frag = item2
+                            self.tgt2frag = item2
                 print('tgt1frag, tgt2frag', self.tgt1frag, self.tgt2frag)
 
             if self.tgt2type == 'molname':
@@ -550,18 +687,35 @@ class anlfmo(pdio.pdb_io):
                     self.tgtmolid = int(item2)
                 else:
                     self.tgtfrag = item2
+            if self.tgt2type == 'frag':
+                if item2 != None:
+                    print('type', type(item2))
+                    if type(item2) == str:
+                        if '-' in item2:
+                            tgt = item2.split('-')
+                            print('tgt1', tgt)
+                            self.tgt1frag = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
+                    else:
+                        self.tgt1frag = item2
+                if item3 != None:
+                    print('type', type(item2))
+                    if type(item2) == str:
+                        if '-' in item3:
+                            tgt = item3.split('-')
+                            print('tgt2', tgt)
+                            self.tgt2frag = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
+                    else:
+                        self.tgt2frag = item3
 
-
-            # --- print setting ---
-        # print('logname:', self.tgtlogs)
-        # print('dist:', self.dist)
-        # print('tgtfragid:', self.tgtfrag)
-        # print('anlmode:' , self.anlmode)
-        # print('fragmode:', self.fragmode)
-        # print('tgt2type:', self.tgt2type)
+        if self.matrixtype == 'frags-frags':
+            print(self.tgt1frag, self.tgt2frag)
+            dp = set(self.tgt1frag) & set(self.tgt2frag)
+            if len(dp) != 0:
+                print('Error! tgt1 and tgt2 is duplicate')
+                sys.exit()
 
         ## read pdb
-        if self.anlmode == 'ff-multi' and self.tgt2type == 'molname':
+        if self.anlmode == 'multi' and self.tgt2type == 'molname':
             nfs = []
             molnames_perrec = []
             self.assignmolname = False
@@ -736,6 +890,8 @@ class anlfmo(pdio.pdb_io):
 
         f.readifiepieda_(instr, ifi, ifj, pii, pij, dist, hfifie, mp2ifie, prtype1, grimme, jung, hill, es, ex, ct, di, qval, fdimesint, ifpair, pipair)
 
+        if ifpair == 0:
+            print('Warning:', tgtlog, 'is not converged: skip data')
         #check
         # print ('i', ifi[0], ifj[0])
         # print ('j', ifi[1], ifj[1])
@@ -774,9 +930,9 @@ class anlfmo(pdio.pdb_io):
 
         return [ifdf, pidf]
 
-    def readifiewrap(self, item1=None, item2=None):
-        self.setupreadparm(item1, item2)
-        if self.anlmode == 'ff-multi':
+    def readifiewrap(self, item1=None, item2=None, item3=None):
+        self.setupreadparm(item1, item2, item3)
+        if self.anlmode == 'multi':
             print('## read multi mode')
             ifdfs = []
             skips = []
@@ -846,10 +1002,14 @@ class anlfmo(pdio.pdb_io):
             self.dist = dist
         # frag mode
         if self.anlmode == 'frag':
-            # print(self.ifdf)
-            tgtdf, ifdf_filter = self.gettgtdf_fd(self.ifdf)
-            # print(ifdf_filter)
-            self.ifdf_filter = ifdf_filter
+            if self.matrixtype == 'frags-frags':
+                self.gettgtdf_n2ffmatrix()
+
+            else:
+                # print(self.ifdf)
+                tgtdf, ifdf_filter = self.gettgtdf_fd(self.ifdf)
+                # print(ifdf_filter)
+                self.ifdf_filter = ifdf_filter
 
         # mol-mol mode
         if self.anlmode == 'mol':
@@ -907,7 +1067,7 @@ class anlfmo(pdio.pdb_io):
             self.ifdf_filters = tgt_new2
 
         # multi mode
-        if self.anlmode == 'ff-multi':
+        if self.anlmode == 'multi':
 
             ifdfs = self.ifdfs
             tgtdf_filters = pd.DataFrame()
@@ -916,7 +1076,7 @@ class anlfmo(pdio.pdb_io):
             count = 0
             if tgt2type == 'frag':
                 if self.matrixtype == 'times-frags':
-                    self.gettgtdf_n2tsfs()
+                    self.gettgtdf_n2tfmatrix()
 
                 else:
                     for df in ifdfs:
@@ -1060,7 +1220,7 @@ class anlfmo(pdio.pdb_io):
 
         self.frags = frags
         ### read pieda (from log) section
-        if self.anlmode == 'ff-multi':
+        if self.anlmode == 'multi':
             pidfs = []
             for logname in self.tgtlogs:
                 pieda = self.read_pieda(logname)
@@ -1080,21 +1240,24 @@ class anlfmo(pdio.pdb_io):
         # frag-frag mode
         frags = self.frags
         if self.anlmode == 'frag':
-            pitgtdf = self.getpitgtdf(self.pidf, self.ifdf_filter)
-            if self.fragmode != 'manual':
-                # print('len_frags', len(frags))
-                #assign resname(e.g. Gly6)
-                for i in range(1, len(frags) + 1):
-                    pitgtdf.I = pitgtdf.I.replace(i, frags[i-1])
-                    pitgtdf.J = pitgtdf.J.replace(i, frags[i-1])
+            if  self.matrixtype == 'frags-frags':
+                self.gettgtpidf_n2ffmatrix()
+            else:
+                pitgtdf = self.getpitgtdf(self.pidf, self.ifdf_filter)
+                if self.fragmode != 'manual':
+                    # print('len_frags', len(frags))
+                    #assign resname(e.g. Gly6)
+                    for i in range(1, len(frags) + 1):
+                        pitgtdf.I = pitgtdf.I.replace(i, frags[i-1])
+                        pitgtdf.J = pitgtdf.J.replace(i, frags[i-1])
 
-            self.pitgtdf = pitgtdf
-        # ff-multi mode
-        if self.anlmode == 'ff-multi':
+                self.pitgtdf = pitgtdf
+            # multi mode
+        if self.anlmode == 'multi':
             pidfs = self.pidfs
             if self.tgt2type == 'frag':
                 if self.matrixtype == 'times-frags':
-                    self.gettgtpidf_n2tsfs()
+                    self.gettgtpidf_n2tfmatrix()
 
                 else:
                     pitgtdf_filters = pd.DataFrame(columns=self.pcolumn)
@@ -1248,24 +1411,54 @@ class anlfmo(pdio.pdb_io):
             if head == None:
                 head, ext = os.path.splitext(self.tgtlogs)
 
-            tgtid = self.tgtfrag
-            try:
-                ohead = head + '-' + str(tgtid) + '-' + frags[tgtid - 1]
-            except:
-                ohead = head + '-' + str(tgtid)
+            if self.matrixtype == 'frags-frags':
+                datadfs = [
+                            self.esdf,
+                            self.exdf,
+                            self.ctdf,
+                            self.hfdf,
+                            self.mp2corrdf,
+                            self.prmp2corrdf,
+                            self.mp2tdf,
+                            self.prmp2tdf
+                        ]
+                names = [
+                            'ES',
+                            'EX',
+                            'CT',
+                            'HF',
+                            'MP2corr',
+                            'PRMP2corr',
+                            'MP2total',
+                            'PRMP2total',
+                        ]
+                tgt1str = str(self.tgt1frag[0]) + '-'  + str(self.tgt1frag[-1])
+                tgt2str = str(self.tgt2frag[0]) + '-'  + str(self.tgt2frag[-1])
+                for i in range(len(datadfs)):
+                    ocsv = head + '_frag' + str(tgt1str) + '-frag' + str(tgt2str) + '-' + names[i] + '-ffmatrix.csv'
+                    datadfs[i].T.to_csv(path + '/' + ocsv)
+                    print(path + '/' + ocsv + ' was created.')
 
-            # print(self.pitgtdf.head())
+            else:
+                tgtid = self.tgtfrag
+                try:
+                    ohead = head + '-' + str(tgtid) + '-' + frags[tgtid - 1]
+                except:
+                    ohead = head + '-' + str(tgtid)
 
-            # tgtdf.to_csv(path + '/' + ohead + '-ifie.csv')
-            oifie = ohead + '-ifie_' + 'dist' + str(self.dist) + '.csv'
-            opieda = ohead + '-pieda_' + 'dist' + str(self.dist) + '.csv'
-            self.ifdf_filter.to_csv(path + '/' + oifie)
-            self.pitgtdf.to_csv(path + '/' + opieda)
+                # print(self.pitgtdf.head())
 
-            print(path + '/' + oifie, path + '/' + opieda, 'was generated.')
+                # tgtdf.to_csv(path + '/' + ohead + '-ifie.csv')
+                oifie = ohead + '-ifie_' + 'dist' + str(self.dist) + '.csv'
+                opieda = ohead + '-pieda_' + 'dist' + str(self.dist) + '.csv'
+                self.ifdf_filter.to_csv(path + '/' + oifie)
+                self.pitgtdf.to_csv(path + '/' + opieda)
+
+                print(path + '/' + oifie, path + '/' + opieda, 'was generated.')
 
 
-        if self.anlmode == 'ff-multi':
+        if self.anlmode == 'multi':
+            head = self.ilog_head
             tgt1frag = self.tgt1frag
             if tgt2type == 'frag':
 
@@ -1292,7 +1485,7 @@ class anlfmo(pdio.pdb_io):
                             ]
                     tgt2str = str(self.tgt2frag[0]) + '-'  + str(self.tgt2frag[-1])
                     for i in range(len(datadfs)):
-                        ocsv = 'frag' + str(tgt1frag) + '-frag' + str(tgt2str) + '-' + names[i] + '-tfmatrix.csv'
+                        ocsv = head + '_frag' + str(tgt1frag) + '-frag' + str(tgt2str) + '-' + names[i] + '-tfmatrix.csv'
                         datadfs[i].T.to_csv(path + '/' + ocsv)
                         print(path + '/' + ocsv + ' was created.')
 
@@ -1322,7 +1515,6 @@ class anlfmo(pdio.pdb_io):
                 self.ifdfsum.to_csv(path + '/' + oifie)
                 self.pidfsum.to_csv(path + '/' + opieda)
                 print(path + '/' + oifie, path + '/' + opieda, 'was created.')
-
 
 
         if self.anlmode == 'mol':

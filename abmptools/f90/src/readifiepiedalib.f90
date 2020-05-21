@@ -18,12 +18,33 @@ character*200 inname
 ! read(*,'(A)') inname
 ! write(*,'(A)') trim(adjustl(inname))
 
+! initialize
+ifpair=0
+pipair=0
+frag_i(:) = 0
+frag_j(:) = 0
+dist(:) = 0.0
+fdimesint(:) = 0
+hfifie(:) = 0.0
+mp2ifie(:) = 0.0
+prtype1(:) = 0.0
+grimme(:) = 0.0
+jung(:) = 0.0
+hill(:) = 0.0
+
+pfrag_i(:) = 0
+pfrag_j(:) = 0
+es(:) = 0.0
+ex(:) = 0.0
+ct(:) = 0.0
+di(:) = 0.0
+qval(:) = 0.0
 ! Read File
 open(17,file=trim(adjustl(inname)), status='old')
 
 ! IFIE - Section
 do
-    read(17,'(a)') head
+    read(17,'(a)', end=999) head
     if (trim(adjustl(head))=="## MP2-IFIE") then
         ! write(*, '(a)') 'Read IFIE Section'
         do skip=1,4  !skip 4lines
@@ -58,7 +79,10 @@ if (trim(adjustl(head))=="## PIEDA") then   !この下にIFIE情報
     end do
   goto 120
 else if(trim(adjustl(head))=="## Mulliken") then
-    ! write(*, '(a)') 'Mulliken: end'
+    write(*, '(a)') 'log dont have pieda data: end'
+    goto 999
+else
+    goto 999
 end if
 
 !! Read PIEDA val
@@ -101,4 +125,5 @@ do i = 1, ifpair
     hill(i)   =  hill(i) * 627.5095
 end do
 
+999 continue
 end subroutine

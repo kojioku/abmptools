@@ -17,32 +17,24 @@ import abmptools as ampt
 
 aobj = ampt.anlfmo()
 # --- user setting ---
-aobj.anlmode= 'ff-multi' #frag, 'mol', 'fraginmol', 'ff-multi'
+aobj.anlmode= 'frag' #frag, 'mol', 'fraginmol', 'multi'
 aobj.fragmode = 'manual'  #'hybrid', 'auto', 'manual'
-aobj.dist = 8.0
 aobj.abinit_ver='rev15'
 
-aobj.start = 1700
-aobj.end = 2700
-aobj.interval = 500
+aobj.tgt2type = 'frag'
+aobj.matrixtype='frags-frags'
+aobj.f90soflag = True
 
-aobj.ilog_head = 'sbecd7_50nsdynamics_namd'
-aobj.ilog_tail = '-moved-sed-around-8.0-for_abmp.log'
-aobj.pdb_head = 'sbecd7_50nsdynamics_namd'
-aobj.pdb_tail = '-moved-sed-around-8.0-for_abmp.pdb'
-
-aobj.tgt2type = 'molname'
-# aobj.tgt2molname = 'WAT'
-
-print(aobj.tgt2type)
+print('tgt2type', aobj.tgt2type)
 # ---- user setting end ---
 
 logname = sys.argv[1]
-aobj = aobj.readifiewrap(logname, 'WAT')
-aobj = aobj.filterifiewrap(dist=7.5)
-aobj = aobj.readpiedawrap()
-aobj = aobj.filterpiedawrap()
+tgtfrag1 = sys.argv[2]
+tgtfrag2 = sys.argv[3]
 
+aobj = aobj.readifiewrap(logname, tgtfrag1, tgtfrag2)
+aobj = aobj.filterifiewrap()
+aobj = aobj.filterpiedawrap()
 
 # print('ifdf\n', aobj.ifdfs)
 # print('ifdf_filter\n', aobj.ifdf_filters)
@@ -50,9 +42,7 @@ aobj = aobj.filterpiedawrap()
 # # print('pitgtdf\n', aobj.pitgtdfs)
 # print('pitgtdf\n', aobj.pidf_filters)
 
-
 aobj.writecsvwrap()
-
 
 
 
@@ -64,7 +54,7 @@ fragmode
 dist
 tgt2type
 
-(ff-multi mode)
+(multi mode)
     argv[1]: tgt1frag id,  [2]: tgtmolname or fragid
 (others)
     argv[1]: logname, [2]:tgtid(mol or frag)
@@ -74,7 +64,7 @@ tgt2type
 # pdbname='sbecd7_50nsdynamics_namd2200-moved-sed-around-8.0-for_abmp.pdb'   # 'iss2-spg2-ok20200130opt-for_abmp.pdb'
 # abinit_ver = 16
 #
-# # -- for mol mode or ff-multi mode--
+# # -- for mol mode or multi mode--
 # tgt2type = 'frag' #frag: mol-frag, mol: mol-mol
 #
 # # -- fraginmol mode --
@@ -82,7 +72,7 @@ tgt2type
 # tgt2molname = '000'
 # tgt2_lofrag = 4
 #
-# # ------ ff-multi mode ------
+# # ------ multi mode ------
 # # if tgt2type == 'frag':
 # tgt1frag = eval(sys.argv[1])
 # tgt2frag = int(sys.argv[2])
