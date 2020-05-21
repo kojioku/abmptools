@@ -23,7 +23,7 @@ aobj.dist = 8.0
 aobj.abinit_ver='rev20'
 
 aobj.start = 100
-aobj.end = 10100
+aobj.end = 3100
 aobj.interval = 1000
 
 # ./6lu7_minHSCG_163hip100-hopt--mod_forabmp_192n-2p-24t.log
@@ -40,7 +40,7 @@ aobj.f90soflag = True
 print(aobj.tgt2type)
 # ---- user setting end ---
 
-tgt1 = int(sys.argv[1])
+tgt1 = sys.argv[1]
 distval = float(sys.argv[2])
 
 aobj = aobj.readifiewrap(tgt1)

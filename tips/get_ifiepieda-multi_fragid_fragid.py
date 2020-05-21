@@ -40,8 +40,8 @@ aobj.f90soflag = True
 print(aobj.tgt2type)
 # ---- user setting end ---
 
-tgt1 = int(sys.argv[1])
-tgt2 = int(sys.argv[2])
+tgt1 = sys.argv[1]
+tgt2 = sys.argv[2]
 
 aobj = aobj.readifiewrap(tgt1, tgt2)
 aobj = aobj.filterifiewrap()
