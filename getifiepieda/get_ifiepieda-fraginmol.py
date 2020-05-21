@@ -19,14 +19,14 @@ aobj = ampt.anlfmo()
 # --- user setting ---
 aobj.anlmode= 'fraginmol' #frag, 'mol', 'fraginmol', 'ff-multi'
 aobj.fragmode = 'manual'  #'hybrid', 'auto', 'manual'
-aobj.dist = 4.0
+aobj.dist = 2.0
 aobj.abinit_ver='rev15'
 
 aobj.start = 1700
 aobj.end = 2700
 aobj.interval = 500
 
-aobj.pdbname = "sbecd7_50nsdynamics_namd2200-moved-sed-around-8.0-for_abmp.pdb"
+aobj.pdbname = ""
 aobj.tgtmolid = 1
 aobj.tgt1_lofrag = 2
 aobj.tgt2molname = 'WAT'

@@ -17,25 +17,33 @@ import abmptools as ampt
 
 aobj = ampt.anlfmo()
 # --- user setting ---
-aobj.anlmode= 'mol' #frag, 'mol', 'fraginmol', 'ff-multi'
+aobj.anlmode= 'multi' #frag, 'mol', 'fraginmol', 'ff-multi'
 aobj.fragmode = 'manual'  #'hybrid', 'auto', 'manual'
-aobj.dist = 2.0
-aobj.abinit_ver='rev15'
+aobj.dist = 8.0
+aobj.abinit_ver='rev20'
 
-aobj.start = 1700
-aobj.end = 2700
-aobj.interval = 500
+aobj.start = 100
+aobj.end = 3100
+aobj.interval = 1000
 
-aobj.selecttype = 'molid'
-aobj.tgtmolid= 0
+
+aobj.ilog_head = '6lu7orig_md0408_163hip'
+aobj.ilog_tail = '-hopt--mod-forabmp_192n-2p-24t.log'
+aobj.pdb_head = '6lu7orig_md0408_163hip'
+aobj.pdb_tail = '-hopt--mod_forabmp.pdb'
+
+aobj.pynp = 4
+aobj.tgt2type = 'molname'
 # aobj.tgt2molname = 'WAT'
 
 print(aobj.tgt2type)
 # ---- user setting end ---
 
-logname = sys.argv[1]
-aobj = aobj.readifiewrap(logname)
-aobj = aobj.filterifiewrap(dist=2.5)
+tgt1 = sys.argv[1]
+tgt2 = sys.argv[2]
+
+aobj = aobj.readifiewrap(tgt1, tgt2)
+aobj = aobj.filterifiewrap()
 aobj = aobj.readpiedawrap()
 aobj = aobj.filterpiedawrap()
 
