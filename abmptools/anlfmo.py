@@ -99,6 +99,7 @@ class anlfmo(pdio.pdb_io):
 
         # for svd
         self.matrixtype = 'normal'
+        self.exceptfrag = []
         pass
 
 
@@ -668,6 +669,13 @@ class anlfmo(pdio.pdb_io):
                             self.tgt2frag = eval(item2)
                     else:
                             self.tgt2frag = item2
+                    if type(self.tgt2frag) == list:
+                        for dfrag in self.exceptfrag:
+                            try:
+                                del self.tgt2frag[self.tgt2frag.index(dfrag)]
+                                print('del frag', dfrag, 'from tgt2')
+                            except:
+                                pass
                 print('tgt1frag, tgt2frag', self.tgt1frag, self.tgt2frag)
 
             if self.tgt2type == 'molname':
