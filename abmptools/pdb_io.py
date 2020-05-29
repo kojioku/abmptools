@@ -38,6 +38,7 @@ class pdb_io(fab.abinit_io):
         self.tempRes = []
         self.amarkRes = []
         self.chargeRes = []
+        self.rescount = []
 
         pass
 
@@ -331,6 +332,7 @@ class pdb_io(fab.abinit_io):
         self.tempRes = tempRes
         self.amarkRes = amarkRes
         self.chargeRes = chargeRes
+        self.rescount = collections.Counter(self.resnames)
 
         return
         # return totalRes, atmtypeRes, resnames, gatmlabRes, posRes, headRes, labRes, chainRes ,resnumRes ,codeRes ,occRes ,tempRes ,amarkRes ,chargeRes

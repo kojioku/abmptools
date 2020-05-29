@@ -259,7 +259,7 @@ Nprint=3
 Memory=""" + str(self.memory) + """
 Natom=0
 Charge=""" + str(ajf_charge) + """
-ReadGeom=""" + str(self.readgeom) + "\n"
+ReadGeom='""" + str(self.readgeom) + "'\n"
 
         if self.cpfflag == True:
             ajf_body += "WriteGeom=" + str(self.writegeom) + "\n"
@@ -1277,8 +1277,8 @@ MD='OFF'
     def saveajf(self, oname=None):
         if oname == None:
             oname = os.path.splitext(self.readgeom)[0] + '-' + self.ajf_method + '-' + self.ajf_basis_set.replace('*', 'd') + '.ajf'
-
-        ajf_body = self.gen_ajf_bodywrap(oname)
+            ohead = os.path.splitext(self.readgeom)[0] + '-' + self.ajf_method
+        ajf_body = self.gen_ajf_bodywrap(ohead)
 
         print('ajf_oname:', oname)
         ajf_file = open(oname, 'w')
