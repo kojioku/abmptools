@@ -47,6 +47,9 @@ class anlfmo(pdio.pdb_io):
         self.tgtpos =[]
         self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL']
         self.pcolumn = ['I', 'J', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'q(I=>J)']
+        self.ifdfsumcolumn = ['HF-IFIE', 'MP2-IFIE', 'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL']
+        self.pidfsumcolumn = ['ES', 'EX', 'CT-mix', 'DI(MP2)', 'q(I=>J)']
+
 
         self.anlmode= 'frag' #frag, 'mol', 'fraginmol', 'multi'
         self.fragmode = 'auto'  #'hybrid', 'auto', 'manual'
@@ -321,65 +324,6 @@ class anlfmo(pdio.pdb_io):
 
 
 
-    def gettgtpidf_n2tfmatrix(self):
-        esdf = pd.DataFrame(index=self.tgt2frag)
-        exdf = pd.DataFrame(index=self.tgt2frag)
-        ctdf = pd.DataFrame(index=self.tgt2frag)
-        count = 0
-        for df in self.pidfs:
-            fragids = []
-            tgtdf = df[(df['I'] == self.tgt1frag) | (df['J'] == self.tgt1frag)]
-            tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
-
-            fragis = tgtdf_filter['I'].values.tolist()
-            fragjs = tgtdf_filter['J'].values.tolist()
-            for i in range(len(fragis)):
-                if fragis[i] != self.tgt1frag:
-                    fragids.append(fragis[i])
-                else:
-                    fragids.append(fragjs[i])
-            print(fragids)
-            hfifie = 0
-            mp2corr = 0
-            prmp2corr = 0
-
-            esbuf = tgtdf_filter['ES'].values.tolist()
-            exbuf = tgtdf_filter['EX'].values.tolist()
-            ctbuf = tgtdf_filter['CT-mix'].values.tolist()
-
-            # complement values from ifdf
-            es = []
-            ex = []
-            ct = []
-
-            for i in range(len(self.tgt2frag)):
-                tgtid = self.tgt2frag[i]
-                if tgtid  == self.tgt1frag:
-                    continue
-                if tgtid in fragids:
-                    es.append(esbuf[fragids.index(tgtid)])
-                    ex.append(exbuf[fragids.index(tgtid)])
-                    ct.append(ctbuf[fragids.index(tgtid)])
-                else:
-                    es.append(self.hfdf.loc[tgtid, str(self.tgttimes[count])])
-                    ex.append(0.0)
-                    ct.append(0.0)
-
-            esdf[self.tgttimes[count]] = es
-            exdf[self.tgttimes[count]] = ex
-            ctdf[self.tgttimes[count]] = ct
-
-            count += 1
-
-        print (esdf.head())
-        print (exdf.head())
-        print (ctdf.head())
-
-        self.esdf = esdf
-        self.exdf = exdf
-        self.ctdf = ctdf
-
-        return
 
     def gettgtdf_n2ffmatrix(self):
         # gettgtdf_normal to times-frags
@@ -444,7 +388,7 @@ class anlfmo(pdio.pdb_io):
         return
 
 
-    def gettgtdf_n2tfmatrix(self):
+    def gettgtdf_n2tfmatrix(self, i, df):
         # gettgtdf_normal to times-frags
         hfdf = pd.DataFrame(index=self.tgt2frag)
         mp2corrdf = pd.DataFrame(index=self.tgt2frag)
@@ -452,54 +396,105 @@ class anlfmo(pdio.pdb_io):
         mp2tdf =  pd.DataFrame(index=self.tgt2frag)
         prmp2tdf = pd.DataFrame(index=self.tgt2frag)
 
-        count = 0
-        for df in self.ifdfs:
-            fragids = []
-            tgtdf = df[(df['I'] == self.tgt1frag) | (df['J'] == self.tgt1frag)]
-            tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
 
-            # fragis = tgtdf_filter['I'].values.tolist()
-            # fragjs = tgtdf_filter['J'].values.tolist()
-            # for i in range(len(fragis)):
-            #     if fragis[i] != self.tgt1frag:
-            #         fragids.append(fragis[i])
-            #     else:
-            #         fragids.append(fragjs[i])
-            # print(fragids)
-            hfifie = 0
-            mp2corr = 0
-            prmp2corr = 0
-            hfifie = tgtdf_filter['HF-IFIE'].values.tolist()
-            mp2corr = tgtdf_filter['MP2-IFIE'].values.tolist()
-            prmp2corr = tgtdf_filter['PR-TYPE1'].values.tolist()
+        fragids = []
+        tgtdf = df[(df['I'] == self.tgt1frag) | (df['J'] == self.tgt1frag)]
+        tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
 
-            mp2total = []
-            prmp2total  = []
-            for i in range(len(hfifie)):
-                mp2total.append(hfifie[i] + mp2corr[i])
-                prmp2total.append(hfifie[i] + prmp2corr[i])
+        # fragis = tgtdf_filter['I'].values.tolist()
+        # fragjs = tgtdf_filter['J'].values.tolist()
+        # for i in range(len(fragis)):
+        #     if fragis[i] != self.tgt1frag:
+        #         fragids.append(fragis[i])
+        #     else:
+        #         fragids.append(fragjs[i])
+        # print(fragids)
+        hfifie = 0
+        mp2corr = 0
+        prmp2corr = 0
+        hfifie = tgtdf_filter['HF-IFIE'].values.tolist()
+        mp2corr = tgtdf_filter['MP2-IFIE'].values.tolist()
+        prmp2corr = tgtdf_filter['PR-TYPE1'].values.tolist()
 
-            hfdf[self.tgttimes[count]] = hfifie
-            mp2corrdf[self.tgttimes[count]] = mp2corr
-            prmp2corrdf[self.tgttimes[count]] = prmp2corr
-            mp2tdf[self.tgttimes[count]] = mp2total
-            prmp2tdf[self.tgttimes[count]] = prmp2total
+        mp2total = []
+        prmp2total  = []
+        for j in range(len(hfifie)):
+            mp2total.append(hfifie[j] + mp2corr[j])
+            prmp2total.append(hfifie[j] + prmp2corr[j])
 
-            count += 1
+        # print('hfifie', len(hfifie))
+        hfdf[self.tgttimes[i]] = hfifie
+        mp2corrdf[self.tgttimes[i]] = mp2corr
+        prmp2corrdf[self.tgttimes[i]] = prmp2corr
+        mp2tdf[self.tgttimes[i]] = mp2total
+        prmp2tdf[self.tgttimes[i]] = prmp2total
 
-        print (hfdf.head())
-        print (mp2corrdf.head())
-        print (prmp2corrdf.head())
-        print (mp2tdf.head())
-        print (prmp2tdf.head())
 
-        self.hfdf = hfdf
-        self.mp2corrdf = mp2corrdf
-        self.prmp2corrdf = prmp2corrdf
-        self.mp2tdf = mp2tdf
-        self.prmp2tdf = prmp2tdf
+        # print (hfdf.head())
+        # print (mp2corrdf.head())
+        # print (prmp2corrdf.head())
+        # print (mp2tdf.head())
+        # print (prmp2tdf.head())
 
-        return
+        return hfdf, mp2corrdf, prmp2corrdf, mp2tdf, prmp2tdf
+
+
+    def gettgtpidf_n2tfmatrix(self, i, df, hfdf):
+        esdf = pd.DataFrame(index=self.tgt2frag)
+        exdf = pd.DataFrame(index=self.tgt2frag)
+        ctdf = pd.DataFrame(index=self.tgt2frag)
+
+        fragids = []
+        tgtdf = df[(df['I'] == self.tgt1frag) | (df['J'] == self.tgt1frag)]
+        tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
+
+        fragis = tgtdf_filter['I'].values.tolist()
+        fragjs = tgtdf_filter['J'].values.tolist()
+        for j in range(len(fragis)):
+            if fragis[j] != self.tgt1frag:
+                fragids.append(fragis[j])
+            else:
+                fragids.append(fragjs[j])
+        print(fragids)
+        hfifie = 0
+        mp2corr = 0
+        prmp2corr = 0
+
+        esbuf = tgtdf_filter['ES'].values.tolist()
+        exbuf = tgtdf_filter['EX'].values.tolist()
+        ctbuf = tgtdf_filter['CT-mix'].values.tolist()
+
+        # complement values from ifdf
+        es = []
+        ex = []
+        ct = []
+
+        for j in range(len(self.tgt2frag)):
+            tgtid = self.tgt2frag[j]
+            if tgtid  == self.tgt1frag:
+                continue
+            if tgtid in fragids:
+                es.append(esbuf[fragids.index(tgtid)])
+                ex.append(exbuf[fragids.index(tgtid)])
+                ct.append(ctbuf[fragids.index(tgtid)])
+            else:
+                es.append(hfdf.loc[tgtid, str(self.tgttimes[i])])
+                ex.append(0.0)
+                ct.append(0.0)
+
+        esdf[self.tgttimes[i]] = es
+        exdf[self.tgttimes[i]] = ex
+        ctdf[self.tgttimes[i]] = ct
+
+#         print (esdf.head())
+#         print (exdf.head())
+#         print (ctdf.head())
+
+        # self.esdf = esdf
+        # self.exdf = exdf
+        # self.ctdf = ctdf
+
+        return esdf, exdf, ctdf
 
         # return hfdf, mp2corrdf, prmp2corrdf, mp2tdf, prmp2tdf
 
@@ -845,6 +840,160 @@ class anlfmo(pdio.pdb_io):
 
         return [ifdfs, pidfs]
 
+
+    def getfiltifpiff(self, i, ifdf, pidf):
+        # in (class var: molnames(rec i), tgt2frag, tgt1frag, tgttimes, matrixtype
+        #     local var:i,  ifdf, pidf
+        # out tgtdf_filter, pitgtdf_filter
+
+        # ifie
+        ifdf_filter = pd.DataFrame()
+        ifdf_filter = self.gettgtdf_ff(ifdf, self.tgt1frag, self.tgt2frag)
+        ifdf_filter = ifdf_filter.rename(index={ifdf_filter.index[0]:self.tgttimes[i]})
+        # print(ifdf_filter)
+
+        # pieda
+        pitgtdf_filter = self.gettgtdf_ff(pidf, self.tgt1frag, self.tgt2frag)
+        if len(pitgtdf_filter) == 0:
+            esdata = ifdf_filter['HF-IFIE'][0]
+            tmpps = pd.Series([self.tgt1frag, self.tgt2frag, esdata, 0.0, 0.0, 0.0, 0.0], index=self.pcolumn, name =self.tgttimes[i])
+            pitgtdf_filter = pitgtdf_filter.append(tmpps)
+        else:
+            pitgtdf_filter = pitgtdf_filter.rename(index={pitgtdf_filter.index[0]:self.tgttimes[i]})
+
+            # print(pitgtdf_filter)
+
+        return ifdf_filter, pitgtdf_filter
+
+
+    def getfiltifpifm(self, i, ifdf, pidf):
+        # in (class var: log(rec i), nf(rec i), molnames(rec i), tgt2molname, tgt1frag,
+        #     local var: ifdf, pidf
+        # out tgtdf_filter, tgtifdfsum
+        #     pitgtdf_filter, pitgtdfsum
+
+        print('### read frag info ###')
+
+        molfragss = self.getallmolfrags(self.tgtlogs[i], ifdf, self.nfs[i])
+        # get tgt frag id
+        # IFIE
+        molnames_perrec = self.molnames_perrec
+        tgtmolfrags = []
+        print(molnames_perrec[i])
+        for j in range(len(molnames_perrec[i])):
+            try:
+                if molnames_perrec[i][j] == self.tgt2molname:
+                    tgtmolfrags += molfragss[j]
+            except:
+                continue
+
+        frag1 = self.tgt1frag
+        if type(frag1) == int:
+            frag1s = [frag1]
+            print('tgtfrag1s', frag1s)
+        else:
+            frag1s = copy.deepcopy(frag1)
+
+        self.frag1s = frag1s
+        # if ifdf.empty:
+            # continue
+        ifdf_filters = pd.DataFrame()
+        for frag1p in frag1s:
+            for tgt2frag in tgtmolfrags:
+                ifdf_filters = ifdf_filters.append(self.gettgtdf_ff(ifdf, frag1p, tgt2frag))
+            print('ifdf_filters\n', ifdf_filters)
+
+        HF_IFIE_sum = ifdf_filters['HF-IFIE'].sum()
+        MP2_IFIE_sum = ifdf_filters['MP2-IFIE'].sum()
+        PR_TYPE1_sum = ifdf_filters['PR-TYPE1'].sum()
+        GRIMME_sum = ifdf_filters['GRIMME'].sum()
+        JUNG_sum = ifdf_filters['JUNG'].sum()
+        HILL_sum = ifdf_filters['HILL'].sum()
+
+        ifdf_filters['TIMES'] = self.tgttimes[i]
+
+        ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum], index=self.ifdfsumcolumn, name=self.tgttimes[i])
+
+        print('ifdfsum\n', ifdfsum)
+
+        # pieda
+        # if pidf.empty:
+            # continue
+        pidf_filters = pd.DataFrame(columns=self.pcolumn)
+        for frag1p in self.frag1s:
+            for tgt2frag in tgtmolfrags:
+                pidf_filter = self.gettgtdf_ff(pidf, frag1p, tgt2frag)
+                if len(pidf_filter) == 0:
+                    esdata = self.gettgtdf_ff(ifdf, frag1p, tgt2frag)['HF-IFIE'].values[0]
+                    tmpps = pd.Series([self.tgt1frag, self.tgt2frag, esdata, 0.0, 0.0, 0.0, 0.0], index=self.pcolumn, name=self.tgttimes[i])
+                    # print(tmpps.index)
+                    pidf_filters = pidf_filters.append(tmpps)
+                else:
+                    pidf_filters = pidf_filters.append(pidf_filter)
+
+        ES_sum = pidf_filters['ES'].sum()
+        EX_sum = pidf_filters['EX'].sum()
+        CT_sum = pidf_filters['CT-mix'].sum()
+        DI_sum = pidf_filters['DI(MP2)'].sum()
+        q_sum = pidf_filters['q(I=>J)'].sum()
+
+        pidf_filters['TIMES'] = self.tgttimes[i]
+
+        pidfsum = pd.Series([ES_sum, EX_sum, CT_sum, DI_sum, q_sum], index=self.pidfsumcolumn, name=self.tgttimes[i])
+
+        print(pidfsum)
+
+        return ifdf_filters, pidf_filters, ifdfsum, pidfsum
+
+
+    def getfiltifpifd(self, i, ifdf, pidf):
+        # in class var: tgttime
+        #    local var: i, ifdf,pidf
+        # out local var: tgtifdfsum, tgtdf_filter
+        #                pitgtdfsum, pitgtedf
+
+        print('filter-dist:', self.dist)
+        # get tgt frag id
+        ifdf, ifdf_filter = self.gettgtdf_fd(ifdf)
+
+        HF_IFIE_sum = ifdf_filter['HF-IFIE'].sum()
+        MP2_IFIE_sum = ifdf_filter['MP2-IFIE'].sum()
+        PR_TYPE1_sum = ifdf_filter['PR-TYPE1'].sum()
+        GRIMME_sum = ifdf_filter['GRIMME'].sum()
+        JUNG_sum = ifdf_filter['JUNG'].sum()
+        HILL_sum = ifdf_filter['HILL'].sum()
+
+        ifdf_filter['TIMES'] = self.tgttimes[i]
+
+        ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum], index=self.ifdfsumcolumn, name=self.tgttimes[i])
+
+        print(ifdfsum)
+
+        # pieda
+        frags = self.frags
+        pidf_filter = pd.DataFrame()
+
+        pidf_filter = self.getpitgtdf(pidf, ifdf_filter)
+        if self.fragmode != 'manual':
+            # print('len_frags', len(frags))
+            #assign resname(e.g. Gly6)
+            for j in range(1, len(frags) + 1):
+                pidf_filter.I = pidf_filter.I.replace(j, frags[j-1])
+                pidf_filter.J = pidf_filter.J.replace(j, frags[j-1])
+
+        ES_sum = pidf_filter['ES'].sum()
+        EX_sum = pidf_filter['EX'].sum()
+        CT_sum = pidf_filter['CT-mix'].sum()
+        DI_sum = pidf_filter['DI(MP2)'].sum()
+        q_sum = pidf_filter['q(I=>J)'].sum()
+
+        pidf_filter['TIMES'] = self.tgttimes[i]
+
+        pidfsum = pd.Series([ES_sum, EX_sum, CT_sum, DI_sum, q_sum], index=self.pidfsumcolumn, name=self.tgttimes[i])
+
+        return ifdf_filter, pidf_filter, ifdfsum, pidfsum
+
+
     def read_ifpif90(self, tgtlog):
         print('read', tgtlog)
         f = np.ctypeslib.load_library(self.f90sofile, ".")
@@ -938,6 +1087,49 @@ class anlfmo(pdio.pdb_io):
 
         return [ifdf, pidf]
 
+
+    def read_ifpimulti(self, i):
+
+        # read ifpi f90
+        if self.f90soflag == True:
+            dfs = self.read_ifpif90(self.tgtlogs[i])
+        else:
+            dfs = self.read_ifiepiedas(self.tgtlogs[i])
+        ifdf, pidf = dfs
+
+        # skip = []
+        if len(ifdf) == 0:
+            return
+
+        # IFIE pieda filter
+        tgt2type = self.tgt2type
+        print('tgttimes', self.tgttimes[i])
+
+        if tgt2type == 'frag':
+            if self.matrixtype == 'times-frags':
+                hfdf, mp2corrdf, prmp2corrdf, mp2tdf, prmp2tdf = self.gettgtdf_n2tfmatrix(i, ifdf)
+                esdf, exdf, ctdf = self.gettgtpidf_n2tfmatrix(i, pidf, hfdf)
+                return hfdf, mp2corrdf, prmp2corrdf, mp2tdf, prmp2tdf, esdf, exdf, ctdf
+
+            else:
+                ifdf_filter, pidf_filter = self.getfiltifpiff(i, ifdf, pidf)
+                iftgtdfsum = None
+                pitgtdfsum = None
+                return ifdf_filter, pidf_filter
+
+        if tgt2type == 'molname':
+            ifdf_filter, pidf_filter, ifdfsum, pidfsum = self.getfiltifpifm(i, ifdf, pidf)
+            return ifdf_filter, pidf_filter, ifdfsum, pidfsum
+
+        if tgt2type == 'dist':
+            ifdf_filter , pidf_filter, ifdfsum, pidfsum = self.getfiltifpifd(i, ifdf, pidf)
+            return ifdf_filter , pidf_filter, ifdfsum, pidfsum
+
+        else:
+            print('tgt2type error!!')
+            return
+
+
     def readifiewrap(self, item1=None, item2=None, item3=None):
         self.setupreadparm(item1, item2, item3)
         if self.anlmode == 'multi':
@@ -947,41 +1139,58 @@ class anlfmo(pdio.pdb_io):
             args = []
             st = time.time()
             p = Pool(self.pynp)
+            # for i in range(len(self.tgtlogs)):
+            # args.append [self.tgtlogs[i], self.tgttimes[i], self.tgtpdbs[i]]
             if self.f90soflag == True:
                 print("use fortran library")
-                ifpidfs = p.map(self.read_ifpif90, self.tgtlogs)
-            else:
-                ifpidfs = p.map(self.read_ifiepiedas, self.tgtlogs)
+
+            ifpidfs = p.map(self.read_ifpimulti, [i for i in range(len(self.tgtlogs))])
+#             for i in range(len(self.tgtlogs)):
+#                 ifpidfs, pidf, aaa, bbb = self.read_ifpif90multi(i)
+            if self.tgt2type == 'frag':
+                if self.matrixtype == 'times-frags':
+                    self.hfdf = pd.DataFrame()
+                    self.mp2corrdf = pd.DataFrame()
+                    self.prmp2corrdf = pd.DataFrame()
+                    self.mp2tdf = pd.DataFrame()
+                    self.prmp2tdf = pd.DataFrame()
+                    self.esdf = pd.DataFrame()
+                    self.exdf = pd.DataFrame()
+                    self.ctdf = pd.DataFrame()
+#                     for dfs in ifpidfs:
+#                         print('aaa' ,dfs[0])
+                    self.mp2corrdf = pd.concat([dfs[1] for dfs in ifpidfs], axis=1)
+                    self.prmp2corrdf = pd.concat([dfs[2] for dfs in ifpidfs], axis=1)
+                    self.mp2tdf = pd.concat([dfs[3] for dfs in ifpidfs], axis=1)
+                    self.prmp2tdf = pd.concat([dfs[4] for dfs in ifpidfs], axis=1)
+                    self.esdf = pd.concat([dfs[5] for dfs in ifpidfs], axis=1)
+                    self.exdf = pd.concat([dfs[6] for dfs in ifpidfs], axis=1)
+                    self.ctdf = pd.concat([dfs[7] for dfs in ifpidfs], axis=1)
+                else:
+                    self.ifdf_filters = pd.DataFrame()
+                    self.pidf_filters = pd.DataFrame()
+                    for dfs in ifpidfs:
+                        self.ifdf_filters = self.ifdf_filters.append(dfs[0])
+                        self.pidf_filters = self.pidf_filters.append(dfs[1])
+
+
+            if self.tgt2type == 'molname' or self.tgt2type == 'dist':
+                self.ifdf_filters = pd.DataFrame()
+                self.pidf_filters = pd.DataFrame()
+                self.ifdfsum = pd.DataFrame()
+                self.pidfsum = pd.DataFrame()
+
+                for dfs in ifpidfs:
+                    print(dfs[0])
+                    self.ifdf_filters = self.ifdf_filters.append(dfs[0])
+                    self.pidf_filters = self.pidf_filters.append(dfs[1])
+                    self.ifdfsum = self.ifdfsum.append(dfs[2])
+                    self.pidfsum = self.pidfsum.append(dfs[3])
+
             p.close()
             print('read elapsed', time.time() - st)
 
-            for i in range (len(ifpidfs)):
-                # print('len tgt', i, ':', len(ifpidfs[i][0]))
-                if len(ifpidfs[i][0]) == 0:
-                    print('Warning: time', self.tgttimes[i], 'not converged: skip data')
-                    skips.append(i)
 
-            dellist = lambda items, indexes: [item for index, item in enumerate(items) if index not in indexes]
-            self.tgttimes = dellist(self.tgttimes,skips)
-            # print('tgttimes', self.tgttimes)
-
-            if self.tgt2type == 'molname':
-                print('### read frag info ###')
-                molfragss_perrec = []
-                for i in range(len(self.tgtpdbs)):
-                    molfragss = self.getallmolfrags(self.tgtlogs[i], ifpidfs[i][0], self.nfs[i])
-                    # print('frags_permol\n', molfragss)
-                    molfragss_perrec.append(molfragss)
-                # print(molfragss_perrec)
-                # print(len(molnames), len(molfragss))
-                self.molfragss_perrec = molfragss_perrec
-
-            st = time.time()
-            for i in range(len(ifpidfs)):
-                if len(ifpidfs[i][0]) != 0:
-                    self.ifdfs.append(ifpidfs[i][0])
-                    self.pidfs.append(ifpidfs[i][1])
-            print('elapsed', time.time() - st)
 
         else:
             print('## read single mode')
@@ -1074,134 +1283,6 @@ class anlfmo(pdio.pdb_io):
             self.tgt2_glofrags = tgt2_glofrags
             self.ifdf_filters = tgt_new2
 
-        # multi mode
-        if self.anlmode == 'multi':
-
-            ifdfs = self.ifdfs
-            tgtdf_filters = pd.DataFrame()
-            print('tgttimes', self.tgttimes)
-
-            count = 0
-            if tgt2type == 'frag':
-                if self.matrixtype == 'times-frags':
-                    self.gettgtdf_n2tfmatrix()
-
-                else:
-                    for df in ifdfs:
-                        # print('read', tgtlogs[count])
-                        # print(df)
-
-                        tgtdf_filters = tgtdf_filters.append(self.gettgtdf_ff(df, self.tgt1frag, self.tgt2frag))
-                        count += 1
-                    tgtdf_filters['TIME'] = self.tgttimes
-                    # print(tgtdf_filters)
-                    self.ifdf_filters = tgtdf_filters
-
-            if tgt2type == 'molname':
-                # get tgt frag id
-                tgtmolfrags_perrec = []
-                HF_IFIE_sums = []
-                MP2_IFIE_sums = []
-                PR_TYPE1_sums = []
-                GRIMME_sums = []
-                JUNG_sums = []
-                HILL_sums = []
-
-                molnames_perrec = self.molnames_perrec
-                # print(molnames_perrec)
-                for i in range(len(molnames_perrec)):
-                    tgtmolfrags = []
-                    for j in range(len(molnames_perrec[i])):
-                        try:
-                            if molnames_perrec[i][j] == self.tgt2molname:
-                                tgtmolfrags.append(self.molfragss_perrec[i][j])
-                        except:
-                            continue
-                    # print(tgtmolfrags)
-
-                    tgtmolfrags_perrec.append(tgtmolfrags)
-                    self.tgtmolfrags_perrec =  tgtmolfrags_perrec
-                # print(len(tgtmolfrags_perrec))
-
-                frag1 = self.tgt1frag
-                if type(frag1) == int:
-                    frag1s = [frag1]
-                    print('frag1s', frag1s)
-                else:
-                    frag1s = copy.deepcopy(frag1)
-
-                self.frag1s =frag1s
-                for i in range(len(tgtmolfrags_perrec)):
-                    df = ifdfs[i]
-                    if df.empty:
-                        # print(i, 'empty!!')
-                        continue
-                    tgtdf_filters = pd.DataFrame()
-                    for frag1p in frag1s:
-                        print('frag1p', frag1p)
-                        for tgtmolfrags in tgtmolfrags_perrec[i]:
-                            for tgt2frag in tgtmolfrags:
-                                tgtdf_filters = tgtdf_filters.append(self.gettgtdf_ff(df, frag1p, tgt2frag))
-                                count += 1
-                        print(tgtdf_filters.tail())
-
-                    HF_IFIE_sums.append(tgtdf_filters['HF-IFIE'].sum())
-                    MP2_IFIE_sums.append(tgtdf_filters['MP2-IFIE'].sum())
-                    PR_TYPE1_sums.append(tgtdf_filters['PR-TYPE1'].sum())
-                    GRIMME_sums.append(tgtdf_filters['GRIMME'].sum())
-                    JUNG_sums.append(tgtdf_filters['JUNG'].sum())
-                    HILL_sums.append(tgtdf_filters['HILL'].sum())
-
-                tgtifdfsum = pd.DataFrame()
-                tgtifdfsum['HF-IFIE'] = HF_IFIE_sums
-                tgtifdfsum['MP2-IFIE'] = MP2_IFIE_sums
-                tgtifdfsum['PR-TYPE1'] = PR_TYPE1_sums
-                tgtifdfsum['GRIMME'] = GRIMME_sums
-                tgtifdfsum['JUNG'] = JUNG_sums
-                tgtifdfsum['HILL'] = HILL_sums
-                tgtifdfsum['TIME'] = self.tgttimes
-                self.tgtmolfrags_perrec = tgtmolfrags_perrec
-
-                print(tgtifdfsum)
-                self.ifdfsum = tgtifdfsum
-
-            if tgt2type == 'dist':
-                print('filter-dist:', self.dist)
-                # get tgt frag id
-                HF_IFIE_sums = []
-                MP2_IFIE_sums = []
-                PR_TYPE1_sums = []
-                GRIMME_sums = []
-                JUNG_sums = []
-                HILL_sums = []
-
-                tgtdf_filters = []
-                for ifdf in self.ifdfs:
-                    tgtdf, tgtdf_filter = self.gettgtdf_fd(ifdf)
-                    # print('tgtdf_filter', tgtdf_filter.head())
-                    tgtdf_filters.append(tgtdf_filter)
-
-                    HF_IFIE_sums.append(tgtdf_filter['HF-IFIE'].sum())
-                    MP2_IFIE_sums.append(tgtdf_filter['MP2-IFIE'].sum())
-                    PR_TYPE1_sums.append(tgtdf_filter['PR-TYPE1'].sum())
-                    GRIMME_sums.append(tgtdf_filter['GRIMME'].sum())
-                    JUNG_sums.append(tgtdf_filter['JUNG'].sum())
-                    HILL_sums.append(tgtdf_filter['HILL'].sum())
-
-                tgtifdfsum = pd.DataFrame()
-                tgtifdfsum['HF-IFIE'] = HF_IFIE_sums
-                tgtifdfsum['MP2-IFIE'] = MP2_IFIE_sums
-                tgtifdfsum['PR-TYPE1'] = PR_TYPE1_sums
-                tgtifdfsum['GRIMME'] = GRIMME_sums
-                tgtifdfsum['JUNG'] = JUNG_sums
-                tgtifdfsum['HILL'] = HILL_sums
-                tgtifdfsum['TIME'] = self.tgttimes
-
-                print(tgtifdfsum)
-                # print('tgtdf_filters', tgtdf_filters)
-                self.ifdf_filters = tgtdf_filters
-                self.ifdfsum = tgtifdfsum
-
         return self
 
 
@@ -1259,101 +1340,8 @@ class anlfmo(pdio.pdb_io):
                         pitgtdf.I = pitgtdf.I.replace(i, frags[i-1])
                         pitgtdf.J = pitgtdf.J.replace(i, frags[i-1])
 
-                self.pitgtdf = pitgtdf
+                self.pidf_filter = pitgtdf
             # multi mode
-        if self.anlmode == 'multi':
-            pidfs = self.pidfs
-            if self.tgt2type == 'frag':
-                if self.matrixtype == 'times-frags':
-                    self.gettgtpidf_n2tfmatrix()
-
-                else:
-                    pitgtdf_filters = pd.DataFrame(columns=self.pcolumn)
-                    # print('first', pitgtdf_filters)
-
-                    count = 0
-                    for pidf in pidfs:
-                        # print('read', tgtlogs[count])
-                        pitgtdf_filter = self.gettgtdf_ff(pidf, self.tgt1frag, self.tgt2frag)
-                        if len(pitgtdf_filter) == 0:
-                            esdata = self.ifdf_filters.iat[count, 4]
-                            pitgtdf_filters.loc[str(count)] = [self.tgt1frag, self.tgt2frag, esdata, 0.0, 0.0, 0.0, 0.0]
-                        else:
-                            pitgtdf_filters = pitgtdf_filters.append(pitgtdf_filter)
-                        count += 1
-                    pitgtdf_filters['TIME'] = self.tgttimes
-                    self.pidf_filters = pitgtdf_filters
-
-            if self.tgt2type == 'molname':
-                ES_sums = []
-                EX_sums = []
-                CT_sums = []
-                DI_sums = []
-                q_sums = []
-                for i in range(len(self.tgtmolfrags_perrec)):
-                    pidf = pidfs[i]
-                    if pidf.empty:
-                        continue
-                    pitgtdf_filters = pd.DataFrame()
-                    for frag1p in self.frag1s:
-                        for tgtmolfrags in self.tgtmolfrags_perrec[i]:
-                            for tgt2frag in tgtmolfrags:
-                                pitgtdf_filters = pitgtdf_filters.append(self.gettgtdf_ff(pidf, frag1p, tgt2frag))
-                    ES_sums.append(pitgtdf_filters['ES'].sum())
-                    EX_sums.append(pitgtdf_filters['EX'].sum())
-                    CT_sums.append(pitgtdf_filters['CT-mix'].sum())
-                    DI_sums.append(pitgtdf_filters['DI(MP2)'].sum())
-                    q_sums.append(pitgtdf_filters['q(I=>J)'].sum())
-
-                pitgtdfsum = pd.DataFrame()
-                pitgtdfsum['ES'] = ES_sums
-                pitgtdfsum['EX'] = EX_sums
-                pitgtdfsum['CT-mix'] = CT_sums
-                pitgtdfsum['DI(MP2)'] = DI_sums
-                pitgtdfsum['q(I=>J)'] = q_sums
-                pitgtdfsum['TIME'] = self.tgttimes
-
-                print(pitgtdfsum)
-                self.pidfsum = pitgtdfsum
-            if  self.tgt2type == 'dist':
-                ES_sums = []
-                EX_sums = []
-                CT_sums = []
-                DI_sums = []
-                q_sums = []
-
-                pitgtdfs = pd.DataFrame()
-                for i in range(len(self.pidfs)):
-                    # print(self.pidfs[i].head())
-                    # print(self.ifdf_filters[i].head())
-                    # print('headheadhead', self.ifdf_filters.head())
-
-                    pitgtdf = self.getpitgtdf(self.pidfs[i], self.ifdf_filters[i])
-                    if self.fragmode != 'manual':
-                        # print('len_frags', len(frags))
-                        #assign resname(e.g. Gly6)
-                        for i in range(1, len(frags) + 1):
-                            pitgtdf.I = pitgtdf.I.replace(i, frags[i-1])
-                            pitgtdf.J = pitgtdf.J.replace(i, frags[i-1])
-
-                    ES_sums.append(pitgtdf['ES'].sum())
-                    EX_sums.append(pitgtdf['EX'].sum())
-                    CT_sums.append(pitgtdf['CT-mix'].sum())
-                    DI_sums.append(pitgtdf['DI(MP2)'].sum())
-                    q_sums.append(pitgtdf['q(I=>J)'].sum())
-
-                    pitgtdfs = pitgtdfs.append(pitgtdf)
-
-                pitgtdfsum = pd.DataFrame()
-                pitgtdfsum['ES'] = ES_sums
-                pitgtdfsum['EX'] = EX_sums
-                pitgtdfsum['CT-mix'] = CT_sums
-                pitgtdfsum['DI(MP2)'] = DI_sums
-                pitgtdfsum['q(I=>J)'] = q_sums
-                pitgtdfsum['TIME'] = self.tgttimes
-
-                print(pitgtdfsum)
-                self.pidfsum = pitgtdfsum
 
         # mol-mol mode
         if self.anlmode == 'mol':
@@ -1454,13 +1442,13 @@ class anlfmo(pdio.pdb_io):
                 except:
                     ohead = head + '-' + str(tgtid)
 
-                # print(self.pitgtdf.head())
+                # print(self.pidf_filter.head())
 
                 # tgtdf.to_csv(path + '/' + ohead + '-ifie.csv')
                 oifie = ohead + '-ifie_' + 'dist' + str(self.dist) + '.csv'
                 opieda = ohead + '-pieda_' + 'dist' + str(self.dist) + '.csv'
                 self.ifdf_filter.to_csv(path + '/' + oifie)
-                self.pitgtdf.to_csv(path + '/' + opieda)
+                self.pidf_filter.to_csv(path + '/' + opieda)
 
                 print(path + '/' + oifie, path + '/' + opieda, 'was generated.')
 
@@ -1507,22 +1495,32 @@ class anlfmo(pdio.pdb_io):
                     self.pidf_filters.to_csv(path + '/' + opieda)
                     print(path + '/' + oifie, path + '/' + opieda, 'was created.')
 
-            if tgt2type == 'molname':
-                tgt2molname = self.tgt2molname
-                oifie = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-ifiesum.csv'
-                opieda = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-piedasum.csv'
-                self.ifdfsum.to_csv(path + '/' + oifie)
-                self.pidfsum.to_csv(path + '/' + opieda)
-                print(path + '/' + oifie, path + '/' + opieda, 'was created.')
+
+            if tgt2type == 'molname' or tgt2type == 'dist':
+
+                if tgt2type == 'molname':
+                    tgt2molname = self.tgt2molname
+                    oifie = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-ifiesum.csv'
+                    opieda = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-piedasum.csv'
+                    oifiedt = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-ifiedt.csv'
+                    opiedadt = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-piedadt.csv'
+
+                if tgt2type == 'dist':
+                    tgt2dist = self.dist
+                    oifie = 'frag' + str(tgt1frag) + '-dist' + str(tgt2dist) + '-ifiesum.csv'
+                    opieda = 'frag' + str(tgt1frag) + '-dist' + str(tgt2dist) +'-piedasum.csv'
+                    oifiedt = 'frag' + str(tgt1frag) + '-dist' + str(tgt2dist) + '-ifiedt.csv'
+                    opiedadt = 'frag' + str(tgt1frag) + '-dist' + str(tgt2dist) + '-piedadt.csv'
 
 
-            if tgt2type == 'dist':
-                tgt2dist = self.dist
-                oifie = 'frag' + str(tgt1frag) + '-dist' + str(tgt2dist) + '-ifiesum.csv'
-                opieda = 'frag' + str(tgt1frag) + '-piedasum.csv'
                 self.ifdfsum.to_csv(path + '/' + oifie)
                 self.pidfsum.to_csv(path + '/' + opieda)
-                print(path + '/' + oifie, path + '/' + opieda, 'was created.')
+                self.ifdf_filters.to_csv(path + '/' + oifiedt)
+                self.pidf_filters.to_csv(path + '/' + opiedadt)
+
+                print(path + '/' + oifie, path + '/' + opieda)
+                print(path + '/' + oifiedt, path + '/' + opiedadt, 'was created.')
+
 
 
         if self.anlmode == 'mol':

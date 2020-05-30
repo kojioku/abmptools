@@ -28,8 +28,8 @@ aobj.interval = 1000
 
 # ./6lu7_minHSCG_163hip100-hopt--mod_forabmp_192n-2p-24t.log
 
-aobj.ilog_head = '6lu7orig_md0408_163hip'
-aobj.ilog_tail = '-hopt--mod-forabmp_192n-2p-24t.log'
+aobj.ilog_head = '6lu7orig_md0408_163hip-'
+aobj.ilog_tail = '-hopt-ps-mod_forabmp_192n-2p-24t.log'
 # aobj.pdb_head = '6lu7orig_md0408_163hip'
 # aobj.pdb_tail = '-hopt--mod_forabmp.pdb'
 
@@ -42,10 +42,11 @@ print(aobj.tgt2type)
 
 tgt1 = sys.argv[1]
 distval = float(sys.argv[2])
+aobj.dist = distval
 
 aobj = aobj.readifiewrap(tgt1)
-aobj = aobj.filterifiewrap(dist=distval)
-aobj = aobj.filterpiedawrap()
+# aobj = aobj.filterifiewrap(dist=distval)
+# aobj = aobj.filterpiedawrap()
 
 #out
 # print('ifdf\n', aobj.ifdfs)
