@@ -23,7 +23,7 @@ aobj.abinit_ver='rev20'
 
 aobj.start = 100
 aobj.end = 100100
-aobj.interval = 1000
+aobj.interval = 100
 
 # ./6lu7_minHSCG_163hip100-hopt--mod_forabmp_192n-2p-24t.log
 
@@ -36,6 +36,7 @@ aobj.tgt2type = 'frag'
 aobj.pynp = 4
 aobj.f90soflag = True
 aobj.matrixtype = 'times-frags'
+aobj.exceptfrag = [145]
 
 print(aobj.tgt2type)
 # ---- user setting end ---

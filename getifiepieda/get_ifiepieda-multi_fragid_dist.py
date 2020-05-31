@@ -45,17 +45,6 @@ distval = float(sys.argv[2])
 aobj.dist = distval
 
 aobj = aobj.readifiewrap(tgt1)
-# aobj = aobj.filterifiewrap(dist=distval)
-# aobj = aobj.filterpiedawrap()
-
-#out
-# print('ifdf\n', aobj.ifdfs)
-# print('ifdf_filter\n', aobj.ifdf_filters)
-# print('pidf\n', aobj.pidfs)
-# print('pitgtdf\n', aobj.pitgtdfs)
-# print('pitgtdf\n', aobj.pidf_filters)
-
-
 aobj.writecsvwrap()
 
 '''
