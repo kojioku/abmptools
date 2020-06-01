@@ -8,12 +8,6 @@ import abmptools as ampt
 
 # get_ifiepieda.py
 # Author: Koji Okuwaki
-# v3.0(2020.05.10): reform system
-# v2.2(2020.03.25): add multi-molname mode
-# v2.1(2020.03.19): only gas phase ifie and pieda
-
-# Warning:
-# note: start from label 1(frag, mol)
 
 aobj = ampt.anlfmo()
 # --- user setting ---

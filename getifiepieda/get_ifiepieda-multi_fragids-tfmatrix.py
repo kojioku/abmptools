@@ -12,9 +12,6 @@ import abmptools as ampt
 # v2.2(2020.03.25): add multi-molname mode
 # v2.1(2020.03.19): only gas phase ifie and pieda
 
-# Warning:
-# note: start from label 1(frag, mol)
-
 aobj = ampt.anlfmo()
 # --- user setting ---
 aobj.anlmode= 'multi' #frag, 'mol', 'fraginmol', 'multi'
@@ -25,20 +22,14 @@ aobj.start = 100
 aobj.end = 100100
 aobj.interval = 100
 
-# ./6lu7_minHSCG_163hip100-hopt--mod_forabmp_192n-2p-24t.log
-
 aobj.ilog_head = '6lu7orig_md0408_163hip-'
 aobj.ilog_tail = '-hopt-ps-mod_forabmp_192n-2p-24t.log'
-# aobj.pdb_head = '6lu7orig_md0408_163hip'
-# aobj.pdb_tail = '-hopt--mod_forabmp.pdb'
 
 aobj.tgt2type = 'frag'
 aobj.pynp = 5
 aobj.f90soflag = True
 aobj.matrixtype = 'times-frags'
 aobj.exceptfrag = [145]
-
-print(aobj.tgt2type)
 # ---- user setting end ---
 
 tgt1 = sys.argv[1]
@@ -46,15 +37,9 @@ tgt2 = sys.argv[2]
 
 aobj = aobj.readifiewrap(tgt1, tgt2)
 
-#out
-# print('ifdf\n', aobj.ifdfs)
-# print('ifdf_filter\n', aobj.ifdf_filters)
-# print('pidf\n', aobj.pidfs)
-# print('pitgtdf\n', aobj.pitgtdfs)
-# print('pitgtdf\n', aobj.pidf_filters)
-
 
 aobj.writecsvwrap()
+
 
 '''
 # parameters
