@@ -45,7 +45,7 @@ open(17,file=trim(adjustl(inname)), status='old')
 ! IFIE - Section
 do
     read(17,'(a)', end=999) head
-    if (trim(adjustl(head))=="## MP2-IFIE") then
+    if (trim(adjustl(head))=="## MP2-IFIE" .or. trim(adjustl(head))=="## MP3-IFIE") then
         ! write(*, '(a)') 'Read IFIE Section'
         do skip=1,4  !skip 4lines
             read(17,'()')
@@ -58,7 +58,8 @@ end do
 ! Read IFIE val
 i = 1
 do
-    ! IJ-PAIR    DIST     DIMER-ES   HF-IFIE    MP2-IFIE   PR-TYPE1   GRIMME     JUNG       HILL
+    ! (MP2:) J-PAIR    DIST     DIMER-ES   HF-IFIE    MP2-IFIE   PR-TYPE1   GRIMME     JUNG       HILL
+    ! (MP3:) IJ-PAIR    DIST     DIMER-ES   HF-IFIE    MP2-IFIE   USER-MP2   MP3-IFIE   USER-MP3   PADE[2/1]
     read(17, *,  err=200)frag_i(i), frag_j(i), dist(i), fdimes(i), &
         &hfifie(i), mp2ifie(i), prtype1(i), grimme(i), jung(i), hill(i)
     ! if(i == 100) write(*, '(2i7, f10.3, a3, 6f10.3)') frag_i(i),frag_j(i),dist(i),fdimes(i), &

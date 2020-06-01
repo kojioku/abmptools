@@ -33,7 +33,7 @@ aobj.ilog_tail = '-hopt-ps-mod_forabmp_192n-2p-24t.log'
 # aobj.pdb_tail = '-hopt--mod_forabmp.pdb'
 
 aobj.tgt2type = 'frag'
-aobj.pynp = 4
+aobj.pynp = 5
 aobj.f90soflag = True
 aobj.matrixtype = 'times-frags'
 aobj.exceptfrag = [145]

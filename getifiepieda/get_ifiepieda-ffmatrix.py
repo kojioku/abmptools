@@ -24,6 +24,7 @@ aobj.abinit_ver='rev15'
 aobj.tgt2type = 'frag'
 aobj.matrixtype='frags-frags'
 aobj.f90soflag = True
+aobj.logMethod = 'MP3'
 
 print('tgt2type', aobj.tgt2type)
 # ---- user setting end ---
