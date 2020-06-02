@@ -69,11 +69,11 @@ class abinit_io(mi.mol_io):
 
 
     def get_fragsection(self):
-        frag_atom = [self.fatomnums]
-        frag_charge = [self.fchgs]
-        frag_connect_num = [self.fbaas]
-        frag_connect = [self.connects]
-        seg_info = [self.fatminfos]
+        frag_atom = self.fatomnums
+        frag_charge = self.fchgs
+        frag_connect_num = self.fbaas
+        frag_connect = self.connects
+        seg_info = self.fatminfos
 
         ajf_fragment = ''
         # fragment atom
@@ -1191,11 +1191,11 @@ MD='OFF'
                 frag_connectss.append(frag_connects)
             atom_count += sum(frag_atom[nameid[i]])
 
-        self.fatomnums = frag_atoms
-        self.fchgs = frag_charges
-        self.fbaas = frag_baanums
-        self.fatminfos = frag_atmlabss
-        self.connects = frag_connectss
+        self.fatomnums = [frag_atoms]
+        self.fchgs = [frag_charges]
+        self.fbaas = [frag_baanums]
+        self.fatminfos = [frag_atmlabss]
+        self.connects = [frag_connectss]
         return  self
 
         # return frag_atoms, frag_charges, frag_baanums, frag_atmlabss, frag_connectss
