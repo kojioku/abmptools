@@ -1191,11 +1191,11 @@ MD='OFF'
                 frag_connectss.append(frag_connects)
             atom_count += sum(frag_atom[nameid[i]])
 
-        self.fatomnums = [frag_atoms]
-        self.fchgs = [frag_charges]
-        self.fbaas = [frag_baanums]
-        self.fatminfos = [frag_atmlabss]
-        self.connects = [frag_connectss]
+        self.fatomnums = frag_atoms
+        self.fchgs = frag_charges
+        self.fbaas = frag_baanums
+        self.fatminfos = frag_atmlabss
+        self.connects = frag_connectss
         return  self
 
         # return frag_atoms, frag_charges, frag_baanums, frag_atmlabss, frag_connectss
@@ -1278,6 +1278,8 @@ MD='OFF'
         if oname == None:
             oname = os.path.splitext(self.readgeom)[0] + '-' + self.ajf_method + '-' + self.ajf_basis_set.replace('*', 'd') + '.ajf'
             ohead = os.path.splitext(self.readgeom)[0] + '-' + self.ajf_method
+        else:
+            ohead = os.path.splitext(oname)[0]
         ajf_body = self.gen_ajf_bodywrap(ohead)
 
         print('ajf_oname:', oname)

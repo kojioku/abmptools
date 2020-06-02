@@ -110,12 +110,6 @@ if __name__ == "__main__":
     fatomnums, fchgs, fbaas, connects, fatminfos = aobj.modifyfragparam(totalMol, atomnameMol, molnames, anummols, posMol, heads, labs, chains
                                                                    ,resnums ,codes ,occs ,temps ,amarks ,charges, fatomnums, fchgs, fbaas, fatminfos, connects, bridgeds, doubles, nagatoms, nagmolids, nagbdas)
 
-    aobj.fatomnums = [fatomnums]
-    aobj.fchgs = [fchgs]
-    aobj.fbaas = [fbaas]
-    aobj.connects = [connects]
-    aobj.fatminfos = [fatminfos]
-
     aobj.ajf_method = "MP2"
     aobj.ajf_basis_set = "6-31G*"
     aobj.abinit_ver = 'rev10'
