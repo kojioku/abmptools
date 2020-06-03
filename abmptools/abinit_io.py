@@ -102,8 +102,8 @@ class abinit_io(mi.mol_io):
                 if icount % 10 is 0:
                     icount = 0
                     ajf_fragment += '\n'
-            if icount % 10 != 0:
-                ajf_fragment += '\n'
+        if icount % 10 != 0:
+            ajf_fragment += '\n'
 
         # fragment charge
         for i in range(len(frag_charge)):
@@ -114,8 +114,8 @@ class abinit_io(mi.mol_io):
                 if icount % 10 is 0:
                     icount = 0
                     ajf_fragment += '\n'
-            if icount % 10 != 0:
-                ajf_fragment += '\n'
+        if icount % 10 != 0:
+            ajf_fragment += '\n'
 
         # fragment connect num
         for i in range(len(frag_connect_num)):
@@ -126,8 +126,8 @@ class abinit_io(mi.mol_io):
                 if icount % 10 is 0:
                     icount = 0
                     ajf_fragment += '\n'
-            if icount % 10 != 0:
-                ajf_fragment += '\n'
+        if icount % 10 != 0:
+            ajf_fragment += '\n'
 
         # fragment body
         atom_count = 0
@@ -140,8 +140,8 @@ class abinit_io(mi.mol_io):
                     if icount % 10 is 0:
                         icount = 0
                         ajf_fragment += '\n'
-                if icount % 10 != 0:
-                    ajf_fragment += '\n'
+            if icount % 10 != 0:
+                ajf_fragment += '\n'
             atom_count += sum(frag_atom[0])
 
         atom_count = 0
@@ -1093,30 +1093,29 @@ MD='OFF'
         '''
 
     def config_read(self, seg_name, seg_atom):
-            fdata = {}
-            exec(open(self.mainpath + "/segment_data.dat", "r").read(), fdata)
-            seg_data = fdata['seg_data']
-            # print (seg_data)
-            # default data
-            seg_conf = {'name': seg_name,
-                        'atom': [seg_atom],
-                        'charge': [0],
-                        'connect_num': [0],
-                        'connect': [],
-                        'seg_info': [[i + 1 for i in range(seg_atom)]],
-                        'nummol_seg': [1],
-                        'repeat': [1],
-                        'pair_file': [],
-                        'multi_xyz': 'none'}
+        fdata = {}
+        exec(open(self.mainpath + "/segment_data.dat", "r").read(), fdata)
+        seg_data = fdata['seg_data']
+        # print (seg_data)
+        # default data
+        seg_conf = {'name': seg_name,
+                    'atom': [seg_atom],
+                    'charge': [0],
+                    'connect_num': [0],
+                    'connect': [],
+                    'seg_info': [[i + 1 for i in range(seg_atom)]],
+                    'nummol_seg': [1],
+                    'repeat': [1],
+                    'pair_file': [],
+                    'multi_xyz': 'none'}
 
-            # print seg_data[0]
-            for i in range(len(seg_data)):
-                if seg_name == seg_data[i]['name']:
-                    for key, data in seg_data[i].items():
-                        seg_conf[key] = data
+        for i in range(len(seg_data)):
+            if seg_name == seg_data[i]['name']:
+                for key, data in seg_data[i].items():
+                    seg_conf[key] = data
 
             # print "seg_conf =", seg_conf
-                return seg_conf
+        return seg_conf
 
     def getmb_frag_seclists(self, param, nameid):
         frag_atom = param[0]
