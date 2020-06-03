@@ -282,6 +282,7 @@ Ldimer=2.0
 NP=""" + np + """
 MaxSCCcyc=250
 MaxSCCenergy=5.0E-7
+/
 """
         if self.cmmflag == True:
             ajf_body += """Dimer_es_multipole='YES'
@@ -400,39 +401,6 @@ MD='OFF'
 /"""
         return ajf_body
 
-
-
-    def ajf_make_monomer(self, se1_conf, seg1_name, MOME_flag, nofzc=False):
-        frag_atom = [se1_conf['atom']]
-        frag_charge = [se1_conf['charge']]
-        frag_connect_num = [se1_conf['connect_num']]
-        frag_connect = [se1_conf['connect']]
-        seg_info = [se1_conf['seg_info']]
-
-        # fragment body
-        ajf_fragment = self.get_fragsection([frag_atom, frag_charge, frag_connect_num, frag_connect, seg_info])
-        ajf_fragment = ajf_fragment[:-1]
-
-        # fragment section
-        ajf_charge = sum(frag_charge[0])
-        num_fragment = len(frag_atom[0])
-        ajf_parameter = [ajf_charge, "", "", ajf_fragment, num_fragment, MOME_flag]
-        # gen ajf file
-        if nofzc == False:
-            ajf_file_name = 'monomer/' + seg1_name + ".ajf"
-            fzctemp = "YES"
-        else:
-            ajf_file_name = 'monomer/nofzc/' + seg1_name + ".ajf"
-            fzctemp = "NO"
-
-        ajf_file = open(ajf_file_name, 'w', newline = "\n")
-
-        ajf_parameter[1] = "'pdb/" + seg1_name + ".pdb'"
-        ajf_parameter[2] = "'" + seg1_name + '-' + \
-            self.ajf_method + '-' + self.ajf_basis_set + ".cpf'"
-        ajf_body = self.gen_ajf_body(ajf_parameter, fzctemp)
-        print(ajf_body, file=ajf_file)
-        return
 
     def getfraginfo(self, seg1_conf, seg2_conf):
         frag1_num = len(seg1_conf['seg_info'])
