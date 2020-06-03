@@ -67,13 +67,30 @@ class abinit_io(mi.mol_io):
 
         return
 
+    def chkdepth(self, k):
+        if not k:
+            return 0
+        else:
+            if isinstance(k, list):
+                return 1 + max(self.chkdepth(i) for i in k)
+            else:
+                return 0
 
     def get_fragsection(self):
-        frag_atom = self.fatomnums
-        frag_charge = self.fchgs
-        frag_connect_num = self.fbaas
-        frag_connect = self.connects
-        seg_info = self.fatminfos
+
+        if self.chkdepth(self.fatomnums) == 1:
+            frag_atom = [self.fatomnums]
+            frag_charge = [self.fchgs]
+            frag_connect_num = [self.fbaas]
+            frag_connect = [self.connects]
+            seg_info = [self.fatminfos]
+        else:
+            frag_atom = self.fatomnums
+            frag_charge = self.fchgs
+            frag_connect_num = self.fbaas
+            frag_connect = self.connects
+            seg_info = self.fatminfos
+
 
         ajf_fragment = ''
         # fragment atom
