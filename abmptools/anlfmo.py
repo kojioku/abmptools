@@ -1449,20 +1449,21 @@ class anlfmo(pdio.pdb_io):
 
                 elif self.tgt2type == 'frag':
                     t1cnt = 0
-                    count = 0
                     pidf_filters = []
+                    count = 0
                     for tgt1 in self.tgt1frag:
-                        pidf_filter = pd.DataFrame()
+                        pidf_filter = pd.DataFrame(columns = self.pcolumn)
                         for tgt2 in self.tgt2frag:
-                            pidf1_filter = self.gettgtdf_ff(self.ifdf_filters[t1cnt], tgt1, tgt2)
+                            pidf1_filter = self.gettgtdf_ff(self.pidf, tgt1, tgt2)
 
                             df = self.ifdf_filters[t1cnt]
                             if len(pidf1_filter) == 0:
                                 esdata = df[((df['I'] == tgt1) & ( df['J'] == tgt2))|((df['J'] == tgt1) & (df['I'] == tgt2))]['HF-IFIE'].values.tolist()[0]
-                                pidf1_filter.loc[str(count)] = [tgt1, tgt2, esdata, 0.0, 0.0, 0.0, 0.0]
+                                pidf_series = pd.Series([tgt1, tgt2, esdata, 0.0, 0.0, 0.0, 0.0], index=self.pcolumn, name=count)
+                                pidf_filter = pidf_filter.append(pidf_series)
+                                count += 1
                             else:
                                 pidf_filter = pidf_filter.append(pidf1_filter)
-                            count +=1
                         t1cnt +=1
                         pidf_filters.append(pidf_filter)
                     self.pidf_filters = pidf_filters
