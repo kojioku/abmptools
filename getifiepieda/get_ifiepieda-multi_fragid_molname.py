@@ -22,14 +22,14 @@ aobj.fragmode = 'manual'  #'hybrid', 'auto', 'manual'
 aobj.dist = 8.0
 aobj.abinit_ver='rev20'
 
-aobj.start = 100
-aobj.end = 100
-aobj.interval = 1000
+aobj.start = 1700
+aobj.end = 4200
+aobj.interval = 500
 
-aobj.ilog_head = '6lu7orig_md0408_163hip-'
-aobj.ilog_tail = '-hopt-ps-mod_forabmp_192n-2p-24t.log'
-aobj.pdb_head = '6lu7orig_md0408_163hip-'
-aobj.pdb_tail = '-hopt-ps-mod_forabmp.pdb'
+aobj.ilog_head = 'sbecd7_50nsdynamics_namd'
+aobj.ilog_tail = '-moved-sed-around-8.0-for_abmp.log'
+aobj.pdb_head = 'sbecd7_50nsdynamics_namd'
+aobj.pdb_tail = '-moved-sed-around-8.0-for_abmp.pdb'
 
 aobj.pynp = 4
 aobj.tgt2type = 'molname'

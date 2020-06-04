@@ -19,10 +19,10 @@ aobj.fragmode = 'manual'  #'hybrid', 'auto', 'manual'
 aobj.abinit_ver='rev20'
 
 aobj.start = 100
-aobj.end = 100100
-aobj.interval = 100
+aobj.end = 19100
+aobj.interval = 1000
 
-aobj.ilog_head = '6lu7orig_md0408_163hip-'
+aobj.ilog_head = '6lu7orig_md040j8_163neu-'
 aobj.ilog_tail = '-hopt-ps-mod_forabmp_192n-2p-24t.log'
 
 aobj.tgt2type = 'frag'

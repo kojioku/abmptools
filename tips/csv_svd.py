@@ -42,10 +42,10 @@ if __name__ == "__main__":
     print(otail)
     svd_uname = "svd_U_" + otail + ".csv"
     svd_sname = "svd_s_" + otail + ".csv"
-    svd_vname = "svd_V_" + otail + ".csv"
+    svd_vname = "svd_VT_" + otail + ".csv"
 
     df_U.to_csv(svd_uname)
     df_s.to_csv(svd_sname)
-    df_V.to_csv(svd_vname)
+    df_V.T.to_csv(svd_vname)
 
     print(svd_uname, svd_sname, svd_vname, 'are created.')

@@ -19,12 +19,8 @@ aobj = ampt.anlfmo()
 # --- user setting ---
 aobj.anlmode= 'fraginmol' #frag, 'mol', 'fraginmol', 'ff-multi'
 aobj.fragmode = 'manual'  #'hybrid', 'auto', 'manual'
-aobj.dist = 2.0
+aobj.dist = 8.0
 aobj.abinit_ver='rev15'
-
-aobj.start = 1700
-aobj.end = 2700
-aobj.interval = 500
 
 aobj.pdbname = ""
 aobj.tgtmolid = 1
@@ -37,6 +33,7 @@ aobj.tgt2_lofrag = 1
 
 logname = sys.argv[1]
 aobj.pdbname = sys.argv[2]
+
 aobj = aobj.readifiewrap(logname)
 aobj = aobj.filterifiewrap()
 aobj = aobj.readpiedawrap()

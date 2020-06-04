@@ -21,6 +21,7 @@ aobj.anlmode= 'frag' #frag, 'mol', 'fraginmol', 'multi'
 aobj.fragmode = 'manual'  #'hybrid', 'auto', 'manual'
 aobj.dist = 8.0
 aobj.abinit_ver='rev15'
+aobj.tgt2type = 'dist'
 # aobj.tgt2molname = 'WAT'
 
 print(aobj.tgt2type)
@@ -38,7 +39,6 @@ aobj = aobj.filterpiedawrap()
 # print('pidf\n', aobj.pidfs)
 # # print('pitgtdf\n', aobj.pitgtdfs)
 # print('pitgtdf\n', aobj.pidf_filters)
-
 
 aobj.writecsvwrap()
 

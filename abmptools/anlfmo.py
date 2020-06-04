@@ -564,6 +564,12 @@ class anlfmo(pdio.pdb_io):
         # tgtdf_filter = df[((df['I'] == frag1) & (df['J'] == frag2)) | ((df['I'] == frag2) & (df['J'] == frag1))]
         return tgtdf_filter
 
+    def gettgtdf_ffs(self, df, frag1, frag2):
+        # print('--- ifie frag ', frag1, frag2, '----')
+        tgtdf_filter = df[((df['I'] == frag1) & (df['J'].isin(frag2))) | ((df['I'].isin(frag2)) & (df['J'] == frag1))]
+        # tgtdf_filter = df[((df['I'] == frag1) & (df['J'] == frag2)) | ((df['I'] == frag2) & (df['J'] == frag1))]
+        return tgtdf_filter
+
 
     def getifiesummol(self, df):
         molfrags = self.molfrags
@@ -1157,6 +1163,12 @@ class anlfmo(pdio.pdb_io):
 
         else:
             print('## read single mode')
+            self.logMethod = self.getlogmethod(self.tgtlogs)
+            # self.logMethod = 'MP2'
+            if self.matrixtype != 'frags-frags' and self.logMethod == 'MP3':
+                print('Error: MP3 mode for this mode is unsupported yet.')
+                sys.exit()
+
             if self.f90soflag == True:
                 print("use fortran library")
                 ifpidfs = self.read_ifpif90(self.tgtlogs)
@@ -1172,6 +1184,17 @@ class anlfmo(pdio.pdb_io):
                 self.pidf = pidf
 
         return self
+
+
+    def getlogmethod(self, tgtlog):
+        f = open(tgtlog, 'r')
+        for line in f:
+            Items = line.split()
+            if len(Items) <= 2:
+                continue
+            if Items[0:2] == ['Method', '=']:
+                print('logMethod =', Items[2])
+                return Items[2]
 
 
     def setupreadparm(self, item1=None, item2=None, item3=None):
@@ -1265,8 +1288,8 @@ class anlfmo(pdio.pdb_io):
                     else:
                         self.tgt1frag = [item2]
                 if item3 != None:
-                    print('type', type(item2))
-                    if type(item2) == str:
+                    print('type', type(item3))
+                    if type(item3) == str:
                         if '-' in item3:
                             tgt = item3.split('-')
                             print('tgt2', tgt)
@@ -1299,7 +1322,8 @@ class anlfmo(pdio.pdb_io):
         elif  self.anlmode == 'fraginmol' or self.rpdbflag == True:
             self.assignmolname = False
             self.readpdb(self.pdbname)
-            print(self.resnames)
+            print('resnames', self.resnames)
+            print('len resnames', len(self.resnames))
 
         # PIEDA
         if self.abinit_ver == 'rev16' or self.abinit_ver == 'rev17':
@@ -1331,10 +1355,19 @@ class anlfmo(pdio.pdb_io):
                 self.gettgtdf_n2ffmatrix()
 
             else:
-                # print(self.ifdf)
-                tgtdf, ifdf_filter = self.gettgtdf_fd(self.ifdf)
-                # print(ifdf_filter)
-                self.ifdf_filter = ifdf_filter
+                if self.tgt2type == 'dist':
+                    # print(self.ifdf)
+                    tgtdf, ifdf_filter = self.gettgtdf_fd(self.ifdf)
+                    # print(ifdf_filter)
+                    self.ifdf_filter = ifdf_filter
+                elif self.tgt2type == 'frag':
+                    self.ifdf_filters = []
+                    if type(self.tgt1frag) == int:
+                        self.tgt1frag == [self.tgt1frag]
+                    if type(self.tgt2frag) == int:
+                        self.tgt1frag == [self.tgt2frag]
+                    for tgt1 in self.tgt1frag:
+                        self.ifdf_filters.append(self.gettgtdf_ffs(self.ifdf, tgt1, self.tgt2frag))
 
         # mol-mol mode
         if self.anlmode == 'mol':
@@ -1362,7 +1395,7 @@ class anlfmo(pdio.pdb_io):
             tgt2_lofrag = self.tgt2_lofrag
             tgt2molname = self.tgt2molname
             nf = self.getlognf(self.tgtlogs, self.fragmode)
-            print(nf)
+            print('nf', nf)
             molfragss = self.getallmolfrags(self.tgtlogs, df, nf)
             print(molfragss)
             tgtmol = self.tgtmolid - 1
@@ -1390,6 +1423,98 @@ class anlfmo(pdio.pdb_io):
             self.tgt1_glofrag = tgt1_glofrag
             self.tgt2_glofrags = tgt2_glofrags
             self.ifdf_filters = tgt_new2
+
+        return self
+
+
+    def filterpiedawrap(self):
+        ### filter
+        # frag-frag mode
+        frags = self.frags
+        if self.anlmode == 'frag':
+            if  self.matrixtype == 'frags-frags':
+                self.gettgtpidf_n2ffmatrix()
+            else:
+
+                if self.tgt2type == 'dist':
+                    pitgtdf = self.getpitgtdf(self.pidf, self.ifdf_filter)
+                    if self.fragmode != 'manual':
+                        # print('len_frags', len(frags))
+                        #assign resname(e.g. Gly6)
+                        for i in range(1, len(frags) + 1):
+                            pitgtdf.I = pitgtdf.I.replace(i, frags[i-1])
+                            pitgtdf.J = pitgtdf.J.replace(i, frags[i-1])
+
+                    self.pidf_filter = pitgtdf
+
+                elif self.tgt2type == 'frag':
+                    t1cnt = 0
+                    count = 0
+                    pidf_filters = []
+                    for tgt1 in self.tgt1frag:
+                        pidf_filter = pd.DataFrame()
+                        for tgt2 in self.tgt2frag:
+                            pidf1_filter = self.gettgtdf_ff(self.ifdf_filters[t1cnt], tgt1, tgt2)
+
+                            df = self.ifdf_filters[t1cnt]
+                            if len(pidf1_filter) == 0:
+                                esdata = df[((df['I'] == tgt1) & ( df['J'] == tgt2))|((df['J'] == tgt1) & (df['I'] == tgt2))]['HF-IFIE'].values.tolist()[0]
+                                pidf1_filter.loc[str(count)] = [tgt1, tgt2, esdata, 0.0, 0.0, 0.0, 0.0]
+                            else:
+                                pidf_filter = pidf_filter.append(pidf1_filter)
+                            count +=1
+                        t1cnt +=1
+                        pidf_filters.append(pidf_filter)
+                    self.pidf_filters = pidf_filters
+
+            # multi mode
+
+        # mol-mol mode
+        if self.anlmode == 'mol':
+            pidf = self.pidf
+            pieda_permols = []
+            for contactmolfrag in self.contactmolfrags:
+                pieda_permol = pd.DataFrame(columns=self.pcolumn)
+                for contact in contactmolfrag:
+                    for tgtfrag in self.molfrags:
+                        # print(contact, tgtfrag)
+                        pieda_permol = pieda_permol.append(pidf[((pidf['I'] == contact) & (pidf['J'] == tgtfrag)) | ((pidf['I'] == tgtfrag) & (pidf['J'] == contact))])
+                pieda_permols.append(pieda_permol)
+                # print(pieda_permol, file=plogdt)
+
+            count = 0
+            if self.abinit_ver == 'rev17' or self.abinit_ver == 'rev16':
+                piedasums = [['contactmolfrag', 'tgtmolfrags', 'ES', 'EX', 'Solv(ES)', 'CT-mix', 'DI(MP2)', 'a(I=>J)']]
+            else:
+                piedasums = [['contactmolfrag', 'tgtmolfrags', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'a(I=>J)']]
+            for datadf in pieda_permols:
+                piedasums.append([self.contactmolfrags[count], self.molfrags, datadf['ES'].sum(), datadf['EX'].sum(), datadf['CT-mix'].sum(), datadf['DI(MP2)'].sum(),  datadf['q(I=>J)'].sum()])
+                count += 1
+
+                self.piedasums = piedasums
+                self.pieda_permols = pieda_permols
+
+        # fraginmol mode
+        if self.anlmode == 'fraginmol':
+            pidf = self.pidf
+            tgt1_glofrag = self.tgt1_glofrag
+            tgt2_glofrags = self.tgt2_glofrags
+            print('--- pieda ----')
+            pitgtdf = pidf[pidf['I'] == tgt1_glofrag]
+            pitgtdf = pitgtdf.append(pidf[pidf['J'] == tgt1_glofrag])
+
+            pitgt_new2 = pd.DataFrame()
+            for tgt2_glofrag in tgt2_glofrags:
+                pitgt_new = pitgtdf[(pitgtdf['I'] == tgt2_glofrag) |(pitgtdf['J'] == tgt2_glofrag)]
+                pitgt_new2 = pitgt_new2.append(pitgt_new)
+
+            if self.fragmode != 'manual':
+                print('len_frags', len(frags))
+
+                for i in range(1, len(frags) + 1):
+                    pitgt_new2.I = pitgt_new2.I.replace(i, frags[i-1])
+                    pitgt_new2.J = pitgt_new2.J.replace(i, frags[i-1])
+            self.pidf_filters = pitgt_new2
 
         return self
 
@@ -1499,22 +1624,67 @@ class anlfmo(pdio.pdb_io):
                     print(path + '/' + ocsv + ' was created.')
 
             else:
-                tgtid = self.tgt1frag[0]
-                try:
-                    ohead = head + '-' + str(tgtid) + '-' + frags[tgtid - 1]
-                except:
-                    ohead = head + '-' + str(tgtid)
+                if self.tgt2type == 'dist':
+                    tgtid = self.tgt1frag[0]
+                    try:
+                        ohead = head + '-' + str(tgtid) + '-' + frags[tgtid - 1]
+                    except:
+                        ohead = head + '-' + str(tgtid)
 
-                # print(self.pidf_filter.head())
+                    # print(self.pidf_filter.head())
 
-                # tgtdf.to_csv(path + '/' + ohead + '-ifie.csv')
-                oifie = ohead + '-ifie_' + 'dist' + str(self.dist) + '.csv'
-                opieda = ohead + '-pieda_' + 'dist' + str(self.dist) + '.csv'
-                self.ifdf_filter.to_csv(path + '/' + oifie)
-                self.pidf_filter.to_csv(path + '/' + opieda)
+                    # tgtdf.to_csv(path + '/' + ohead + '-ifie.csv')
+                    oifie = ohead + '-ifie_' + 'dist' + str(self.dist) + '.csv'
+                    opieda = ohead + '-pieda_' + 'dist' + str(self.dist) + '.csv'
+                    self.ifdf_filter.to_csv(path + '/' + oifie)
+                    self.pidf_filter.to_csv(path + '/' + opieda)
 
-                print(path + '/' + oifie, path + '/' + opieda, 'was generated.')
+                    print(path + '/' + oifie, path + '/' + opieda, 'was generated.')
 
+                elif self.tgt2type == 'frag':
+
+                    tgt1s = self.tgt1frag
+                    count = 0
+                    for tgt1 in tgt1s:
+                        ohead = head + '-frag' + str(tgt1) + '-frag' + str(self.tgt2frag[0]) + '-' + str(self.tgt2frag[-1])
+                        # print(self.pidf_filter.head())
+                        # tgtdf.to_csv(path + '/' + ohead + '-ifie.csv')
+                        oifie = ohead + '-ifie.csv'
+                        opieda = ohead + '-pieda.csv'
+                        self.ifdf_filters[count].to_csv(path + '/' + oifie)
+                        self.pidf_filters[count].to_csv(path + '/' + opieda)
+                        print(path + '/' + oifie, path + '/' + opieda, 'was generated.')
+                        count += 1
+                    # N:1 sheet
+                    for j in range(len(self.ifdf_filters)):
+                        if j == 0:
+                            ifdf_fil_n1 = self.ifdf_filters[j]
+                            pidf_fil_n1 = self.pidf_filters[j]
+                        else:
+                            ifdf_fil_n1 += self.ifdf_filters[j].values
+                            pidf_fil_n1 += self.pidf_filters[j].values
+
+                    ohead = head + '-frag' + str(self.tgt1frag[0]) + '-' + str(self.tgt1frag[-1]) + '-frag' + str(self.tgt2frag[0]) + '-' + str(self.tgt2frag[-1]) + 'n-1sum'
+
+                    oifie = ohead + '-ifie.csv'
+                    opieda = ohead + '-pieda.csv'
+
+                    ifdf_fil_n1 = ifdf_fil_n1.reset_index(drop=True)
+                    pidf_fil_n1 = pidf_fil_n1.reset_index(drop=True)
+
+                    ifdf_fil_n1["I"] = str(self.tgt1frag[0]) + '-' + str(self.tgt1frag[-1])
+                    ifdf_fil_n1["J"] = self.tgt2frag
+
+                    pidf_fil_n1['I'] = str(self.tgt1frag[0]) + '-' + str(self.tgt1frag[-1])
+                    pidf_fil_n1['J'] = self.tgt2frag
+# 
+                    del ifdf_fil_n1['DIMER-ES']
+                    del ifdf_fil_n1['DIST']
+
+                    ifdf_fil_n1.to_csv(path + '/' + oifie)
+                    pidf_fil_n1.to_csv(path + '/' + opieda)
+
+                    print(path + '/' + oifie, path + '/' + opieda, 'was generated.')
 
         if self.anlmode == 'multi':
             head = self.ilog_head
@@ -1667,73 +1837,6 @@ class anlfmo(pdio.pdb_io):
             self.pidf_filters.to_csv(path + '/' + ohead + '-pieda.csv')
             print(ohead + '-ifie.csv', ohead + '-pieda.csv generated.')
 
-    def filterpiedawrap(self):
-        ### filter
-        # frag-frag mode
-        frags = self.frags
-        if self.anlmode == 'frag':
-            if  self.matrixtype == 'frags-frags':
-                self.gettgtpidf_n2ffmatrix()
-            else:
-                pitgtdf = self.getpitgtdf(self.pidf, self.ifdf_filter)
-                if self.fragmode != 'manual':
-                    # print('len_frags', len(frags))
-                    #assign resname(e.g. Gly6)
-                    for i in range(1, len(frags) + 1):
-                        pitgtdf.I = pitgtdf.I.replace(i, frags[i-1])
-                        pitgtdf.J = pitgtdf.J.replace(i, frags[i-1])
-
-                self.pidf_filter = pitgtdf
-            # multi mode
-
-        # mol-mol mode
-        if self.anlmode == 'mol':
-            pidf = self.pidf
-            pieda_permols = []
-            for contactmolfrag in self.contactmolfrags:
-                pieda_permol = pd.DataFrame(columns=self.pcolumn)
-                for contact in contactmolfrag:
-                    for tgtfrag in self.molfrags:
-                        # print(contact, tgtfrag)
-                        pieda_permol = pieda_permol.append(pidf[((pidf['I'] == contact) & (pidf['J'] == tgtfrag)) | ((pidf['I'] == tgtfrag) & (pidf['J'] == contact))])
-                pieda_permols.append(pieda_permol)
-                # print(pieda_permol, file=plogdt)
-
-            count = 0
-            if self.abinit_ver == 'rev17' or self.abinit_ver == 'rev16':
-                piedasums = [['contactmolfrag', 'tgtmolfrags', 'ES', 'EX', 'Solv(ES)', 'CT-mix', 'DI(MP2)', 'a(I=>J)']]
-            else:
-                piedasums = [['contactmolfrag', 'tgtmolfrags', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'a(I=>J)']]
-            for datadf in pieda_permols:
-                piedasums.append([self.contactmolfrags[count], self.molfrags, datadf['ES'].sum(), datadf['EX'].sum(), datadf['CT-mix'].sum(), datadf['DI(MP2)'].sum(),  datadf['q(I=>J)'].sum()])
-                count += 1
-
-                self.piedasums = piedasums
-                self.pieda_permols = pieda_permols
-
-        # fraginmol mode
-        if self.anlmode == 'fraginmol':
-            pidf = self.pidf
-            tgt1_glofrag = self.tgt1_glofrag
-            tgt2_glofrags = self.tgt2_glofrags
-            print('--- pieda ----')
-            pitgtdf = pidf[pidf['I'] == tgt1_glofrag]
-            pitgtdf = pitgtdf.append(pidf[pidf['J'] == tgt1_glofrag])
-
-            pitgt_new2 = pd.DataFrame()
-            for tgt2_glofrag in tgt2_glofrags:
-                pitgt_new = pitgtdf[(pitgtdf['I'] == tgt2_glofrag) |(pitgtdf['J'] == tgt2_glofrag)]
-                pitgt_new2 = pitgt_new2.append(pitgt_new)
-
-            if self.fragmode != 'manual':
-                print('len_frags', len(frags))
-
-                for i in range(1, len(frags) + 1):
-                    pitgt_new2.I = pitgt_new2.I.replace(i, frags[i-1])
-                    pitgt_new2.J = pitgt_new2.J.replace(i, frags[i-1])
-            self.pidf_filters = pitgt_new2
-
-        return self
 
 
 
