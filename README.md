@@ -34,4 +34,5 @@ python setup.py install
 v1.0.1 create repository
 v1.2.0 reform directory
 v1.4.0 add svd and get matrix for mp3
+v1.4.1 add single N:N mode
 
