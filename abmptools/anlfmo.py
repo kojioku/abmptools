@@ -45,8 +45,7 @@ class anlfmo(pdio.pdb_io):
         self.tgtpos =[]
         self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL']
         self.pcolumn = ['I', 'J', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'q(I=>J)']
-        self.ifdfsumcolumn = ['HF-IFIE', 'MP2-IFIE', 'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL']
-        self.pidfsumcolumn = ['ES', 'EX', 'CT-mix', 'DI(MP2)', 'q(I=>J)']
+        self.ifdfsumcolumn = ['HF-IFIE', 'MP2-IFIE', 'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'q(I=>J)']
         self.logMethod = 'MP2'
 
 
@@ -623,7 +622,7 @@ class anlfmo(pdio.pdb_io):
             ifiesums = [['contactmolfrag', 'tgtmolfrags', 'HF-IFIE', 'MP2-IFIE', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'a(I=>J)']]
 
         for datadf in ifie_permols:
-            ifiesums.append([contactmolfrags[count], molfrags, datadf['HF-IFIE'].sum(), datadf['MP2-IFIE'], datadf['ES'].sum(), \
+            ifiesums.append([contactmolfrags[count], molfrags, datadf['HF-IFIE'].sum(), datadf['MP2-IFIE'].sum(), datadf['ES'].sum(), \
                              datadf['EX'].sum(), datadf['CT-mix'].sum(), datadf['DI(MP2)'].sum(),  datadf['q(I=>J)'].sum()])
             count += 1
 
@@ -775,21 +774,22 @@ class anlfmo(pdio.pdb_io):
         # ifie
         ifdf_filter = pd.DataFrame()
         ifdf_filter = self.gettgtdf_ff(ifdf, self.tgt1frag[0], self.tgt2frag[0])
-        ifdf_filter = ifdf_filter.rename(index={ifdf_filter.index[0]:self.tgttimes[i]})
         # print(ifdf_filter)
+        ifdf_filter = pd.merge(ifdf_filter, pidf, on=['I', 'J'], how='left')
+        ifdf_filter = ifdf_filter.rename(index={ifdf_filter.index[0]:self.tgttimes[i]})
 
         # pieda
-        pitgtdf_filter = self.gettgtdf_ff(pidf, self.tgt1frag[0], self.tgt2frag[0])
-        if len(pitgtdf_filter) == 0:
-            esdata = ifdf_filter['HF-IFIE'][0]
-            tmpps = pd.Series([self.tgt1frag[0], self.tgt2frag[0], esdata, 0.0, 0.0, 0.0, 0.0], index=self.pcolumn, name =self.tgttimes[i])
-            pitgtdf_filter = pitgtdf_filter.append(tmpps)
-        else:
-            pitgtdf_filter = pitgtdf_filter.rename(index={pitgtdf_filter.index[0]:self.tgttimes[i]})
+#         pitgtdf_filter = self.gettgtdf_ff(pidf, self.tgt1frag[0], self.tgt2frag[0])
+#         if len(pitgtdf_filter) == 0:
+#             esdata = ifdf_filter['HF-IFIE'][0]
+#             tmpps = pd.Series([self.tgt1frag[0], self.tgt2frag[0], esdata, 0.0, 0.0, 0.0, 0.0], index=self.pcolumn, name =self.tgttimes[i])
+#             pitgtdf_filter = pitgtdf_filter.append(tmpps)
+#         else:
+#             pitgtdf_filter = pitgtdf_filter.rename(index={pitgtdf_filter.index[0]:self.tgttimes[i]})
+# 
+#             # print(pitgtdf_filter)
 
-            # print(pitgtdf_filter)
-
-        return ifdf_filter, pitgtdf_filter
+        return ifdf_filter
 
 
     def getfiltifpifm(self, i, ifdf, pidf):
@@ -827,7 +827,9 @@ class anlfmo(pdio.pdb_io):
         for frag1p in frag1s:
             for tgt2frag in tgtmolfrags:
                 ifdf_filters = ifdf_filters.append(self.gettgtdf_ff(ifdf, frag1p, tgt2frag))
-            print('ifdf_filters\n', ifdf_filters)
+            # print('ifdf_filters\n', ifdf_filters)
+
+        ifdf_filters = pd.merge(ifdf_filters, pidf, on=['I', 'J'], how='left')
 
         HF_IFIE_sum = ifdf_filters['HF-IFIE'].sum()
         MP2_IFIE_sum = ifdf_filters['MP2-IFIE'].sum()
@@ -836,40 +838,39 @@ class anlfmo(pdio.pdb_io):
         JUNG_sum = ifdf_filters['JUNG'].sum()
         HILL_sum = ifdf_filters['HILL'].sum()
 
+        ES_sum = ifdf_filters['ES'].sum()
+        EX_sum = ifdf_filters['EX'].sum()
+        CT_sum = ifdf_filters['CT-mix'].sum()
+        DI_sum = ifdf_filters['DI(MP2)'].sum()
+        q_sum = ifdf_filters['q(I=>J)'].sum()
+
         ifdf_filters['TIMES'] = self.tgttimes[i]
 
-        ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum], index=self.ifdfsumcolumn, name=self.tgttimes[i])
+        ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum], index=self.ifdfsumcolumn, name=self.tgttimes[i])
 
         print('ifdfsum\n', ifdfsum)
 
         # pieda
         # if pidf.empty:
             # continue
-        pidf_filters = pd.DataFrame(columns=self.pcolumn)
-        for frag1p in self.frag1s:
-            for tgt2frag in tgtmolfrags:
-                pidf_filter = self.gettgtdf_ff(pidf, frag1p, tgt2frag)
-                if len(pidf_filter) == 0:
-                    esdata = self.gettgtdf_ff(ifdf, frag1p, tgt2frag)['HF-IFIE'].values[0]
-                    tmpps = pd.Series([frag1p, self.tgt2frag, esdata, 0.0, 0.0, 0.0, 0.0], index=self.pcolumn, name=self.tgttimes[i])
-                    # print(tmpps.index)
-                    pidf_filters = pidf_filters.append(tmpps)
-                else:
-                    pidf_filters = pidf_filters.append(pidf_filter)
+#         pidf_filters = pd.DataFrame(columns=self.pcolumn)
+#         for frag1p in self.frag1s:
+#             for tgt2frag in tgtmolfrags:
+#                 pidf_filter = self.gettgtdf_ff(pidf, frag1p, tgt2frag)
+#                 if len(pidf_filter) == 0:
+#                     esdata = self.gettgtdf_ff(ifdf, frag1p, tgt2frag)['HF-IFIE'].values[0]
+#                     tmpps = pd.Series([frag1p, self.tgt2frag, esdata, 0.0, 0.0, 0.0, 0.0], index=self.pcolumn, name=self.tgttimes[i])
+#                     # print(tmpps.index)
+#                     pidf_filters = pidf_filters.append(tmpps)
+#                 else:
+#                     pidf_filters = pidf_filters.append(pidf_filter)
 
-        ES_sum = pidf_filters['ES'].sum()
-        EX_sum = pidf_filters['EX'].sum()
-        CT_sum = pidf_filters['CT-mix'].sum()
-        DI_sum = pidf_filters['DI(MP2)'].sum()
-        q_sum = pidf_filters['q(I=>J)'].sum()
 
-        pidf_filters['TIMES'] = self.tgttimes[i]
+        # pidf_filters['TIMES'] = self.tgttimes[i]
 
-        pidfsum = pd.Series([ES_sum, EX_sum, CT_sum, DI_sum, q_sum], index=self.pidfsumcolumn, name=self.tgttimes[i])
+        # pidfsum = pd.Series([ES_sum, EX_sum, CT_sum, DI_sum, q_sum], index=self.pidfsumcolumn, name=self.tgttimes[i])
 
-        print(pidfsum)
-
-        return ifdf_filters, pidf_filters, ifdfsum, pidfsum
+        return ifdf_filters, ifdfsum
 
 
     def getfiltifpifd(self, i, ifdf, pidf):
@@ -882,42 +883,35 @@ class anlfmo(pdio.pdb_io):
         # get tgt frag id
         ifdf, ifdf_filter = self.gettgtdf_fd(ifdf)
 
+        ifdf_filter = pd.merge(ifdf_filter, pidf, on=['I', 'J'], how='left')
+
+        ifdf_filter['TIMES'] = self.tgttimes[i]
+
         HF_IFIE_sum = ifdf_filter['HF-IFIE'].sum()
         MP2_IFIE_sum = ifdf_filter['MP2-IFIE'].sum()
         PR_TYPE1_sum = ifdf_filter['PR-TYPE1'].sum()
         GRIMME_sum = ifdf_filter['GRIMME'].sum()
         JUNG_sum = ifdf_filter['JUNG'].sum()
         HILL_sum = ifdf_filter['HILL'].sum()
+        ES_sum = ifdf_filter['ES'].sum()
+        EX_sum = ifdf_filter['EX'].sum()
+        CT_sum = ifdf_filter['CT-mix'].sum()
+        DI_sum = ifdf_filter['DI(MP2)'].sum()
+        q_sum = ifdf_filter['q(I=>J)'].sum()
 
-        ifdf_filter['TIMES'] = self.tgttimes[i]
-
-        ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum], index=self.ifdfsumcolumn, name=self.tgttimes[i])
-
+        ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum], index=self.ifdfsumcolumn, name=self.tgttimes[i])
         print(ifdfsum)
 
         # pieda
         frags = self.frags
-        pidf_filter = pd.DataFrame()
-
-        pidf_filter = self.getpitgtdf(pidf, ifdf_filter)
         if self.fragmode != 'manual':
             # print('len_frags', len(frags))
             #assign resname(e.g. Gly6)
             for j in range(1, len(frags) + 1):
-                pidf_filter.I = pidf_filter.I.replace(j, frags[j-1])
-                pidf_filter.J = pidf_filter.J.replace(j, frags[j-1])
+                ifdf_filter.I = ifdf_filter.I.replace(j, frags[j-1])
+                ifdf_filter.J = ifdf_filter.J.replace(j, frags[j-1])
 
-        ES_sum = pidf_filter['ES'].sum()
-        EX_sum = pidf_filter['EX'].sum()
-        CT_sum = pidf_filter['CT-mix'].sum()
-        DI_sum = pidf_filter['DI(MP2)'].sum()
-        q_sum = pidf_filter['q(I=>J)'].sum()
-
-        pidf_filter['TIMES'] = self.tgttimes[i]
-
-        pidfsum = pd.Series([ES_sum, EX_sum, CT_sum, DI_sum, q_sum], index=self.pidfsumcolumn, name=self.tgttimes[i])
-
-        return ifdf_filter, pidf_filter, ifdfsum, pidfsum
+        return ifdf_filter, ifdfsum
 
 
     def read_ifpif90(self, tgtlog):
@@ -1074,18 +1068,17 @@ class anlfmo(pdio.pdb_io):
                 return hfdfs, mp2corrdfs, prmp2corrdfs, mp2tdfs, prmp2tdfs, esdfs, exdfs, ctdfs
 
             else:
-                ifdf_filter, pidf_filter = self.getfiltifpiff(i, ifdf, pidf)
+                ifdf_filter = self.getfiltifpiff(i, ifdf, pidf)
                 iftgtdfsum = None
-                pitgtdfsum = None
-                return ifdf_filter, pidf_filter
+                return ifdf_filter
 
         if tgt2type == 'molname':
-            ifdf_filter, pidf_filter, ifdfsum, pidfsum = self.getfiltifpifm(i, ifdf, pidf)
-            return ifdf_filter, pidf_filter, ifdfsum, pidfsum
+            ifdf_filter, ifdfsum = self.getfiltifpifm(i, ifdf, pidf)
+            return ifdf_filter, ifdfsum
 
         if tgt2type == 'dist':
-            ifdf_filter , pidf_filter, ifdfsum, pidfsum = self.getfiltifpifd(i, ifdf, pidf)
-            return ifdf_filter , pidf_filter, ifdfsum, pidfsum
+            ifdf_filter, ifdfsum  = self.getfiltifpifd(i, ifdf, pidf)
+            return ifdf_filter, ifdfsum
 
         else:
             print('tgt2type error!!')
@@ -1110,9 +1103,16 @@ class anlfmo(pdio.pdb_io):
              # i: time j:type, k:tgt1frag
             # [[hfdf[time 1][frag 1, frag2...], , mp2df[time 1], ...], [hfdf[time 2], mp2df[time 2], ...], ...]
             delids = []
+
+            pd.set_option('display.width', 500)
+            print(len(ifpidfs))
+
             for i in range(len(ifpidfs)):
-                if ifpidfs[i] == None:
-                    delids.append(i)
+                try:
+                    if ifpidfs[i] == None:
+                        delids.append(i)
+                except:
+                    pass
             dellist = lambda items, indexes: [item for index, item in enumerate(items) if index not in indexes]
             ifpidfs = dellist(ifpidfs, delids)
 
@@ -1147,24 +1147,17 @@ class anlfmo(pdio.pdb_io):
 
                 else:
                     self.ifdf_filters = pd.DataFrame()
-                    self.pidf_filters = pd.DataFrame()
                     for dfs in ifpidfs:
-                        self.ifdf_filters = self.ifdf_filters.append(dfs[0])
-                        self.pidf_filters = self.pidf_filters.append(dfs[1])
+                        self.ifdf_filters = self.ifdf_filters.append(dfs)
 
 
             if self.tgt2type == 'molname' or self.tgt2type == 'dist':
                 self.ifdf_filters = pd.DataFrame()
-                self.pidf_filters = pd.DataFrame()
-                self.ifdfsum = pd.DataFrame()
-                self.pidfsum = pd.DataFrame()
+                self.ifdfsum = pd.DataFrame(columns=self.ifdfsumcolumn)
 
                 for dfs in ifpidfs:
-                    print(dfs[0])
                     self.ifdf_filters = self.ifdf_filters.append(dfs[0])
-                    self.pidf_filters = self.pidf_filters.append(dfs[1])
-                    self.ifdfsum = self.ifdfsum.append(dfs[2])
-                    self.pidfsum = self.pidfsum.append(dfs[3])
+                    self.ifdfsum = self.ifdfsum.append(dfs[1])
 
             p.close()
             print('read elapsed', time.time() - st)
@@ -1531,13 +1524,8 @@ class anlfmo(pdio.pdb_io):
                     except:
                         ohead = head + '-' + str(tgtid)
 
-                    # print(self.pidf_filter.head())
-
-                    # tgtdf.to_csv(path + '/' + ohead + '-ifie.csv')
                     oifie = ohead + '-ifie_' + 'dist' + str(self.dist) + '.csv'
-                    # opieda = ohead + '-pieda_' + 'dist' + str(self.dist) + '.csv'
                     self.ifdf_filter.to_csv(path + '/' + oifie)
-                    # self.pidf_filter.to_csv(path + '/' + opieda)
 
                     print(path + '/' + oifie, 'was generated.')
 
@@ -1547,13 +1535,9 @@ class anlfmo(pdio.pdb_io):
                     count = 0
                     for tgt1 in tgt1s:
                         ohead = head + '-frag' + str(tgt1) + '-frag' + str(self.tgt2frag[0]) + '-' + str(self.tgt2frag[-1])
-                        # print(self.pidf_filter.head())
-                        # tgtdf.to_csv(path + '/' + ohead + '-ifie.csv')
                         oifie = ohead + '-ifie.csv'
-                        # opieda = ohead + '-pieda.csv'
                         self.ifdf_filters[count].to_csv(path + '/' + oifie)
-                        # self.pidf_filters[count].to_csv(path + '/' + opieda)
-                        print(path + '/' + oifie, path + '/' + opieda, 'was generated.')
+                        print(path + '/' + oifie, 'was generated.')
                         count += 1
                     # N:1 sheet
                     for j in range(len(self.ifdf_filters)):
@@ -1567,22 +1551,17 @@ class anlfmo(pdio.pdb_io):
                     ohead = head + '-frag' + str(self.tgt1frag[0]) + '-' + str(self.tgt1frag[-1]) + '-frag' + str(self.tgt2frag[0]) + '-' + str(self.tgt2frag[-1]) + 'n-1sum'
 
                     oifie = ohead + '-ifie.csv'
-                    # opieda = ohead + '-pieda.csv'
 
                     ifdf_fil_n1 = ifdf_fil_n1.reset_index(drop=True)
-                    # pidf_fil_n1 = pidf_fil_n1.reset_index(drop=True)
 
                     ifdf_fil_n1["I"] = str(self.tgt1frag[0]) + '-' + str(self.tgt1frag[-1])
                     ifdf_fil_n1["J"] = self.tgt2frag
 
-                    # pidf_fil_n1['I'] = str(self.tgt1frag[0]) + '-' + str(self.tgt1frag[-1])
-                    # pidf_fil_n1['J'] = self.tgt2frag
 #
                     del ifdf_fil_n1['DIMER-ES']
                     del ifdf_fil_n1['DIST']
 
                     ifdf_fil_n1.to_csv(path + '/' + oifie)
-                    # pidf_fil_n1.to_csv(path + '/' + opieda)
 
                     print(path + '/' + oifie, 'was generated.')
 
@@ -1646,10 +1625,8 @@ class anlfmo(pdio.pdb_io):
                     tgt1frag = self.tgt1frag[0]
                     tgt2frag = self.tgt2frag[0]
                     oifie = 'frag' + str(tgt1frag) + '-frag' + str(tgt2frag) + '-ifie.csv'
-                    opieda = 'frag' + str(tgt1frag) + '-frag' + str(tgt2frag) + '-pieda.csv'
                     self.ifdf_filters.to_csv(path + '/' + oifie)
-                    self.pidf_filters.to_csv(path + '/' + opieda)
-                    print(path + '/' + oifie, path + '/' + opieda, 'was created.')
+                    print(path + '/' + oifie, 'was created.')
 
 
             if tgt2type == 'molname' or tgt2type == 'dist':
@@ -1659,25 +1636,19 @@ class anlfmo(pdio.pdb_io):
                 if tgt2type == 'molname':
                     tgt2molname = self.tgt2molname
                     oifie = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-ifiesum.csv'
-                    opieda = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-piedasum.csv'
                     oifiedt = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-ifiedt.csv'
-                    opiedadt = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-piedadt.csv'
 
                 if tgt2type == 'dist':
                     tgt2dist = self.dist
                     oifie = 'frag' + str(tgt1frag) + '-dist' + str(tgt2dist) + '-ifiesum.csv'
-                    opieda = 'frag' + str(tgt1frag) + '-dist' + str(tgt2dist) +'-piedasum.csv'
                     oifiedt = 'frag' + str(tgt1frag) + '-dist' + str(tgt2dist) + '-ifiedt.csv'
-                    opiedadt = 'frag' + str(tgt1frag) + '-dist' + str(tgt2dist) + '-piedadt.csv'
 
 
                 self.ifdfsum.to_csv(path + '/' + oifie)
-                self.pidfsum.to_csv(path + '/' + opieda)
                 self.ifdf_filters.to_csv(path + '/' + oifiedt)
-                self.pidf_filters.to_csv(path + '/' + opiedadt)
 
-                print(path + '/' + oifie, path + '/' + opieda)
-                print(path + '/' + oifiedt, path + '/' + opiedadt, 'was created.')
+                print(path + '/' + oifie)
+                print(path + '/' + oifiedt, 'was created.')
 
 
 
@@ -1698,43 +1669,32 @@ class anlfmo(pdio.pdb_io):
 
             ilogdtname = path + '/' + head + '_ifie-mol-' +  selecttype + str(tgtid) + 'dist' + str(dist) + '.txt'
             isumname = path + '/' + head + '_ifiesum-mol-' + selecttype + str(tgtid) + 'dist' + str(dist) + '.csv'
-            # plogdtname = path + '/' + head + '_pieda-mol-' + selecttype + str(tgtid) + 'dist' + str(dist) + '.txt'
-            # psumname = path + '/' + head + '_piedasum-mol-' + selecttype  + str(tgtid) + 'dist' + str(dist) + '.csv'
 
             # write section
             ilogdt = open(ilogdtname, 'w')
+
+            pd.set_option('display.width', 500)
             for ifie_permol in ifie_permols:
                 print(ifie_permol, file=ilogdt)
 
-#             plogdt = open(plogdtname, 'w')
-#             for pieda_permol in pieda_permols:
-#                 print(pieda_permol, file=plogdt)
 
             with open(isumname, 'w') as f:
                 writer = csv.writer(f, lineterminator='\n')
                 writer.writerows(ifiesums)
 
-#             with open(psumname, 'w') as f:
-#                 writer = csv.writer(f, lineterminator='\n')
-#                 # writer.writerow(list)
-#                 writer.writerows(piedasums)
 
             print('---out---')
             print(ilogdtname)
             print(isumname)
-            # print(plogdtname)
-            # print(psumname)
 
         if self.anlmode == 'fraginmol':
             if head == None:
                 head, ext = os.path.splitext(self.tgtlogs)
 
             ohead = head + '-' 'frag' + str(self.tgt1_glofrag) + '-mol' + str(self.tgt2molname) + 'frag' + str(self.tgt2_lofrag)
-            # print(lpitgt_new2.head())
 
             self.ifdf.to_csv(path + '/' + head + '-ifie.csv')
             self.ifdf_filters.to_csv(path + '/' + ohead + '-ifie_'  + 'dist' + str(self.dist) + '.csv')
-            # self.pidf_filters.to_csv(path + '/' + ohead + '-pieda.csv')
             print(ohead + '-ifie.csv was generated.')
 
 
