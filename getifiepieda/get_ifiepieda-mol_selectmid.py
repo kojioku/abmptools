@@ -33,8 +33,6 @@ aobj.tgtmolid = int(sys.argv[2])
 
 aobj = aobj.readifiewrap(logname)
 aobj = aobj.filterifiewrap()
-aobj = aobj.readpiedawrap()
-aobj = aobj.filterpiedawrap()
 
 
 # print('ifdf\n', aobj.ifdfs)

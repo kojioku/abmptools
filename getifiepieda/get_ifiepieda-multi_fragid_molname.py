@@ -42,9 +42,6 @@ tgt1 = sys.argv[1]
 tgt2 = sys.argv[2]
 
 aobj = aobj.readifiewrap(tgt1, tgt2)
-# aobj = aobj.filterifiewrap()
-# aobj = aobj.readpiedawrap()
-# aobj = aobj.filterpiedawrap()
 
 
 # print('ifdf\n', aobj.ifdfs)

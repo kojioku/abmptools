@@ -21,26 +21,17 @@ aobj.anlmode= 'mol' #frag, 'mol', 'fraginmol', 'ff-multi'
 aobj.fragmode = 'manual'  #'hybrid', 'auto', 'manual'
 aobj.dist = 2.5
 aobj.abinit_ver='rev15'
+aobj.selecttype = 'fragid'
 
 
 print(aobj.tgt2type)
 # ---- user setting end ---
 
 logname = sys.argv[1]
-tgtmolfrag = sys.argv[2]
+tgtmolfrag = int(sys.argv[2])
+
 aobj = aobj.readifiewrap(logname, tgtmolfrag)
 aobj = aobj.filterifiewrap()
-aobj = aobj.readpiedawrap()
-aobj = aobj.filterpiedawrap()
-
-
-# print('ifdf\n', aobj.ifdfs)
-# print('ifdf_filter\n', aobj.ifdf_filters)
-# print('pidf\n', aobj.pidfs)
-# # print('pitgtdf\n', aobj.pitgtdfs)
-# print('pitgtdf\n', aobj.pidf_filters)
-
-
 aobj.writecsvwrap()
 
 
