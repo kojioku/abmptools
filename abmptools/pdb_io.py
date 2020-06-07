@@ -223,6 +223,7 @@ class pdb_io(fab.abinit_io):
             totalRes = len(resnames)
 
             gatmlabRes = self.getpermol(totalRes, molnums, resnames, nums)
+            resnameRes = self.getpermol(totalRes, molnums, resnames, molnames)
             posRes = self.getpermol(totalRes, molnums, resnames, poss)
             atmtypeRes = self.getpermol(totalRes, molnums, resnames, atypenames)
             headRes = self.getpermol(totalRes, molnums, resnames, heads)
@@ -261,6 +262,7 @@ class pdb_io(fab.abinit_io):
             totalRes = len(anummols)
             # print(totalRes)
             gatmlabRes = self.getpermol2(totalRes, anummols, nums)
+            resnameRes = self.getpermol2(totalRes, anummols, molnames)
             posRes = self.getpermol2(totalRes, anummols, poss)
             atmtypeRes = self.getpermol2(totalRes, anummols, atypenames)
             headRes = self.getpermol2(totalRes, anummols, heads)
@@ -321,6 +323,7 @@ class pdb_io(fab.abinit_io):
         self.totalRes = totalRes
         self.atmtypeRes = atmtypeRes
         self.resnames = resnames
+        self.resnameRes = resnameRes
         self.gatmlabRes = gatmlabRes
         self.posRes = posRes
         self.headRes = headRes
