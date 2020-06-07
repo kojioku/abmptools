@@ -30,8 +30,6 @@ aobj.interval = 1000
 
 aobj.ilog_head = '6lu7orig_md040j8_163neu-'
 aobj.ilog_tail = '-hopt-ps-mod_forabmp_192n-2p-24t.log'
-# aobj.pdb_head = '6lu7orig_md0408_163hip'
-# aobj.pdb_tail = '-hopt--mod_forabmp.pdb'
 
 aobj.tgt2type = 'dist'
 aobj.pynp = 4

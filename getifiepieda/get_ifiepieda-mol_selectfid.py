@@ -23,7 +23,6 @@ aobj.dist = 2.5
 aobj.abinit_ver='rev15'
 aobj.selecttype = 'fragid'
 
-
 print(aobj.tgt2type)
 # ---- user setting end ---
 
@@ -33,8 +32,6 @@ tgtmolfrag = int(sys.argv[2])
 aobj = aobj.readifiewrap(logname, tgtmolfrag)
 aobj = aobj.filterifiewrap()
 aobj.writecsvwrap()
-
-
 
 
 '''

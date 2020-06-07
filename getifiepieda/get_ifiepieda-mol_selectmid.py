@@ -34,14 +34,6 @@ aobj.tgtmolid = int(sys.argv[2])
 aobj = aobj.readifiewrap(logname)
 aobj = aobj.filterifiewrap()
 
-
-# print('ifdf\n', aobj.ifdfs)
-# print('ifdf_filter\n', aobj.ifdf_filters)
-# print('pidf\n', aobj.pidfs)
-# # print('pitgtdf\n', aobj.pitgtdfs)
-# print('pitgtdf\n', aobj.pidf_filters)
-
-
 aobj.writecsvwrap()
 
 

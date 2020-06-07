@@ -32,7 +32,6 @@ aobj.tgt2_lofrag = 1
 # ---- user setting end ---
 
 logname = sys.argv[1]
-aobj.pdbname = sys.argv[2]
 
 aobj = aobj.readifiewrap(logname)
 aobj = aobj.filterifiewrap()

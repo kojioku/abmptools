@@ -28,8 +28,6 @@ aobj.interval = 500
 
 aobj.ilog_head = 'sbecd7_50nsdynamics_namd'
 aobj.ilog_tail = '-moved-sed-around-8.0-for_abmp.log'
-aobj.pdb_head = 'sbecd7_50nsdynamics_namd'
-aobj.pdb_tail = '-moved-sed-around-8.0-for_abmp.pdb'
 
 aobj.pynp = 4
 aobj.tgt2type = 'molname'

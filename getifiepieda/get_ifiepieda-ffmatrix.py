@@ -19,6 +19,7 @@ aobj.tgt2type = 'frag'
 aobj.matrixtype='frags-frags'
 aobj.f90soflag = True
 aobj.logMethod = 'MP3'
+aobj.addresinfo = True
 
 print('tgt2type', aobj.tgt2type)
 # ---- user setting end ---
