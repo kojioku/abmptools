@@ -91,7 +91,6 @@ class abinit_io(mi.mol_io):
             frag_connect = self.connects
             seg_info = self.fatminfos
 
-
         ajf_fragment = ''
         # fragment atom
         for i in range(len(frag_atom)):
@@ -131,17 +130,20 @@ class abinit_io(mi.mol_io):
 
         # fragment body
         atom_count = 0
+        # i: mol j: frag, k:frag atom
         for i in range(len(seg_info)):
             for j in range(len(seg_info[i])):
                 icount = 0
                 for k in range(len(seg_info[i][j])):
                     icount += 1
                     ajf_fragment += '%8d' % (seg_info[i][j][k] + atom_count)
+                    # print(seg_info[i][j][k] + atom_count, 'icount', icount)
                     if icount % 10 is 0:
                         icount = 0
                         ajf_fragment += '\n'
-            if icount % 10 != 0:
-                ajf_fragment += '\n'
+
+                if icount % 10 != 0:
+                    ajf_fragment += '\n'
             atom_count += sum(frag_atom[0])
 
         atom_count = 0

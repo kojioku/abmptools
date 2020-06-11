@@ -326,6 +326,7 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
     def getfragtable(self, molset, atomnums, nameid):
         # print make_input_param
 
+        print('getfragtable')
         # fragment configure reading
         frag_atom = []
         frag_charge = []
