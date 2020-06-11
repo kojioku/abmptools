@@ -693,6 +693,7 @@ class anlfmo(pdio.pdb_io):
 
     def gettgtdf_ffs(self, df, frag1, frag2):
         # print('--- ifie frag ', frag1, frag2, '----')
+        print(frag1, frag2)
         tgtdf_filter = df[((df['I'] == frag1) & (df['J'].isin(frag2))) | ((df['I'].isin(frag2)) & (df['J'] == frag1))]
         # tgtdf_filter = df[((df['I'] == frag1) & (df['J'] == frag2)) | ((df['I'] == frag2) & (df['J'] == frag1))]
         return tgtdf_filter
@@ -1333,9 +1334,6 @@ class anlfmo(pdio.pdb_io):
 
 
     def setupreadparm(self, item1=None, item2=None, item3=None):
-        print('anlmode:' ,self.anlmode)
-        print('fragmode:', self.fragmode)
-        print('np =:', self.pynp)
 
         tgtlogs = []
         tgtpdbs = []
@@ -1388,7 +1386,7 @@ class anlfmo(pdio.pdb_io):
                         for dfrag in self.exceptfrag:
                             try:
                                 del self.tgt2frag[self.tgt2frag.index(dfrag)]
-                                print('del frag', dfrag, 'from tgt2')
+                                print('- Info: del frag', dfrag, 'from tgt2')
                             except:
                                 pass
                 print('tgt1frag, tgt2frag', self.tgt1frag, self.tgt2frag)
@@ -1429,23 +1427,30 @@ class anlfmo(pdio.pdb_io):
                     self.tgt1frag = [item2]
             if self.tgt2type == 'frag':
                 if item2 != None:
-                    print('type', type(item2))
+                    # print('type tgt2', type(item2))
                     if type(item2) == str:
                         if '-' in item2:
                             tgt = item2.split('-')
                             print('tgt1', tgt)
                             self.tgt1frag = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
+                        else:
+                            self.tgt1frag = [eval(item2)]
+
                     else:
                         self.tgt1frag = [item2]
                 if item3 != None:
-                    print('type', type(item3))
+                    # print('type tgt2', type(item3))
                     if type(item3) == str:
                         if '-' in item3:
                             tgt = item3.split('-')
                             print('tgt2', tgt)
                             self.tgt2frag = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
+                        else:
+                            self.tgt2frag = [eval(item3)]
+
                     else:
-                        self.tgt2frag = item3
+                        self.tgt2frag = [item3]
+
 
         if self.matrixtype == 'frags-frags':
             print(self.tgt1frag, self.tgt2frag)
@@ -1453,6 +1458,14 @@ class anlfmo(pdio.pdb_io):
             if len(dp) != 0:
                 print('Error! tgt1 and tgt2 is duplicate')
                 sys.exit()
+
+        if type(self.tgt2frag) == list:
+            for dfrag in self.exceptfrag:
+                try:
+                    del self.tgt2frag[self.tgt2frag.index(dfrag)]
+                    print('- Info: del frag', dfrag, 'from tgt2')
+                except:
+                    pass
 
         # PIEDA
         if self.abinit_ver == 'rev16' or self.abinit_ver == 'rev17':
@@ -1471,6 +1484,19 @@ class anlfmo(pdio.pdb_io):
             else:
                 self.resname_perfrag, self.tgtpdb = self.getlogorpdbfrag(self.tgtlogs)
 
+        # print section
+        print ('\n## input summary')
+        try:
+            print('- tgtlogs:', self.tgtlogs)
+            print('- anlmode:', self.anlmode)
+            print('- tgtfrag:', self.tgt1frag, self.tgt2frag)
+            print('- anlmode:' ,self.anlmode)
+            print('- fragmode:', self.fragmode)
+            print('- NP:', self.pynp)
+
+        except:
+            pass
+        print('## input summary end\n')
 
         ### read fraginfo section
 #         frags = []
