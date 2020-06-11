@@ -19,7 +19,7 @@ if __name__ == "__main__":
     refreshatmtype = False
     refreshresid = False
 
-    ajfname = '6lu7nocovneu-nowat-hinagata0516.ajf'   # 6lu7_nocovhip163-nowat-hinagata0516.ajf
+    ajfname = '6lu7-covneu-nowat-hinagata0514.ajf'   # 6lu7_nocovhip163-nowat-hinagata0516.ajf
     solvname = ['HOH', 'WAT', 'NA']
 
     ## -- setting end --
@@ -99,8 +99,6 @@ if __name__ == "__main__":
         if os.path.exists(opath) is False:
             print(opath)
             subprocess.call(["mkdir", opath])
-
-        # ajf_body = aobj.gen_ajf_bodywrap(ohead)
 
         ajf_oname = opath + '/' + ohead + '.ajf'
         aobj.saveajf(ajf_oname)

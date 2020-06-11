@@ -299,11 +299,14 @@ Ldimer=2.0
 NP=""" + np + """
 MaxSCCcyc=250
 MaxSCCenergy=5.0E-7
-/
 """
         if self.cmmflag == True:
             ajf_body += """Dimer_es_multipole='YES'
 Ldimer_cmm=5.0
+/
+"""
+        else:
+            ajf_body += """
 /
 """
 
