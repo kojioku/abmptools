@@ -13,12 +13,18 @@ print(df.head())
 eigvec1 = df.iloc[:, 0].values
 eigvec2 = df.iloc[:, 1].values
 eigvec3 = df.iloc[:, 2].values
+eigvec4 = df.iloc[:, 3].values
+eigvec5 = df.iloc[:, 4].values
+eigvec6 = df.iloc[:, 5].values
+eigvec7 = df.iloc[:, 6].values
+eigvec8 = df.iloc[:, 7].values
 
 x = df.index.values
 print(x)
 
-datas = [eigvec1, eigvec2, eigvec3]
-names = ['eigvec1', 'eigvec2','eigvec3']
+datas = [eigvec1, eigvec2, eigvec3, eigvec4, eigvec5, eigvec6, eigvec7, eigvec8]
+names = ['eigvec1','eigvec2','eigvec3','eigvec4','eigvec5','eigvec6','eigvec7','eigvec8']
+cols = [0, 1, 2, 3, 4, 5, 6, 7]
 
 for i in range(len(datas)):
     data = datas[i]
@@ -50,7 +56,6 @@ for i in range(len(datas)):
 # filter
 maxfil = 0.09
 minfil = -0.09
-cols = [0, 1, 2]
 
 for i in range(len(cols)):
     col = cols[i]
