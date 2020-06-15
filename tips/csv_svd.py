@@ -12,7 +12,7 @@ if __name__ == "__main__":
     print(df.head())
     # print(df.iloc[:, 1:])
 
-    array = df.as_matrix()
+    array = df.values
     # array = df.iloc[:, 1:].as_matrix()
 
     # print(array[0])
