@@ -18,6 +18,7 @@ except:
 class pdb_io(fab.abinit_io):
     def __init__(self):
         super().__init__()
+        print('## load pdb io init')
         self.solutes = []
         self.getmode = 'resnum'
         self.assignresname = False
@@ -420,10 +421,10 @@ class pdb_io(fab.abinit_io):
                     atomname = self.amarkRes[i][j]
                     form ='{0[0]:<6}{0[1]:>5} {0[2]:>2}  {0[3]:>1}{0[4]:>3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'
 
-                if self.refreshresid == False:
+                if self.refreshresid == True:
                     resid = reslab
                 else:
-                    resid = resnumRes[i][j]
+                    resid = self.resnumRes[i][j]
 
                 olist = [self.headRes[i][j], str(tatomlab), atomname, self.labRes[i][j], self.resnames[i], self.chainRes[i][j], resid, self.codeRes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), self.occRes[i][j], self.tempRes[i][j], self.amarkRes[i][j], self.chargeRes[i][j]]
                 print(form.format(olist), file=f)

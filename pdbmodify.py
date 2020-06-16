@@ -63,7 +63,7 @@ if __name__ == "__main__":
         aobj.getmode = mode
         aobj.assignresname = assignresname
         aobj.refreshatmtype = refreshatmtype
-        aobj.refresresid = refreshresid
+        aobj.refreshresid = refreshresid
 
         print('infile:', fname)
         print('oname:', oname)
