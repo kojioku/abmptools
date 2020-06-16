@@ -28,6 +28,7 @@ if __name__ == "__main__":
         exec(open("input_param", 'r').read(), param_read)
         param_rfmo = param_read['param']
         aobj.setrfmoparam(param_rfmo)
+        aobj.refreshresid = True
 
         if aobj.cutmode == 'sphere':
             oname = oname + '-' + aobj.cutmode + 'p' + str(aobj.tgtpos[0]) + '_' + str(aobj.tgtpos[1]) + '_' + str(aobj.tgtpos[2]) + '_ar' + str(aobj.criteria)
@@ -50,4 +51,5 @@ if __name__ == "__main__":
         if len(aobj.ionname) != 0:
             print('ion mode: ', aobj.ionmode)
             print('ion name: ', aobj.ionname)
+
         aobj.getcontact_rmapfmopdb(path, fname, oname)
