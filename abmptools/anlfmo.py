@@ -453,20 +453,17 @@ class anlfmo(pdio.pdb_io):
         # gettgtdf_normal to times-frags
         print('\n--- generate ifie', str(self.tgt1frag), str(self.tgt2frag), 'ffmatrix---\n')
         hfdf = pd.DataFrame(index=self.tgt2frag)
-        mp2corrdf = pd.DataFrame(index=self.tgt2frag)
-        prmp2corrdf = pd.DataFrame(index=self.tgt2frag)
-        mp2tdf =  pd.DataFrame(index=self.tgt2frag)
-        prmp2tdf = pd.DataFrame(index=self.tgt2frag)
-
-        mp3corrdf = pd.DataFrame(index=self.tgt2frag)
-        usermp3corrdf = pd.DataFrame(index=self.tgt2frag)
-        mp3tdf =  pd.DataFrame(index=self.tgt2frag)
-        usermp3tdf = pd.DataFrame(index=self.tgt2frag)
+        distdf = pd.DataFrame(index=self.tgt2frag)
 
         df = self.ifdf
         count = 0
 
         if self.logMethod == 'MP2':
+            mp2corrdf = pd.DataFrame(index=self.tgt2frag)
+            prmp2corrdf = pd.DataFrame(index=self.tgt2frag)
+            mp2tdf =  pd.DataFrame(index=self.tgt2frag)
+            prmp2tdf = pd.DataFrame(index=self.tgt2frag)
+
             for f1 in self.tgt1frag:
                 fragids = []
                 tgtdf = df[(df['I'] == f1) | (df['J'] == f1)]
@@ -486,6 +483,7 @@ class anlfmo(pdio.pdb_io):
                 hfifie = tgtdf_filter['HF-IFIE'].values.tolist()
                 mp2corr = tgtdf_filter['MP2-IFIE'].values.tolist()
                 prmp2corr = tgtdf_filter['PR-TYPE1'].values.tolist()
+                dist = tgtdf_filter['DIST'].values.tolist()
 
                 mp2total = []
                 prmp2total  = []
@@ -501,6 +499,7 @@ class anlfmo(pdio.pdb_io):
                 prmp2corrdf[str(f1)] = prmp2corr
                 mp2tdf[str(f1)] = mp2total
                 prmp2tdf[str(f1)] = prmp2total
+                distdf[str(f1)] = dist
 
                 count += 1
 
@@ -515,35 +514,61 @@ class anlfmo(pdio.pdb_io):
             self.prmp2corrdf = prmp2corrdf
             self.mp2tdf = mp2tdf
             self.prmp2tdf = prmp2tdf
+            self.distdf = distdf
 
 
         elif self.logMethod == 'MP3':
+            mp2corrdf = pd.DataFrame(index=self.tgt2frag)
+            mp3corrdf = pd.DataFrame(index=self.tgt2frag)
+            mp25corrdf = pd.DataFrame(index=self.tgt2frag)
+            usermp3corrdf = pd.DataFrame(index=self.tgt2frag)
+            mp2tdf =  pd.DataFrame(index=self.tgt2frag)
+            mp3tdf =  pd.DataFrame(index=self.tgt2frag)
+            mp25tdf =  pd.DataFrame(index=self.tgt2frag)
+            usermp3tdf = pd.DataFrame(index=self.tgt2frag)
+
             for f1 in self.tgt1frag:
                 fragids = []
                 tgtdf = df[(df['I'] == f1) | (df['J'] == f1)]
                 tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
 
+                print(tgtdf_filter)
                 hfifie = 0
+                mp2corr = 0
                 mp3corr = 0
                 usermp3corr = 0
                 hfifie = tgtdf_filter['HF-IFIE'].values.tolist()
+                mp2corr = tgtdf_filter['MP2-IFIE'].values.tolist()
                 mp3corr = tgtdf_filter['MP3-IFIE'].values.tolist()
                 usermp3corr = tgtdf_filter['USER-MP3'].values.tolist()
+                dist = tgtdf_filter['DIST'].values.tolist()
 
+                mp2total = []
                 mp3total = []
                 usermp3total  = []
+                mp25corr = []
+                mp25total = []
                 for i in range(len(hfifie)):
+                    mp2total.append(hfifie[i] + mp2corr[i])
                     mp3total.append(hfifie[i] + mp3corr[i])
                     usermp3total.append(hfifie[i] + usermp3corr[i])
+                    mp25total.append(hfifie[i] + (mp2corr[i] + mp3corr[i])*0.5)
+                    mp25corr.append((mp2corr[i] + mp3corr[i])*0.5)
 
                 # print('hfifie', hfifie)
                 # print('tgtfrag', self.tgt2frag)
 
                 hfdf[str(f1)] = hfifie
+                mp2corrdf[str(f1)] = mp2corr
                 mp3corrdf[str(f1)] = mp3corr
+                mp25corrdf[str(f1)] = mp25corr
                 usermp3corrdf[str(f1)] = usermp3corr
+                mp2tdf[str(f1)] = mp2total
                 mp3tdf[str(f1)] = mp3total
+                mp25tdf[str(f1)] = mp25total
                 usermp3tdf[str(f1)] = usermp3total
+                distdf[str(f1)] = dist
+
 
                 count += 1
 
@@ -554,10 +579,95 @@ class anlfmo(pdio.pdb_io):
             print ('USER-MP3total\n', usermp3tdf.head())
 
             self.hfdf = hfdf
+            self.mp2corrdf = mp2corrdf
             self.mp3corrdf = mp3corrdf
+            self.mp25corrdf = mp25corrdf
             self.usermp3corrdf = usermp3corrdf
+            self.mp2tdf = mp2tdf
             self.mp3tdf = mp3tdf
+            self.mp25tdf = mp25tdf
             self.usermp3tdf = usermp3tdf
+            self.distdf = distdf
+
+        elif self.logMethod == 'CCPT':
+            mp2corrdf = pd.DataFrame(index=self.tgt2frag)
+            mp3corrdf = pd.DataFrame(index=self.tgt2frag)
+            mp4corrdf = pd.DataFrame(index=self.tgt2frag)
+            mp25corrdf = pd.DataFrame(index=self.tgt2frag)
+            mp35corrdf = pd.DataFrame(index=self.tgt2frag)
+            mp2tdf =  pd.DataFrame(index=self.tgt2frag)
+            mp3tdf =  pd.DataFrame(index=self.tgt2frag)
+            mp4tdf =  pd.DataFrame(index=self.tgt2frag)
+            mp25tdf =  pd.DataFrame(index=self.tgt2frag)
+            mp35tdf =  pd.DataFrame(index=self.tgt2frag)
+
+            for f1 in self.tgt1frag:
+                fragids = []
+                tgtdf = df[(df['I'] == f1) | (df['J'] == f1)]
+                tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
+
+                hfifie = 0
+                mp3corr = 0
+                usermp3corr = 0
+                hfifie = tgtdf_filter['HF-IFIE'].values.tolist()
+                mp2corr = tgtdf_filter['MP2-IFIE'].values.tolist()
+                mp3corr = tgtdf_filter['MP3-IFIE'].values.tolist()
+                mp4corr = tgtdf_filter['MP4-IFIE'].values.tolist()
+                dist = tgtdf_filter['DIST'].values.tolist()
+
+
+                mp2total = []
+                mp3total = []
+                mp4total  = []
+                mp25corr = []
+                mp35corr = []
+                mp25total = []
+                mp35total = []
+                for i in range(len(hfifie)):
+                    mp2total.append(hfifie[i] + mp2corr[i])
+                    mp3total.append(hfifie[i] + mp3corr[i])
+                    mp4total.append(hfifie[i] + mp4corr[i])
+                    mp25corr.append((mp2corr[i] + mp3corr[i])*0.5)
+                    mp35corr.append((mp2corr[i] + mp4corr[i])*0.5)
+                    mp25total.append(hfifie[i] + (mp2corr[i] + mp3corr[i])*0.5)
+                    mp35total.append(hfifie[i] + (mp2corr[i] + mp4corr[i])*0.5)
+
+                # print('hfifie', hfifie)
+                # print('tgtfrag', self.tgt2frag)
+
+                hfdf[str(f1)] = hfifie
+                mp2corrdf[str(f1)] = mp2corr
+                mp3corrdf[str(f1)] = mp3corr
+                mp4corrdf[str(f1)] = mp4corr
+                mp25corrdf[str(f1)] = mp25corr
+                mp35corrdf[str(f1)] = mp35corr
+                mp2tdf[str(f1)] = mp2total
+                mp3tdf[str(f1)] = mp3total
+                mp4tdf[str(f1)] = mp4total
+                mp25tdf[str(f1)] = mp25total
+                mp35tdf[str(f1)] = mp35total
+                distdf[str(f1)] = dist
+
+                count += 1
+
+#             print ('HF\n', hfdf.head())
+#             print ('MP3corr\n', mp3corrdf.head())
+#             print ('USER-MP3corr\n', usermp3corrdf.head())
+#             print ('MP3total\n', mp3tdf.head())
+#             print ('USER-MP3total\n', usermp3tdf.head())
+
+            self.hfdf = hfdf
+            self.mp2corrdf = mp2corrdf
+            self.mp3corrdf = mp3corrdf
+            self.mp4corrdf = mp4corrdf
+            self.mp25corrdf = mp25corrdf
+            self.mp35corrdf = mp35corrdf
+            self.mp2tdf = mp2tdf
+            self.mp3tdf = mp3tdf
+            self.mp4tdf = mp4tdf
+            self.mp25tdf = mp25tdf
+            self.mp35tdf = mp35tdf
+            self.distdf = distdf
 
         return
 
@@ -1129,6 +1239,21 @@ class anlfmo(pdio.pdb_io):
             ifdf['USER-MP3'] = copy.deepcopy(jung[:ifpair[0]])
             ifdf['PADE[2/1]'] = copy.deepcopy(hill[:ifpair[0]])
 
+        elif self.logMethod == 'CCPT':
+            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'GRIMME-MP2', 'MP3-IFIE','GRIMME-MP3', 'MP4-IFIE' ]
+
+            ifdf = pd.DataFrame(columns=self.icolumn)
+            ifdf['I'] = copy.deepcopy(ifi[:ifpair[0]])
+            ifdf['J'] = copy.deepcopy(ifj[:ifpair[0]])
+            ifdf['DIST'] = copy.deepcopy(dist[:ifpair[0]])
+            ifdf['DIMER-ES'] = copy.deepcopy(fdimesint[:ifpair[0]])
+            ifdf['HF-IFIE'] = copy.deepcopy(hfifie[:ifpair[0]])
+            ifdf['MP2-IFIE'] = copy.deepcopy(mp2ifie[:ifpair[0]])
+            ifdf['GRIMME-MP2'] = copy.deepcopy(prtype1[:ifpair[0]])
+            ifdf['MP3-IFIE'] = copy.deepcopy(grimme[:ifpair[0]])
+            ifdf['GRIMME-MP3'] = copy.deepcopy(jung[:ifpair[0]])
+            ifdf['MP4-IFIE'] = copy.deepcopy(hill[:ifpair[0]])
+
         else:
             ifdf = pd.DataFrame(columns=self.icolumn)
             ifdf['I'] = copy.deepcopy(ifi[:ifpair[0]])
@@ -1301,9 +1426,10 @@ class anlfmo(pdio.pdb_io):
             print('## read single mode')
             self.logMethod = self.getlogmethod(self.tgtlogs)
             # self.logMethod = 'MP2'
-            if self.matrixtype != 'frags-frags' and self.logMethod == 'MP3':
-                print('Error: MP3 mode for this mode is unsupported yet.')
+            if self.matrixtype != 'frags-frags' and (self.logMethod == 'MP3' or self.logMethod == 'CCPT'):
+                print('Error: ' + self.logMethod + ' mode for this mode is unsupported yet.')
                 sys.exit()
+
 
             if self.f90soflag == True:
                 print("use fortran library")
@@ -1626,10 +1752,9 @@ class anlfmo(pdio.pdb_io):
         if os.path.exists('csv') == False:
             os.mkdir('csv')
 
-
         if self.anlmode == 'frag':
             if head == None:
-                head, ext = os.path.splitext(self.tgtlogs)
+                head = os.path.splitext(self.tgtlogs)[0].split('/')[-1]
 
             if self.matrixtype == 'frags-frags':
                 if self.logMethod == 'MP2':
@@ -1641,7 +1766,8 @@ class anlfmo(pdio.pdb_io):
                                 self.mp2corrdf,
                                 self.prmp2corrdf,
                                 self.mp2tdf,
-                                self.prmp2tdf
+                                self.prmp2tdf,
+                                self.distdf
                             ]
                     names = [
                                 'ES',
@@ -1652,6 +1778,7 @@ class anlfmo(pdio.pdb_io):
                                 'PRMP2corr',
                                 'MP2total',
                                 'PRMP2total',
+                                'Distance'
                             ]
                 elif self.logMethod == 'MP3':
                     datadfs = [
@@ -1659,21 +1786,67 @@ class anlfmo(pdio.pdb_io):
                                 self.exdf,
                                 self.ctdf,
                                 self.hfdf,
+                                self.mp2corrdf,
                                 self.mp3corrdf,
+                                self.mp25corrdf,
                                 self.usermp3corrdf,
+                                self.mp2tdf,
                                 self.mp3tdf,
-                                self.usermp3tdf
+                                self.mp25tdf,
+                                self.usermp3tdf,
+                                self.distdf
                             ]
                     names = [
                                 'ES',
                                 'EX',
                                 'CT',
                                 'HF',
+                                'MP2corr',
                                 'MP3corr',
+                                'MP25corr',
                                 'USER-MP3corr',
+                                'MP2total',
                                 'MP3total',
+                                'MP25total',
                                 'USER-MP3total',
+                                'Distance'
                             ]
+                elif self.logMethod == 'CCPT':
+                    datadfs = [
+                                self.esdf,
+                                self.exdf,
+                                self.ctdf,
+                                self.hfdf,
+                                self.mp2corrdf,
+                                self.mp3corrdf,
+                                self.mp4corrdf,
+                                self.mp25corrdf,
+                                self.mp35corrdf,
+                                self.mp2tdf,
+                                self.mp3tdf,
+                                self.mp4tdf,
+                                self.mp25tdf,
+                                self.mp35tdf,
+                                self.distdf
+                           ]
+                    names = [
+                                'ES',
+                                'EX',
+                                'CT',
+                                'HF',
+                                'MP2corr',
+                                'MP3corr',
+                                'MP4corr',
+                                'MP25corr',
+                                'MP35corr',
+                                'MP2total',
+                                'MP3total',
+                                'MP4total',
+                                'MP25total',
+                                'MP35total',
+                                'Distance'
+                            ]
+
 
                 tgt1str = str(self.tgt1frag[0]) + '-'  + str(self.tgt1frag[-1])
                 tgt2str = str(self.tgt2frag[0]) + '-'  + str(self.tgt2frag[-1])

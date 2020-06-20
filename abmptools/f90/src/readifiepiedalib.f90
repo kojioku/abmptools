@@ -45,7 +45,8 @@ open(17,file=trim(adjustl(inname)), status='old')
 ! IFIE - Section
 do
     read(17,'(a)', end=999) head
-    if (trim(adjustl(head))=="## MP2-IFIE" .or. trim(adjustl(head))=="## MP3-IFIE") then
+    if (trim(adjustl(head))=="## MP2-IFIE" .or. trim(adjustl(head))=="## MP3-IFIE" &
+        .or. trim(adjustl(head))=="## MP4-IFIE") then
         ! write(*, '(a)') 'Read IFIE Section'
         do skip=1,4  !skip 4lines
             read(17,'()')
@@ -81,9 +82,9 @@ if (trim(adjustl(head))=="## PIEDA") then   !この下にIFIE情報
   goto 120
 else if(trim(adjustl(head))=="## Mulliken") then
     write(*, '(a)') 'log dont have pieda data: end'
-    goto 999
+    goto 998
 else
-    goto 999
+    goto 998
 end if
 
 !! Read PIEDA val
@@ -100,6 +101,7 @@ end do
 ! write(*, '(a, i8)') 'pipair = ', pipair
 ! write(*, '(a)') 'Read end'
 
+998 continue
 ! post process for ifie
 fdimesint(:) = 0
 do i = 1, ifpair

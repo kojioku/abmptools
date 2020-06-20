@@ -23,7 +23,6 @@ aobj.tgt2type = 'frag'
 aobj.abinit_ver='rev15'
 # aobj.tgt2molname = 'WAT'
 
-print(aobj.tgt2type)
 # ---- user setting end ---
 
 logname = sys.argv[1]
