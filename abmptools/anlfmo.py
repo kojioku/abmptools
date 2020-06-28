@@ -241,7 +241,8 @@ class anlfmo(pdio.pdb_io):
         fragnos = []
         residuestr = []
         for line in f:
-            items = line.split()
+            items = line[1:].split()
+            chains = line[0]
             if len(items) == 0:
                 continue
 
@@ -1619,7 +1620,7 @@ class anlfmo(pdio.pdb_io):
             print('- anlmode:' ,self.anlmode)
             print('- fragmode:', self.fragmode)
             print('- NP:', self.pynp)
-
+            print('- addresflag', self.addresinfo)
         except:
             pass
         print('## input summary end\n')
