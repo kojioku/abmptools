@@ -21,11 +21,12 @@ aobj.anlmode= 'fraginmol' #frag, 'mol', 'fraginmol', 'ff-multi'
 aobj.fragmode = 'manual'  #'hybrid', 'auto', 'manual'
 aobj.dist = 8.0
 aobj.abinit_ver='rev15'
+aobj.writeresnamecsv = True
 
 aobj.pdbname = ""
 aobj.tgtmolid = 1
 aobj.tgt1_lofrag = 2
-aobj.tgt2molname = 'WAT'
+aobj.tgt2molname = '000'
 aobj.tgt2_lofrag = 1
 
 # print(aobj.tgt2type)
