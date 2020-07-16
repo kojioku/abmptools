@@ -94,6 +94,8 @@ class anlfmo(pdio.pdb_io):
 
         self.pynp = 3
         self.addresinfo = True
+        self.writeresnamecsv = True
+
 
         mydir = os.path.dirname(os.path.abspath(__file__))
         self.f90sofile = mydir + '/f90/bin/readifiepiedalib.so'
@@ -1714,6 +1716,7 @@ class anlfmo(pdio.pdb_io):
 
             tgt2_glofrags = []
             tgt1_glofrag = molfragss[tgtmol][tgt1_lofrag - 1]
+            print('tgt1glofrag', tgt1_glofrag)
             print('centermolfrag:', tgt1_glofrag)
             print('tgt2molname', tgt2molname)
             for i in range(len(self.resnames)):
@@ -1748,6 +1751,7 @@ class anlfmo(pdio.pdb_io):
         # -------------
         # --- write ---
         # -------------
+        print('## Write Section')
         path = 'csv'
         tgt2type = self.tgt2type
         if os.path.exists('csv') == False:
@@ -2092,14 +2096,14 @@ class anlfmo(pdio.pdb_io):
 
             ohead = head + '-' 'frag' + str(self.tgt1_glofrag) + '-mol' + str(self.tgt2molname) + 'frag' + str(self.tgt2_lofrag)
 
-            if self.addresinfo == True:
+            if self.writeresnamecsv == True:
                 for i in range(1, len(self.resname_perfrag)+1):
                     val1 = i
                     val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
                     self.ifdf_filters.I = self.ifdf_filters.I.replace(val1, val2)
                     self.ifdf_filters.J = self.ifdf_filters.J.replace(val1, val2)
-                    self.ifdf.I = self.ifdf.I.replace(val1, val2)
-                    self.ifdf.J = self.ifdf.J.replace(val1, val2)
+                    # self.ifdf.I = self.ifdf.I.replace(val1, val2)
+                    # self.ifdf.J = self.ifdf.J.replace(val1, val2)
 
             # self.ifdf.to_csv(path + '/' + head + '-ifie.csv')
             oifie = path + '/' + ohead + '-ifie_'  + 'dist' + str(self.dist) + '.csv'
