@@ -812,23 +812,20 @@ class anlfmo(pdio.pdb_io):
         return tgtdf_filter
 
 
-    def getifiesummol(self, df):
-        molfrags = self.molfrags
+    def getifiesummol(self, df, molfrags, molid):
         tgtdf_filters = pd.DataFrame(columns=self.icolumn)
         print(self.dist)
-        for i in molfrags:
-            tgtdf = df[df['I'] == i]
-            tgtdf = tgtdf.append(df[df['J'] == i])
-            tgtdf_filter = tgtdf[tgtdf['DIST'] < self.dist]
-            # print(tgtdf_filter)
-            tgtdf_filters = tgtdf_filters.append(tgtdf_filter)
+        tgtdf = df[df['I'].isin(molfrags) | df['J'].isin(molfrags)]
+        tgtdf_filters = tgtdf[tgtdf['DIST'] < self.dist]
 
         print(tgtdf_filters.head())
 
+        # get I column value
         neighbor_i = [index for index, row in tgtdf_filters.groupby("I")]
+        print(neighbor_i)
+        # get J coulum value
         neighbor_j = [index for index, row in tgtdf_filters.groupby("J")]
         neighbors= list(set(neighbor_i + neighbor_j))
-        # print(neighbors)
         neighbors.sort()
         alreadys = copy.deepcopy(molfrags)
         contactmolfrags = []
@@ -841,34 +838,102 @@ class anlfmo(pdio.pdb_io):
             # print(alreadys)
         print('contactmolfrags\n', contactmolfrags)
 
-        # print('-- ifie permol --')
-        ifie_permols = []
+        # print('-- ifie frag_mol --')
+        ''' 
+        ifie_frag_mol: df frag-frag in each mol
+        ifiesums: mol-mol ifie for each mol
+        '''
+
+        ifdf_frag_mols = []
         for contactmolfrag in contactmolfrags:
-            ifie_permol = pd.DataFrame(columns=self.icolumn)
-            for contact in contactmolfrag:
-                for tgtfrag in molfrags:
-                    # print(contact, tgtfrag)
-                    ifie_permol = ifie_permol.append(df[((df['I'] == contact) & (df['J'] == tgtfrag)) | ((df['I'] == tgtfrag) & (df['J'] == contact))])
-            ifie_permols.append(ifie_permol)
+            ifie_frag_mol = df[(df['I'].isin(contactmolfrag) & df['J'].isin(molfrags)) | (df['J'].isin(contactmolfrag) & df['I'].isin(molfrags))]
+            ifdf_frag_mols.append(ifie_frag_mol)
 
         #pieda
-        for i in range(len(ifie_permols)):
-            ifie_permols[i] =  pd.merge(ifie_permols[i], self.pidf, on=['I', 'J'], how='left')
-        print(ifie_permols[0])
+        for i in range(len(ifdf_frag_mols)):
+            ifdf_frag_mols[i] =  pd.merge(ifdf_frag_mols[i], self.pidf, on=['I', 'J'], how='left')
+        print(ifdf_frag_mols[0])
 
 
         count = 0
         if self.abinit_ver == 'rev17' or self.abinit_ver == 'rev16':
-            ifiesums = [['contactmolfrag', 'tgtmolfrags', 'HF-IFIE', 'MP2-IFIE', 'ES', 'EX', 'Solv(ES)', 'CT-mix', 'DI(MP2)', 'a(I=>J)']]
-        else:
-            ifiesums = [['contactmolfrag', 'tgtmolfrags', 'HF-IFIE', 'MP2-IFIE', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'a(I=>J)']]
+            self.ifdfsumcolumn = [['HF-IFIE', 'MP2-IFIE', 'ES', 'EX', 'Solv(ES)', 'CT-mix', 'DI(MP2)', 'q(I=>J)']]
 
-        for datadf in ifie_permols:
-            ifiesums.append([contactmolfrags[count], molfrags, datadf['HF-IFIE'].sum(), datadf['MP2-IFIE'].sum(), datadf['ES'].sum(), \
-                             datadf['EX'].sum(), datadf['CT-mix'].sum(), datadf['DI(MP2)'].sum(),  datadf['q(I=>J)'].sum()])
-            count += 1
+        HF_IFIE_sums = []
+        MP2_IFIE_sums = []
+        PR_TYPE1_sums = []
+        GRIMME_sums = []
+        JUNG_sums = []
+        HILL_sums = []
+        ES_sums = []
+        EX_sums = []
+        CT_sums = []
+        DI_sums = []
+        q_sums = []
 
-        return contactmolfrags, ifie_permols, ifiesums
+        for datadf in ifdf_frag_mols:
+            HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum = self.getsumdf(datadf)
+            HF_IFIE_sums.append(HF_IFIE_sum)
+            MP2_IFIE_sums.append(MP2_IFIE_sum)
+            PR_TYPE1_sums.append(PR_TYPE1_sum)
+            GRIMME_sums.append(GRIMME_sum)
+            JUNG_sums.append(JUNG_sum)
+            HILL_sums.append(HILL_sum)
+            ES_sums.append(ES_sum)
+            EX_sums.append(EX_sum)
+            CT_sums.append(CT_sum)
+            DI_sums.append(DI_sum)
+            q_sums.append(q_sum)
+
+        ifdf_mol_mol = pd.DataFrame(columns=self.ifdfsumcolumn)
+        # self.ifdfsumcolumn = ['HF-IFIE', 'MP2-IFIE', 'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'q(I=>J)']
+
+        ifdf_mol_mol['I'] = contactmolfrags
+        ifdf_mol_mol['J'] = [molfrags for i in range(len(HF_IFIE_sums))]
+        ifdf_mol_mol['HF-IFIE'] = HF_IFIE_sums
+        ifdf_mol_mol['MP2-IFIE'] = MP2_IFIE_sums
+        ifdf_mol_mol['PR_TYPE1'] = PR_TYPE1_sums
+        ifdf_mol_mol['GRIMME'] = GRIMME_sums
+        ifdf_mol_mol['JUNG'] = JUNG_sums
+        ifdf_mol_mol['HILL'] = HILL_sums
+        ifdf_mol_mol['ES'] = ES_sums
+        ifdf_mol_mol['EX'] = EX_sums
+        ifdf_mol_mol['CT-mix'] = CT_sums
+        ifdf_mol_mol['DI(MP2)'] = DI_sums
+        ifdf_mol_mol['q(I=>J)'] = q_sums
+
+
+        HF_IFIE_molsum = sum(HF_IFIE_sums)
+        MP2_IFIE_molsum = sum(MP2_IFIE_sums)
+        PR_TYPE1_molsum = sum(PR_TYPE1_sums)
+        GRIMME_molsum = sum(GRIMME_sums)
+        JUNG_molsum = sum(JUNG_sums)
+        HILL_molsum = sum(HILL_sums)
+        ES_molsum = sum(ES_sums)
+        EX_molsum = sum(EX_sums)
+        CT_molsum = sum(CT_sums)
+        DI_molsum = sum(DI_sums)
+        q_molsum = sum(q_sums)
+
+        ifdf_molsum = pd.Series([HF_IFIE_molsum, MP2_IFIE_molsum, PR_TYPE1_molsum, GRIMME_molsum, JUNG_molsum, HILL_molsum, ES_molsum, EX_molsum, CT_molsum, DI_molsum, q_molsum], index=self.ifdfsumcolumn, name='mol'+str(molid))
+
+        return contactmolfrags, ifdf_frag_mols, ifdf_mol_mol, ifdf_molsum
+
+    def getsumdf(self, df):
+        HF_IFIE_sum = df['HF-IFIE'].sum()
+        MP2_IFIE_sum = df['MP2-IFIE'].sum()
+        PR_TYPE1_sum = df['PR-TYPE1'].sum()
+        GRIMME_sum = df['GRIMME'].sum()
+        JUNG_sum = df['JUNG'].sum()
+        HILL_sum = df['HILL'].sum()
+
+        ES_sum = df['ES'].sum()
+        EX_sum = df['EX'].sum()
+        CT_sum = df['CT-mix'].sum()
+        DI_sum = df['DI(MP2)'].sum()
+        q_sum = df['q(I=>J)'].sum()
+
+        return HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum
 
 
     def getpitgtdf(self, pidf, ifdf_filter):
@@ -1554,6 +1619,18 @@ class anlfmo(pdio.pdb_io):
                     self.tgtmolid = int(item2)
                 else:
                     self.tgt1frag = [item2]
+            if self.anlmode == 'fraginmol' or self.anlmode == 'mol':
+                if type(self.tgtmolid) == str:
+                    if '-' in self.tgtmolid:
+                        tgt = self.tgtmolid.split('-')
+                        print('tgtmol', tgt)
+                        self.tgtmolid = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
+                    else:
+                        self.tgtmolid = [eval(self.tgtmolid)]
+
+                elif type(self.tgtmolid) == int:
+                    self.tgtmolid = [self.tgtmolid]
+
             if self.tgt2type == 'frag':
                 if item2 != None:
                     # print('type tgt2', type(item2))
@@ -1684,26 +1761,48 @@ class anlfmo(pdio.pdb_io):
         if self.anlmode == 'mol':
             #ifie
             df = self.ifdf
-            if self.selecttype == 'fragid':
-                molfrags = self.getmolfrags(self.tgt1frag[0], df)
-                print('target-frags:', molfrags)
-            elif self.selecttype == 'molid':
+#             if self.selecttype == 'fragid':
+#                 tgtmolfrags = self.getmolfrags(self.tgt1frag[0], df)
+#                 print('target-frags:', molfrags)
+            if self.selecttype == 'molid':
                 nf = self.getlognf(self.tgtlogs, self.fragmode)
                 molfragss = self.getallmolfrags(self.tgtlogs, df, nf)
                 print('frags_permol\n', molfragss)
-                molfrags = molfragss[self.tgtmolid-1]
-            self.molfrags = molfrags
+                tgtmolfrags = []
+                for tgtmolid in self.tgtmolid:
+                    tgtmolfrags.append(molfragss[tgtmolid-1])
+            elif self.selecttype == 'molname':
+                sys.exit()
+
+            self.tgtmolfrags = tgtmolfrags
+            print('self.tgtmolfrags:', self.tgtmolfrags)
 
             # IFIE and pieda
-            contactmolfrags, ifie_permols, ifiesums = self.getifiesummol(df)
+            ifdf_frag_mols = pd.DataFrame()
+            ifdfmol_mols = pd.DataFrame(columns=['I', 'J'] + self.ifdfsumcolumn)
+            ifdfmolsums = pd.DataFrame(columns=self.ifdfsumcolumn)
 
-            self.contactmolfrags = contactmolfrags
-            self.ifie_permols = ifie_permols
-            self.ifiesums =ifiesums
+            for i in range(len(self.tgtmolfrags)):
+                contactmolfrags, ifdf_frag_mol, ifdfmol_mol, ifdfmolsum = self.getifiesummol(df, tgtmolfrags[i], self.tgtmolid[i])
 
+                # self.contactmolfrags = contactmolfrags
+                print(ifdf_frag_mol)
+                print(ifdfmol_mol)
+                print(ifdfmolsum)
+
+                ifdf_frag_mols = ifdf_frag_mols.append(ifdf_frag_mol)
+                ifdfmol_mols = ifdfmol_mols.append(ifdfmol_mol)
+                ifdfmolsums = ifdfmolsums.append(ifdfmolsum)
+
+            self.ifdf_frag_mols = ifdf_frag_mols
+            self.ifdfmol_mols = ifdfmol_mols
+            self.ifdfmolsums = ifdfmolsums
 
         # fraginmol mode
         if self.anlmode == 'fraginmol':
+            ifdf_filters = pd.DataFrame()
+            ifdfsums = pd.DataFrame(columns=self.ifdfsumcolumn)
+
             df = self.ifdf
             tgt1_lofrag = self.tgt1_lofrag
             tgt2_lofrag = self.tgt2_lofrag
@@ -1712,37 +1811,46 @@ class anlfmo(pdio.pdb_io):
             print('nf', nf)
             molfragss = self.getallmolfrags(self.tgtlogs, df, nf)
             print(molfragss)
-            tgtmol = self.tgtmolid - 1
 
             tgt2_glofrags = []
-            tgt1_glofrag = molfragss[tgtmol][tgt1_lofrag - 1]
-            print('tgt1glofrag', tgt1_glofrag)
-            print('centermolfrag:', tgt1_glofrag)
-            print('tgt2molname', tgt2molname)
             for i in range(len(self.resnames)):
                 if self.resnames[i] == tgt2molname:
                     tgt2frag = molfragss[i][tgt2_lofrag - 1]
                     tgt2_glofrags.append(tgt2frag)
             print('tgt2_glofrags', tgt2_glofrags)
-            tgtdf = df[df['I'] == tgt1_glofrag]
-            tgtdf = tgtdf.append(df[df['J'] == tgt1_glofrag])
-            tgtdf = tgtdf[tgtdf['DIST'] < self.dist]
 
-            tgt_new2 = pd.DataFrame()
-            for tgt2_glofrag in tgt2_glofrags:
-                tgt_new = tgtdf[(tgtdf['I'] == tgt2_glofrag) |(tgtdf['J'] == tgt2_glofrag)]
-                tgt_new2 = tgt_new2.append(tgt_new)
+            # tgtmol loop
+            for tgtmol in self.tgtmolid:
+                tgtmol = tgtmol - 1
 
-            print('tgt_new2\n', tgt_new2)
+                tgt1_glofrag = molfragss[tgtmol][tgt1_lofrag - 1]
+                print('tgt1glofrag', tgt1_glofrag)
+                print('centermolfrag:', tgt1_glofrag)
+                print('tgt2molname', tgt2molname)
+                tgtdf = df[df['I'] == tgt1_glofrag]
+                tgtdf = tgtdf.append(df[df['J'] == tgt1_glofrag])
+                tgtdf = tgtdf[tgtdf['DIST'] < self.dist]
+                tgtdf = tgtdf[tgtdf['DIST'] != 0.0]
 
-            self.tgt1_glofrag = tgt1_glofrag
-            self.tgt2_glofrags = tgt2_glofrags
-            self.ifdf_filters = tgt_new2
+                # ifdf_filters = pd.DataFrame()
+                tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgt2_glofrags)) | (tgtdf['J'].isin(tgt2_glofrags))]
+                # print('ifdf_filters\n', tgtdf_filter)
 
-            # PIEDA
-            self.ifdf_filters = pd.merge(self.ifdf_filters, self.pidf, on=['I', 'J'], how='left')
-            print(self.ifdf_filters.head())
+                # PIEDA
+                ifdf_filter = pd.merge(tgtdf_filter, self.pidf, on=['I', 'J'], how='left')
+                ifdf_filters = ifdf_filters.append(ifdf_filter)
 
+                # print(ifdf_filter)
+                HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum = self.getsumdf(ifdf_filter)
+
+                ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum], index=self.ifdfsumcolumn, name='mol' + str(tgtmol+1))
+                ifdfsums = ifdfsums.append(ifdfsum)
+
+
+            # self.tgt1_glofrag = tgt1_glofrags
+            # self.tgt2_glofrags = tgt2_glofrags
+            self.ifdf_filters = ifdf_filters
+            self.ifdfsums = ifdfsums
 
         return self
 
@@ -2051,50 +2159,48 @@ class anlfmo(pdio.pdb_io):
 
             dist = self.dist
             selecttype = self.selecttype
-            ifiesums= self.ifiesums
-            # piedasums = self.piedasums
-            ifie_permols = self.ifie_permols
-            # pieda_permols = self.pieda_permols
+            # piedamol_mol = self.piedamol_mol
+            ifdf_frag_mols = self.ifdf_frag_mols
+            ifdfmol_mols= self.ifdfmol_mols
+
+            # pieda_frag_mols = self.pieda_frag_mols
             if selecttype == 'molid':
                 tgtid = self.tgtmolid
             else:
                 tgtid = self.tgt1frag[0]
 
-            ilogdtname = path + '/' + head + '_ifie-mol-' +  selecttype + str(tgtid) + 'dist' + str(dist) + '.txt'
-            isumname = path + '/' + head + '_ifiesum-mol-' + selecttype + str(tgtid) + 'dist' + str(dist) + '.csv'
+            idstr = str(tgtid[0]) + '-' + str(tgtid[-1])
+            ilogdtname = path + '/' + head + '_ifie-fragmol-' +  selecttype + idstr + 'dist' + str(dist) + '.txt'
+            imolname = path + '/' + head + '_ifiemol-mol-' + selecttype + idstr + 'dist' + str(dist) + '.csv'
+            isumname = path + '/' + head + '_ifiesummol-mol-' + selecttype + idstr + 'dist' + str(dist) + '.csv'
 
-            # write section
-            # ilogdt = open(ilogdtname, 'w')
-
-            ifie_permolsdt = pd.DataFrame()
-            pd.set_option('display.width', 500)
-            for ifie_permol in ifie_permols:
-                ifie_permolsdt = ifie_permolsdt.append(ifie_permol)
+#             ifdf_frag_molsdt = pd.DataFrame()
+#             pd.set_option('display.width', 500)
+#             for ifdf_frag_mol in ifdf_frag_mols:
+#                 ifdf_frag_molsdt = ifdf_frag_molsdt.append(ifdf_frag_mol)
 
             if self.addresinfo == True:
                 for i in range(1, len(self.resname_perfrag)+1):
                     val1 = i
                     val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
-                    ifie_permolsdt.I = ifie_permolsdt.I.replace(val1, val2)
-                    ifie_permolsdt.J = ifie_permolsdt.J.replace(val1, val2)
+                    ifdf_frag_mols.I = ifdf_frag_mols.I.replace(val1, val2)
+                    ifdf_frag_mols.J = ifdf_frag_mols.J.replace(val1, val2)
 
-            # print(ifie_permolsdt, file=ilogdt)
-            ifie_permolsdt.to_csv(ilogdtname)
-
-
-            with open(isumname, 'w') as f:
-                writer = csv.writer(f, lineterminator='\n')
-                writer.writerows(ifiesums)
+            # print(ifdf_frag_molsdt, file=ilogdt)
+            ifdf_frag_mols.to_csv(ilogdtname)
+            ifdfmol_mols.to_csv(imolname)
+            self.ifdfmolsums.to_csv(isumname)
 
             print('---out---')
             print(ilogdtname)
+            print(imolname)
             print(isumname)
 
         if self.anlmode == 'fraginmol':
             if head == None:
                 head, ext = os.path.splitext(self.tgtlogs)
 
-            ohead = head + '-' 'frag' + str(self.tgt1_glofrag) + '-mol' + str(self.tgt2molname) + 'frag' + str(self.tgt2_lofrag)
+            ohead = head + '-' 'tgt1frag' + str(self.tgt1_lofrag) + '-mol' + str(self.tgt2molname) + 'frag' + str(self.tgt2_lofrag)
 
             if self.writeresnamecsv == True:
                 for i in range(1, len(self.resname_perfrag)+1):
@@ -2107,8 +2213,12 @@ class anlfmo(pdio.pdb_io):
 
             # self.ifdf.to_csv(path + '/' + head + '-ifie.csv')
             oifie = path + '/' + ohead + '-ifie_'  + 'dist' + str(self.dist) + '.csv'
+            oifiesum = path + '/' + ohead + '-ifiesum_'  + 'dist' + str(self.dist) + '.csv'
             self.ifdf_filters.to_csv(oifie)
+            self.ifdfsums.to_csv(oifiesum)
             print(oifie, 'was generated.')
+            print(oifiesum, 'was generated.')
+
 
 
 #                     t1cnt = 0

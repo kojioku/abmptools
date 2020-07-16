@@ -24,7 +24,8 @@ aobj.abinit_ver='rev15'
 aobj.writeresnamecsv = True
 
 aobj.pdbname = ""
-aobj.tgtmolid = 1
+# aobj.tgtmolid = 1
+aobj.tgtmolid = '1-200'
 aobj.tgt1_lofrag = 2
 aobj.tgt2molname = '000'
 aobj.tgt2_lofrag = 1
@@ -36,17 +37,6 @@ logname = sys.argv[1]
 
 aobj = aobj.readifiewrap(logname)
 aobj = aobj.filterifiewrap()
-# aobj = aobj.readpiedawrap()
-# aobj = aobj.filterpiedawrap()
-
-
-# print('ifdf\n', aobj.ifdfs)
-# print('ifdf_filter\n', aobj.ifdf_filters)
-# print('pidf\n', aobj.pidfs)
-# # print('pitgtdf\n', aobj.pitgtdfs)
-# print('pitgtdf\n', aobj.pidf_filters)
-
-
 aobj.writecsvwrap()
 
 

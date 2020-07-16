@@ -29,7 +29,7 @@ print('tgtselecttype', aobj.selecttype)
 # ---- user setting end ---
 
 logname = sys.argv[1]
-aobj.tgtmolid = int(sys.argv[2])
+aobj.tgtmolid = sys.argv[2]
 
 aobj = aobj.readifiewrap(logname)
 aobj = aobj.filterifiewrap()
