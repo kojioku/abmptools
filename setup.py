@@ -24,6 +24,6 @@ setup(
     author_email='okuwaki@rikkyo.ac.jp',
     # license=license,
     packages=find_packages(exclude=('tests', 'docs', 'sample')),
-    package_data={'abmptools': ['f90/bin/*', 'tips/*']}
+    package_data={'abmptools': ['f90/bin/*', '../tips/*']}
 )
 
