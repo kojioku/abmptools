@@ -2170,7 +2170,7 @@ class anlfmo(pdio.pdb_io):
                 tgtid = self.tgt1frag[0]
 
             idstr = str(tgtid[0]) + '-' + str(tgtid[-1])
-            ilogdtname = path + '/' + head + '_ifie-fragmol-' +  selecttype + idstr + 'dist' + str(dist) + '.txt'
+            ilogdtname = path + '/' + head + '_ifie-fragmol-' +  selecttype + idstr + 'dist' + str(dist) + '.csv'
             imolname = path + '/' + head + '_ifiemol-mol-' + selecttype + idstr + 'dist' + str(dist) + '.csv'
             isumname = path + '/' + head + '_ifiesummol-mol-' + selecttype + idstr + 'dist' + str(dist) + '.csv'
 
