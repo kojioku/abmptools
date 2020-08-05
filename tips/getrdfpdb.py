@@ -6,7 +6,7 @@ import subprocess
 import re
 import time
 import copy
-import ampt.cutset_fmo as cutf
+import abmptools as ampt
 # Matrix operation
 
 
@@ -42,7 +42,6 @@ if __name__ == "__main__":
         o3file= 'rdf-mol' + str(centermolid) + '-' + tgtmol + '.txt'
 
 
-
 #     if mode == 'particle':
 #         ofile= 'dist-' + tgtname + '-' + tgtpart + 'from' + str(centerpos[0]) + '-' + str(centerpos[1]) + '-' + str(centerpos[2]) + 'rec' + str(record) + '.txt'
 #         o2file= 'hist-' + tgtname + '-' + tgtpart + 'from' + str(centerpos[0]) + '-' + str(centerpos[1]) + '-' + str(centerpos[2]) + 'rec' + str(record) + '.txt'
@@ -65,7 +64,7 @@ if __name__ == "__main__":
         else:
             oname = oname + '-moved'
 
-        obj = cutf.cutset_fmo()
+        obj = ampt.cutset_fmo()
         obj.getmode = mode
         obj.assignmolname = assignmolname
         obj.refreshatmtype = refreshatmtype

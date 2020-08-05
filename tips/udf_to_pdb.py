@@ -6,7 +6,7 @@ import math
 import subprocess
 import re
 from multiprocessing import Pool
-import ampt.udfrm_io as udio
+import abmptools as ampt
 
 if __name__ == "__main__":
     # main
@@ -16,7 +16,7 @@ if __name__ == "__main__":
         print(" python udf_to_pdf.py filename")
         quit()
 
-    fff = udio.udfrm_io()
+    fff = ampt.udfrm_io()
 
     ## get tgtrec and move
     tgtflag = False

@@ -1,13 +1,13 @@
 import sys
 import os
-import ampt.udfrm_io as uio
 import numpy as np
 import math
 import subprocess
 import re
 import time
 import copy
-import ampt.cutset_fmo as cutf
+import abmptools as ampt
+
 
 
 if __name__ == "__main__":
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     # main
     # fname = str(argvs[1])
 
-    cobj = uio.udfrm_io()
+    cobj = ampt.udfrm_io()
     tgtmolid -= 1
     totalrec = int((tend - tstart)/interval) +  1
     oname =  os.path.splitext(fhead)[0] + '-' + str(tstart) + '-' + str(tend) + '.log'
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     for i in range(tstart, tend + 1, interval):
         count += 1
         fname = fhead + '.' + str(i)
-        obj = cutf.cutset_fmo()
+        obj = ampt.cutset_fmo()
         obj.getmode = mode
         obj.assignmolname = assignmolname
 

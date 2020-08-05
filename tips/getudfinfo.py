@@ -4,7 +4,7 @@ import sys
 import os
 import math
 import subprocess
-import ampt.udf_io as mbudf
+import abmptools as ampt
 
 if __name__ == "__main__":
 
@@ -13,6 +13,6 @@ if __name__ == "__main__":
 
     _udf_ = UDFManager(fname)
 
-    udfio = mbudf.udf_io()
+    udfio = ampt.udf_io()
     udfio.getudfinfowrap(_udf_)
 

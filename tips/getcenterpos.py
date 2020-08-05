@@ -6,7 +6,7 @@ import subprocess
 import re
 import time
 import copy
-import ampt.cutset_fmo as cutf
+import abmptools as ampt
 # Matrix operation
 
 if __name__ == "__main__":
@@ -20,7 +20,7 @@ if __name__ == "__main__":
         fname = argvs[i]
         oname, ext = os.path.splitext(fname)
 
-        obj = cutf.cutset_fmo()
+        obj = ampt.cutset_fmo()
         path = ['.', 'for_abmp']
 
         param_read = {}
