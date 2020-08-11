@@ -18,7 +18,7 @@ except:
 class pdb_io(fab.abinit_io):
     def __init__(self):
         super().__init__()
-        print('## load pdb io init')
+        # print('## load pdb io init')
         self.solutes = []
         self.getmode = 'resnum'
         self.assignresname = False
@@ -515,18 +515,18 @@ class pdb_io(fab.abinit_io):
 
         self.readpdb(fname)
 
-        posRes_orig     =    copy.deepcopy(self.posRes)
-        atmtypeRes_orig =copy.deepcopy(    self.atmtypeRes)
-        resnames_orig   =  copy.deepcopy(  self.resnames)
-        headRes_orig    =   copy.deepcopy( self.headRes)
-        labRes_orig     =    copy.deepcopy(self.labRes)
-        chainRes_orig   =  copy.deepcopy(  self.chainRes)
-        resnumRes_orig  = copy.deepcopy(   self.resnumRes)
-        codeRes_orig    =   copy.deepcopy( self.codeRes)
-        occRes_orig     =    copy.deepcopy(self.occRes)
-        tempRes_orig    =   copy.deepcopy( self.tempRes)
-        amarkRes_orig   =  copy.deepcopy(  self.amarkRes)
-        chargeRes_orig  = copy.deepcopy(   self.chargeRes)
+        posRes_orig     = copy.deepcopy(self.posRes)
+        atmtypeRes_orig = copy.deepcopy(self.atmtypeRes)
+        resnames_orig   = copy.deepcopy(self.resnames)
+        headRes_orig    = copy.deepcopy(self.headRes)
+        labRes_orig     = copy.deepcopy(self.labRes)
+        chainRes_orig   = copy.deepcopy(self.chainRes)
+        resnumRes_orig  = copy.deepcopy(self.resnumRes)
+        codeRes_orig    = copy.deepcopy( self.codeRes)
+        occRes_orig     = copy.deepcopy(self.occRes)
+        tempRes_orig    = copy.deepcopy(self.tempRes)
+        amarkRes_orig   = copy.deepcopy(self.amarkRes)
+        chargeRes_orig  = copy.deepcopy(self.chargeRes)
 
 
         print("totalmol:",self.totalRes)

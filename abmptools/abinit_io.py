@@ -30,7 +30,7 @@ except:
 class abinit_io(mi.mol_io):
 
     def __init__(self):
-        print('## load abinit io')
+        # print('## load abinit io')
         super().__init__()
         # gen_rand: gen_coord
 
@@ -880,7 +880,7 @@ MD='OFF'
             if itemlist[0][:2].upper() == 'NF':
                 self.nf = int(itemlist[0].split('=')[-1])
                 nf = self.nf
-                print('NF=', self.nf)
+                print('NF =', self.nf)
                 if self.nf > 10:
                     baseline = math.ceil(self.nf/10)
                     print('n_line', baseline)

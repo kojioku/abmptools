@@ -452,7 +452,7 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         ajf_file_name = path + "/" + name + ".ajf"
         ajf_file = open(ajf_file_name, 'w')
 
-        self.readgeom = "'" + name + ".pdb'"
+        self.readgeom = name + ".pdb"
         self.writegeom = "'" + name  + '-' + \
             self.ajf_method + '-' + self.ajf_basis_set.replace('*', 'd') + ".cpf'"
         ajf_body = self.gen_ajf_body(ajf_parameter)

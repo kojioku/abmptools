@@ -7,28 +7,53 @@ import re
 import time
 import copy
 import abmptools as abmp
-# Matrix operation
+import argparse
 
 
 if __name__ == "__main__":
     # main
-    argvs = sys.argv
-    # fname = argvs
+    # create parser
+    parser = argparse.ArgumentParser(
+                prog='generate ABNITMP input (ajf,pdb set) from orig pdb and segment_data file', # program name
+                usage='Demonstration of argparser', # program usage
+                description='description',
+                epilog='end',
+                add_help=True,
+                )
 
-    for i in range(len(argvs)):
-        if i == 0:
-            continue
-        fname = argvs[i]
+    # add args
+    parser.add_argument('-c', '--coord',
+                        help='coordinate file (pdb)',
+                        nargs='*',
+                        # action='append',
+                        required=True)
+
+    parser.add_argument('-p', '--parameter',
+                        help='parameter file',
+                        default='input_param')
+
+    # get args
+    args = parser.parse_args()
+
+    print('coord(pdb) =', args.coord)
+    print('parameter = ', args.parameter)
+
+    for i in range(len(args.coord)):
+        fname = args.coord[i]
         oname, ext = os.path.splitext(fname)
 
         aobj = abmp.setfmo()
         path = 'for_abmp'
 
         param_read = {}
-        exec(open("input_param", 'r').read(), param_read)
+        exec(open(args.parameter, 'r').read(), param_read)
         param_rfmo = param_read['param']
         aobj.setrfmoparam(param_rfmo)
         aobj.refreshresid = True
+
+        print('--- info ---')
+        print('setup mode', aobj.cutmode)
+        print('piedaflag', aobj.piedaflag)
 
         if aobj.cutmode == 'sphere':
             oname = oname + '-' + aobj.cutmode + 'p' + str(aobj.tgtpos[0]) + '_' + str(aobj.tgtpos[1]) + '_' + str(aobj.tgtpos[2]) + '_ar' + str(aobj.criteria)
@@ -46,7 +71,6 @@ if __name__ == "__main__":
             print('molset', aobj.molname)
             print('solute', aobj.solutes)
 
-        print('piedaflag', aobj.piedaflag)
 
         if len(aobj.ionname) != 0:
             print('ion mode: ', aobj.ionmode)
