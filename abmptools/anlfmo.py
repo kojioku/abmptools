@@ -51,7 +51,7 @@ class anlfmo(pdio.pdb_io):
 
         self.anlmode= 'frag' #frag, 'mol', 'fraginmol', 'multi'
         self.fragmode = 'auto'  #'hybrid', 'auto', 'manual'
-        self.dist = 10.0
+        self.dist = 1000.0
         self.tgt1frag = None
 
         self.rpdbflag = False
@@ -1678,7 +1678,7 @@ class anlfmo(pdio.pdb_io):
             self.pcolumn = ['I', 'J', 'ES', 'EX', 'CT-mix', 'Solv(ES)', 'DI(MP2)', 'q(I=>J)']
 
         # get resname reference
-        if self.addresinfo == True or self.rpdbflag == True:
+        if self.addresinfo == True or self.rpdbflag == True or self.anlmode == 'fraginmol':
             print('read reference resname')
             if type(self.tgtlogs) == list:
                 for i in range(len(self.tgtlogs)):
@@ -1813,6 +1813,7 @@ class anlfmo(pdio.pdb_io):
             print(molfragss)
 
             tgt2_glofrags = []
+            # print('resnames', self.resnames)
             for i in range(len(self.resnames)):
                 if self.resnames[i] == tgt2molname:
                     tgt2frag = molfragss[i][tgt2_lofrag - 1]
@@ -2202,7 +2203,7 @@ class anlfmo(pdio.pdb_io):
 
             ohead = head + '-' 'tgt1frag' + str(self.tgt1_lofrag) + '-mol' + str(self.tgt2molname) + 'frag' + str(self.tgt2_lofrag)
 
-            if self.writeresnamecsv == True:
+            if self.addresinfo == True:
                 for i in range(1, len(self.resname_perfrag)+1):
                     val1 = i
                     val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
