@@ -18,9 +18,9 @@ if __name__ == "__main__":
 
     # create parser
     parser = argparse.ArgumentParser(
-                prog='generate ABNITMP input (ajf,pdb set) from udf(cognac) and segment_data file', # program name
-                usage='Demonstration of argparser', # program usage
-                description='description',
+                prog='udf2fmo.py', # program name
+                usage='python udf2fmo.py -c xxx.udf -o yyy', # program usage
+                description='generate ABNITMP input (ajf,pdb set) from udf(cognac) and segment_data file',
                 epilog='end',
                 add_help=True,
                 )

@@ -6,9 +6,9 @@ import argparse
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-                prog='generate frag config py file from ABNITMP fragment info (segment_data) file', # program name
-                usage='Demonstration of argparser', # program usage
-                description='description',
+                prog='ajf2config.py', # program name
+                usage='python ajf2config.py -i xxx.frag yyy.frag', # program usage
+                description='generate frag config py file from ABNITMP fragment info (segment_data) file',
                 epilog='end',
                 add_help=True,
                 )

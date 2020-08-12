@@ -14,9 +14,9 @@ if __name__ == "__main__":
     # main
     # create parser
     parser = argparse.ArgumentParser(
-                prog='generate ABNITMP input (ajf,pdb set) from orig pdb and segment_data file', # program name
-                usage='Demonstration of argparser', # program usage
-                description='description',
+                prog='pdb2fmo.py', # program name
+                usage='python pdb2fmo.py -c xxx.pdb', # program usage 
+                description='generate ABNITMP input (ajf,pdb set) from orig pdb and segment_data file',
                 epilog='end',
                 add_help=True,
                 )
