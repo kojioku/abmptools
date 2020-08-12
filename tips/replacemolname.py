@@ -20,9 +20,9 @@ for i in range(len(argvs)):
     print(head, ext)
 
     if ext != '.pdb':
-        out = head.split('.pdb')[0] + ext + '-sed.pdb'
+        out = head.split('.pdb')[0] + ext + '-renamed.pdb'
     else:
-        out = head + '-sed.pdb'
+        out = head + '-renamed.pdb'
     print(out)
 
     lines = open(infile, 'r').readlines()

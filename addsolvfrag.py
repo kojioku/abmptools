@@ -8,21 +8,51 @@ import time
 import copy
 import abmptools as ampt
 import collections
+import argparse
 # Matrix operation
 
 
 if __name__ == "__main__":
     ## -- user setting --
+    parser = argparse.ArgumentParser(
+                prog='addsolvfrag.py', # program name
+                usage='''e.g.)
+                python addsolvfrag.py -temp 6lu7-covneu-nowat-hinagata0514.ajf -solv HOH WAT NA -i *.pdb
+                ''', # program usage
+                description='description',
+                epilog='end',
+                add_help=True,
+                )
+
+    # add args
+    parser.add_argument('-i', '--input',
+                        help='input frag info',
+                        nargs='*',
+                        # action='append',
+                        required=True)
+
+    parser.add_argument('-temp', '--template',
+                        help='template file',
+                        required=True)
+
+    parser.add_argument('-solv', '--solvmol',
+                        help='output config file',
+                        nargs='*',
+                        default=['HOH', 'WAT', 'NA'])
+
+    args = parser.parse_args()
+    print('input =', args.input)
+    # print('output =', args.output)
+
+    ajfname = args.template
+    solvname = args.solvmol
+
+    ## -- setting end --
     # read info
     mode = 'resnum' #rfile, resnum
     assignmolname = False
     refreshatmtype = False
     refreshresid = False
-
-    ajfname = '6lu7-covneu-nowat-hinagata0514.ajf'   # 6lu7_nocovhip163-nowat-hinagata0516.ajf
-    solvname = ['HOH', 'WAT', 'NA']
-
-    ## -- setting end --
 
     aobj = ampt.setfmo()
     aobj.getmode = mode

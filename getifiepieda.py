@@ -20,8 +20,8 @@ if __name__ == '__main__':
     # getifiepieda.py --mol 1-10 -i xxx.log
     # getifiepieda.py --fraginmol 1-10 2 000 1 -i xxx.log
     # getifiepieda.py --ffmatrix 1-100 101-200 xxx.log
-    # getifiepieda.py --multi 1-100 101-200 -t 100 3100 1000 -i 6lu7orig_md040j8_163neu -hopt-ps-mod_forabmp_192n-2p-24t.log --exclude 102 -np 4
-    # getifiepieda.py --multi 10 -d 8.0 -t 100 3100 1000 -i 6lu7orig_md040j8_163neu -hopt-ps-mod_forabmp_192n-2p-24t.log --exclude 102 -np 4
+    # getifiepieda.py --multi 1-100 101-200 -t 100 3100 1000 -i '["6lu7orig_md040j8_163neu", -hopt-ps-mod_forabmp_192n-2p-24t.log"]' --exclude 102 -np 4
+    # getifiepieda.py --multi 10 -d 8.0 -t 100 3100 1000 -i '["6lu7orig_md040j8_163neu", "-hopt-ps-mod_forabmp_192n-2p-24t.log"]' --exclude 102 -np 4
     # getifiepieda.py --multi 20 --molname WAT -d 8.0 -t 100 3100 1000 -i '["6lu7orig_md040j8_163neu", "-hopt-ps-mod_forabmp_192n-2p-24t.log"]' --exclude 102 -np 4
     # getifiepieda.py --tfmatrix 1-100 101-200 -t 100 3100 1000 -i 6lu7orig_md040j8_163neu -hopt-ps-mod_forabmp_192n-2p-24t.log --exclude 102 -np 4''',
                 description='Analysis script for ABINIT-MP log',
@@ -37,7 +37,6 @@ if __name__ == '__main__':
 
     parser.add_argument('-m', '--mol',
                         help='tgt molid info')
-
 
     parser.add_argument('-mn', '--molname',
                         help='tgtmolname')
@@ -118,7 +117,7 @@ if __name__ == '__main__':
     # --- user setting ---
 
     print(args.input)
-    if args.multi == None:
+    if args.multi == None and args.tfmatrix == None:
         logname = args.input
     else:
         aobj.ilog_head = eval(args.input)[0]
