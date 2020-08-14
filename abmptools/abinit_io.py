@@ -98,7 +98,7 @@ class abinit_io(mi.mol_io):
             for j in range(len(frag_atom[i])):
                 icount += 1
                 ajf_fragment += '%8d' % (frag_atom[i][j])
-                if icount % 10 is 0:
+                if icount % 10 == 0:
                     icount = 0
                     ajf_fragment += '\n'
         if icount % 10 != 0:
@@ -110,7 +110,7 @@ class abinit_io(mi.mol_io):
             for j in range(len(frag_charge[i])):
                 icount += 1
                 ajf_fragment += '%8d' % (frag_charge[i][j])
-                if icount % 10 is 0:
+                if icount % 10 == 0:
                     icount = 0
                     ajf_fragment += '\n'
         if icount % 10 != 0:
@@ -122,7 +122,7 @@ class abinit_io(mi.mol_io):
             for j in range(len(frag_connect_num[i])):
                 icount += 1
                 ajf_fragment += '%8d' % (frag_connect_num[i][j])
-                if icount % 10 is 0:
+                if icount % 10 == 0:
                     icount = 0
                     ajf_fragment += '\n'
         if icount % 10 != 0:
@@ -138,7 +138,7 @@ class abinit_io(mi.mol_io):
                     icount += 1
                     ajf_fragment += '%8d' % (seg_info[i][j][k] + atom_count)
                     # print(seg_info[i][j][k] + atom_count, 'icount', icount)
-                    if icount % 10 is 0:
+                    if icount % 10 == 0:
                         icount = 0
                         ajf_fragment += '\n'
 
@@ -1240,7 +1240,7 @@ MD='OFF'
                     icount += 1
                     ajf_fragment += '%8d' % (
                             seg_info[nameid[i]][j][k] + atom_count)
-                    if icount % 10 is 0:
+                    if icount % 10 == 0:
                         icount = 0
                         ajf_fragment += '\n'
                 if icount % 10 != 0:
