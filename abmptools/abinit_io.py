@@ -45,10 +45,10 @@ class abinit_io(mi.mol_io):
         # abinitmp param
         self.ajf_method = "MP2"
         self.ajf_basis_set = "6-31G*"
-        self.abinit_ver = 'rev10'
+        self.abinit_ver = 'rev22' #rev10, 11, 15, 17, mizuho
         self.pbmolrad = 'vdw'
         self.pbcnv = 1.0
-        self.piedaflag = False
+        self.piedaflag = True
         self.cpfflag = False
         self.cmmflag = False
         self.nofzc_flag = False
@@ -180,28 +180,6 @@ class abinit_io(mi.mol_io):
         else:
             auto = 'OFF'
 
-        if self.solv_flag is True:
-            solv_section = """
-&SOLVATION
-EFFECT='ON'
-ITRMOD='Normal'
-MAXITR=100
-THICNV=""" + str(self.pbcnv) + """
-IGSCC='Core'
-INIEHF='OFF'
-PRBRAD=1.4
-EPSOUT=80.0
-EPSIN=1.0
-SRFTNS=0.0072
-SRFOFF=0.0
-NSPHER=1000"""
-            if self.abinit_ver != 'rev17':
-                solv_section += """
-SCREEN='ES+NP' """
-        else:
-            solv_section = """
-&SOLVATION
-EFFECT='OFF' """
 
         if MOME_flag is True:
             frag_section = """
@@ -217,55 +195,7 @@ LMOTYP='ANO' """
         else:
             use_FMO = 'ON'
 
-        if self.abinit_ver == 'rev15' or self.abinit_ver == 'rev17':
-            new_section = """
-&LRD
-/
-"""
-        else:
-            new_section = ""
-        if self.abinit_ver == 'rev10' or self.abinit_ver == 'rev11' or self.abinit_ver == 'rev15' or self.abinit_ver =='rev17':
-            new_section += """
-&DFT
-/
-
-&ANALYSIS """
-            if self.piedaflag == True:
-                new_section += """
-PIEDA='YES'"""
-            else:
-                new_section += """
-PIEDA='NO'"""
-
-            new_section += """
-/
-"""
-
-        elif self.abinit_ver == 'mizuho':
-            new_section = """
-&DFT
-/
-
-&PIEDA"""
-            if self.piedaflag == True:
-                new_section += """
-EnergyDecomposition='YES'"""
-            new_section += """
-/
-"""
-
-        else:
-            new_section = ""
-
-        if self.abinit_ver == 'rev11' or self.abinit_ver == 'rev15' or self.abinit_ver == 'rev17':
-            new_section2 = """
-&CCPT
-/
-"""
-        else:
-            new_section2 = ""
-
-        if self.submit_system == 'K':
+        if self.submit_system in ['K', 'OFP']:
             np = '1'
         else:
             np = str(int(self.npro/self.para_job))
@@ -308,8 +238,7 @@ Ldimer_cmm=5.0
 /
 """
         else:
-            ajf_body += """
-/
+            ajf_body += """/
 """
 
         ajf_body += """
@@ -331,10 +260,24 @@ DiffuseOn='NO'
 OPT='OFF'
 /
 
-&SCZV
+"""
+        if self.abinit_ver in ['rev22']:
+            ajf_body += """
+&MFMO
+/
+"""
+
+        ajf_body += """&SCZV
 DimerResponseTerm='NO'
 /
+"""
+        if self.abinit_ver in ['rev22']:
+            ajf_body += """
+&XUFF
+/
+"""
 
+        ajf_body += """
 &MP2
 NP_MP2_IJ=1
 NP_MP2_S=0
@@ -359,25 +302,92 @@ LPRINT=2
 
 &LMP2
 /
-""" + str(new_section) + """
+"""
+        # define new section
+        if self.abinit_ver in ['rev15', 'rev17', 'rev22']:
+            new_section = """
+&LRD
+/
+"""
+        else:
+            new_section = ""
+
+        if self.abinit_ver in ['rev10', 'rev11', 'rev15', 'rev17', 'rev22']:
+            new_section += """
+&DFT
+/
+
+&ANALYSIS """
+            if self.piedaflag == True:
+                new_section += """
+PIEDA='YES'"""
+            else:
+                new_section += """
+PIEDA='NO'"""
+
+            new_section += """
+/
+"""
+
+        elif self.abinit_ver == 'mizuho':
+            new_section = """
+&DFT
+/
+
+&PIEDA"""
+            if self.piedaflag == True:
+                new_section += """
+EnergyDecomposition='YES'"""
+            new_section += """
+/
+"""
+
+        else:
+            new_section = ""
+
+        ajf_body += str(new_section) + """
 &BSSE
 /
 
 &FRAGPAIR
 /
-""" + str(solv_section) + """
+
+"""
+        # define solv section
+        if self.solv_flag is True:
+            solv_section = """
+&SOLVATION
+EFFECT='ON'
+ITRMOD='Normal'
+MAXITR=100
+THICNV=""" + str(self.pbcnv) + """
+IGSCC='Core'
+INIEHF='OFF'
+PRBRAD=1.4
+EPSOUT=80.0
+EPSIN=1.0
+SRFTNS=0.0072
+SRFOFF=0.0
+NSPHER=1000"""
+            if self.abinit_ver in ['rev10', 'rev11', 'rev15', 'mizuho']:
+                solv_section += "\nSCREEN='ES+NP' \n"
+        else:
+            solv_section = """
+&SOLVATION
+EFFECT='OFF' """
+
+        ajf_body += str(solv_section) + """
 /
 
 &PBEQ
 MAXITR=1000
 JDGCNV='RMS'
-THRCNV=1.0E-5"""
-        if self.abinit_ver == 'rev17':
-            ajf_body +="""
-ATMRAD='""" + self.pbmolrad + """'"""
+THRCNV=1.0E-5
+"""
+        if self.abinit_ver in ['rev17', 'rev22']:
+            ajf_body +="ATMRAD='" + self.pbmolrad + "'"
         else:
-            ajf_body +="""
-MOLRAD='""" + self.pbmolrad + """'"""
+            ajf_body +="MOLRAD='" + self.pbmolrad + "'"
 
         ajf_body +="""
 /
@@ -401,7 +411,17 @@ IFLOC='OCC'
 CHKFZC='NO'
 LPRINT=2
 /
-""" + str(new_section2) + """
+"""
+        # new section2
+        if self.abinit_ver in ['rev11', 'rev15', 'rev17', 'rev22']:
+            new_section2 = """
+&CCPT
+/
+"""
+        else:
+            new_section2 = ""
+
+        ajf_body += str(new_section2) + """
 &XYZ
 /
 
@@ -793,35 +813,74 @@ MD='OFF'
         except:
             print ("can't open " + target)
             return 0,0,0,0,0
+        if self.abinit_ver in ['rev11', 'rev15', 'mizuho']:
+            text = f.readlines()
+            f.close()
+            index = 0
+            pbdone =False
+            for i in range(len(text)):
+                itemList = text[i][:-1].split()
+                if len(itemList) == 0:
+                    continue
+                if itemList[0:4] == ['Energy', 'in', 'gas', 'phase']:
+                    eg = itemList  # [5]
+                if itemList[0:4] == ['ElectroStatic', '[', 'DGes=Es-Eg-DE', ']']:
+                    dges = itemList
+                if itemList[0:4] == ['Non-polar', '[', 'DGnp', ']']:
+                    dgnp = itemList
+                if itemList[0:4] == ['Total', '[', 'DG=DGes+DGnp', ']']:
+                    dg = itemList  # [5]
+                    pbdone =True
+                if itemList == ['##', 'FMO', 'TOTAL', 'ENERGY']:
+                    index = i
+            if  pbdone is False:
+                return 0, 0, 0, 0, 0
+            cor = text[index+8].split()
+            # print eg, cor, dg
+            try:
+                return eg[8], cor[2], dg[5], dges[5], dgnp[5]
+            except:
+                print("Warning: can't get result:", target)
+                return 0, 0, 0, 0, 0
 
-        text = f.readlines()
-        f.close()
-        index = 0
-        pbdone =False
-        for i in range(len(text)):
-            itemList = text[i][:-1].split()
-            if len(itemList) == 0:
-                continue
-            if itemList[0:4] == ['Energy', 'in', 'gas', 'phase']:
-                eg = itemList  # [5]
-            if itemList[0:4] == ['ElectroStatic', '[', 'DGes=Es-Eg-DE', ']']:
-                dges = itemList
-            if itemList[0:4] == ['Non-polar', '[', 'DGnp', ']']:
-                dgnp = itemList
-            if itemList[0:4] == ['Total', '[', 'DG=DGes+DGnp', ']']:
-                dg = itemList  # [5]
-                pbdone =True
-            if itemList == ['##', 'FMO', 'TOTAL', 'ENERGY']:
-                index = i
-        if  pbdone is False:
-            return 0, 0, 0, 0, 0
-        cor = text[index+8].split()
-        # print eg, cor, dg
-        try:
-            return eg[8], cor[2], dg[5], dges[5], dgnp[5]
-        except:
-            print("Warning: can't get result:", target)
-            return 0, 0, 0, 0, 0
+        if self.abinit_ver in ['rev17', 'rev22']:
+            text = f.readlines()
+            f.close()
+            index = 0
+            pbdone =False
+            getflag = False
+            for i in range(len(text)):
+                itemList = text[i][:-1].split()
+                if len(itemList) <= 3:
+                    continue
+                if itemList[0:4] == ['##', 'SOLUTE', 'TOTAL', 'ENERGY']:
+                    getflag = True
+                if  getflag == True:
+                    if itemList[0:3] == ['FMO2', 'in', 'vacuo']:
+                        eg = itemList  # [5]
+                    if itemList[0:2] == ['in', 'solvent']:
+                        esol = itemList
+                    if itemList[0] == 'difference':
+                        dif = itemList
+                    if itemList[0:3] == ['(', 'ES', 'correction']:
+                        dges = itemList[3]  # [5]
+                        pbdone =True
+            # print(eg[3], eg[4], esol[4], dges, dif[2])
+            try:
+                return eg[3], eg[4], esol[4], dges, dif[2]
+            except:
+                print("Warning: can't get result:", target)
+                return 0, 0, 0, 0, 0
+
+            '''
+            ## SOLUTE TOTAL ENERGY
+
+                                       SCF / Hartree   MP2 corr. / Hartree       Total / Hartree
+               FMO2 in vacuo           -236.52210938           -0.80641280         -237.32852218
+                    in solvent         -236.52238631           -0.80642693         -237.32881324
+                    difference           -0.00027693           -0.00001413           -0.00029106
+                  ( ES correction        -0.00028778 )
+            '''
 
 
     def getmopbenergy(self, target):
@@ -834,30 +893,36 @@ MD='OFF'
             print ("can't open " + target)
             return 0, 0, 0, 0, 0
 
-        for i in range(len(text)):
-            itemList = text[i][:-1].split()
-    #         print itemList
-            if len(itemList) == 0:
-                continue
-            if itemList[0:4] == ['Energy', 'in', 'gas', 'phase']:
-                eg = itemList  # [5]
-            if itemList[0:4] == ['ElectroStatic', '[', 'DGes=Es-Eg-DE', ']']:
-                dges = itemList
-            if itemList[0:4] == ['Non-polar', '[', 'DGnp', ']']:
-                dgnp = itemList
-            if itemList[0:4] == ['Total', '[', 'DG=DGes+DGnp', ']']:
-                dg = itemList  # [5]
-            if itemList == ['##', 'MP2', 'ENERGY']:
-                count += 1
-                if count == 2:
-                    cor = text[i+2].split()
-        # print eg, cor, dg
-        try:
-            return eg[8], cor[2], dg[5], dges[5], dgnp[5]
-        except:
-            print("Error! can't get monomer result:", target)
-            # sys.exit()
-            return 0, 0, 0, 0, 0
+        if self.abinit_ver in ['rev11', 'rev15', 'mizuho']:
+
+            for i in range(len(text)):
+                itemList = text[i][:-1].split()
+        #         print itemList
+                if len(itemList) == 0:
+                    continue
+                if itemList[0:4] == ['Energy', 'in', 'gas', 'phase']:
+                    eg = itemList  # [5]
+                if itemList[0:4] == ['ElectroStatic', '[', 'DGes=Es-Eg-DE', ']']:
+                    dges = itemList
+                if itemList[0:4] == ['Non-polar', '[', 'DGnp', ']']:
+                    dgnp = itemList
+                if itemList[0:4] == ['Total', '[', 'DG=DGes+DGnp', ']']:
+                    dg = itemList  # [5]
+                if itemList == ['##', 'MP2', 'ENERGY']:
+                    count += 1
+                    if count == 2:
+                        cor = text[i+2].split()
+            # print eg, cor, dg
+            try:
+                return eg[8], cor[2], dg[5], dges[5], dgnp[5]
+            except:
+                print("Error! can't get monomer result:", target)
+                # sys.exit()
+                return 0, 0, 0, 0, 0
+
+        if self.abinit_ver in ['rev17', 'rev22']:
+            a, b, c, d, e = self.getfmopbenergy(target)
+            return a, b, c, d, e
 
 
 
