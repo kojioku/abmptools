@@ -115,8 +115,8 @@ if __name__ == "__main__":
     addchain = False
     if args.addchain != None:
         addchain = True
-        addres_start = args.addchain[0]
-        addres_end = args.addchain[1]
+        addres_start = int(args.addchain[0])
+        addres_end = int(args.addchain[1])
         chainlab = args.addchain[2]
 
         addres = [i for i in range(addres_start, addres_end+1)]
