@@ -862,12 +862,16 @@ MD='OFF'
                         esol = itemList
                     if itemList[0] == 'difference':
                         dif = itemList
-                    if itemList[0:3] == ['(', 'ES', 'correction']:
-                        dges = itemList[3]  # [5]
+                    if itemList[0] == 'Electrostatic':
+                        dges = itemList
+                    if itemList[0] == 'Nonpolar':
+                        dgnp = itemList
+                    if itemList[0] == 'Total':
+                        dg = itemList
                         pbdone =True
-            # print(eg[3], eg[4], esol[4], dges, dif[2])
+            # egas, cor(insolv), dgtotal, dges, dgnp
             try:
-                return eg[3], eg[4], esol[4], dges, dif[2]
+                return eg[3], esol[3], dg[2], dges[2], dgnp[2]
             except:
                 print("Warning: can't get result:", target)
                 return 0, 0, 0, 0, 0
@@ -880,6 +884,14 @@ MD='OFF'
                     in solvent         -236.52238631           -0.80642693         -237.32881324
                     difference           -0.00027693           -0.00001413           -0.00029106
                   ( ES correction        -0.00028778 )
+
+
+             ## SOLVATION FREE ENERGY
+
+                                       FMO2 / Hartree       FMO2 / kcal/mol
+                Electrostatic             -0.04769392          -29.92838623
+                Nonpolar                   0.00548501            3.44189687
+                Total                     -0.04220891          -26.48648936
             '''
 
 
