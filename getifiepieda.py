@@ -71,6 +71,7 @@ if __name__ == '__main__':
                         )
 
     parser.add_argument('-np', '--pynp',
+                        type=int,
                         help='python np',
                         default = 4)
 
