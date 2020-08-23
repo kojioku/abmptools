@@ -954,6 +954,8 @@ MD='OFF'
         connects = []
         for i in range(len(lines)):
             itemlist = lines[i].split()
+            if len(itemlist) == 0:
+                continue
             if itemlist[0][:2].upper() == 'NF':
                 self.nf = int(itemlist[0].split('=')[-1])
                 nf = self.nf
