@@ -20,7 +20,7 @@ if __name__ == "__main__":
         fname = argvs[i]
         oname, ext = os.path.splitext(fname)
 
-        obj = ampt.cutset_fmo()
+        obj = ampt.setfmo()
         path = ['.', 'for_abmp']
 
         param_read = {}
@@ -47,8 +47,10 @@ if __name__ == "__main__":
         #     print('ion mode: ', obj.ionmode)
         #     print('ion name: ', obj.ionname)
         # obj.getcontact_rmapfmopdb(path, fname, oname)
-        totalMol, atomnameMol_orig, molnamelist_orig, posMol_orig, heads_orig, labs_orig, chains_orig ,resnums_orig ,codes_orig ,occs_orig ,temps_orig ,amarks_orig ,charges_orig = obj.getpdbinfo(fname)
-        print(posMol_orig[0])
+        # totalMol, atomnameMol_orig, molnamelist_orig, posMol_orig, heads_orig, labs_orig, chains_orig ,resnums_orig ,codes_orig ,occs_orig ,temps_orig ,amarks_orig ,charges_orig = obj.getpdbinfo(fname)
+        obj.readpdb(fname)
+        # print(obj.posRes)
+        posMol_orig = obj.posRes
         xs = []
         ys = []
         zs = []

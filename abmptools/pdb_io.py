@@ -203,12 +203,12 @@ class pdb_io(fab.abinit_io):
             mol_confs = []
             for molname in molname_set:
                 mol_confs.append(self.config_read(molname, 0))
-            print('mol_confs', mol_confs)
-            print('molnames_atom', molnames)
+            # print('mol_confs', mol_confs)
+            # print('molnames_atom', molnames)
             molnums = {}
             for molconf in mol_confs:
                 molnums[molconf['name']] = sum(molconf['atom'])
-            print('molnums', molnums)
+            print('molnatoms', molnums)
 
             #search molhead
             i = 0
