@@ -653,7 +653,7 @@ class pdb_io(fab.abinit_io):
                                 break
 
 
-        print('neighborindex', neighborindex)
+        # print('neighborindex', neighborindex)
         # print vec
         # print("cellsize", cell)
         posRes = []

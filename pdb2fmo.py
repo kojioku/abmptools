@@ -32,6 +32,16 @@ if __name__ == "__main__":
                         help='parameter file',
                         default='input_param')
 
+    parser.add_argument('-noreid', '--norefreshresid',
+                        help='refreshresid',
+                        action='store_false'
+                        )
+
+    parser.add_argument('-noreatm', '--norefreshatmtype',
+                        help='refreshatmtype',
+                        action='store_false'
+                        )
+
     # get args
     args = parser.parse_args()
 
@@ -49,11 +59,17 @@ if __name__ == "__main__":
         exec(open(args.parameter, 'r').read(), param_read)
         param_rfmo = param_read['param']
         aobj.setrfmoparam(param_rfmo)
-        aobj.refreshresid = True
+        if args.norefreshresid:
+            aobj.refreshresid = True
+        if args. norefreshatmtype:
+            aobj.refreshatmtype = True
 
         print('--- info ---')
         print('setup mode', aobj.cutmode)
         print('piedaflag', aobj.piedaflag)
+        print('refreshresid', aobj.refreshresid)
+        print('refreshatmtype', aobj.refreshatmtype)
+
 
         if aobj.cutmode == 'sphere':
             oname = oname + '-' + aobj.cutmode + 'p' + str(aobj.tgtpos[0]) + '_' + str(aobj.tgtpos[1]) + '_' + str(aobj.tgtpos[2]) + '_ar' + str(aobj.criteria)
