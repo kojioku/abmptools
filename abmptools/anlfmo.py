@@ -682,7 +682,7 @@ class anlfmo(pdio.pdb_io):
         prmp2corrdf = pd.DataFrame(index=self.tgt2frag)
         mp2tdf =  pd.DataFrame(index=self.tgt2frag)
         prmp2tdf = pd.DataFrame(index=self.tgt2frag)
-
+        distdf = pd.DataFrame(index=self.tgt2frag)
 
         fragids = []
         tgtdf = df[(df['I'] == tgt1frag) | (df['J'] == tgt1frag)]
@@ -702,6 +702,7 @@ class anlfmo(pdio.pdb_io):
         hfifie = tgtdf_filter['HF-IFIE'].values.tolist()
         mp2corr = tgtdf_filter['MP2-IFIE'].values.tolist()
         prmp2corr = tgtdf_filter['PR-TYPE1'].values.tolist()
+        dist = tgtdf_filter['DIST'].values.tolist()
 
         mp2total = []
         prmp2total  = []
@@ -716,6 +717,7 @@ class anlfmo(pdio.pdb_io):
         prmp2corrdf[self.tgttimes[i]] = prmp2corr
         mp2tdf[self.tgttimes[i]] = mp2total
         prmp2tdf[self.tgttimes[i]] = prmp2total
+        distdf[self.tgttimes[i]] = dist
 
 
         # print (hfdf.head())
@@ -723,8 +725,9 @@ class anlfmo(pdio.pdb_io):
         # print (prmp2corrdf.head())
         # print (mp2tdf.head())
         # print (prmp2tdf.head())
+        #print(distdf.head())
 
-        return hfdf, mp2corrdf, prmp2corrdf, mp2tdf, prmp2tdf
+        return hfdf, mp2corrdf, prmp2corrdf, mp2tdf, prmp2tdf, distdf
 
 
     def gettgtpidf_n2tfmatrix(self, i, df, hfdf, tgt1frag):
@@ -1376,18 +1379,20 @@ class anlfmo(pdio.pdb_io):
                 esdfs = []
                 exdfs = []
                 ctdfs = []
+                distdfs = []
                 for tmptgt1 in self.tgt1frag:
-                    hfdf, mp2corrdf, prmp2corrdf, mp2tdf, prmp2tdf = self.gettgtdf_n2tfmatrix(i, ifdf, tmptgt1)
+                    hfdf, mp2corrdf, prmp2corrdf, mp2tdf, prmp2tdf, distdf = self.gettgtdf_n2tfmatrix(i, ifdf, tmptgt1)
                     esdf, exdf, ctdf = self.gettgtpidf_n2tfmatrix(i, pidf, hfdf, tmptgt1)
                     hfdfs.append(hfdf)
                     mp2corrdfs.append(mp2corrdf)
                     prmp2corrdfs.append(prmp2corrdf)
                     mp2tdfs.append(mp2tdf)
                     prmp2tdfs.append(prmp2tdf)
+                    distdfs.append(distdf)
                     esdfs.append(esdf)
                     exdfs.append(exdf)
                     ctdfs.append(ctdf)
-                return hfdfs, mp2corrdfs, prmp2corrdfs, mp2tdfs, prmp2tdfs, esdfs, exdfs, ctdfs
+                return hfdfs, mp2corrdfs, prmp2corrdfs, mp2tdfs, prmp2tdfs, esdfs, exdfs, ctdfs, distdfs
 
             else:
                 ifdf_filter = self.getfiltifpiff(i, ifdf, pidf)
@@ -1452,6 +1457,7 @@ class anlfmo(pdio.pdb_io):
                     self.esdfs = []
                     self.exdfs = []
                     self.ctdfs = []
+                    self.distdfs = []
                     print('readable file num:', len(ifpidfs))
                     for i in range(len(self.tgt1frag)):
                         hfdf = pd.concat([dfs[0][i] for dfs in ifpidfs], axis=1)
@@ -1462,6 +1468,7 @@ class anlfmo(pdio.pdb_io):
                         esdf = pd.concat([dfs[5][i] for dfs in ifpidfs], axis=1)
                         exdf = pd.concat([dfs[6][i] for dfs in ifpidfs], axis=1)
                         ctdf = pd.concat([dfs[7][i] for dfs in ifpidfs], axis=1)
+                        distdf = pd.concat([dfs[8][i] for dfs in ifpidfs], axis=1)
                         self.hfdfs.append(hfdf)
                         self.mp2corrdfs.append(mp2corrdf)
                         self.prmp2corrdfs.append(prmp2corrdf)
@@ -1470,6 +1477,7 @@ class anlfmo(pdio.pdb_io):
                         self.esdfs.append(esdf)
                         self.exdfs.append(exdf)
                         self.ctdfs.append(ctdf)
+                        self.distdfs.append(distdf)
 
                 else:
                     self.ifdf_filters = pd.DataFrame()
@@ -2065,7 +2073,8 @@ class anlfmo(pdio.pdb_io):
                                 self.mp2corrdfs,
                                 self.prmp2corrdfs,
                                 self.mp2tdfs,
-                                self.prmp2tdfs
+                                self.prmp2tdfs,
+                                self.distdfs
                             ]
                     names = [
                                 'ES',
@@ -2076,6 +2085,7 @@ class anlfmo(pdio.pdb_io):
                                 'PRMP2corr',
                                 'MP2total',
                                 'PRMP2total',
+                                'distance',
                             ]
                     tgt2str = str(self.tgt2frag[0]) + '-'  + str(self.tgt2frag[-1])
 
