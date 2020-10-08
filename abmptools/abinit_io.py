@@ -159,7 +159,10 @@ class abinit_io(mi.mol_io):
 
     def gen_ajf_bodywrap(self, inname):
         # i, j ,k (mol, frag, component_perfrag) dimension
-        ajf_fragment = self.get_fragsection()[:-1]
+        if self.autofrag == True:
+            ajf_fragment = ""
+        else:
+            ajf_fragment = self.get_fragsection()[:-1]
 
         ajf_charge = sum(self.fchgs)
         ajf_parameter = [ajf_charge, ajf_fragment, len(self.fatomnums), 0]
@@ -261,7 +264,7 @@ OPT='OFF'
 /
 
 """
-        if self.abinit_ver in ['rev22']:
+        if self.abinit_ver in ['rev22', 'rev23']:
             ajf_body += """
 &MFMO
 /
@@ -271,7 +274,7 @@ OPT='OFF'
 DimerResponseTerm='NO'
 /
 """
-        if self.abinit_ver in ['rev22']:
+        if self.abinit_ver in ['rev22', 'rev23']:
             ajf_body += """
 &XUFF
 /
@@ -304,7 +307,7 @@ LPRINT=2
 /
 """
         # define new section
-        if self.abinit_ver in ['rev15', 'rev17', 'rev22']:
+        if self.abinit_ver in ['rev15', 'rev17', 'rev22', 'rev23']:
             new_section = """
 &LRD
 /
@@ -312,7 +315,7 @@ LPRINT=2
         else:
             new_section = ""
 
-        if self.abinit_ver in ['rev10', 'rev11', 'rev15', 'rev17', 'rev22']:
+        if self.abinit_ver in ['rev10', 'rev11', 'rev15', 'rev17', 'rev22', 'rev23']:
             new_section += """
 &DFT
 /
@@ -384,7 +387,7 @@ MAXITR=1000
 JDGCNV='RMS'
 THRCNV=1.0E-5
 """
-        if self.abinit_ver in ['rev17', 'rev22']:
+        if self.abinit_ver in ['rev17', 'rev22', 'rev23']:
             ajf_body +="ATMRAD='" + self.pbmolrad + "'"
         else:
             ajf_body +="MOLRAD='" + self.pbmolrad + "'"
@@ -413,7 +416,7 @@ LPRINT=2
 /
 """
         # new section2
-        if self.abinit_ver in ['rev11', 'rev15', 'rev17', 'rev22']:
+        if self.abinit_ver in ['rev11', 'rev15', 'rev17', 'rev22', 'rev23']:
             new_section2 = """
 &CCPT
 /
@@ -843,7 +846,7 @@ MD='OFF'
                 print("Warning: can't get result:", target)
                 return 0, 0, 0, 0, 0
 
-        if self.abinit_ver in ['rev17', 'rev22']:
+        if self.abinit_ver in ['rev17', 'rev22', 'rev23']:
             text = f.readlines()
             f.close()
             index = 0
@@ -932,7 +935,7 @@ MD='OFF'
                 # sys.exit()
                 return 0, 0, 0, 0, 0
 
-        if self.abinit_ver in ['rev17', 'rev22']:
+        if self.abinit_ver in ['rev17', 'rev22', 'rev23']:
             a, b, c, d, e = self.getfmopbenergy(target)
             return a, b, c, d, e
 
