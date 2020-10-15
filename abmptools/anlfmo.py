@@ -1586,7 +1586,7 @@ class anlfmo(pdio.pdb_io):
         else:
             print('## read single mode')
             self.logMethod = self.getlogmethod(self.tgtlogs)
-            self.logMethod = self.getpbflag(self.tgtlogs)
+            self.pbflag= self.getpbflag(self.tgtlogs)
 
             # self.logMethod = 'MP2'
             if self.matrixtype != 'frags-frags' and (self.logMethod == 'MP3' or self.logMethod == 'CCPT'):
