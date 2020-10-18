@@ -69,6 +69,26 @@ if __name__ == "__main__":
                         default='MP2',
                         )
 
+    parser.add_argument('-dg', '--dgemm',
+                        help='dgemm',
+                        action='store_true',
+                        )
+
+    parser.add_argument('-rp', '--resp',
+                        help='resp',
+                        action='store_true',
+                        )
+
+    parser.add_argument('-nonbo', '--nonbo',
+                        help='nonbo',
+                        action='store_false',
+                        )
+
+    parser.add_argument('-mem', '--memory',
+                        help='memory',
+                        default='3000',
+                        )
+
 
     # get args
     args = parser.parse_args()
@@ -84,6 +104,11 @@ if __name__ == "__main__":
     print('cpf =', args.cpf)
     print('basis =', args.basisset)
     print('method =', args.method)
+    print('dgemm', args.dgemm)
+    print('resp', args.resp)
+    print('nbo', args.nonbo)
+    print('memory', args.memory)
+
 
     aobj = ampt.setfmo()
 
@@ -100,6 +125,10 @@ if __name__ == "__main__":
     aobj.readgeom = args.coord
     aobj.solv_flag = args.solvation
     aobj.pbcnv = args.thicnv
+    aobj.dgemm = args.dgemm
+    aobj.resp = args.resp
+    aobj.nbo = args.nonbo
+    aobj.memory = args.memory
 
     # aobj.writegeom = os.path.splitext(aobj.readgeom)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + ".cpf'"
 

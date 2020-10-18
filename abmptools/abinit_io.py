@@ -56,6 +56,9 @@ class abinit_io(mi.mol_io):
         self.writegeom = ""
         self.submit_system = None
         self.autofrag = False
+        self.dgemm = False
+        self.nbo = True
+        self.resp = True
         # distlitname
 
         # frag table
@@ -168,7 +171,7 @@ class abinit_io(mi.mol_io):
         ajf_parameter = [ajf_charge, ajf_fragment, len(self.fatomnums), 0]
 
         if self.writegeom == "":
-            self.writegeom = os.path.splitext(inname)[0] + '-' + self.ajf_method + '-' + self.ajf_basis_set.replace('*', 'd') + ".cpf'"
+            self.writegeom = "'" + os.path.splitext(inname)[0] + '-' + self.ajf_method + '-' + self.ajf_basis_set.replace('*', 'd') + ".cpf'"
 
         ajf_body = self.gen_ajf_body(ajf_parameter)
 
@@ -281,7 +284,16 @@ DimerResponseTerm='NO'
 """
 
         ajf_body += """
-&MP2
+&MP2"""
+
+        if self.dgemm is True:
+            ajf_body += """
+MOD1ST='GEMM'
+MOD2ND='GEMM'
+MOD3RD='GEMM'
+MOD4TH='GEMM'"""
+
+        ajf_body += """
 NP_MP2_IJ=1
 NP_MP2_S=0
 MemoryMP2=0
@@ -291,7 +303,8 @@ OSSCAL=1.0
 PSSCAL=1.0
 NBODY=2
 CHKFZC='""" + (fzctemp) + """'
-LPRINT=2
+LPRINT=2"""
+        ajf_body += """
 /
 
 &MP2DNS
@@ -300,9 +313,18 @@ LPRINT=2
 &MP2GRD
 /
 
-&MP3
+&MP3"""
+        if self.ajf_method == 'MP3':
+            ajf_body += """
+  IFSCS='YES'
+  IFMANU='YES'
+  SCL2OS=1.0D0
+  SCL2PS=1.0D0
+  SCL3=0.5D0
 /
+"""
 
+        ajf_body += """
 &LMP2
 /
 """
@@ -383,22 +405,28 @@ EFFECT='OFF' """
 /
 
 &PBEQ
+"""
+        if self.solv_flag is True:
+            ajf_body += """
 MAXITR=1000
 JDGCNV='RMS'
 THRCNV=1.0E-5
 """
-        if self.abinit_ver in ['rev17', 'rev22', 'rev23']:
-            ajf_body +="ATMRAD='" + self.pbmolrad + "'"
-        else:
-            ajf_body +="MOLRAD='" + self.pbmolrad + "'"
-
+            if self.abinit_ver in ['rev17', 'rev22', 'rev23']:
+                ajf_body +="ATMRAD='" + self.pbmolrad + "'"
+            else:
+                ajf_body +="MOLRAD='" + self.pbmolrad + "'"
         ajf_body +="""
 /
 
 &POP
-ESPFIT='ON'
-ESPTYP='RESP'
-NBOANL='ON'
+"""
+        if self.resp == True:
+            ajf_body += "ESPFIT='ON'"
+            ajf_body += "ESPTYP='RESP'"
+        if self.nbo == True:
+            ajf_body +="NBOANL='ON'"
+        ajf_body +="""
 /
 
 &GRIDCNTRL
