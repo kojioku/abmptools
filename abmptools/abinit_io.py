@@ -59,6 +59,7 @@ class abinit_io(mi.mol_io):
         self.dgemm = False
         self.nbo = True
         self.resp = True
+        self.ligchg = None
         # distlitname
 
         # frag table
@@ -237,6 +238,18 @@ Ldimer=2.0
 NP=""" + np + """
 MaxSCCcyc=250
 MaxSCCenergy=5.0E-7
+"""
+        if  self.ligchg != None:
+            ligchgstr = "LigandCharge='"
+            for i in range(len(self.ligchg)):
+                ligchgstr += self.ligchg[i][0] + '=' + self.ligchg[i][1]
+                if i == len(self.ligchg) - 1:
+                    ligchgstr += "'"
+                else:
+                    ligchgstr += ','
+
+            print(ligchgstr)
+            ajf_body += ligchgstr + """
 """
         if self.cmmflag == True:
             ajf_body += """Dimer_es_multipole='YES'

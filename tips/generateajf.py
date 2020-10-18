@@ -89,6 +89,14 @@ if __name__ == "__main__":
                         default='3000',
                         )
 
+    parser.add_argument('-lc', '--ligandcharge',
+                        help='ligand charge',
+                        nargs=2,
+                        action='append',
+                        # default='',
+                        )
+
+
 
     # get args
     args = parser.parse_args()
@@ -108,6 +116,7 @@ if __name__ == "__main__":
     print('resp', args.resp)
     print('nbo', args.nonbo)
     print('memory', args.memory)
+    print('ligand charge', args.ligandcharge)
 
 
     aobj = ampt.setfmo()
@@ -129,6 +138,7 @@ if __name__ == "__main__":
     aobj.resp = args.resp
     aobj.nbo = args.nonbo
     aobj.memory = args.memory
+    aobj.ligchg = args.ligandcharge
 
     # aobj.writegeom = os.path.splitext(aobj.readgeom)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + ".cpf'"
 

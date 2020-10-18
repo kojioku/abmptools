@@ -16,7 +16,7 @@ if 'install' in argvs:
 
 setup(
     name='ABMPTools',
-    version='1.5.0',
+    version='1.6.0',
     description='setup tool for ABINIT-MP',
     long_description=readme,
     install_requires=[],
