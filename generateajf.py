@@ -146,6 +146,7 @@ if __name__ == "__main__":
     # aobj.writegeom = os.path.splitext(aobj.readgeom)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + ".cpf'"
 
     if args.manual:
+        aobj.autofrag = False
         print('manual mode')
         fragfile = args.manual
         aobj.getfragdict([fragfile], 'segment_data.dat')
@@ -155,7 +156,7 @@ if __name__ == "__main__":
         head, ext = os.path.splitext(fragfile)
         ftemp = head.split('/')[-1]
         print(ftemp)
-        aobj.getfragtable(ftemp)
+        aobj.getfragtable([ftemp])
         # print (frag_atoms, frag_charges)
 
         aobj.saveajf()
