@@ -104,7 +104,7 @@ if __name__ == "__main__":
         # print(nameidMol)
 
         # add solute info
-        tgtmolsets.append(os.path.splitext(ajfname)[0])
+        tgtmolsets.append(os.path.splitext(ajfname)[0].split('/')[-1])
         nameidMol.insert(0, len(tgtmolsets)-1)
         atomnumsets.append(0)
 

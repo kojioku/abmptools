@@ -334,10 +334,10 @@ LPRINT=2"""
   SCL2OS=1.0D0
   SCL2PS=1.0D0
   SCL3=0.5D0
-/
 """
 
         ajf_body += """
+/
 &LMP2
 /
 """
@@ -435,8 +435,8 @@ THRCNV=1.0E-5
 &POP
 """
         if self.resp == True:
-            ajf_body += "ESPFIT='ON'"
-            ajf_body += "ESPTYP='RESP'"
+            ajf_body += "ESPFIT='ON'\n"
+            ajf_body += "ESPTYP='RESP'\n"
         if self.nbo == True:
             ajf_body +="NBOANL='ON'"
         ajf_body +="""
