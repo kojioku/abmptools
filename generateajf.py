@@ -96,7 +96,10 @@ if __name__ == "__main__":
                         # default='',
                         )
 
-
+    parser.add_argument('-ma', '--manual',
+                        help='manual table',
+                        default=None,
+                        )
 
     # get args
     args = parser.parse_args()
@@ -117,7 +120,7 @@ if __name__ == "__main__":
     print('nbo', args.nonbo)
     print('memory', args.memory)
     print('ligand charge', args.ligandcharge)
-
+    print('manual', args.manual)
 
     aobj = ampt.setfmo()
 
@@ -141,6 +144,22 @@ if __name__ == "__main__":
     aobj.ligchg = args.ligandcharge
 
     # aobj.writegeom = os.path.splitext(aobj.readgeom)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + ".cpf'"
+
+    if args.manual:
+        print('manual mode')
+        fragfile = args.manual
+        aobj.getfragdict([fragfile], 'segment_data.dat')
+
+
+        # fatomnums, fchgs, fbaas, fatminfos, connects = aobj.getfragtable(tgtmolsets, atomnumsets, nameidMol)
+        head, ext = os.path.splitext(fragfile)
+        ftemp = head.split('/')[-1]
+        print(ftemp)
+        aobj.getfragtable(ftemp)
+        # print (frag_atoms, frag_charges)
+
+        aobj.saveajf()
+
 
     if aobj.solv_flag == True:
         fname = os.path.splitext(aobj.readgeom)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + '-pbcnv' + str(aobj.pbcnv) + '-' + aobj.pbmolrad + '.ajf'

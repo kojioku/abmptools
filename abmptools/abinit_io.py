@@ -1220,7 +1220,7 @@ MD='OFF'
                             'multi_xyz': 'none'}
         '''
 
-    def config_read(self, seg_name, seg_atom):
+    def config_read(self, seg_name, seg_atom=0):
         fdata = {}
         exec(open(self.mainpath + "/segment_data.dat", "r").read(), fdata)
         seg_data = fdata['seg_data']

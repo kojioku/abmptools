@@ -323,7 +323,7 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
 
         return poly_conf
 
-    def getfragtable(self, molset, atomnums, nameid):
+    def getfragtable(self, molset=None, atomnums=[0], nameid=[0]):
         # print make_input_param
 
         print('getfragtable')
