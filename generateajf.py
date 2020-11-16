@@ -54,9 +54,14 @@ if __name__ == "__main__":
                         action='store_true'
                         )
 
-    parser.add_argument('-cpf', '--cpf',
-                        help='cpf',
-                        action='store_true'
+    parser.add_argument('-nocpf', '--nocpf',
+                        help='cpfflag',
+                        action='store_false'
+                        )
+
+    parser.add_argument('-cpfv', '--cpfver',
+                        help='cpf version',
+                        default='23'
                         )
 
     parser.add_argument('-basis', '--basisset',
@@ -101,6 +106,11 @@ if __name__ == "__main__":
                         default=None,
                         )
 
+    parser.add_argument('-bsse', '--bsse',
+                        help='bsse',
+                        action='store_true',
+                        )
+
     # get args
     args = parser.parse_args()
 
@@ -112,7 +122,8 @@ if __name__ == "__main__":
     print('np =', args.npro)
     print('pieda =', args.nopieda)
     print('cmm =', args.cmm)
-    print('cpf =', args.cpf)
+    print('cpf =', args.nocpf)
+    print('cpfver =', args.cpfver)
     print('basis =', args.basisset)
     print('method =', args.method)
     print('dgemm', args.dgemm)
@@ -121,6 +132,7 @@ if __name__ == "__main__":
     print('memory', args.memory)
     print('ligand charge', args.ligandcharge)
     print('manual', args.manual)
+    print('bsse', args.bsse)
 
     aobj = ampt.setfmo()
 
@@ -130,7 +142,8 @@ if __name__ == "__main__":
     aobj.abinit_ver = args.ajfversion
     aobj.autofrag = True
     aobj.piedaflag = args.nopieda
-    aobj.cpfflag = args.cpf
+    aobj.cpfflag = args.nocpf
+    aobj.cpfver = args.cpfver
     aobj.cmmflag = args.cmm
     aobj.npro = args.npro
     aobj.pbmolrad = args.atmrad
@@ -142,6 +155,7 @@ if __name__ == "__main__":
     aobj.nbo = args.nonbo
     aobj.memory = args.memory
     aobj.ligchg = args.ligandcharge
+    aobj.bsseflag = args.bsse
 
     # aobj.writegeom = os.path.splitext(aobj.readgeom)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + ".cpf'"
 
@@ -162,8 +176,36 @@ if __name__ == "__main__":
         aobj.saveajf()
 
 
-    if aobj.solv_flag == True:
-        fname = os.path.splitext(aobj.readgeom)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + '-pbcnv' + str(aobj.pbcnv) + '-' + aobj.pbmolrad + '.ajf'
-        aobj.saveajf(fname)
-    else:
-        aobj.saveajf()
+    addstr = ''
+
+    if aobj.solv_flag:
+        addstr += '-pbcnv' + str(aobj.pbcnv) + '-' + aobj.pbmolrad
+
+    if aobj.bsseflag:
+        addstr += '-bsse'
+
+    if aobj.piedaflag is False:
+        addstr += '-nopieda'
+
+    if aobj.cpfflag is False:
+        addstr += '-nocpf'
+
+    if aobj.nbo is True:
+        addstr += '-nbo'
+
+    if aobj.resp is True:
+        addstr += '-resp'
+
+    fname = os.path.splitext(aobj.readgeom)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + addstr
+    ajfname = fname + '.ajf'
+    aobj.writegeom = "'" + fname + ".cpf'"
+    aobj.saveajf(ajfname)
+
+
+    '''
+    pb
+    bsse
+    nopieda
+    nbo
+    esp
+    '''
