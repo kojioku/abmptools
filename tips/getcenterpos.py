@@ -23,10 +23,10 @@ if __name__ == "__main__":
         obj = ampt.setfmo()
         path = ['.', 'for_abmp']
 
-        param_read = {}
-        exec(open("input_param", 'r').read(), param_read)
-        param_rfmo = param_read['param']
-        obj.setrfmoparam(param_rfmo)
+#         param_read = {}
+#         exec(open("input_param", 'r').read(), param_read)
+#         param_rfmo = param_read['param']
+#         obj.setrfmoparam(param_rfmo)
 
         # if obj.cutmode == 'sphere' or obj.cutmode == 'around':
         #     oname = oname + '-' + obj.cutmode + '-' + str(obj.criteria) + '-for_abmp'

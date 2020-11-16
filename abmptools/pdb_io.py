@@ -192,7 +192,7 @@ class pdb_io(fab.abinit_io):
                 occs.append(occ)
                 temps.append(temp)
                 amarks.append(amark)
-                charges.append(charge)
+                charges.append(charge.replace('\n', ''))
 
             totalatom = atomcount
         # print(poss)
@@ -527,7 +527,6 @@ class pdb_io(fab.abinit_io):
         tempRes_orig    = copy.deepcopy(self.tempRes)
         amarkRes_orig   = copy.deepcopy(self.amarkRes)
         chargeRes_orig  = copy.deepcopy(self.chargeRes)
-
 
         print("totalmol:",self.totalRes)
         # getmolatomnum(_udf_, totalRes)
