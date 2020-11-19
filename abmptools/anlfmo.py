@@ -124,7 +124,8 @@ class anlfmo(pdio.pdb_io):
                 continue
             if itemList[1] == 'MANUAL':
                 manflag = True
-            if itemList[1] == 'system':
+            if itemList[1] == 'system' or itemList[0] == 'Ions':
+                print('read end')
                 break
             if flag is True:
                 count += 1
@@ -245,6 +246,9 @@ class anlfmo(pdio.pdb_io):
         seqnos = []
         fragnos = []
         residuestr = []
+        logreadGeom = []
+        pdbabs = ""
+
         for line in f:
             items = line[1:].split()
             chains = line[0]
@@ -281,7 +285,7 @@ class anlfmo(pdio.pdb_io):
                     elec = items[1]
                     fragdata = fragdata + items[2:]
 
-            if items [0:2] == ['START', 'FRAGMENT']:
+            if items [0:2] == ['START', 'FRAGMENT'] or items[0] == 'Ions':
                 break
 
             ## AUTOMATIC FRAGMENTATION
@@ -311,21 +315,23 @@ class anlfmo(pdio.pdb_io):
 
         # print('Elec.\n', elecs)
         # print('logreadGeom:', logreadGeom)
-        logabsitems = os.path.abspath(ifile).split('/')
-        logabsitems[-1] = logreadGeom
-        # print(logabsitems)
-        pdbabs = ""
-        for logabsitem in logabsitems:
-            pdbabs = pdbabs + logabsitem + '/'
 
-        pdbabs = pdbabs[:-1]
         # print(pdbabs)
-
         # print('Frag Atom number\n', fragdatas)
 
         resname_perfrag = []
         if self.fragmode == 'manual':
+            logabsitems = os.path.abspath(ifile).split('/')
+            logabsitems[-1] = logreadGeom
+            # print(logabsitems)
+            pdbabs = ""
+            for logabsitem in logabsitems:
+                pdbabs = pdbabs + logabsitem + '/'
+
+            pdbabs = pdbabs[:-1]
+
         ## manual
+
             self.getpdbinfowrap(pdbabs)
             # print(self.resnameRes)
             tgts = []
@@ -1671,8 +1677,8 @@ class anlfmo(pdio.pdb_io):
 
             # setup tgttimes, logs, and pdbs
             for i in range(self.start, self.end+1, self.interval):
-                tgttimes.append(str(i))
-                tgtlogs.append(self.ilog_head + str(i) + self.ilog_tail)
+                tgttimes.append(str(i).zfill(self.zp))
+                tgtlogs.append(self.ilog_head + str(i).zfill(self.zp) + self.ilog_tail)
             print('tgtlogs', tgtlogs)
 
             # setup tgt1frag
@@ -2204,7 +2210,8 @@ class anlfmo(pdio.pdb_io):
                             val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
                             ifdf_fil_n1.J = ifdf_fil_n1.J.replace(val1, val2)
                     else:
-                        ifdf_fil_n1["I"] = self.tgt1frag[0] + '-' +  self.tgt1frag[-1]
+                        # print(self.tgt1frag)
+                        ifdf_fil_n1["I"] = str(self.tgt1frag[0]) + '-' +  str(self.tgt1frag[-1])
                         ifdf_fil_n1["J"] = self.tgt2frag
 
                     del ifdf_fil_n1['DIMER-ES']

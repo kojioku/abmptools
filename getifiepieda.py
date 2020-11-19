@@ -55,6 +55,12 @@ if __name__ == '__main__':
                         nargs='*'
                         )
 
+    parser.add_argument('-zp', '--zp',
+                        help='zeropadding',
+                        default = 0,
+                        type=int
+                        )
+
     parser.add_argument('-tf', '--tfmatrix',
                         help='generate time-frag matrix',
                         nargs=2
@@ -113,8 +119,10 @@ if __name__ == '__main__':
     print('inputlog =', args.input)
     print('f90soflag =', args.nof90so)
     print('addresinfo =', args.noresinfo)
+    print('zero padding =', args.zp)
 
     aobj = ampt.anlfmo()
+    aobj.zp = args.zp
     # --- user setting ---
 
     print(args.input)
