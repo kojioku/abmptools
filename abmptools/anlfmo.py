@@ -235,6 +235,46 @@ class anlfmo(pdio.pdb_io):
         return nf
 
 
+    def getlognatom(self, fname):
+        acount = 0
+        flag = False
+        f =open(fname, "r")
+        text = f.readlines()
+        for i in range(len(text)):
+            itemList = text[i].split()
+            if itemList[0:4] == ['##', 'READ', 'MOLECULAR', 'STRUCTURE']:
+                flag = True
+                continue
+            if flag:
+                if itemList[0:3] == ['##', 'Molecular', 'formula']:
+                    break
+                elif len(itemList) <= 1:
+                    continue
+                else:
+                    acount += 1
+        return acount
+
+
+    def getlogchg(self, fname, natom):
+        chgs = []
+        f =open(fname, "r")
+        text = f.readlines()
+        for i in range(len(text)):
+            itemList = text[i].split()
+            # MO
+            if itemList == ['TWO-STAGE', 'RESP', 'FITTING:', 'SECOND', 'STAGE']:
+                for j in range(int(natom)):
+                    chgval = text[i+20+j].split()
+                    chgs.append(float(chgval[2]))
+
+            # FMO
+            if itemList == ['##', 'ESP-FITTING', 'TYPE:', 'RESP']:
+                for j in range(int(natom)):
+                    chgval = text[i+6+j].split()
+                    chgs.append(float(chgval[4]))
+        return chgs
+
+
     def getlogorpdbfrag(self, ifile):
 
         f = open(ifile, 'r')
