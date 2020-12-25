@@ -1793,7 +1793,12 @@ class anlfmo(pdio.pdb_io):
                 if self.anlmode == 'mol' and self.selecttype == 'molid':
                     self.tgtmolid = int(item2)
                 else:
-                    self.tgt1frag = [item2]
+                    if type(eval(item2)) != list:
+                        self.tgt1frag = [item2]
+                    else:
+                        self.tgt1frag = eval(item2)
+
+
             if self.anlmode == 'fraginmol' or self.anlmode == 'mol':
                 if type(self.tgtmolid) == str:
                     if '-' in self.tgtmolid:
@@ -1815,7 +1820,13 @@ class anlfmo(pdio.pdb_io):
                             print('tgt1', tgt)
                             self.tgt1frag = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
                         else:
-                            self.tgt1frag = [eval(item2)]
+                            print('check2')
+                            if type(eval(item2)) != list:
+                                self.tgt1frag = [eval(item2)]
+                            else:
+                                self.tgt1frag = eval(item2)
+
+
 
                     else:
                         self.tgt1frag = [item2]
