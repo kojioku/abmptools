@@ -736,19 +736,32 @@ class anlfmo(pdio.pdb_io):
 
         return
 
+    def depth(self, k):
+        if not k:
+            return 0
+        else:
+            if isinstance(k, list):
+                return 1 + max(self.depth(i) for i in k)
+            else:
+                return 0
 
     def gettgtdf_n2tfmatrix(self, i, df, tgt1frag):
         # gettgtdf_normal to times-frags
-        hfdf = pd.DataFrame(index=self.tgt2frag)
-        mp2corrdf = pd.DataFrame(index=self.tgt2frag)
-        prmp2corrdf = pd.DataFrame(index=self.tgt2frag)
-        mp2tdf =  pd.DataFrame(index=self.tgt2frag)
-        prmp2tdf = pd.DataFrame(index=self.tgt2frag)
-        distdf = pd.DataFrame(index=self.tgt2frag)
+        if self.depth(self.tgt2frag) >= 2:
+            tgt2frag = self.tgt2frag[i]
+        else:
+            tgt2frag = self.tgt2frag
+
+        hfdf = pd.DataFrame(index=tgt2frag)
+        mp2corrdf = pd.DataFrame(index=tgt2frag)
+        prmp2corrdf = pd.DataFrame(index=tgt2frag)
+        mp2tdf =  pd.DataFrame(index=tgt2frag)
+        prmp2tdf = pd.DataFrame(index=tgt2frag)
+        distdf = pd.DataFrame(index=tgt2frag)
 
         fragids = []
         tgtdf = df[(df['I'] == tgt1frag) | (df['J'] == tgt1frag)]
-        tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
+        tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgt2frag)) | (tgtdf['J'].isin(tgt2frag))]
 
         # fragis = tgtdf_filter['I'].values.tolist()
         # fragjs = tgtdf_filter['J'].values.tolist()
@@ -793,13 +806,18 @@ class anlfmo(pdio.pdb_io):
 
 
     def gettgtpidf_n2tfmatrix(self, i, df, hfdf, tgt1frag):
-        esdf = pd.DataFrame(index=self.tgt2frag)
-        exdf = pd.DataFrame(index=self.tgt2frag)
-        ctdf = pd.DataFrame(index=self.tgt2frag)
+        if self.depth(self.tgt2frag) >= 2:
+            tgt2frag = self.tgt2frag[i]
+        else:
+            tgt2frag = self.tgt2frag
+
+        esdf = pd.DataFrame(index=tgt2frag)
+        exdf = pd.DataFrame(index=tgt2frag)
+        ctdf = pd.DataFrame(index=tgt2frag)
 
         fragids = []
         tgtdf = df[(df['I'] == tgt1frag) | (df['J'] == tgt1frag)]
-        tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
+        tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgt2frag)) | (tgtdf['J'].isin(tgt2frag))]
 
         fragis = tgtdf_filter['I'].values.tolist()
         fragjs = tgtdf_filter['J'].values.tolist()
@@ -824,8 +842,8 @@ class anlfmo(pdio.pdb_io):
         ex = []
         ct = []
 
-        for j in range(len(self.tgt2frag)):
-            tgtid = self.tgt2frag[j]
+        for j in range(len(tgt2frag)):
+            tgtid = tgt2frag[j]
             if tgtid == tgt1frag:
                 continue
             if tgtid in fragids:
@@ -1242,17 +1260,19 @@ class anlfmo(pdio.pdb_io):
         print('### read frag info ###')
 
         molfragss = self.getallmolfrags(self.tgtlogs[i], ifdf, self.nfs[i])
+        print('frags', molfragss)
         # get tgt frag id
         # IFIE
         molnames_perrec = self.molnames_perrec
         tgtmolfrags = []
-        print(molnames_perrec[i])
+        print('molnames', molnames_perrec[i])
         for j in range(len(molnames_perrec[i])):
             try:
                 if molnames_perrec[i][j] == self.tgt2molname:
                     tgtmolfrags += molfragss[j]
             except:
                 continue
+        print(tgtmolfrags)
 
         frag1 = self.tgt1frag
         if type(frag1) == int:
@@ -1736,11 +1756,26 @@ class anlfmo(pdio.pdb_io):
                 else:
                         self.tgt1frag = item1
 
+            self.tgtlogs = tgtlogs
+            self.tgttimes = tgttimes
+
             # setup tgt2frag
             if self.tgt2type == 'frag':
                 if item2 != None:
                     print('type', type(item2))
-                    if type(item2) == str:
+                    if item2[-1] == '-':
+                        print('check tgt2 frags')
+
+                        self.tgt2frag = []
+                        for i in range(len(tgtlogs)):
+                            self.resname_perfrag, tgtpdb = self.getlogorpdbfrag(self.tgtlogs[i])
+                            nf = self.getlognf(tgtlogs[i], self.fragmode)
+                            tgt = item2.split('-')[0]
+                            print('tgt', tgt)
+                            tgt2frag = [ i for i in range(int(tgt), nf + 1) ]
+                            self.tgt2frag.append(tgt2frag)
+
+                    elif type(item2) == str:
                         if '-' in item2:
                             tgt = item2.split('-')
                             print('tgt', tgt)
@@ -1760,13 +1795,12 @@ class anlfmo(pdio.pdb_io):
                                 pass
                 print('tgt1frag, tgt2frag', self.tgt1frag, self.tgt2frag)
 
+
             if self.tgt2type == 'molname':
                 if item2 != None:
                     self.tgt2molname = item2
                 print('tgt1frag, tgt2mol', self.tgt1frag, self.tgt2molname)
 
-            self.tgtlogs = tgtlogs
-            self.tgttimes = tgttimes
 
             if self.rpdbflag == True:
                 nfs = []
@@ -2342,6 +2376,9 @@ class anlfmo(pdio.pdb_io):
                                 'distance',
                             ]
                     tgt2str = str(self.tgt2frag[0]) + '-'  + str(self.tgt2frag[-1])
+                    if self.depth(self.tgt2frag) >= 2:
+                        tgt2str = str(self.tgt2frag[0][0]) + '-end'
+
 
                     print('--- out files ---')
                     # i:type, j:tgt1frag
