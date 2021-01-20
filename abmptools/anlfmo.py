@@ -523,7 +523,7 @@ class anlfmo(pdio.pdb_io):
         df = self.ifdf
         count = 0
 
-        if self.logMethod == 'MP2':
+        if self.logMethod in ['MP2', 'HF', 'HF+D']:
             mp2corrdf = pd.DataFrame(index=self.tgt2frag)
             prmp2corrdf = pd.DataFrame(index=self.tgt2frag)
             mp2tdf =  pd.DataFrame(index=self.tgt2frag)
@@ -1683,6 +1683,8 @@ class anlfmo(pdio.pdb_io):
                 ifpidfs = self.read_ifpif90(self.tgtlogs)
                 self.ifdf = ifpidfs[0]
                 self.pidf = ifpidfs[1]
+                # print(self.ifdf)
+                # print(self.pidf)
 
             else:
                 ifie, pieda = self.read_ifiepieda(self.tgtlogs)
@@ -2192,7 +2194,40 @@ class anlfmo(pdio.pdb_io):
                                 'MP35total',
                                 'Distance'
                             ]
-
+                if self.logMethod == 'HF':
+                    datadfs = [
+                                self.esdf,
+                                self.exdf,
+                                self.ctdf,
+                                self.hfdf,
+                                self.distdf
+                            ]
+                    names = [
+                                'ES',
+                                'EX',
+                                'CT',
+                                'HF',
+                                'Distance'
+                            ]
+                if self.logMethod == 'HF+D':
+                    datadfs = [
+                                self.esdf,
+                                self.exdf,
+                                self.ctdf,
+                                self.hfdf,
+                                self.mp2corrdf,
+                                self.mp2tdf,
+                                self.distdf
+                            ]
+                    names = [
+                                'ES',
+                                'EX',
+                                'CT',
+                                'HF',
+                                'DILRDcorr',
+                                'LRDtotal',
+                                'Distance'
+                            ]
 
                 tgt1str = str(self.tgt1frag[0]) + '-'  + str(self.tgt1frag[-1])
                 tgt2str = str(self.tgt2frag[0]) + '-'  + str(self.tgt2frag[-1])

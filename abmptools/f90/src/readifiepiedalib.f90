@@ -13,6 +13,7 @@ double precision, dimension(100000000):: es,ex,ct,di,qval
 
 integer ifpair, pipair
 character*200 inname
+character*3 method
 
 !! Main
 ! read(*,'(A)') inname
@@ -47,24 +48,48 @@ do
     read(17,'(a)', end=999) head
     if (trim(adjustl(head))=="## MP2-IFIE" .or. trim(adjustl(head))=="## MP3-IFIE" &
         .or. trim(adjustl(head))=="## MP4-IFIE") then
+        method='MP'
         ! write(*, '(a)') 'Read IFIE Section'
         do skip=1,4  !skip 4lines
             read(17,'()')
         end do
-      goto 110
+        goto 110
+
+    else if (trim(adjustl(head))=="## HF-IFIE") then
+        ! write(*, '(a)') 'Read IFIE Section'
+        method='HF'
+        do skip=1,4  !skip 4lines
+            read(17,'()')
+        end do
+        goto 110
+
+    else if (trim(adjustl(head))=="## LRD-IFIE") then
+        method='LRD'
+        ! write(*, '(a)') 'Read IFIE Section'
+        do skip=1,4  !skip 4lines
+            read(17,'()')
+        end do
+        goto 110
     end if
 end do
 110 continue
 
+write (*, '(a)') trim(adjustl(method))
 ! Read IFIE val
 i = 1
 do
     ! (MP2:) J-PAIR    DIST     DIMER-ES   HF-IFIE    MP2-IFIE   PR-TYPE1   GRIMME     JUNG       HILL
     ! (MP3:) IJ-PAIR    DIST     DIMER-ES   HF-IFIE    MP2-IFIE   USER-MP2   MP3-IFIE   USER-MP3   PADE[2/1]
-    read(17, *,  err=200)frag_i(i), frag_j(i), dist(i), fdimes(i), &
-        &hfifie(i), mp2ifie(i), prtype1(i), grimme(i), jung(i), hill(i)
+    if (trim(adjustl(method)) == "MP") then
+        read(17, *,  err=200)frag_i(i), frag_j(i), dist(i), fdimes(i), &
+            &hfifie(i), mp2ifie(i), prtype1(i), grimme(i), jung(i), hill(i)
+    else if (trim(adjustl(method)) == "HF") then
+        read(17, *,  err=200)frag_i(i), frag_j(i), dist(i), fdimes(i), hfifie(i)
+    else if (trim(adjustl(method)) == "LRD") then
+        read(17, *,  err=200)frag_i(i), frag_j(i), dist(i), fdimes(i), hfifie(i), mp2ifie(i)
     ! if(i == 100) write(*, '(2i7, f10.3, a3, 6f10.3)') frag_i(i),frag_j(i),dist(i),fdimes(i), &
         ! & hfifie(i),mp2ifie(i),prtype1(i),grimme(i),jung(i),hill(i)
+    end if
     i = i + 1
 end do
 
@@ -130,3 +155,51 @@ end do
 
 999 continue
 end subroutine
+
+!      ## HF-IFIE
+! 
+!            IJ-PAIR    DIST     DIMER-ES   HF-IFIE        HF-IFIE        HF-IFIE
+!                       / A      APPROX.   / Hartree      / kcal/mol     / kJ/mol
+!         --------------------------------------------------------------------------
+!             2    1    0.000000   F      -15.064065   -9452.843160  -39550.695783
+
+!      ## PIEDA
+! 
+!            IJ-PAIR       ES             EX             CT+mix         DI             q(I=>J)  
+!                          / kcal/mol     / kcal/mol     / kcal/mol     / kcal/mol     / e      
+!         -----------------------------------------------------------------------------------------------------
+!             3    1       1.152159       0.015701      -0.718282       0.000000       0.001781
+!             4    1       0.869703       0.025875      -0.141362       0.000000      -0.000038
+!             4    2       0.672861       0.942428      -1.383603       0.000000       0.006733
+!             5    1       2.328359       0.000275      -0.104993       0.000000      -0.000337
+!             5    2     -10.950065       3.413130      -1.410642       0.000000       0.021846
+!             5    3       2.594522       1.238201      -1.481940       0.000000       0.005841
+! 
+!      ## LRD-IFIE
+! 
+!            IJ-PAIR    DIST     DIMER-ES   HF-IFIE    LRD-IFIE
+!                       / A      APPROX.   / Hartree  / Hartree
+!         ----------------------------------------------------------------------------------------------------
+!             2    1    0.000000   F      -15.064065  -0.001832
+!             3    1    3.405247   F        0.000716  -0.000527
+!             3    2    0.000000   F      -15.064590  -0.003540
+!             4    1    3.399003   F        0.001202  -0.000583
+!             4    2    2.756835   F        0.000369  -0.001841
+!             4    3    0.000000   F      -15.071663  -0.003561
+!             5    1    3.542065   F        0.003544  -0.000280
+!             5    2    2.105612   F       -0.014259  -0.001511
+!             5    3    2.756819   F        0.003746  -0.002613
+!             5    4    0.000000   F      -15.064453  -0.004435
+! 
+!      ## PIEDA
+! 
+!            IJ-PAIR       ES             EX             CT+mix         DI(LRD)        q(I=>J)  
+!                          / kcal/mol     / kcal/mol     / kcal/mol     / kcal/mol     / e      
+!         -----------------------------------------------------------------------------------------------------
+!             3    1       1.152159       0.015701      -0.718282      -0.330770       0.001781
+!             4    1       0.869703       0.025875      -0.141362      -0.366012      -0.000038
+!             4    2       0.672861       0.942428      -1.383603      -1.155489       0.006733
+!             5    1       2.328359       0.000275      -0.104993      -0.175521      -0.000337
+!             5    2     -10.950065       3.413130      -1.410642      -0.948301       0.021846
+!             5    3       2.594522       1.238201      -1.481940      -1.639756       0.005841
+
