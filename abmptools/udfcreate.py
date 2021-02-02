@@ -118,24 +118,46 @@ class udfcreate():
         # xyzfile="monomer/pdb/" + molname + ".xyz"
         # fffile="monomer/" + molname + ".ff"
 
+        xyzfile = molname + ".xyz"
+        fffile = "monomer/" + molname + ".ff"
         if os.path.exists(fffile) is False:
-            out = open(fffile, "w")
-            cmd = "obminimize -n 1 -ff GAFF -onul " + xyzfile
-            subprocess.call(cmd.split(" "),stderr=out)
-            out.close()
-            time.sleep(2)
+            outff = open(fffile, 'w')
+            cmd = self.obminipath + " -n 1 -ff GAFF -onul " + xyzfile
+            ps = subprocess.Popen(cmd, shell=True, stderr=outff)
+            ps.wait()
+            outff.close()
 
-        ffname=[]
-        i=0
+        ffname = []
+        i = 0
+        print('get', molname + '.ff')
+        time.sleep(5)
         for line in open(fffile, 'r'):
             itemList = line[:-1].split()
-            #print itemList
-            i=i+1
+            i += 1
             if i >= 5:
-                ffname.append([int(itemList[0])-1,itemList[1]])
+                ffname.append([int(itemList[0])-1, itemList[1]])
             if i == len(atom) + 4:
                 break
         return ffname
+
+#         if os.path.exists(fffile) is False:
+#             out = open(fffile, "w")
+#             cmd = "obminimize -n 1 -ff GAFF -onul " + xyzfile
+#             subprocess.call(cmd.split(" "),stderr=out)
+#             out.close()
+#             time.sleep(5)
+# 
+#         ffname=[]
+#         i=0
+#         for line in open(fffile, 'r'):
+#             itemList = line[:-1].split()
+#             #print itemList
+#             i=i+1
+#             if i >= 5:
+#                 ffname.append([int(itemList[0])-1,itemList[1]])
+#             if i == len(atom) + 4:
+#                 break
+#         return ffname
 
     def getbatff(self, ffname,bond):
         fff=[]
