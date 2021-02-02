@@ -118,19 +118,17 @@ class udfcreate():
         # xyzfile="monomer/pdb/" + molname + ".xyz"
         # fffile="monomer/" + molname + ".ff"
 
-        xyzfile = molname + ".xyz"
-        fffile = "monomer/" + molname + ".ff"
         if os.path.exists(fffile) is False:
             outff = open(fffile, 'w')
-            cmd = self.obminipath + " -n 1 -ff GAFF -onul " + xyzfile
+            cmd = "obminimize -n 1 -ff GAFF -onul " + xyzfile
             ps = subprocess.Popen(cmd, shell=True, stderr=outff)
             ps.wait()
             outff.close()
 
         ffname = []
         i = 0
-        print('get', molname + '.ff')
-        time.sleep(5)
+        # print('get', fffile)
+        # time.sleep(2)
         for line in open(fffile, 'r'):
             itemList = line[:-1].split()
             i += 1
