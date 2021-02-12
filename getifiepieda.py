@@ -105,6 +105,7 @@ if __name__ == '__main__':
     # get args
     args = parser.parse_args()
 
+    print('## setup info')
     print('tgtfrag =', args.frag)
     print('tgtmolid =', args.mol)
     print('tgt2molname =', args.molname)
@@ -205,7 +206,7 @@ if __name__ == '__main__':
     else:
         # frag-dist
         if aobj.anlmode == 'frag' and aobj.tgt2type == 'dist':
-            aobj = aobj.readifiewrap(logname, int(tgtfrag1))
+            aobj = aobj.readifiewrap(logname, tgtfrag1)
         # ffmatrix, fragids
         if aobj.anlmode == 'frag' and aobj.tgt2type == 'frag':
             aobj = aobj.readifiewrap(logname, tgtfrag1, tgtfrag2)
@@ -213,6 +214,20 @@ if __name__ == '__main__':
         if aobj.anlmode == 'fraginmol' or aobj.anlmode == 'mol':
             aobj = aobj.readifiewrap(logname)
 
-    aobj = aobj.filterifiewrap()
-    aobj.writecsvwrap()
+    if aobj.matrixtype == 'frags-frags' and aobj.pbflag:
+        aobj = aobj.filterifiewrap()
+        aobj.writecsvwrap(word='gas')
+
+        # print(aobj.pbifdf.head())
+        # print(aobj.pbpidf.head())
+        aobj = aobj.filterifiewrap(myifdf=aobj.pbifdf, mypidf=aobj.pbpidf)
+        aobj.writecsvwrap(word='pb', pbwrite=True)
+
+    else:
+        aobj = aobj.filterifiewrap()
+        aobj.writecsvwrap()
+
+
+
+
 

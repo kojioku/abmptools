@@ -407,18 +407,31 @@ class anlfmo(pdio.pdb_io):
         return resname_perfrag, pdbabs
 
 
-    def getifiedf(self, ifie):
+    def getifiedf(self, ifie, solv=[]):
         df = pd.DataFrame(ifie, columns=self.icolumn)
         df['I'] = df['I'].astype(int)
         df['J'] = df['J'].astype(int)
         df['DIST'] = df['DIST'].astype(float)
         df['HF-IFIE'] = df['HF-IFIE'].astype(float) * 627.5095
-        df['MP2-IFIE'] = df['MP2-IFIE'].astype(float) * 627.5095
-        df['PR-TYPE1'] = df['PR-TYPE1'].astype(float) * 627.5095
-        df['GRIMME'] = df['GRIMME'].astype(float) * 627.5095
-        df['JUNG'] = df['JUNG'].astype(float) * 627.5095
-        df['HILL'] = df['HILL'].astype(float) * 627.5095
 
+        if self.logMethod == 'MP2':
+            df['MP2-IFIE'] = df['MP2-IFIE'].astype(float) * 627.5095
+            df['PR-TYPE1'] = df['PR-TYPE1'].astype(float) * 627.5095
+            df['GRIMME'] = df['GRIMME'].astype(float) * 627.5095
+            df['JUNG'] = df['JUNG'].astype(float) * 627.5095
+            df['HILL'] = df['HILL'].astype(float) * 627.5095
+
+        # print('solv', solv)
+        if len(solv) != 0:
+            solvdf = pd.DataFrame(solv, columns=['I', 'J', 'Solv(ES)'])
+            solvdf['I'] = solvdf['I'].astype(int)
+            solvdf['J'] = solvdf['J'].astype(int)
+            solvdf['Solv(ES)'] = solvdf['Solv(ES)'].astype(float)
+
+            # print(df.head())
+            # print(solvdf.head())
+            df = pd.merge(df, solvdf, on=['I', 'J'], how='left')
+            print(df.head())
         return df
 
     def getpiedadf(self, pieda):
@@ -445,18 +458,22 @@ class anlfmo(pdio.pdb_io):
         pidf['Solv(ES)'] = pidf['Solv(ES)'].astype(float)
         pidf['DI(MP2)'] = pidf['DI(MP2)'].astype(float)
         pidf['q(I=>J)'] = pidf['q(I=>J)'].astype(float)
+        pidf.drop(columns=['Solv(ES)'], inplace=True)
 
         return pidf
 
 
-    def gettgtpidf_n2ffmatrix(self):
+    def gettgtpidf_n2ffmatrix(self, mydf=pd.DataFrame()):
         print('\n--- generate pieda', str(self.tgt1frag), str(self.tgt2frag), 'ffmatrix ---\n')
         esdf = pd.DataFrame(index=self.tgt2frag)
         exdf = pd.DataFrame(index=self.tgt2frag)
         ctdf = pd.DataFrame(index=self.tgt2frag)
         count = 0
 
-        df = self.pidf
+        if mydf.empty:
+            df = self.pidf
+        else:
+            df = mydf
         for f1 in self.tgt1frag:
             fragids = []
             tgtdf = df[(df['I'] == f1) | (df['J'] == f1)]
@@ -493,7 +510,10 @@ class anlfmo(pdio.pdb_io):
                     ex.append(exbuf[fragids.index(tgtid)])
                     ct.append(ctbuf[fragids.index(tgtid)])
                 else:
-                    es.append(self.hfdf.loc[tgtid, str(f1)])
+                    if 'Solv(ES)' in df.columns:
+                        es.append(self.hfdf.loc[tgtid, str(f1)] - self.solvesdf.loc[tgtid, str(f1)])
+                    else:
+                        es.append(self.hfdf.loc[tgtid, str(f1)])
                     ex.append(0.0)
                     ct.append(0.0)
 
@@ -514,16 +534,20 @@ class anlfmo(pdio.pdb_io):
         return
 
 
-    def gettgtdf_n2ffmatrix(self):
+    def gettgtdf_n2ffmatrix(self, mydf=pd.DataFrame()):
         # gettgtdf_normal to times-frags
         print('\n--- generate ifie', str(self.tgt1frag), str(self.tgt2frag), 'ffmatrix---\n')
         hfdf = pd.DataFrame(index=self.tgt2frag)
         distdf = pd.DataFrame(index=self.tgt2frag)
+        solvesdf = pd.DataFrame(index=self.tgt2frag)
 
-        df = self.ifdf
+        if mydf.empty:
+            df = self.ifdf
+        else:
+            df = mydf
         count = 0
 
-        if self.logMethod in ['MP2', 'HF', 'HF+D']:
+        if self.logMethod in ['MP2', 'HF+D']:
             mp2corrdf = pd.DataFrame(index=self.tgt2frag)
             prmp2corrdf = pd.DataFrame(index=self.tgt2frag)
             mp2tdf =  pd.DataFrame(index=self.tgt2frag)
@@ -534,14 +558,6 @@ class anlfmo(pdio.pdb_io):
                 tgtdf = df[(df['I'] == f1) | (df['J'] == f1)]
                 tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
 
-                # fragis = tgtdf_filter['I'].values.tolist()
-                # fragjs = tgtdf_filter['J'].values.tolist()
-                # for i in range(len(fragis)):
-                #     if fragis[i] != self.tgt1frag:
-                #         fragids.append(fragis[i])
-                #     else:
-                #         fragids.append(fragjs[i])
-                # print(fragids)
                 hfifie = 0
                 mp2corr = 0
                 prmp2corr = 0
@@ -556,15 +572,16 @@ class anlfmo(pdio.pdb_io):
                     mp2total.append(hfifie[i] + mp2corr[i])
                     prmp2total.append(hfifie[i] + prmp2corr[i])
 
-                # print('hfifie', hfifie)
-                # print('tgtfrag', self.tgt2frag)
-
                 hfdf[str(f1)] = hfifie
                 mp2corrdf[str(f1)] = mp2corr
                 prmp2corrdf[str(f1)] = prmp2corr
                 mp2tdf[str(f1)] = mp2total
                 prmp2tdf[str(f1)] = prmp2total
                 distdf[str(f1)] = dist
+
+                if 'Solv(ES)' in tgtdf_filter.columns:
+                    solves = tgtdf_filter['Solv(ES)'].values.tolist()
+                    solvesdf[str(f1)] = solves
 
                 count += 1
 
@@ -581,6 +598,35 @@ class anlfmo(pdio.pdb_io):
             self.prmp2tdf = prmp2tdf
             self.distdf = distdf
 
+            if 'Solv(ES)' in tgtdf_filter.columns:
+                self.solvesdf = solvesdf
+
+        elif self.logMethod == 'HF':
+            for f1 in self.tgt1frag:
+                fragids = []
+                tgtdf = df[(df['I'] == f1) | (df['J'] == f1)]
+                tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
+
+                hfifie = 0
+                hfifie = tgtdf_filter['HF-IFIE'].values.tolist()
+                dist = tgtdf_filter['DIST'].values.tolist()
+
+                hfdf[str(f1)] = hfifie
+                distdf[str(f1)] = dist
+
+                if 'Solv(ES)' in tgtdf_filter.columns:
+                    solves = tgtdf_filter['Solv(ES)'].values.tolist()
+                    solvesdf[str(f1)] = solves
+
+                count += 1
+
+            print ('HF\n', hfdf.head())
+
+            self.hfdf = hfdf
+            self.distdf = distdf
+
+            if 'Solv(ES)' in tgtdf_filter.columns:
+                self.solvesdf = solvesdf
 
         elif self.logMethod == 'MP3':
             mp2corrdf = pd.DataFrame(index=self.tgt2frag)
@@ -870,13 +916,10 @@ class anlfmo(pdio.pdb_io):
 
     def gettgtdf_fd(self, df):
         print('--- ifie near tgt ', self.dist, 'angstrom ----')
+        print(self.tgt1frag)
         tgtdf = df[(df['I'] == self.tgt1frag[0]) | (df['J'] == self.tgt1frag[0])]
-        # tgtdf = tgtdf.append(df[df['J'] == self.tgt1frag])
         tgtdf_filter = tgtdf[tgtdf['DIST'] < self.dist]
 
-        # print('tgtdf', tgtdf)
-        # print('tgtdf, distfilt', tgtdf_filter)
-        # print(tgtdf_filter['J'])
         return tgtdf, tgtdf_filter
 
     def gettgtdf_ff(self, df, frag1, frag2):
@@ -1091,7 +1134,7 @@ class anlfmo(pdio.pdb_io):
             # print itemList
             if len(itemList) < 2:
                 continue
-            if itemList[1] == 'MP2-IFIE':
+            if itemList[1] == 'MP2-IFIE' or itemList[1] == 'HF-IFIE':
                 flag = True
                 # head.append(itemList)
                 continue
@@ -1102,7 +1145,10 @@ class anlfmo(pdio.pdb_io):
             if flag is True:
                 count += 1
             if flag is True and count > 2:
-                ifie.append(itemList)
+                if self.logMethod == 'HF':
+                    ifie.append(itemList[:-2])
+                else:
+                    ifie.append(itemList)
             # print itemList
             if len(itemList) < 2:
                 continue
@@ -1126,10 +1172,11 @@ class anlfmo(pdio.pdb_io):
                 pass
 
         for i in range(len(ifie)):
-            if float(ifie[i][4]) < -2 or float(ifie[i][5]) < -2:
+            if float(ifie[i][4]) < -2:
                 ifie[i][4] = 0.0
-                ifie[i][5] = 0.0
-                ifie[i][6] = 0.0
+                if self.logMethod != 'HF':
+                    ifie[i][5] = 0.0
+                    ifie[i][6] = 0.0
 
         return ifie, pieda
         # print ifie
@@ -1140,6 +1187,7 @@ class anlfmo(pdio.pdb_io):
         pieda = []
         pcount = 0
         pflag = False
+        sflag = False
 
         try:
             f = open(fname, "r")
@@ -1155,7 +1203,7 @@ class anlfmo(pdio.pdb_io):
             # print itemList
             if len(itemList) < 2:
                 continue
-            if itemList[1] == 'MP2-IFIE':
+            if itemList[1] == 'MP2-IFIE' or itemList[1] == 'HF-IFIE':
                 flag = True
                 ifie = []
                 pieda = []
@@ -1168,7 +1216,10 @@ class anlfmo(pdio.pdb_io):
             if flag is True:
                 count += 1
             if flag is True and count > 2:
-                ifie.append(itemList)
+                if self.logMethod == 'HF':
+                    ifie.append(itemList[:-2])
+                else:
+                    ifie.append(itemList)
             # print itemList
             if len(itemList) < 2:
                 continue
@@ -1188,6 +1239,20 @@ class anlfmo(pdio.pdb_io):
             if pflag is True and pcount > 2:
                 pieda.append(itemList)
 
+            if itemList[1] == 'SOLVENT-SCREENING':
+                sflag = True
+                solv = []
+                scount = 0
+            if sflag == True:
+                scount += 1
+
+            if itemList[1:3] == ['NONPOLAR', 'CONTRIBUTION']:
+                sflag = False
+                break
+
+            if sflag is True and scount > 5:
+                solv.append([itemList[1], itemList[2], itemList[12]])
+
         if flag is False:
             try:
                 print("can't read ifie", fname.split("/")[1])
@@ -1196,21 +1261,14 @@ class anlfmo(pdio.pdb_io):
 
         for i in range(len(ifie)):
             # print(ifie[i][4])
-            if float(ifie[i][4]) < -2 or float(ifie[i][5]) < -2:
+            if float(ifie[i][4]) < -2:
                 ifie[i][4] = 0.0
-                ifie[i][5] = 0.0
-                ifie[i][6] = 0.0
+                if self.logMethod != 'HF':
+                    ifie[i][5] = 0.0
+                    ifie[i][6] = 0.0
 
-        return ifie, pieda
+        return ifie, pieda, solv
 
-
-
-#     def readifies(self, tgtlog):
-#         # tgtlog, tgttime = args
-#         print('read', tgtlog)
-#         ifie = self.read_ifie(tgtlog)
-#         ifdfs = self.getifiedf(ifie)
-#         return ifdfs
 
     def read_ifiepiedas(self, tgtlog):
         # tgtlog, tgttime = args
@@ -1652,6 +1710,12 @@ class anlfmo(pdio.pdb_io):
         else:
             print('## read single mode')
             self.logMethod = self.getlogmethod(self.tgtlogs)
+            if self.logMethod == 'HF':
+                 self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE']
+            elif self.logMethod == 'MP3':
+                self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'USER-MP2', 'MP3-IFIE','USER-MP3', 'PADE[2/1]' ]
+            elif self.logMethod == 'CCPT':
+                self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'GRIMME-MP2', 'MP3-IFIE','GRIMME-MP3', 'MP4-IFIE' ]
             self.getpbflag(self.tgtlogs)
 
             # self.logMethod = 'MP2'
@@ -1668,12 +1732,16 @@ class anlfmo(pdio.pdb_io):
                 pidf = self.getpiedadf(pieda)
                 self.pidf = pidf
 
-                pbifie, pbpieda = self.read_pbifiepieda(self.tgtlogs)
-                pbifdf = self.getifiedf(pbifie)
+                pbifie, pbpieda, solvterm = self.read_pbifiepieda(self.tgtlogs)
+                pbifdf = self.getifiedf(pbifie, solvterm)
                 self.pbifdf = pbifdf
 
                 pbpidf = self.getpbpiedadf(pbpieda)
                 self.pbpidf = pbpidf
+
+                #debug write
+                # print(self.pbifdf)
+                # sys.exit()
 
                 return self
 
@@ -1735,6 +1803,8 @@ class anlfmo(pdio.pdb_io):
 
         # multi mode
         if self.anlmode == 'multi':
+            # item1: tgt1
+            # item2: tgt2
             print('tgt2type:' ,self.tgt2type)
 
             # setup tgttimes, logs, and pdbs
@@ -1822,6 +1892,9 @@ class anlfmo(pdio.pdb_io):
                 self.tgtpdbs = tgtpdbs
 
         # single mode
+        # item1 log
+        # item2 tgt1
+        # item3 tgt2
         else:
             if item1 != None:
                 self.tgtlogs = item1
@@ -1829,6 +1902,7 @@ class anlfmo(pdio.pdb_io):
                 if self.anlmode == 'mol' and self.selecttype == 'molid':
                     self.tgtmolid = int(item2)
                 else:
+                    print('item2', item2)
                     if type(eval(item2)) != list:
                         self.tgt1frag = [item2]
                     else:
@@ -1847,7 +1921,7 @@ class anlfmo(pdio.pdb_io):
                 elif type(self.tgtmolid) == int:
                     self.tgtmolid = [self.tgtmolid]
 
-            if self.tgt2type == 'frag':
+            if self.tgt2type == 'frag' or self.tgt2type == 'dist':
                 if item2 != None:
                     # print('type tgt2', type(item2))
                     if type(item2) == str:
@@ -1866,6 +1940,7 @@ class anlfmo(pdio.pdb_io):
 
                     else:
                         self.tgt1frag = [item2]
+            if self.tgt2type == 'frag':
                 if item3 != None:
                     # print('type tgt2', type(item3))
                     if type(item3) == str:
@@ -1901,7 +1976,7 @@ class anlfmo(pdio.pdb_io):
 
         # get resname reference
         if self.addresinfo == True or self.rpdbflag == True or self.anlmode == 'fraginmol':
-            print('read reference resname')
+            print('\n## read reference resname')
             if type(self.tgtlogs) == list:
                 for i in range(len(self.tgtlogs)):
                     self.resname_perfrag, self.tgtpdb = self.getlogorpdbfrag(self.tgtlogs[i])
@@ -1940,9 +2015,8 @@ class anlfmo(pdio.pdb_io):
 #
 #         self.frags = frags
 
-
     ### filter section
-    def filterifiewrap(self, dist=None):
+    def filterifiewrap(self, dist=None, myifdf=pd.DataFrame(), mypidf=pd.DataFrame()):
 
         tgt2type = self.tgt2type
         if dist != None:
@@ -1950,22 +2024,15 @@ class anlfmo(pdio.pdb_io):
         # frag mode
         if self.anlmode == 'frag':
             if self.matrixtype == 'frags-frags':
-                self.gettgtdf_n2ffmatrix()
-                self.gettgtpidf_n2ffmatrix()
+                self.gettgtdf_n2ffmatrix(myifdf)
+                self.gettgtpidf_n2ffmatrix(mypidf)
 
             else:
                 if self.tgt2type == 'dist':
-                    # print(self.ifdf)
+                    print(self.ifdf)
                     tgtdf, ifdf_filter = self.gettgtdf_fd(self.ifdf)
                     self.ifdf_filter = pd.merge(ifdf_filter, self.pidf, on=['I', 'J'], how='left')
                     print(self.ifdf_filter)
-
-                    # pitgtdf = self.getpitgtdf(self.pidf, self.ifdf_filter)
-#                     if self.fragmode != 'manual':
-#                         #assign resname(e.g. Gly6)
-#                         for i in range(1, len(frags) + 1):
-#                             pitgtdf.I = pitgtdf.I.replace(i, frags[i-1])
-#                             pitgtdf.J = pitgtdf.J.replace(i, frags[i-1])
 
                     if self.pbflag == True:
                         pbtgtdf, pbifdf_filter = self.gettgtdf_fd(self.pbifdf)
@@ -1988,8 +2055,10 @@ class anlfmo(pdio.pdb_io):
                             pbifdf_filter = self.gettgtdf_ffs(self.pbifdf, tgt1, self.tgt2frag)
                             self.pbifdf_filters.append(pd.merge(pbifdf_filter, self.pbpidf, on=['I', 'J'], how='left'))
 
-
                     print(self.ifdf_filters[0].head())
+                    if self.pbflag == True:
+                        print(self.pbifdf_filters[0].head())
+
 
         # mol-mol mode
         if self.anlmode == 'mol':
@@ -2090,7 +2159,7 @@ class anlfmo(pdio.pdb_io):
         return self
 
 
-    def writecsvwrap(self, head=None):
+    def writecsvwrap(self, head=None, word='', pbwrite=False):
         # -------------
         # --- write ---
         # -------------
@@ -2237,8 +2306,17 @@ class anlfmo(pdio.pdb_io):
                         datadfs[i].rename(index = lambda x: self.resname_perfrag[int(x)-1] + '(' + str(x) + ')', \
                                           columns = lambda x: self.resname_perfrag[int(x)-1] + '(' + str(x) + ')', inplace=True)
 
-                    ocsv = head + '_frag' + str(tgt1str) + '-frag' + str(tgt2str) + '-' + names[i] + '-ffmatrix.csv'
+                    ocsv = head + '_frag' + str(tgt1str) + '-frag' + str(tgt2str) + '-' + word + names[i] + '-ffmatrix.csv'
                     datadfs[i].T.to_csv(path + '/' + ocsv)
+                    print(path + '/' + ocsv + ' was created.')
+
+                if pbwrite:
+                    if self.addresinfo == True:
+                        self.solvesdf.rename(index = lambda x: self.resname_perfrag[int(x)-1] + '(' + str(x) + ')', \
+                                          columns = lambda x: self.resname_perfrag[int(x)-1] + '(' + str(x) + ')', inplace=True)
+
+                    ocsv = head + '_frag' + str(tgt1str) + '-frag' + str(tgt2str) + '-' + word + 'SolvES-ffmatrix.csv'
+                    self.solvesdf.T.to_csv(path + '/' + ocsv)
                     print(path + '/' + ocsv + ' was created.')
 
             else:
@@ -2343,6 +2421,7 @@ class anlfmo(pdio.pdb_io):
 
                     # pb
                     if self.pbflag == True:
+                        count = 0
                         for tgt1 in tgt1s:
                             ohead = head + '-frag' + str(tgt1) + '-frag' + str(self.tgt2frag[0]) + '-' + str(self.tgt2frag[-1])
                             oifie = ohead + '-pbifie.csv'
@@ -2359,6 +2438,7 @@ class anlfmo(pdio.pdb_io):
                             pbifdf_filter.to_csv(path + '/' + oifie)
                             print(path + '/' + oifie, 'was generated.')
                             count += 1
+
                         # N:1 sheet
                         for j in range(len(self.pbifdf_filters)):
                             if j == 0:
