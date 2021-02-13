@@ -23,7 +23,7 @@ if __name__ == '__main__':
     # getifiepieda.py --multi 1-100 101-200 -t 100 3100 1000 -i '["6lu7orig_md040j8_163neu", -hopt-ps-mod_forabmp_192n-2p-24t.log"]' --exclude 102 -np 4
     # getifiepieda.py --multi 10 -d 8.0 -t 100 3100 1000 -i '["6lu7orig_md040j8_163neu", "-hopt-ps-mod_forabmp_192n-2p-24t.log"]' --exclude 102 -np 4
     # getifiepieda.py --multi 20 --molname WAT -d 8.0 -t 100 3100 1000 -i '["6lu7orig_md040j8_163neu", "-hopt-ps-mod_forabmp_192n-2p-24t.log"]' --exclude 102 -np 4
-    # getifiepieda.py --tfmatrix 1-100 101-200 -t 100 3100 1000 -i 6lu7orig_md040j8_163neu -hopt-ps-mod_forabmp_192n-2p-24t.log --exclude 102 -np 4''',
+    # getifiepieda.py --tfmatrix 1-100 101-200 -t 100 3100 1000 -i '["6lu7orig_md040j8_163neu", "-hopt-ps-mod_forabmp_192n-2p-24t.log"]' --exclude 102 -np 4''',
                 description='Analysis script for ABINIT-MP log',
                 epilog='end',
                 add_help=True,
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     parser.add_argument('-np', '--pynp',
                         type=int,
                         help='python np',
-                        default = 2)
+                        default = 1)
 
     parser.add_argument('-ex', '--exclude',
                         help='assign exclude',
