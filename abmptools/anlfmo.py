@@ -463,7 +463,7 @@ class anlfmo(pdio.pdb_io):
         return pidf
 
 
-    def gettgtpidf_n2ffmatrix(self, mydf=pd.DataFrame()):
+    def gettgtpidf_n2ffmatrix(self, mydf=pd.DataFrame(), is_pb=False):
         print('\n--- generate pieda', str(self.tgt1frag), str(self.tgt2frag), 'ffmatrix ---\n')
         esdf = pd.DataFrame(index=self.tgt2frag)
         exdf = pd.DataFrame(index=self.tgt2frag)
@@ -510,7 +510,7 @@ class anlfmo(pdio.pdb_io):
                     ex.append(exbuf[fragids.index(tgtid)])
                     ct.append(ctbuf[fragids.index(tgtid)])
                 else:
-                    if 'Solv(ES)' in df.columns:
+                    if is_pb:
                         es.append(self.hfdf.loc[tgtid, str(f1)] - self.solvesdf.loc[tgtid, str(f1)])
                     else:
                         es.append(self.hfdf.loc[tgtid, str(f1)])
@@ -2016,7 +2016,7 @@ class anlfmo(pdio.pdb_io):
 #         self.frags = frags
 
     ### filter section
-    def filterifiewrap(self, dist=None, myifdf=pd.DataFrame(), mypidf=pd.DataFrame()):
+    def filterifiewrap(self, dist=None, myifdf=pd.DataFrame(), mypidf=pd.DataFrame(), is_pb=False):
 
         tgt2type = self.tgt2type
         if dist != None:
@@ -2025,7 +2025,7 @@ class anlfmo(pdio.pdb_io):
         if self.anlmode == 'frag':
             if self.matrixtype == 'frags-frags':
                 self.gettgtdf_n2ffmatrix(myifdf)
-                self.gettgtpidf_n2ffmatrix(mypidf)
+                self.gettgtpidf_n2ffmatrix(mypidf, is_pb)
 
             else:
                 if self.tgt2type == 'dist':

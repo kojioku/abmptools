@@ -13,7 +13,7 @@ double precision, dimension(100000000):: es,ex,ct,di,qval
 
 integer ifpair, pipair
 character*200 inname
-character*3 method
+character*3 :: method = 'Non'
 
 !! Main
 ! read(*,'(A)') inname
@@ -74,7 +74,7 @@ do
 end do
 110 continue
 
-write (*, '(a)') trim(adjustl(method))
+! write (*, '(a)') trim(adjustl(method))
 ! Read IFIE val
 i = 1
 do

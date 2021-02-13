@@ -79,7 +79,7 @@ if __name__ == '__main__':
     parser.add_argument('-np', '--pynp',
                         type=int,
                         help='python np',
-                        default = 4)
+                        default = 2)
 
     parser.add_argument('-ex', '--exclude',
                         help='assign exclude',
@@ -217,10 +217,7 @@ if __name__ == '__main__':
     if aobj.matrixtype == 'frags-frags' and aobj.pbflag:
         aobj = aobj.filterifiewrap()
         aobj.writecsvwrap(word='gas')
-
-        # print(aobj.pbifdf.head())
-        # print(aobj.pbpidf.head())
-        aobj = aobj.filterifiewrap(myifdf=aobj.pbifdf, mypidf=aobj.pbpidf)
+        aobj = aobj.filterifiewrap(myifdf=aobj.pbifdf, mypidf=aobj.pbpidf, is_pb=True)
         aobj.writecsvwrap(word='pb', pbwrite=True)
 
     else:
