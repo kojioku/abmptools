@@ -902,25 +902,34 @@ MD='OFF'
             getflag = False
             for i in range(len(text)):
                 itemList = text[i][:-1].split()
-                if len(itemList) <= 3:
+                if len(itemList) < 3:
                     continue
                 if itemList[0:4] == ['##', 'SOLUTE', 'TOTAL', 'ENERGY']:
                     getflag = True
                 if  getflag == True:
                     if itemList[0:3] == ['FMO2', 'in', 'vacuo']:
+                        # print('vacuo')
                         eg = itemList  # [5]
                     if itemList[0:2] == ['in', 'solvent']:
+                        # print('in solv')
                         esol = itemList
                     if itemList[0] == 'difference':
+                        # print('diff')
                         dif = itemList
                     if itemList[0] == 'Electrostatic':
+                        # print('ES')
                         dges = itemList
                     if itemList[0] == 'Nonpolar':
+                        # print('NP')
                         dgnp = itemList
                     if itemList[0] == 'Total':
+                        # print('total')
                         dg = itemList
                         pbdone =True
+                if pbdone:
+                    break
             # egas, cor(insolv), dgtotal, dges, dgnp
+            # print(eg[3], esol[3], dg[2], dges[2], dgnp[2])
             try:
                 return eg[3], esol[3], dg[2], dges[2], dgnp[2]
             except:
