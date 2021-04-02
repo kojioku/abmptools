@@ -13,8 +13,8 @@ import abmptools as ampt
 if __name__ == "__main__":
     ## -- user setting --
     # read info
-    mode = 'rfile' #rfile, resnum
-    calcmode = 'molpair' #molpair, id
+    mode = 'resnum' #rfile, resnum
+    calcmode = 'id-id' #molpair, id, id-id
     step = 1.0
     assignmolname = False
     refreshatmtype = False
@@ -35,16 +35,15 @@ if __name__ == "__main__":
         o2file= 'hist-' + tgt1 + '-' + tgt2 + '.txt'
         o3file= 'rdf-' + tgt1 + '-' + tgt2 + '.txt'
 
-
     if calcmode == 'id':
         ofile= 'dist-mol' + str(centermolid) + '-' + tgtmol + '.txt'
         o2file= 'hist-mol' + str(centermolid) + '-' + tgtmol + '.txt'
         o3file= 'rdf-mol' + str(centermolid) + '-' + tgtmol + '.txt'
 
-
-#     if mode == 'particle':
-#         ofile= 'dist-' + tgtname + '-' + tgtpart + 'from' + str(centerpos[0]) + '-' + str(centerpos[1]) + '-' + str(centerpos[2]) + 'rec' + str(record) + '.txt'
-#         o2file= 'hist-' + tgtname + '-' + tgtpart + 'from' + str(centerpos[0]) + '-' + str(centerpos[1]) + '-' + str(centerpos[2]) + 'rec' + str(record) + '.txt'
+    if calcmode == 'id-id':
+        id1 = int(argvs[2])
+        id2 = int(argvs[3])
+        # print(id1, id2)
 
     for arg in argvs:
         if arg == '--move':
@@ -64,23 +63,22 @@ if __name__ == "__main__":
         else:
             oname = oname + '-moved'
 
-        obj = ampt.cutset_fmo()
+        obj = ampt.setfmo()
         obj.getmode = mode
         obj.assignmolname = assignmolname
         obj.refreshatmtype = refreshatmtype
 
-
-        print('infile:', fname)
-        print('oname:', oname)
+        # print('infile:', fname)
+        # print('oname:', oname)
         # print('centered-molid:', tgtmol - 1)
 
         # get pdbinfo
-        totalMol, atomnameMol, molnames, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges = obj.getpdbinfo(fname)
-        mollist = [i for i in range(totalMol)]
+        obj.readpdb(fname)
+        mollist = [i for i in range(obj.totalRes)]
         cellsize = obj.getpdbcell(fname)
         obj.cellsize = cellsize
 
-        print('totalMol:', totalMol)
+        print('obj.totalRes:', obj.totalRes)
 
         if len(obj.cellsize) == 0:
             obj.cellsize = 0
@@ -90,28 +88,28 @@ if __name__ == "__main__":
 
         if calcmode == 'molpair':
             targets = []
-            for i in range(totalMol):
-                # print(molnames[i])
-                if molnames[i] == tgt1:
+            for i in range(obj.totalRes):
+                # print(obj.resnames[i])
+                if obj.resnames[i] == tgt1:
                     targets.append(i)
             print('target1 id', targets)
 
             targets2 = []
-            for i in range(totalMol):
-                # print(molnames[i])
-                if molnames[i] == tgt2:
+            for i in range(obj.totalRes):
+                # print(obj.resnames[i])
+                if obj.resnames[i] == tgt2:
                     targets2.append(i)
             print('target2 id', targets2)
 
         # centerOfMol: com of each molecules
             cocs = []
             for i in targets:
-                cocs.append(obj.getCenter(posMol[i]).tolist())
+                cocs.append(obj.getCenter(obj.posRes[i]).tolist())
             # print('cocs', cocs)
 
             cocs2 = []
             for i in targets2:
-                cocs2.append(obj.getCenter(posMol[i]).tolist())
+                cocs2.append(obj.getCenter(obj.posRes[i]).tolist())
             # print('cocs', cocs)
 
             # getdist
@@ -127,20 +125,18 @@ if __name__ == "__main__":
 
         if calcmode == 'id':
             targets = []
-            for i in range(totalMol):
-                # print(molnames[i])
-                if molnames[i] == tgtmol:
+            for i in range(obj.totalRes):
+                # print(obj.resnames[i])
+                if obj.resnames[i] == tgtmol:
                     targets.append(i)
             print('tgtmol id', targets)
-            print('coc', posMol[centermolid])
+            print('coc', obj.posRes[centermolid])
 
-
-        # centerOfMol: com of each molecules
+            # centerOfMol: com of each molecules
             cocs = []
             for i in targets:
-                cocs.append(obj.getCenter(posMol[i]).tolist())
+                cocs.append(obj.getCenter(obj.posRes[i]).tolist())
             # print('cocs', cocs)
-
 
             # getdist
             dists = []
@@ -150,24 +146,31 @@ if __name__ == "__main__":
 
             print(len(dists))
 
-#
-#
+        if calcmode == 'id-id':
+            coc1 = obj.getCenter(obj.posRes[id1]).tolist()
+            coc2 = obj.getCenter(obj.posRes[id2]).tolist()
+
+            # getdist
+            dist = obj.getdist_list(coc1, coc2)
+            print('dist mol', str(id1) + '-' + str(id2) + ':', dist)
+
+            sys.exit()
 # #         if calcmode == 'particle':
 # #             atoms = []
 # #             for tgt in targets:
 # #                 atoms.append(obj.getnameAtom(uobj, tgt))
 # #             # print(atoms)
 # #
-# #             tgtposMol = []
-# #             for i in range(len(posMol)):
+# #             tgtobj.posRes = []
+# #             for i in range(len(obj.posRes)):
 # #                 for j in range(len(atoms[i])):
 # #                     if atoms[i][j] == tgtpart:
-# #                         tgtposMol.append(posMol[i][j])
+# #                         tgtobj.posRes.append(obj.posRes[i][j])
 # #
 # #             # getdist
 # #             dists = []
-# #             for i in range(len(tgtposMol)):
-# #                 dists.append(obj.getdist_list(tgtposMol[i], centerpos))
+# #             for i in range(len(tgtobj.posRes)):
+# #                 dists.append(obj.getdist_list(tgtobj.posRes[i], centerpos))
 # #             print('dists', dists)
 #
 #
