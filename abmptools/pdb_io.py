@@ -196,6 +196,9 @@ class pdb_io(fab.abinit_io):
 
             totalatom = atomcount
         # print(poss)
+        if amarks[0].strip() == '':
+            print('warning: this file dont have elem mark column. -> refreshatmtype = False')
+            self.refreshatmtype = False
         if self.getmode == 'rfile':
             molname_set = set(molnames)
             print('totalatom', totalatom)

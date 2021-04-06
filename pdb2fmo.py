@@ -61,7 +61,7 @@ if __name__ == "__main__":
         aobj.setrfmoparam(param_rfmo)
         if args.norefreshresid:
             aobj.refreshresid = True
-        if args. norefreshatmtype:
+        if args.norefreshatmtype:
             aobj.refreshatmtype = True
 
         print('--- info ---')
