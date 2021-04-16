@@ -254,6 +254,20 @@ MaxSCCenergy=5.0E-7
             print(ligchgstr)
             ajf_body += ligchgstr + """
 """
+
+        if  self.rsolv != None:
+            rsolvstr = "RSolv='"
+            for i in range(len(self.rsolv)):
+                rsolvstr += self.rsolv[i][0] + '=' + self.rsolv[i][1]
+                if i == len(self.rsolv) - 1:
+                    rsolvstr += "'"
+                else:
+                    rsolvstr += ','
+
+            print(rsolvstr)
+            ajf_body += rsolvstr + """
+"""
+
         if self.cmmflag == True:
             ajf_body += """Dimer_es_multipole='YES'
 Ldimer_cmm=5.0

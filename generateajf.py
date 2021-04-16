@@ -101,6 +101,13 @@ if __name__ == "__main__":
                         # default='',
                         )
 
+    parser.add_argument('-rs', '--rsolv',
+                        help='rsolv',
+                        nargs=2,
+                        action='append',
+                        # default='',
+                        )
+
     parser.add_argument('-ma', '--manual',
                         help='manual table',
                         default=None,
@@ -131,6 +138,7 @@ if __name__ == "__main__":
     print('nbo', args.nonbo)
     print('memory', args.memory)
     print('ligand charge', args.ligandcharge)
+    print('rsolv', args.rsolv)
     print('manual', args.manual)
     print('bsse', args.bsse)
 
@@ -155,6 +163,7 @@ if __name__ == "__main__":
     aobj.nbo = args.nonbo
     aobj.memory = args.memory
     aobj.ligchg = args.ligandcharge
+    aobj.rsolv = args.rsolv
     aobj.bsseflag = args.bsse
 
     # aobj.writegeom = os.path.splitext(aobj.readgeom)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + ".cpf'"
