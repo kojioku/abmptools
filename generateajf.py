@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-cpfv', '--cpfver',
                         help='cpf version',
-                        default='23'
+                        default='10'
                         )
 
     parser.add_argument('-basis', '--basisset',
