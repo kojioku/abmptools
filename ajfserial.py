@@ -26,95 +26,39 @@ if __name__ == "__main__":
     # add args
     parser.add_argument('-i', '--input',
                         help='input template ajf',
-                        nargs='*',
                         # action='append',
                         required=True)
 
     parser.add_argument('-t', '--time',
                         help='time info',
+                        type=int,
                         nargs=3,
                         )
 
     parser.add_argument('-str', '--string',
                         help='rename data',
-                        nargs='*',
+                        default='xxx',
                         )
 
     args = parser.parse_args()
     print('input =', args.input)
-    print('mode =', args.mode)
-    print('move =', args.move)
-    print('move pos =', args.pos)
-    print('move mol =', args.mol)
-    print('add chain =', args.addchain)
-    print('intoflag =', args.into)
-    print('refreshresid =', args.refreshresid)
-    print('assignresname =', args.assignresname)
-    print('refreshresid =', args.refreshresid)
-    print('refreshatmtype =', args.refreshatmtype)
+    print('time =', args.time)
+    print('replaceword =', args.string)
 
     ## -- user setting --
     # read info
-    mode = args.mode #rfile, resnum
-    assignresname = args.assignresname
-    refreshatmtype = args.refreshatmtype
-    refreshresid = args.refreshresid
 
-    # move info
-    moveflag = args.move
-    if args.mol == None:
-        movemode = 'pos' # pos or mol
-    else:
-        movemode = 'mol' # pos or mol
-        # --- mol mode
-        tgtmol = args.mol
+    infile = args.input
+    lines = open(infile, 'r').readlines()
+    replaceword = args.string
+    fname = infile.split(replaceword)
+    start, end, intv = args.time
 
-
-    addchain = False
-    if args.addchain != None:
-        addchain = True
-        addres_start = int(args.addchain[0])
-        addres_end = int(args.addchain[1])
-        chainlab = args.addchain[2]
-
-        addres = [i for i in range(addres_start, addres_end+1)]
-
-    # --- pos mode
-    tgtpos = args.pos
-    intoflag = args.into
-
-
-    for i in range(len(args.input)):
-        infile = args.input[i]
-        head, ext = os.path.splitext(infile)
-        print(head, ext)
-
-        if ext != '.ajf':
-            out = head.split('.pdb')[0] + ext + '-renamed.pdb'
-        else:
-            out = head + '-renamed.pdb'
-        print(out)
-
-        lines = open(infile, 'r').readlines()
-        # print(lines)
-
-
-        replacelists = []
-        for j in range(0, len(args.string), 2):
-            rlist = [args.string[j], args.string[j+1]]
-            replacelists.append(rlist)
-        print(replacelists)
-        outf = open(out, 'w')
-        # for repinfo in replacelists:
-            # print('{0:>3}'.format(repinfo[0]) + '     ' + repinfo[1] + ' ')
-        for line in lines:
-            for repinfo in replacelists:
-                if len(repinfo) == 3:
-                    line = line.replace(' {0:>3}'.format(repinfo[0]) + '     ' + repinfo[1] + ' ', '{0:>3}'.format(repinfo[2]) + '     ' + repinfo[1] + ' ')
-                if len(repinfo) == 2:
-                    line = line.replace(' {0:>3}'.format(repinfo[0]) + ' ', ' {0:>3}'.format(repinfo[1]) + ' ')
-
-            print(line[:-1], file=outf)
-
-        print(out, 'was created.')
+    for i in range(start, end+1, intv):
+        oname = fname[0] + str(i) + fname[1]
+        with open(oname, 'w') as outf:
+            for line in lines:
+                line = line.replace(replaceword, str(i))
+                print(line[:-1], file=outf)
+            print('finished', oname)
 
