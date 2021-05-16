@@ -476,6 +476,9 @@ IFLOC='OCC'
 CHKFZC='NO'
 LPRINT=2
 /
+
+&POL
+/
 """
         # new section2
         if self.abinit_ver in ['rev11', 'rev15', 'rev17', 'rev22', 'rev23']:
