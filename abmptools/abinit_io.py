@@ -62,6 +62,7 @@ class abinit_io(mi.mol_io):
         self.nbo = True
         self.resp = True
         self.ligchg = None
+        self.rsolv= None
         # distlitname
 
         # frag table

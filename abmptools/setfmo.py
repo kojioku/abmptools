@@ -494,6 +494,13 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         # print (typenameMol_orig)
         # print (posMol_orig)
 
+        # 1. -- 切り取らない場合 --
+        if self.cutmode == 'none':
+            print('none mode')
+            # -- get neighbor mol --
+            neighborindex = []
+            for i in range(len(posMol_orig)):
+                neighborindex.append(i)
 
         # 1. -- 重心位置が範囲内かで絞る方法 --
         # centerOfMol = []
