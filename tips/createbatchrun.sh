@@ -2,7 +2,7 @@
 stime=1
 etime=20
 interval=1
-script='runab22_fgk202105.sh'
+script='runab24_fgk202107.sh'
 temp='1eo8-gmxtrr-wat4ang-xxx-renamed-MP2-6-31Gd-nbo.ajf'
 fhead=${temp%xxx*}
 ftail=${temp##*xxx}
