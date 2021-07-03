@@ -50,7 +50,7 @@ class abinit_io(mi.mol_io):
         self.pbcnv = 1.0
         self.piedaflag = True
         self.cpfflag = False
-        self.cpfver='23'
+        self.cpfver='10'
         self.cmmflag = False
         self.nofzc_flag = False
         self.bsseflag = False
@@ -62,6 +62,7 @@ class abinit_io(mi.mol_io):
         self.nbo = True
         self.resp = True
         self.ligchg = None
+        self.rsolv= None
         # distlitname
 
         # frag table
@@ -221,10 +222,10 @@ ReadGeom='""" + str(self.readgeom) + "'\n"
 
         if self.cpfflag == True:
             ajf_body += "WriteGeom=" + str(self.writegeom) + "\n"
+            ajf_body += "CPFVER=" + str(self.cpfver) + "\n"
         ajf_body += """Gradient='NO'
 Vector='OFF'
 CPFBIN='NO'
-CPFVER=""" + str(self.cpfver) + """
 THOVL=1.0E-12
 E_THSWZ=1.0E-12
 G_THSWZ=1.0E-12
@@ -475,6 +476,9 @@ METLOC='PIPE'
 IFLOC='OCC'
 CHKFZC='NO'
 LPRINT=2
+/
+
+&POL
 /
 """
         # new section2
