@@ -1,0 +1,139 @@
+body {
+  font-family: "Source Han Sans JP","メイリオ",Consolas,verdana,"DejaVu Sans Mono", Helvetica, arial, sans-serif;
+  font-size: 0.9em;
+  line-height: 1.4em;
+  background-color: rgb(251, 251, 251);
+  border: 1px solid rgb(200, 200, 200);
+  margin: 15px;
+  padding: 15px;
+}
+ 
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1em;
+  font-weight: bold;
+  color: rgb(20, 20, 20);
+  margin: 2em 0em 1em 0em;
+}
+ 
+h1, h2, h3 {
+    border-bottom:1px solid rgb(190, 190, 190);
+}
+ 
+h1 { font-size: 2.5em; }
+h2 { font-size: 2.0em; }
+h3 { font-size: 1.5em; }
+h4 { font-size: 1.2em; }
+h5 { font-size: 1.0em; }
+h6 { font-size: 0.9em; }
+ 
+hr {
+  border: 1px solid;
+  color: #cccccc;
+  height: 1px;
+  padding: 0;
+}
+ 
+ul, ol {
+  margin-left: 0.5em;
+  padding-left: 1.5em;
+}
+ 
+blockquote {
+  border-left: 4px solid #dddddd;
+  line-height: 1.5em;
+  color: #777777;
+  padding-left: 0.8em;
+  margin-left: 2.5em;
+}
+ 
+table {
+  padding: 0;
+  border-spacing: 0px;
+}
+ 
+table tr {
+  border-top: 1px solid #cccccc;
+  background-color: white;
+  margin: 0;
+  padding: 0;
+}
+ 
+table tr:nth-child(2n) {
+  background-color: #f8f8f8;
+}
+ 
+table tr th {
+  font-weight: bold;
+  border: 1px solid #cccccc;
+  text-align: left;
+  margin: 0;
+  padding: 0.1em 1em;
+  background-color: #f8f8f8;
+}
+ 
+table tr td {
+  border: 1px solid #cccccc;
+  text-align: left;
+  margin: 0;
+  padding: 0.1em 1em;
+}
+ 
+img {
+  max-width: 100%;
+}
+ 
+pre {
+  border-radius: 3px;
+  border: 1px solid rgb(180, 180, 180);
+  background-color: rgb(240, 240, 240);
+  font-size: 1em;
+  line-height: 1.4em;
+  overflow: auto;
+  display: block;
+  padding: 5px;
+  margin: 10px;
+}
+  
+code {
+  border-radius: 3px;
+  border: 1px solid rgb(180, 180, 180);
+  background-color: rgb(240, 240, 240);
+  margin: 0px 2px;
+  padding: 0px 5px;
+  color: rgb(10, 10, 10);
+  font-size: 1em;
+  line-height: 1.4em;
+  display: inline-block;
+}
+ 
+pre code {
+  border-radius: 0px;
+  border: none;
+  display: block;
+  margin: 0px 0px 0px 0px;
+  padding: 0px 5px 0px 5px;
+  font-family: Consolas, "DejaVu Sans Mono", "メイリオ", verdana, monospace;
+  font-size: 1em;
+  line-height: 1.4em;
+  white-space: pre-wrap;
+  word-wrap: normal;
+  overflow: auto;
+}
+td.lineNumbers {
+  border: none;
+  padding: 0px;
+  width: 50px;
+}
+td.lineNumbers pre {
+  line-height: 1.4em;
+  border: none;
+  margin: 0px;
+  background: transparent;
+  
+}
+table.sourceCode, table.sourceCode tr {
+  background-color: transparent;
+}
+td.sourceCode {
+  padding-left: 0px;
+}
