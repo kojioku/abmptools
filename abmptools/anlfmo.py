@@ -2113,12 +2113,16 @@ class anlfmo(pdio.pdb_io):
             nf = self.getlognf(self.tgtlogs, self.fragmode)
             print('nf', nf)
             molfragss = self.getallmolfrags(self.tgtlogs, df, nf)
-            print(molfragss)
+            print('molfragss', molfragss)
+            print('len_molfragss', len(molfragss))
+            print('resnames', self.resnames)
+            print('self.resnames', len(self.resnames))
 
             tgt2_glofrags = []
             # print('resnames', self.resnames)
             for i in range(len(self.resnames)):
                 if self.resnames[i] == tgt2molname:
+                    # print(self.resnames[i], tgt2molname)
                     tgt2frag = molfragss[i][tgt2_lofrag - 1]
                     tgt2_glofrags.append(tgt2frag)
             print('tgt2_glofrags', tgt2_glofrags)
@@ -2475,7 +2479,7 @@ class anlfmo(pdio.pdb_io):
                         print(path + '/' + oifie, 'was generated.')
 
         if self.anlmode == 'multi':
-            head = self.ilog_head
+            head = self.ilog_head.split('/')[-1]
             if tgt2type == 'frag':
 
                 if self.matrixtype == 'times-frags':
@@ -2584,7 +2588,7 @@ class anlfmo(pdio.pdb_io):
 
         if self.anlmode == 'mol':
             if head == None:
-                head, ext = os.path.splitext(self.tgtlogs)
+                head = os.path.splitext(self.tgtlogs)[0].split('/')[-1]
 
             dist = self.dist
             selecttype = self.selecttype
@@ -2627,7 +2631,7 @@ class anlfmo(pdio.pdb_io):
 
         if self.anlmode == 'fraginmol':
             if head == None:
-                head, ext = os.path.splitext(self.tgtlogs)
+                head = os.path.splitext(self.tgtlogs)[0].split('/')[-1]
 
             ohead = head + '-' 'tgt1frag' + str(self.tgt1_lofrag) + '-mol' + str(self.tgt2molname) + 'frag' + str(self.tgt2_lofrag)
 
