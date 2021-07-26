@@ -74,6 +74,20 @@ if __name__ == "__main__":
                         default='MP2',
                         )
 
+    parser.add_argument('-ml', '--mldat',
+                        help='mldat flag',
+                        action='store_true'
+                        )
+
+    parser.add_argument('-mll', '--mllimit',
+                        help='mldat fraglimit',
+                        type=int,
+                        default=0
+                        )
+
+    # WriteMLdata='wstr-1E08_HIS_ES.new2.cmm5.mldat'
+    # MLfraglimit=921
+
     parser.add_argument('-dg', '--dgemm',
                         help='dgemm',
                         action='store_true',
@@ -141,6 +155,7 @@ if __name__ == "__main__":
     print('rsolv', args.rsolv)
     print('manual', args.manual)
     print('bsse', args.bsse)
+    print('mldat', args.mldat)
 
     aobj = ampt.setfmo()
 
@@ -165,6 +180,10 @@ if __name__ == "__main__":
     aobj.ligchg = args.ligandcharge
     aobj.rsolv = args.rsolv
     aobj.bsseflag = args.bsse
+
+    if args.mldat:
+        aobj.mldatfrag = args.mldat
+        aobj.mllimit = args.mllimit
 
     # aobj.writegeom = os.path.splitext(aobj.readgeom)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + ".cpf'"
 
@@ -208,6 +227,10 @@ if __name__ == "__main__":
     fname = os.path.splitext(aobj.readgeom)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + addstr
     ajfname = fname + '.ajf'
     aobj.writegeom = "'" + fname + ".cpf'"
+    if aobj.mllimit == 0:
+        aobj.mldatname = "'" + fname + ".mldat'"
+    else:
+        aobj.mldatname = "'" + fname + "limit" + str(aobj.mllimit) + ".mldat'"
     aobj.saveajf(ajfname)
 
 

@@ -28,7 +28,7 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         self.npro = 8
         self.para_job = 1
         self.cutmode = 'sphere'
-        self.abinit_ver = 'rev11'
+        self.abinit_ver = 'rev22'
         self.piedaflag = True
         self.molname = []
         self.criteria = []
