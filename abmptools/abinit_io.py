@@ -63,6 +63,7 @@ class abinit_io(mi.mol_io):
         self.resp = True
         self.ligchg = None
         self.rsolv= None
+        self.mldatfrag = False 
         self.mldatname = None
         self.mllimit = None
         # distlitname
@@ -225,9 +226,9 @@ ReadGeom='""" + str(self.readgeom) + "'\n"
         if self.cpfflag == True:
             ajf_body += "WriteGeom=" + str(self.writegeom) + "\n"
             ajf_body += "CPFVER=" + str(self.cpfver) + "\n"
-        if self.mldatname != None:
-            ajf_body += "WriteMLdata='" + str(self.mldatname) + "'\n"
-        if self.mllimit != None:
+        if self.mldatfrag is True:
+            ajf_body += "WriteMLdata=" + str(self.mldatname) + "\n"
+        if self.mllimit != 0:
             ajf_body += "MLfraglimit=" + str(self.mllimit) + "\n"
 
         ajf_body += """Gradient='NO'
