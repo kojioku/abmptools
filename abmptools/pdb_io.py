@@ -429,6 +429,9 @@ class pdb_io(fab.abinit_io):
                 else:
                     resid = self.resnumRes[i][j]
 
+                if atomname.strip() == 'CL':
+                    self.headRes[i][j] = 'HETATM'
+
                 olist = [self.headRes[i][j], str(tatomlab), atomname, self.labRes[i][j], self.resnames[i], self.chainRes[i][j], resid, self.codeRes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), self.occRes[i][j], self.tempRes[i][j], self.amarkRes[i][j], self.chargeRes[i][j]]
                 print(form.format(olist), file=f)
             # ATOM      1  H   UNK     1     -12.899  32.293   3.964  1.00  0.00           H
