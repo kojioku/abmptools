@@ -175,7 +175,7 @@ if __name__ == "__main__":
     aobj.rsolv = args.rsolv
     aobj.bsseflag = args.bsse
 
-    if len(args.mldat) != 0:
+    if args.mldat:
         aobj.mldatname = args.mldat[0]
         if len(args.mldat) == 2:
             aobj.mllimit = args.mldat[1]
