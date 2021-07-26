@@ -74,6 +74,14 @@ if __name__ == "__main__":
                         default='MP2',
                         )
 
+    parser.add_argument('-ml', '--mldat',
+                        help='mldat file',
+                        nargs='*',
+                        )
+
+    # WriteMLdata='wstr-1E08_HIS_ES.new2.cmm5.mldat'
+    # MLfraglimit=921
+
     parser.add_argument('-dg', '--dgemm',
                         help='dgemm',
                         action='store_true',
@@ -141,6 +149,7 @@ if __name__ == "__main__":
     print('rsolv', args.rsolv)
     print('manual', args.manual)
     print('bsse', args.bsse)
+    print('mldat', args.mldat)
 
     aobj = ampt.setfmo()
 
@@ -165,6 +174,11 @@ if __name__ == "__main__":
     aobj.ligchg = args.ligandcharge
     aobj.rsolv = args.rsolv
     aobj.bsseflag = args.bsse
+
+    if len(args.mldat) != 0:
+        aobj.mldatname = args.mldat[0]
+        if len(args.mldat) == 2:
+            aobj.mllimit = args.mldat[1]
 
     # aobj.writegeom = os.path.splitext(aobj.readgeom)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + ".cpf'"
 
