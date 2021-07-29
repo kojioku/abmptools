@@ -228,7 +228,7 @@ ReadGeom='""" + str(self.readgeom) + "'\n"
             ajf_body += "CPFVER=" + str(self.cpfver) + "\n"
         if self.mldatfrag is True:
             ajf_body += "WriteMLdata=" + str(self.mldatname) + "\n"
-        if self.mllimit != 0:
+        if self.mllimit not in [0, None]:
             ajf_body += "MLfraglimit=" + str(self.mllimit) + "\n"
 
         ajf_body += """Gradient='NO'
