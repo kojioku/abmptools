@@ -512,6 +512,8 @@ class pdb_io(fab.abinit_io):
         criteria = self.criteria
         tgtpos = self.tgtpos
         solutes = self.solutes
+        solutes_charge = self.solutes_charge
+
         self.mainpath = '.'
         self.assignresname = False
 
@@ -536,6 +538,7 @@ class pdb_io(fab.abinit_io):
 
         print("totalmol:",self.totalRes)
         # getmolatomnum(_udf_, totalRes)
+        print("resnames_orig",resnames_orig)
 
         # 1. -- 切り取らない場合 --
         if self.cutmode == 'none':
@@ -545,7 +548,7 @@ class pdb_io(fab.abinit_io):
             for i in range(self.totalRes):
                 neighborindex.append(i)
 
-        # 2. -- 範囲内に原子が入っているかで絞る方法 --
+        # 2. -- cut sphere shape--
         if self.cutmode == 'sphere':
             print('sphere mode')
             # -- get neighbor mol --
@@ -575,7 +578,7 @@ class pdb_io(fab.abinit_io):
                         neighborindex.append(i)
                         break
 
-        # 3. -- 球状でなくて正方形で絞る方法
+        # 3. -- cut cube shape
         if self.cutmode == 'cube':
             print('cube mode')
             # -- get neighbor mol --
@@ -610,15 +613,19 @@ class pdb_io(fab.abinit_io):
                         neighborindex.append(i)
                         break
 
-        # 4. -- 溶質からの距離でスクリーニング --
+        # 4. -- screening dist from solute --
         if self.cutmode == 'around':
             print('around mode')
             # -- get neighbor mol --
             neighborindex = []
             # solutes = [0, 1]
+
+            # i: residue(mol) index
             for i in self.solutes:
                 neighborindex.append(i)
                 # print('add mol', i, self.resnames[i])
+
+
             for i in range(len(self.posRes)):
                 # check ion
                 icflag = False
@@ -628,27 +635,32 @@ class pdb_io(fab.abinit_io):
                             if self.ionmode == 'del':
                                 icflag = True
                                 break
-                            if self.ionmode == 'remain':
+                            elif self.ionmode == 'remain':
                                 icflag = True
                                 neighborindex.append(i)
-                                # print('add mol', i, self.resnames[i])
+                                print('add mol', i, self.resnames[i])
                                 break
 
                 if icflag == True:
-                    icflag == False
+                    icflag = False
                     continue
 
                 if i % 100 == 0:
                     print('check mol', i)
                 nextf = False
-                if i in solutes:
+                # solute: skip
+                if i in self.solutes:
                    continue
+                # no solute: check dist between solute and no solute
+                # j: atom loop in mol i
                 for j in range(len(self.posRes[i])):
                     if nextf == True:
                         break
+                    # k: solute mol id
                     for k in self.solutes:
                         if nextf == True:
                             break
+                        # l: solute atom id in mol k
                         for l in range(len(self.posRes[k])):
                             dist = self.getdist(np.array(self.posRes[k][l]), np.array(self.posRes[i][j]))
                             if dist < criteria:
@@ -657,6 +669,98 @@ class pdb_io(fab.abinit_io):
                                 nextf = True
                                 break
 
+        # 5. ion neautoral
+        if self.cutmode == 'neutral':
+
+            print('### start neutral mode ###')
+            print('solutes_charge:', self.solutes_charge)
+            print('dist_criteria:', self.criteria)
+            neighborindex = []
+            # solutes = [0, 1]
+            ionindex = []
+            naindex = []
+            clindex = []
+
+            # i: residue(mol) index
+            for i in range(len(self.posRes)):
+                for ion in self.ionname:
+                    if self.resnames[i].strip() == ion.strip():
+                        ionindex.append(i)
+                        if ion.strip().upper() == 'NA':
+                            naindex.append(i)
+                        elif ion.strip().upper() == 'CL':
+                            clindex.append(i)
+                        else:
+                            print('Error! this elem is not support in this version')
+                            sys.exit()
+                        break
+            # print('naindex', naindex)
+            # print('clindex', clindex)
+
+            for i in range(len(self.posRes)):
+                if i not in ionindex:
+                    neighborindex.append(i)
+
+            # print(neighborindex)
+            checknadists = []
+            checkcldists = []
+            checknaid = []
+            checkclid = []
+            minnaid = []
+            minclid = []
+
+            for i in ionindex:
+                dists = []
+                # j: atom loop in mol i
+                for j in range(len(self.posRes[i])):
+                    # k: solute mol id
+                    for k in self.solutes:
+                        # l: solute atom id in mol k
+                        for l in range(len(self.posRes[k])):
+                            dists.append(self.getdist(np.array(self.posRes[k][l]), np.array(self.posRes[i][j])))
+                mindist = min(dists)
+                # print(mindist)
+                if mindist <= criteria:
+                    if i in naindex:
+                        print(self.resnames[i], i, 'is near the solute', mindist, 'angstrom')
+                        # minnadists.append(mindist)
+                        minnaid.append(i)
+                    elif i in clindex:
+                        print(self.resnames[i], i, 'is near the solute', mindist, 'angstrom')
+                        # mincldists.append(mindist)
+                        minclid.append(i)
+                else:
+                    if i in naindex:
+                        checknadists.append(mindist)
+                        checknaid.append(i)
+                    elif i in clindex:
+                        checkcldists.append(mindist)
+                        checkclid.append(i)
+
+            neighborindex += minnaid
+            neighborindex += minclid
+
+            cur_totchg = len(minnaid) - len(minclid) + solutes_charge
+            print('current total charge', cur_totchg, '\n-> add', abs(cur_totchg), 'nearest ions')
+
+            if cur_totchg == 0:
+                pass
+            else:
+                if cur_totchg > 0:
+                    checkdists = np.array(checkcldists)
+                    checkids =  checkclid
+                elif cur_totchg < 0:
+                    checkdists = np.array(checknadists)
+                    checkids = checknaid
+                print('ion-solute dist-list\n', checkdists, checkids)
+
+                sortedids = checkdists.argsort()[:abs(cur_totchg)]
+                for tgtid in sortedids:
+                    neighborindex.append(checkids[tgtid])
+                # print(neighborindex)
+
+            # sort neighborindex
+            neighborindex.sort()
 
         # print('neighborindex', neighborindex)
         # print vec
@@ -722,7 +826,7 @@ class pdb_io(fab.abinit_io):
             print(opath)
             subprocess.call(["mkdir", opath])
 
-        # refresh 
+        # refresh
         index = [i for i in range(len(posRes))]
         self.exportardpdbfull(opath + '/' + oname, index)
 
