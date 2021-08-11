@@ -475,7 +475,7 @@ class anlfmo(pdio.pdb_io):
         else:
             df = mydf
         for f1 in self.tgt1frag:
-            fragids = []
+            wodimesapr_id = []
             tgtdf1 = df[(df['I'] == f1)].rename(columns={'I':'J', 'J':'I'})
             tgtdf2 = df[(df['J'] == f1)]
             tgtdf = tgtdf1.append(tgtdf2)
@@ -491,19 +491,15 @@ class anlfmo(pdio.pdb_io):
             fragis = tgtdf_filter['I'].values.tolist()
             fragjs = tgtdf_filter['J'].values.tolist()
 
-            # pickup fragids from I and J
+            # print(tgtdf_filter)
+            # pickup fragids from I and J(without dimer es approximation ID)
             for i in range(len(fragis)):
                 if fragis[i] != f1:
-                    fragids.append(fragis[i])
+                    wodimesapr_id.append(fragis[i])
                 else:
-                    fragids.append(fragjs[i])
-            # print(fragids)
-            if f1 in self.tgt2frag:
-                # print('double')
-                # print ([i for i in range(len(tgtdf_filter.columns))])
-                adddf = pd.DataFrame([f1, f1]+ [0 for i in range(len(tgtdf_filter.columns)-2)], index=tgtdf_filter.columns).T
-                tgtdf_filter = tgtdf_filter.append(adddf).sort_values('I')
-                print(tgtdf_filter.head())
+                    wodimesapr_id.append(fragjs[i])
+            # print('wodimesapr_id', wodimesapr_id)
+
 
             hfifie = 0
             mp2corr = 0
@@ -518,19 +514,21 @@ class anlfmo(pdio.pdb_io):
             ex = []
             ct = []
 
+            print('check frag', f1, 'pieda info')
             for i in range(len(self.tgt2frag)):
                 tgtid = self.tgt2frag[i]
                 # if tgtid  == f1:
                     # print('error!! target frag1 and target 2 is duplicate!!')
                     # sys.exit()
-                if tgtid in fragids:
-                    es.append(esbuf[fragids.index(tgtid)])
-                    ex.append(exbuf[fragids.index(tgtid)])
-                    ct.append(ctbuf[fragids.index(tgtid)])
+                if tgtid in wodimesapr_id:
+                    es.append(esbuf[wodimesapr_id.index(tgtid)])
+                    ex.append(exbuf[wodimesapr_id.index(tgtid)])
+                    ct.append(ctbuf[wodimesapr_id.index(tgtid)])
                 else:
                     if is_pb:
                         es.append(self.hfdf.loc[tgtid, str(f1)] - self.solvesdf.loc[tgtid, str(f1)])
                     else:
+                        # print(tgtid, 'is no data')
                         es.append(self.hfdf.loc[tgtid, str(f1)])
                     ex.append(0.0)
                     ct.append(0.0)
@@ -587,7 +585,6 @@ class anlfmo(pdio.pdb_io):
 
                 # print(tgtdf_filter.columns.tolist())
                 if f1 in self.tgt2frag:
-                    print('double')
                     # print ([i for i in range(len(tgtdf_filter.columns))])
                     adddf = pd.DataFrame([f1, f1]+ [0 for i in range(len(tgtdf_filter.columns)-2)], index=tgtdf_filter.columns).T
                     tgtdf_filter = tgtdf_filter.append(adddf).sort_values('I')
@@ -826,7 +823,7 @@ class anlfmo(pdio.pdb_io):
             else:
                 return 0
 
-    def gettgtdf_n2tfmatrix(self, i, df, tgt1frag):
+    def gettgtdf_n2tfmatrix(self, i, df, f1):
         # gettgtdf_normal to times-frags
         if self.depth(self.tgt2frag) >= 2:
             tgt2frag = self.tgt2frag[i]
@@ -841,8 +838,29 @@ class anlfmo(pdio.pdb_io):
         distdf = pd.DataFrame(index=tgt2frag)
 
         fragids = []
-        tgtdf = df[(df['I'] == tgt1frag) | (df['J'] == tgt1frag)]
-        tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgt2frag)) | (tgtdf['J'].isin(tgt2frag))]
+        tgtdf1 = df[(df['I'] == f1)].rename(columns={'I':'J', 'J':'I'})
+        tgtdf2 = df[(df['J'] == f1)]
+        tgtdf = tgtdf1.append(tgtdf2)
+
+        tgtfrags = copy.deepcopy(tgt2frag)
+        try:
+            tgtfrags.remove(f1)
+        except:
+            pass
+        tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgtfrags)) | (tgtdf['J'].isin(tgtfrags))]
+
+
+        # tgtdf = df[(df['I'] == tgt1frag) | (df['J'] == tgt1frag)]
+        # tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgt2frag)) | (tgtdf['J'].isin(tgt2frag))]
+
+                # print(tgtdf)
+                # print(tgtdf_filter.columns.tolist())
+
+        if f1 in tgt2frag:
+            # print ([i for i in range(len(tgtdf_filter.columns))])
+            adddf = pd.DataFrame([f1, f1]+ [0 for j in range(len(tgtdf_filter.columns)-2)], index=tgtdf_filter.columns).T
+            tgtdf_filter = tgtdf_filter.append(adddf).sort_values('I')
+        print(tgtdf_filter.head())
 
         # fragis = tgtdf_filter['I'].values.tolist()
         # fragjs = tgtdf_filter['J'].values.tolist()
@@ -886,7 +904,8 @@ class anlfmo(pdio.pdb_io):
         return hfdf, mp2corrdf, prmp2corrdf, mp2tdf, prmp2tdf, distdf
 
 
-    def gettgtpidf_n2tfmatrix(self, i, df, hfdf, tgt1frag):
+    def gettgtpidf_n2tfmatrix(self, i, df, hfdf, f1):
+        # define tgtfrag for molname - frags
         if self.depth(self.tgt2frag) >= 2:
             tgt2frag = self.tgt2frag[i]
         else:
@@ -896,20 +915,30 @@ class anlfmo(pdio.pdb_io):
         exdf = pd.DataFrame(index=tgt2frag)
         ctdf = pd.DataFrame(index=tgt2frag)
 
-        fragids = []
-        tgtdf = df[(df['I'] == tgt1frag) | (df['J'] == tgt1frag)]
-        tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgt2frag)) | (tgtdf['J'].isin(tgt2frag))]
+        tgtdf1 = df[(df['I'] == f1)].rename(columns={'I':'J', 'J':'I'})
+        tgtdf2 = df[(df['J'] == f1)]
+        tgtdf = tgtdf1.append(tgtdf2)
+            # print(tgtdf)
+
+        tgtfrags = copy.deepcopy(tgt2frag)
+        try:
+            tgtfrags.remove(f1)
+        except:
+            pass
+        tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgtfrags)) | (tgtdf['J'].isin(tgtfrags))]
 
         fragis = tgtdf_filter['I'].values.tolist()
         fragjs = tgtdf_filter['J'].values.tolist()
-        # print('tgtdf_filter', tgtdf_filter)
-        # print('fragis', fragis)
+
+        # pickup wodimesapr_id from I and J
+        wodimesapr_id = []
         for j in range(len(fragis)):
-            if fragis[j] != tgt1frag:
-                fragids.append(fragis[j])
+            if fragis[j] != f1:
+                wodimesapr_id.append(fragis[j])
             else:
-                fragids.append(fragjs[j])
-        # print(fragids)
+                wodimesapr_id.append(fragjs[j])
+        # print(wodimesapr_id)
+
         hfifie = 0
         mp2corr = 0
         prmp2corr = 0
@@ -925,12 +954,12 @@ class anlfmo(pdio.pdb_io):
 
         for j in range(len(tgt2frag)):
             tgtid = tgt2frag[j]
-            if tgtid == tgt1frag:
-                continue
-            if tgtid in fragids:
-                es.append(esbuf[fragids.index(tgtid)])
-                ex.append(exbuf[fragids.index(tgtid)])
-                ct.append(ctbuf[fragids.index(tgtid)])
+#             if tgtid == f1:
+#                 continue
+            if tgtid in wodimesapr_id:
+                es.append(esbuf[wodimesapr_id.index(tgtid)])
+                ex.append(exbuf[wodimesapr_id.index(tgtid)])
+                ct.append(ctbuf[wodimesapr_id.index(tgtid)])
             else:
                 es.append(hfdf.loc[tgtid, str(self.tgttimes[i])])
                 ex.append(0.0)
@@ -1596,6 +1625,7 @@ class anlfmo(pdio.pdb_io):
 
     def read_ifpimulti(self, i):
 
+        # i: log number
         # read ifpi f90
         if self.f90soflag == True:
             dfs = self.read_ifpif90(self.tgtlogs[i])
