@@ -476,17 +476,35 @@ class anlfmo(pdio.pdb_io):
             df = mydf
         for f1 in self.tgt1frag:
             fragids = []
-            tgtdf = df[(df['I'] == f1) | (df['J'] == f1)]
-            tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
+            tgtdf1 = df[(df['I'] == f1)].rename(columns={'I':'J', 'J':'I'})
+            tgtdf2 = df[(df['J'] == f1)]
+            tgtdf = tgtdf1.append(tgtdf2)
+            # print(tgtdf)
+
+            tgtfrags = copy.deepcopy(self.tgt2frag)
+            try:
+                tgtfrags.remove(f1)
+            except:
+                pass
+            tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgtfrags)) | (tgtdf['J'].isin(tgtfrags))]
 
             fragis = tgtdf_filter['I'].values.tolist()
             fragjs = tgtdf_filter['J'].values.tolist()
+
+            # pickup fragids from I and J
             for i in range(len(fragis)):
                 if fragis[i] != f1:
                     fragids.append(fragis[i])
                 else:
                     fragids.append(fragjs[i])
             # print(fragids)
+            if f1 in self.tgt2frag:
+                # print('double')
+                # print ([i for i in range(len(tgtdf_filter.columns))])
+                adddf = pd.DataFrame([f1, f1]+ [0 for i in range(len(tgtdf_filter.columns)-2)], index=tgtdf_filter.columns).T
+                tgtdf_filter = tgtdf_filter.append(adddf).sort_values('I')
+                print(tgtdf_filter.head())
+
             hfifie = 0
             mp2corr = 0
             prmp2corr = 0
@@ -502,9 +520,9 @@ class anlfmo(pdio.pdb_io):
 
             for i in range(len(self.tgt2frag)):
                 tgtid = self.tgt2frag[i]
-                if tgtid  == f1:
-                    print('error!! target frag1 and target 2 is duplicate!!')
-                    sys.exit()
+                # if tgtid  == f1:
+                    # print('error!! target frag1 and target 2 is duplicate!!')
+                    # sys.exit()
                 if tgtid in fragids:
                     es.append(esbuf[fragids.index(tgtid)])
                     ex.append(exbuf[fragids.index(tgtid)])
@@ -535,7 +553,7 @@ class anlfmo(pdio.pdb_io):
 
 
     def gettgtdf_n2ffmatrix(self, mydf=pd.DataFrame()):
-        # gettgtdf_normal to times-frags
+        # generate frags-frags matrix
         print('\n--- generate ifie', str(self.tgt1frag), str(self.tgt2frag), 'ffmatrix---\n')
         hfdf = pd.DataFrame(index=self.tgt2frag)
         distdf = pd.DataFrame(index=self.tgt2frag)
@@ -555,8 +573,25 @@ class anlfmo(pdio.pdb_io):
 
             for f1 in self.tgt1frag:
                 fragids = []
-                tgtdf = df[(df['I'] == f1) | (df['J'] == f1)]
-                tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
+                tgtdf1 = df[(df['I'] == f1)].rename(columns={'I':'J', 'J':'I'})
+                tgtdf2 = df[(df['J'] == f1)]
+                tgtdf = tgtdf1.append(tgtdf2)
+                # print(tgtdf)
+
+                tgtfrags = copy.deepcopy(self.tgt2frag)
+                try:
+                    tgtfrags.remove(f1)
+                except:
+                    pass
+                tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgtfrags)) | (tgtdf['J'].isin(tgtfrags))]
+
+                # print(tgtdf_filter.columns.tolist())
+                if f1 in self.tgt2frag:
+                    print('double')
+                    # print ([i for i in range(len(tgtdf_filter.columns))])
+                    adddf = pd.DataFrame([f1, f1]+ [0 for i in range(len(tgtdf_filter.columns)-2)], index=tgtdf_filter.columns).T
+                    tgtdf_filter = tgtdf_filter.append(adddf).sort_values('I')
+                print(tgtdf_filter.head())
 
                 hfifie = 0
                 mp2corr = 0
@@ -1957,10 +1992,10 @@ class anlfmo(pdio.pdb_io):
 
         if self.matrixtype == 'frags-frags':
             print(self.tgt1frag, self.tgt2frag)
-            dp = set(self.tgt1frag) & set(self.tgt2frag)
-            if len(dp) != 0:
-                print('Error! tgt1 and tgt2 is duplicate')
-                sys.exit()
+#             dp = set(self.tgt1frag) & set(self.tgt2frag)
+#             if len(dp) != 0:
+#                 print('Error! tgt1 and tgt2 is duplicate')
+#                 sys.exit()
 
         if type(self.tgt2frag) == list:
             for dfrag in self.exceptfrag:
