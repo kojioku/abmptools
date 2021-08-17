@@ -42,6 +42,54 @@ class mol_io():
             coord.append(temp2)
         return [atom, coord]
 
+    def getatoms(self, fname):
+        f = open(fname, "r", newline="\n")
+        text = f.readlines()
+
+        atom = []
+        pos = []
+
+        atoms = []
+        atomnums = []
+        poss = []
+        skipflag = False
+        for i in range(len(text)):
+            if skipflag:
+                skipflag = False
+                continue
+
+            itemList = text[i][:-1].split()
+            if len(itemList) == 1:
+                if i != 0:
+                    atoms.append(atom)
+                    poss.append(pos)
+                    atomnums.append(atomnum)
+                    atom = []
+                    pos = []
+
+                atomnum = itemList[0]
+                skipflag = True
+            else:
+                atom.append([i-1, itemList[0]])
+                pos.append(itemList[1:4])
+            if i == (len(text) -1):
+                atoms.append(atom)
+                poss.append(pos)
+                atomnums.append(atomnum)
+
+
+        return atoms, atomnums, poss
+
+    def convert_xyzs_pdb(self, fname, dirname):
+        atoms, atomnums, poss = self.getatoms(fname)
+        head, ext = os.path.splitext(fname)
+        for i in range(len(atoms)):
+            oname = dirname + '/' + str(i).zfill(5) + ".pdb"
+            print(atoms[i])
+            print(atomnums[i])
+            print(poss[i])
+            print(oname)
+            self.Exportpospdb(atoms[i], atomnums[i], poss[i], oname)
 
     def getatom(self, fname):
         atom = []
