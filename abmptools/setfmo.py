@@ -98,6 +98,11 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
             self.solutes = []
 
         try:
+            self.solutes_charge = param_rfmo['solutes_charge']
+        except KeyError:
+            self.solutes_charge = 0
+
+        try:
             self.ionname = param_rfmo['ionname']
         except KeyError:
             self.ionname = []
