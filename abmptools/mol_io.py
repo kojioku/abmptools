@@ -89,7 +89,7 @@ class mol_io():
             # print(atomnums[i])
             # print(poss[i])
             if tgtnum != 0:
-                if i+1 = tgtnum:
+                if i+1 == tgtnum:
                     print(oname)
                     self.Exportpospdb(atoms[i], atomnums[i], poss[i], oname)
             else:
