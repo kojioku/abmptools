@@ -80,16 +80,21 @@ class mol_io():
 
         return atoms, atomnums, poss
 
-    def convert_xyzs_pdb(self, fname, dirname):
+    def convert_xyzs_pdb(self, fname, dirname, tgtnum=0):
         atoms, atomnums, poss = self.getatoms(fname)
         head, ext = os.path.splitext(fname)
         for i in range(len(atoms)):
-            oname = dirname + '/' + str(i).zfill(5) + ".pdb"
-            print(atoms[i])
-            print(atomnums[i])
-            print(poss[i])
-            print(oname)
-            self.Exportpospdb(atoms[i], atomnums[i], poss[i], oname)
+            oname = dirname + '/' + str(i+1).zfill(5) + ".pdb"
+            # print(atoms[i])
+            # print(atomnums[i])
+            # print(poss[i])
+            if tgtnum != 0:
+                if i+1 = tgtnum:
+                    print(oname)
+                    self.Exportpospdb(atoms[i], atomnums[i], poss[i], oname)
+            else:
+                    print(oname)
+                    self.Exportpospdb(atoms[i], atomnums[i], poss[i], oname)
 
     def getatom(self, fname):
         atom = []
