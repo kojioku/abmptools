@@ -31,6 +31,8 @@ mv -f restrt_tmp restrt
 
 
 function runminlast1() {
+infile=$1
+outfile=$2
 echo "step1 Hopt"
 cat << EOF > mdin
 Minimization1
@@ -42,11 +44,13 @@ Minimization1
 /
 EOF
 
-run_cp_md ${1%.*}_minlast1 $ambermin $1
+run_cp_md $outfile $ambermin $infile
 }
 
 
 function runminlast2() {
+infile=$1
+outfile=$2
 echo "step2(backbone:constrain SideChain:restraint)"
 cat << EOF > mdin
 Minimization2
@@ -58,11 +62,13 @@ Minimization2
 /
 EOF
 
-run_cp_md ${1%.*}_minlast2 $ambermin $1
+run_cp_md $outfile $ambermin $infile
 }
 
 
 function runminlast3() {
+infile=$1
+outfile=$2
 echo "step3 Hopt"
 cat << EOF > mdin
 Minimization3
@@ -74,17 +80,22 @@ Minimization3
 /
 EOF
 
-run_cp_md ${1%.*}_minlast3 $ambermin $1
+run_cp_md $outfile $ambermin $infile
 }
 
 # -- main section --
 \cp $prmtop prmtop
 for traj in $trajs
+# trajs (*.rst)
 do
     echo start $traj
-    runminlast1 ${traj}
-    runminlast2 ${traj}
-    runminlast3 ${traj}
+    runminlast1 ${traj} ${traj%.*}.minlast1
+    # in: xxx.rst, out: xxx_minlast1.restrt
+    runminlast2 ${traj%.*}.minlast1.restrt ${traj%.*}.minlast2
+    # in: (xxx.rst -> xxx.minlast1.restrt), out: xxx.minlast2.restrt
+    runminlast3 ${traj%.*}.minlast2.restrt ${traj%.*}.minlast3
+    # in: (xxx.rst -> xxx.minlast2.restrt), out: xxx.minlast3.restrt
+
 done
 
 exit 0;
