@@ -90,10 +90,10 @@ class mol_io():
             # print(poss[i])
             if tgtnum != 0:
                 if i+1 == tgtnum:
-                    print(oname)
+                    # print(oname)
                     self.Exportpospdb(atoms[i], atomnums[i], poss[i], oname)
             else:
-                    print(oname)
+                    # print(oname)
                     self.Exportpospdb(atoms[i], atomnums[i], poss[i], oname)
 
     def getatom(self, fname):
