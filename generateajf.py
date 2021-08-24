@@ -85,6 +85,10 @@ if __name__ == "__main__":
                         default=0
                         )
 
+    parser.add_argument('-disp', '--disp',
+                        help='flag disp',
+                        action='store_true')
+
     # WriteMLdata='wstr-1E08_HIS_ES.new2.cmm5.mldat'
     # MLfraglimit=921
 
@@ -156,6 +160,8 @@ if __name__ == "__main__":
     print('manual', args.manual)
     print('bsse', args.bsse)
     print('mldat', args.mldat)
+    print('disp', args.disp)
+
 
     aobj = ampt.setfmo()
 
@@ -180,6 +186,7 @@ if __name__ == "__main__":
     aobj.ligchg = args.ligandcharge
     aobj.rsolv = args.rsolv
     aobj.bsseflag = args.bsse
+    aobj.disp = args.disp
 
     if args.mldat:
         aobj.mldatfrag = args.mldat

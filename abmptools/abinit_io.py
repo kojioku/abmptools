@@ -65,6 +65,7 @@ class abinit_io(mi.mol_io):
         self.mldatfrag = False 
         self.mldatname = None
         self.mllimit = None
+        self.disp = False
         # distlitname
 
         # frag table
@@ -370,7 +371,11 @@ LPRINT=2"""
         if self.abinit_ver in ['rev15', 'rev17', 'rev22', 'rev23']:
             new_section = """
 &LRD
-/
+"""
+            if self.disp:
+                new_section += """  DISP='ON'
+"""
+            new_section += """/
 """
         else:
             new_section = ""
