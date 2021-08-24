@@ -5,8 +5,12 @@ import copy
 import re
 import subprocess
 import math
-import numpy as np
 from multiprocessing import Pool
+try:
+    import numpy as np
+except:
+    pass
+
 
 class molcalc():
 

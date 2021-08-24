@@ -1,4 +1,3 @@
-import numpy as np
 import sys
 import os
 scrdir = os.path.abspath(os.path.dirname(__file__))
@@ -10,6 +9,10 @@ import time
 import copy
 import abinit_io as fab
 import collections
+try:
+    import numpy as np
+except:
+    pass
 try:
     from UDFManager import *
 except:

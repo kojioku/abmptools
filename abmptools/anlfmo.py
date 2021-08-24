@@ -6,7 +6,6 @@ sys.path.append(scrdir)
 from multiprocessing import Pool
 import copy
 import random
-import numpy as np
 import math
 import re
 import subprocess
@@ -14,7 +13,11 @@ import csv
 import pdb_io as pdio
 import time
 from ctypes import *
-# import setparam as sp
+
+try:
+    import numpy as np
+except:
+    pass
 try:
     import collections
 except:
@@ -463,14 +466,14 @@ class anlfmo(pdio.pdb_io):
         return pidf
 
 
-    def gettgtpidf_n2ffmatrix(self, mydf=pd.DataFrame(), is_pb=False):
+    def gettgtpidf_n2ffmatrix(self, mydf=None, is_pb=False):
         print('\n--- generate pieda', str(self.tgt1frag), str(self.tgt2frag), 'ffmatrix ---\n')
         esdf = pd.DataFrame(index=self.tgt2frag)
         exdf = pd.DataFrame(index=self.tgt2frag)
         ctdf = pd.DataFrame(index=self.tgt2frag)
         count = 0
 
-        if mydf.empty:
+        if mydf == None:
             df = self.pidf
         else:
             df = mydf
@@ -550,14 +553,14 @@ class anlfmo(pdio.pdb_io):
         return
 
 
-    def gettgtdf_n2ffmatrix(self, mydf=pd.DataFrame()):
+    def gettgtdf_n2ffmatrix(self, mydf=None):
         # generate frags-frags matrix
         print('\n--- generate ifie', str(self.tgt1frag), str(self.tgt2frag), 'ffmatrix---\n')
         hfdf = pd.DataFrame(index=self.tgt2frag)
         distdf = pd.DataFrame(index=self.tgt2frag)
         solvesdf = pd.DataFrame(index=self.tgt2frag)
 
-        if mydf.empty:
+        if mydf == None:
             df = self.ifdf
         else:
             df = mydf
@@ -2081,7 +2084,7 @@ class anlfmo(pdio.pdb_io):
 #         self.frags = frags
 
     ### filter section
-    def filterifiewrap(self, dist=None, myifdf=pd.DataFrame(), mypidf=pd.DataFrame(), is_pb=False):
+    def filterifiewrap(self, dist=None, myifdf=None, mypidf=None, is_pb=False):
 
         tgt2type = self.tgt2type
         if dist != None:

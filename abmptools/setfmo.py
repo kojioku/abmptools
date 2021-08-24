@@ -1,4 +1,3 @@
-import numpy as np
 try:
     from UDFManager import *
 except:
@@ -15,6 +14,11 @@ import copy
 import udfcreate as ufc
 import udfrm_io as rud
 import pdb_io as pdio
+try:
+    import numpy as np
+except:
+    pass
+
 
 class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
     def __init__(self):

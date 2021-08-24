@@ -1,4 +1,3 @@
-import numpy as np
 import sys
 import os
 import math
@@ -10,6 +9,11 @@ try:
     from UDFManager import *
 except:
     pass
+try:
+    import numpy as np
+except:
+    pass
+
 
 class udfrm_io(uio.udf_io):
     def __init__(self):

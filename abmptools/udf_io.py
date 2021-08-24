@@ -2,7 +2,6 @@ import sys
 import os
 scrdir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(scrdir)
-import numpy as np
 import math
 import subprocess
 import re
@@ -11,6 +10,10 @@ import copy
 import molcalc as molc
 try:
     from UDFManager import *
+except:
+    pass
+try:
+    import numpy as np
 except:
     pass
 

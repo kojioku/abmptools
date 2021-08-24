@@ -6,7 +6,6 @@ sys.path.append(scrdir)
 from multiprocessing import Pool
 import copy
 import random
-import numpy as np
 import math
 import re
 import subprocess
