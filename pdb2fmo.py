@@ -80,6 +80,9 @@ if __name__ == "__main__":
         elif aobj.cutmode == 'cube':
             oname = oname + '-' + aobj.cutmode + 'p' + str(aobj.tgtpos[0]) + '_' + str(aobj.tgtpos[1]) + '_' + str(aobj.tgtpos[2]) + '_x' + str(aobj.criteria[0]) + '_y' + str(aobj.criteria[1]) + '_z' + str(aobj.criteria[2])
 
+        elif aobj.cutmode == 'neutral':
+            oname = oname + '-' + aobj.cutmode + '_ar' + str(aobj.criteria)
+
         if aobj.cutmode == 'none':
             oname = oname +  '-for_abmp'
 
