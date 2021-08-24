@@ -8,6 +8,7 @@
 # ver2.1: Calculations up to equilibration is applied to the MOE.
 # ver2.0: fix for setting cutoff, density, temp, and mask
 set -e
+set -x
 
 # -- user setting --
 fbase=$1
@@ -197,7 +198,9 @@ ambpdb -c restrt > pdb
 mv -f mdin ${1}.mdin
 mv -f mdout ${1}.mdout
 mv -f restrt ${1}.restrt
-mv -f mdcrd ${1}.mdcrd
+if [ -e mdcrd ]; then
+    mv -f mdcrd ${1}.mdcrd
+fi
 mv -f pdb ${1}.pdb
 mv -f restrt_tmp restrt
 }
@@ -562,8 +565,8 @@ echo "step2(backbone:constrain SideChain:restraint)"
 cat << EOF > mdin
 Minimization2
 &cntrl
-  imin=1, maxcyc=100000, ncyc=3000, drms=0.5,
-  ntr=1, restraint_wt=10000.0, restraintmask="",
+  imin=1, maxcyc=100000, ncyc=3000, drms=0.3,
+  !ntr=1, restraint_wt=10000.0, restraintmask="${restmask}",
   ig=-1,
   vlimit=-1,
 /
@@ -670,15 +673,21 @@ done < $protocol
 
 #fbase: name
 #c: number
-if [ -e ${fbase}.${c}.stdout ]; then
-    echo start
-    # run_cp_md: name(fbase), bin, coor
-    runanneal ${fbase}.${c}.rstrt .${fbase}.${c}.anneal
+# run_cp_md: name(fbase), bin, coor
+echo "start lastmin(anneal, minimize)"
+if [ -e ${fbase}.${c}.stdout -a ! -e ${fbase}.${c}.anneal.restrt ]; then
+    runanneal ${fbase}.${c}.rstrt ${fbase}.${c}.anneal
     # in: fbase.c.rstrt out: fbase.c_anneal.restrt
+fi
+if [ -e ${fbase}.${c}.anneal.restrt -a ! -e ${fbase}.${c}.minlast1.restrt ]; then
     runminlast1 ${fbase}.${c}.anneal.restrt ${fbase}.${c}.minlast1
     # in: fbase.c.anneal out: fbase.c.minlast1.restrt
+fi
+if [ -e ${fbase}.${c}.minlast1.restrt -a ! -e ${fbase}.${c}.minlast2.restrt ]; then
     runminlast2 ${fbase}.${c}.minlast1.restrt ${fbase}.${c}.minlast2
     # in: fbase.c.minlast1 out: fbase.c.minlast2.restrt
+fi
+if [ -e ${fbase}.${c}.minlast2.restrt -a ! -e ${fbase}.${c}.minlast3.restrt ]; then
     runminlast3 ${fbase}.${c}.minlast2.restrt ${fbase}.${c}.minlast3
     # out: fbase.c.minlast2 out: fbase.c.minlast3.restrt
 fi

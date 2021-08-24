@@ -97,7 +97,7 @@ if "$maskflag"; then
     echo "parm $prmtop" > cpptraj_mask.in
     echo "trajin $newtraj" >> cpptraj_mask.in
     echo "reference $newtraj" >> cpptraj_mask.in
-    echo "mask \"($maskinfo<:$stripdist)|:NA\" maskpdb $dir/$head.pdb" >> cpptraj_mask.in
+    echo "mask \"($maskinfo<:$stripdist)|:NA|:Na+|:CL|:Cl-\" maskpdb $dir/$head.pdb" >> cpptraj_mask.in
     echo 'run' >> cpptraj_mask.in
     cpptraj < cpptraj_mask.in
 fi

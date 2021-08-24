@@ -13,23 +13,14 @@ module load amber 2> /dev/null
 #--user setting--
 # caputure time info(ps)
 tgtpdb=$1  # please specify the start time of production run
-sampletime=1.0
 
-centerinfo=":91"    # ":1-276"
-maskinfo=":1-276"
-stripdist=0.01      #3.0
+centerinfo=":57"    # ":1-276"
+maskinfo=":1-213"
+stripdist=4.0      #3.0
 maskflag=true
 #--user setting end--
 
-
-# tempolary solution for cpp traj trajout(start) bug
-# etime_inprod=`echo "$etime - $stime" | bc`
-# eframe_inprod=`echo "$etime_inprod / $sampletime" | bc`
-# -----
-
 tgtframe=1
-# eframe=`echo "$etime / $sampletime" | bc`
-# ivframe=`echo "$interval / $sampletime" | bc`
 
 name=`ls *.a.0.coor`
 head=${name%%.*}
@@ -39,34 +30,12 @@ mkdir $dir 2>/dev/null
 
 prmtop=`ls *.prmtop`
 init=`ls *.a.0.coor`
-# prodinit=`ls ${head}*.${stime}.rstrt`
-# if [ "$prodinit" == "" ]; then
-#     prodinit="xxxxx"
-#     echo "Error!!: check start time setting"
-#     exit 0
-# fi
 
 trajs=`ls *.mdcrd`
 # echo $trajs
 
 # input filter
 trajs_filt=''
-# for traj in $trajs
-# do
-#     if [ "$traj" == "Minimization1.mdcrd" ] || [ "$traj" == "Minimization2.mdcrd" ] || [ "$traj" == "Minimization3.mdcrd" ]; then
-#         echo "$traj skip"
-#         continue
-#     fi
-#     buf=${traj%.*}
-#     number=${buf##*.}
-#     trajs_filt="$trajs_filt $traj"
-#     if [ $number -ge $tgtframe ]; then
-#         echo $traj: last 
-#         break
-#     fi
-# done
-# echo "input trajs: $trajs_filt"
-
 newtraj='tgt.pdb'
 
 #-- print section --
@@ -93,7 +62,7 @@ if "$maskflag"; then
     echo "parm $prmtop" > cpptraj_mask.in
     echo "trajin $newtraj" >> cpptraj_mask.in
     echo "reference $newtraj" >> cpptraj_mask.in
-    echo "mask \"($maskinfo<:$stripdist)|:NA\" maskpdb $dir/$head.pdb" >> cpptraj_mask.in
+    echo "mask \"($maskinfo<:$stripdist)|:NA|:Na+|:CL|:Cl-\" maskpdb $dir/$head.pdb" >> cpptraj_mask.in
     echo 'run' >> cpptraj_mask.in
     cpptraj < cpptraj_mask.in
 fi
