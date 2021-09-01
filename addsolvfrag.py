@@ -40,6 +40,16 @@ if __name__ == "__main__":
                         nargs='*',
                         default=['HOH', 'WAT', 'NA'])
 
+    parser.add_argument('-nocpf', '--nocpf',
+                        help='cpfflag',
+                        action='store_false'
+                        )
+
+    parser.add_argument('-cmm', '--cmm',
+                        help='cmm',
+                        action='store_true'
+                        )
+
     args = parser.parse_args()
     print('input =', args.input)
     # print('output =', args.output)
@@ -59,7 +69,8 @@ if __name__ == "__main__":
     aobj.assignmolname = assignmolname
     aobj.refreshatmtype = refreshatmtype
     aobj.refreshresid = refreshresid
-
+    aobj.cpfflag = args.nocpf
+    aobj.cmmflag = args.cmm
 
     # main
     pdbnames = []
@@ -117,13 +128,11 @@ if __name__ == "__main__":
         aobj.ajf_basis_set = "6-31G*"
         aobj.abinit_ver = 'rev15'
         aobj.piedaflag = True
-        aobj.cpfflag = False
-        aobj.cmmflag = True
         aobj.npro = 1
         aobj.para_job = 1
         ohead = os.path.splitext(pdbname)[0].split('/')[-1] + '_forabmp'
         aobj.readgeom = ohead + '.pdb'
-        aobj.writegeom = os.path.splitext(ajfname)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + ".cpf'"
+        aobj.writegeom = os.path.splitext(pdbname)[0].split('/')[-1] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + ".cpf'"
 
         opath = 'for_abmp'
         if os.path.exists(opath) is False:
