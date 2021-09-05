@@ -67,6 +67,7 @@ if __name__ == "__main__":
         print('--- info ---')
         print('setup mode', aobj.cutmode)
         print('piedaflag', aobj.piedaflag)
+        print('cmmflag', aobj.cmmflag)
         print('refreshresid', aobj.refreshresid)
         print('refreshatmtype', aobj.refreshatmtype)
 
@@ -89,7 +90,6 @@ if __name__ == "__main__":
         if aobj.cutmode == 'around':
             print('molset', aobj.molname)
             print('solute', aobj.solutes)
-
 
         if len(aobj.ionname) != 0:
             print('ion mode: ', aobj.ionmode)

@@ -4,6 +4,9 @@ import numpy as np
 import math
 import statistics
 import copy
+import argparse
+import glob
+import shutil
 
 def getcartesiancellvec(angle, length):
 
@@ -53,7 +56,6 @@ def getcartesiancellvec(angle, length):
     # c_vec[1] = c*math.cos(alpha)*math.sin(gamma)
 
     print(c_vec)
-
 
     # print(c_vec[0], c_vec[1], c_vec[2], c)
     # print(c**2 - (c_vec[0]**2 + c_vec[1]**2))
@@ -154,505 +156,655 @@ def intocell(incoords, anum_mol):
 #     return list(a_xyz), list(b_xyz), list(c_xyz)
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(
+                prog='readcif.py', # program name
+                usage='python readcif.py -c xxx.cif -odir dir', # program usage
+                description='readcif script',
+                epilog='end',
+                add_help=True,
+                )
+
+    # add args
+    parser.add_argument('-c', '--coord',
+                        help='coordinate file (pdb)',
+                        nargs='*',
+                        action='append',
+                        required=True)
+
+    parser.add_argument('-od', '--odir',
+                        help='outdir',
+                        default='cifout'
+                        )
+
+    parser.add_argument('-an', '--atomnum',
+                        help='atom num',
+                        nargs='*',
+                        type=int,
+                        action='append',
+                        required=True)
+
+    parser.add_argument('-l', '--layer',
+                        help='layer',
+                        type=int,
+                        default='layer'
+                        )
+
+    parser.add_argument('-nopdb', '--nopdb',
+                        help='flag nopdb',
+                        action='store_false')
+
+    # get args
+    args = parser.parse_args()
+
+    print('coord(cif) =', args.coord)
+    print('odir = ', args.odir)
+    print('atomnum = ', args.atomnum)
+    print('layer =', args.layer)
+    print('pdbflag =', args.nopdb)
+
+    # sys.exit()
+
     ## -- user setiing
     # anum_inmol = [24]
-    anum_inmol =[7, 55]
+    # anum_inmol =[7, 55]
+    # anum_inmol = [32] # csp7 31
     # anum_inmol =[47, 14]
     # anum_inmol =[24, 1] clonidine_hydrochloride2-PCS.cif
     # anum_inmol =[21, 1] hydralazine_hydrochloride200-PCS.cif
     # anum_inmol =[24, 17] CA_GA_2csp-PCS.cif
     # anum_inmol =[24, 0]
 
-    calc_dist = True
+    calc_dist = False
     tgtdist = 1.5
     tgtatoms = ['O', 'H']
-    image = 2
+
     nointra = True
-
     maxnum = 10
-    ## -- user setting end
 
-    argvs = sys.argv
-    print(argvs)
+    ## -- user setting end
+    # argvs = sys.argv
+    # print(argvs)
+
+    # infile = argvs[1]
+    infiles = args.coord
+    # odir = argvs[2]
+    odir = args.odir
+    xyzdir = odir + '/layer' + str(args.layer) + '/xyz'
+    pdbdir = odir + '/layer' + str(args.layer) + '/pdb'
+
+    anum_inmol = args.atomnum[0]
+    image = args.layer
+    pdbflag = args.nopdb
+
+    if pdbflag:
+        import abmptools as ampt
+        aobj = ampt.mol_io()
+
     print('atom num mol:', anum_inmol)
     print('tgtatom:', tgtatoms)
     print('tgtdist:', tgtdist)
+    print('########## Read Start #########')
 
-    infile = argvs[1]
-    odir = argvs[2]
     if os.path.exists(odir) is False:
         os.makedirs(odir)
-    out, ext = os.path.splitext(infile)
-    out = out.split('/')[-1]
 
-    lines = open(infile, 'r').readlines()
-    ## initialize
-    num = 1
-    coordflag = False
-    coordend = False
-    cellend = False
-    atoms = []
-    coords = []
-    atomsmol = []
-    coordsmol = []
-    angle = []
-    length = []
-    lengthmol = []
-    anglemol = []
-    znum = []
+    if os.path.exists(xyzdir) is False:
+        os.makedirs(xyzdir)
 
+    if not os.path.exists(pdbdir) and pdbflag:
+        os.makedirs(pdbdir)
 
-    ## get line
-    for i in range(len(lines)):
-        line = lines[i].split()
-        # print(line)
-        if line[0:2] == ['#', 'CONFLEX8']:
-            if num > maxnum:
-                break
-            print('start data', num)
-            num += 1
-        if line[0:1] == ['_symmetry_space_group_name_H-M']:
-            sym = line[1].replace("'", '')
-            print('space group:', sym)
-            symlist = ['P21/N', 'PNA21', 'P212121', 'P21/C', 'C2/C', 'P-1']
-            if sym in symlist:
-                pass
-            else:
-                print(sym, 'Not supported yet.')
+    for infile in infiles[0]:
+        out, ext = os.path.splitext(infile)
+        out = out.split('/')[-1]
 
-        ## get length and line
-        if line[0:1] == ['_cell_length_a']:
-            length.append(float(line[1]))
-            continue
-        if line[0:1] == ['_cell_length_b']:
-            length.append(float(line[1]))
-            continue
-        if line[0:1] == ['_cell_length_c']:
-            length.append(float(line[1]))
-            continue
-        if line[0:1] == ['_cell_angle_alpha']:
-            angle.append(float(line[1]))
-            continue
-        if line[0:1] == ['_cell_angle_beta']:
-            angle.append(float(line[1]))
-            continue
-        if line[0:1] == ['_cell_angle_gamma']:
-            angle.append(float(line[1]))
-            continue
-        if line[0:1] == ['_cell_formula_units_Z']:
-            znum.append(int(line[1]))
-            cellend = True
-            continue
+        print('\n##  Start Read', infile)
+        lines = open(infile, 'r').readlines()
+        ## initialize
+        num = 1
+        coordflag = False
+        coordend = False
+        cellend = False
+        atoms = []
+        coords = []
+        atomsmol = []
+        coordsmol = []
+        angle = []
+        length = []
+        lengthmol = []
+        anglemol = []
+        znum = []
+        acolumns = []
+        acolumnsflag = False
 
-        ## save length and angle for mol list
-        if cellend == True:
-            cellend = False
-            # coords = np.array(coords)
-            lengthmol.append(length)
-            anglemol.append(angle)
-            # print('aaaaa', lengthmol)
-            length = []
-            angle = []
-
-        ## get coord
-        if line[0:1] == ['_atom_site_occupancy']:
-            coordflag = True
-            continue
-        if coordflag == True:
-            if line[0:1] == ['loop_']:
-                coordflag = False
-                coordend = True
-
+        ## get line
+        for i in range(len(lines)):
+            line = lines[i].split()
+            if len(line) == 0:
                 continue
-            atoms.append(line[1])
-            coords.append([float(line[2]), float(line[3]), float(line[4])])
-        if coordend == True:
-            coordend = False
-            atomsmol.append(atoms)
-            coordsmol.append(coords)
-            atoms = []
-            coords = []
-#     print(atomsmol)
-#     print(coordsmol)
-#     print(len(atomsmol[0]))
-#     print(len(coordsmol[0]))
-#     print(lengthmol)
-#     print(anglemol)
-#     print(len(lengthmol))
-#     print(len(anglemol))
+            if line[0:2] == ['#', 'CONFLEX8']:
+                if num > maxnum:
+                    break
+                print('start data', num)
+                num += 1
+            if '_space_group_name_H-M' in line[0]:
+                if len(line) == 3:
+                    line[1] = line[1] + line[2]
+                if len(line) == 4:
+                    line[1] = line[1] + line[2] + line[3]
+                if len(line) == 5:
+                    line[1] = line[1] + line[2] + line[3] + line[4]
+                sym = line[1].replace("'", '').upper()
+                print('space group:', sym)
+                symlist = ['P21/N', 'PNA21', 'P212121', 'P21/C', 'C2/C', 'P-1', 'P21']
+                if sym in symlist:
+                    pass
+                else:
+                    print(sym, 'Not supported yet.')
+                    sys.exit()
 
-    # initialize
-    a_xyz = [0] * 3
-    b_xyz = [0] * 3
-    c_xyz = [0] * 3
-    xyz = [0] * 3
-    a_xyzs = []
-    b_xyzs = []
-    c_xyzs = []
-    xyzs = []
-    xyzs_sym = []
-    xyzsmol = []
-    xyzs27mols = []
-    truemolid = []
-    molnum = len(atomsmol)
-    atomnum = len(atomsmol[0])
-    print('molnum', molnum)
-    print('atomnum', atomnum)
+            ## get length and line
+            if line[0:1] == ['_cell_length_a']:
+                length.append(float(line[1]))
+                continue
+            if line[0:1] == ['_cell_length_b']:
+                length.append(float(line[1]))
+                continue
+            if line[0:1] == ['_cell_length_c']:
+                length.append(float(line[1]))
+                continue
+            if line[0:1] == ['_cell_angle_alpha']:
+                angle.append(float(line[1]))
+                continue
+            if line[0:1] == ['_cell_angle_beta']:
+                angle.append(float(line[1]))
+                continue
+            if line[0:1] == ['_cell_angle_gamma']:
+                angle.append(float(line[1]))
+                continue
+            if line[0:1] == ['_cell_formula_units_Z']:
+                znum.append(int(line[1]))
+                cellend = True
+                continue
 
-    ## get cartesian  coordinate
-    for i in range(molnum):
-        print('\nrun mol', i)
-        tgtflag = False
-        length = lengthmol[i]
-        angle = anglemol[i]
-        # print(length)
-        # print(angle)
-        cella, cellb, cellc = copy.deepcopy(getcartesiancellvec(angle, length))
+            ## save length and angle for mol list
+            if cellend == True:
+                cellend = False
+                # coords = np.array(coords)
+                lengthmol.append(length)
+                anglemol.append(angle)
+                # print('aaaaa', lengthmol)
+                length = []
+                angle = []
 
-        as_list = []
-        bs_list = []
-        cs_list = []
-        for z_id in range(znum[i]):
-            a_s = []
-            b_s = []
-            c_s = []
-            for j in range(atomnum):
-                # print('atom', j)
-                atoms = atomsmol[i][j]
-                coords = coordsmol[i][j]
-                if sym == 'P21/N':
-                    if z_id == 0:
-                        acoord = coords[0]
-                        bcoord = coords[1]
-                        ccoord = coords[2]
+            ## get coord
+            if '_atom_site' in line[0] and '_geom' not in line[0]:
+                print(line[0])
+                acolumns.append(line[0])
+                acolumnsflag = True
+                continue
+            if acolumnsflag == True:
+                if '_atom_site' not in line[0]:
+                    acolumnsflag = False
+                    coordflag = True
+                    symbol_idx = acolumns.index('_atom_site_type_symbol')
+                    x_idx = acolumns.index('_atom_site_fract_x')
+                    y_idx = acolumns.index('_atom_site_fract_y')
+                    z_idx = acolumns.index('_atom_site_fract_z')
+                    print(symbol_idx, x_idx, y_idx, z_idx)
+            if coordflag == True:
+                if line[0:1] == ['loop_']:
+                    coordflag = False
+                    coordend = True
+                    continue
 
-                    if z_id == 1:
-                        acoord = ((-coords[0]) + 0.5)
-                        bcoord = (coords[1] + 0.5)
-                        ccoord = ((-coords[2]) + 0.5)
+                atoms.append(line[symbol_idx])
+                coords.append([float(line[x_idx]), float(line[y_idx]), float(line[z_idx])])
 
-                    if z_id == 2:
-                        acoord = (-coords[0])
-                        bcoord = (-coords[1])
-                        ccoord = (-coords[2])
+            if coordend == True:
+                coordend = False
+                atomsmol.append(atoms)
+                coordsmol.append(coords)
+                atoms = []
+                coords = []
+    #     print(atomsmol)
+    #     print(coordsmol)
+    #     print(len(atomsmol[0]))
+    #     print(len(coordsmol[0]))
+    #     print(lengthmol)
+    #     print(anglemol)
+    #     print(len(lengthmol))
+    #     print(len(anglemol))
 
-                    if z_id == 3:
-                        acoord = (coords[0] + 0.5)
-                        bcoord = ((-coords[1]) + 0.5)
-                        ccoord = (coords[2] + 0.5)
-
-                if sym == 'PNA21':
-                    if z_id == 0:
-                        acoord = coords[0]
-                        bcoord = coords[1]
-                        ccoord = coords[2]
-
-                    if z_id == 1:
-                        acoord = (-coords[0])
-                        bcoord = (-coords[1])
-                        ccoord = (coords[2] + 0.5)
-
-                    if z_id == 2:
-                        acoord = (coords[0] + 1/2)
-                        bcoord = (-coords[1]) + 1/2
-                        ccoord = coords[2]
-
-                    if z_id == 3:
-                        acoord = (-coords[0] + 0.5)
-                        bcoord = (coords[1] + 0.5)
-                        ccoord = (coords[2] + 0.5)
-
-                if sym == 'P212121':
-                    if z_id == 0:
-                        acoord = coords[0]
-                        bcoord = coords[1]
-                        ccoord = coords[2]
-
-                    if z_id == 1:
-                        acoord = (-coords[0]) + 0.5
-                        bcoord = (-coords[1])
-                        ccoord = coords[2] + 0.5
-
-                    if z_id == 2:
-                        acoord = (-coords[0])
-                        bcoord = coords[1] + 0.5
-                        ccoord = (-coords[2]) + 0.5
-
-                    if z_id == 3:
-                        acoord = coords[0] + 0.5
-                        bcoord = (-coords[1]) + 0.5
-                        ccoord = -coords[2]
-
-                if sym == 'P21/C':
-                    if z_id == 0:
-                        acoord = coords[0]
-                        bcoord = coords[1]
-                        ccoord = coords[2]
-
-                    if z_id == 1:
-                        acoord = -coords[0]
-                        bcoord = coords[1] + 0.5
-                        ccoord = -coords[2] + 0.5
-
-                    if z_id == 2:
-                        acoord = -coords[0]
-                        bcoord = -coords[1]
-                        ccoord = -coords[2]
-
-                    if z_id == 3:
-                        acoord = coords[0]
-                        bcoord = -coords[1] + 0.5
-                        ccoord = coords[2] + 0.5
-
-                if sym == 'C2/C':
-                    if z_id == 0:  #x,y,z
-                        acoord = coords[0]
-                        bcoord = coords[1]
-                        ccoord = coords[2]
-
-                    if z_id == 1:  #-x,y,-z+1/2
-                        acoord = (-coords[0])
-                        bcoord = coords[1]
-                        ccoord = -coords[2] + 0.5
-
-                    if z_id == 2:  #-x, -y, -z
-                        acoord = -coords[0]
-                        bcoord = -coords[1]
-                        ccoord = -coords[2]
-
-                    if z_id == 3:  #x, -y, z+1/2
-                        acoord = coords[0]
-                        bcoord = -coords[1]
-                        ccoord = coords[2]+ 0.5
-
-                    if z_id == 4:  #x, -y, z+1/2
-                        acoord = coords[0] + 0.5
-                        bcoord = coords[1] + 0.5
-                        ccoord = coords[2]
-
-                    if z_id == 5:  #-x+1/2,y+1/2,-z+1/2
-                        acoord = -coords[0] + 0.5
-                        bcoord = coords[1] + 0.5
-                        ccoord = -coords[2] + 0.5
-
-                    if z_id == 6:  #-x+1/2,-y+1/2,-z
-                        acoord = -coords[0] + 0.5
-                        bcoord = -coords[1] + 0.5
-                        ccoord = -coords[2]
-
-                    if z_id == 7:  #x+1/2,-y+1/2,z+1/2
-                        acoord = coords[0] + 0.5
-                        bcoord = -coords[1] + 0.5
-                        ccoord = coords[2] + 0.5
-
-                if sym == 'P-1':
-                    if z_id == 0:  #x,y,z
-                        acoord = coords[0]
-                        bcoord = coords[1]
-                        ccoord = coords[2]
-
-                    if z_id == 1:  #-x,y,-z+1/2
-                        acoord = -coords[0]
-                        bcoord = -coords[1]
-                        ccoord = -coords[2]
-
-                a_s.append(copy.deepcopy(acoord))
-                b_s.append(copy.deepcopy(bcoord))
-                c_s.append(copy.deepcopy(ccoord))
-
-            # print(len(a_s))
-            a_s = copy.deepcopy(intocell(a_s, anum_inmol))
-            b_s = copy.deepcopy(intocell(b_s, anum_inmol))
-            c_s = copy.deepcopy(intocell(c_s, anum_inmol))
-            # print(len(a_s))
-
-            # print('check shift (z_id:', z_id, ')')
-            # a_num = copy.deepcopy(intocell_xyz(a_s, anum_inmol))
-            # b_num= copy.deepcopy(intocell_xyz(b_s, anum_inmol))
-            # c_num = copy.deepcopy(intocell_xyz(c_s, anum_inmol))
-
-            # print('shiftnum', a_num, b_num, c_num)
-            for k in range(len(a_s)):
-                a_xyz, b_xyz, c_xyz = copy.deepcopy(getcartesianmol(a_s[k], b_s[k], c_s[k], cella, cellb, cellc))
-
-                # a_xyz, b_xyz, c_xyz = copy.deepcopy(shiftatom(a_xyz, b_xyz, c_xyz, a_num, b_num, c_num, cella, cellb, cellc, k))
-                a_xyzs.append(copy.deepcopy(a_xyz))
-                b_xyzs.append(copy.deepcopy(b_xyz))
-                c_xyzs.append(copy.deepcopy(c_xyz))
-
-
-#             print('cartesian section')
-#             print('a_xyzs', a_xyzs)
-#             print('b_xyzs', b_xyzs)
-#             print('c_xyzs', c_xyzs)
-#             print('lenaxyzs', len(a_xyzs))
-
-            for k in range(len(a_xyzs)):
-                xyz[0] = a_xyzs[k][0] + b_xyzs[k][0] + c_xyzs[k][0]
-                xyz[1] = a_xyzs[k][1] + b_xyzs[k][1] + c_xyzs[k][1]
-                xyz[2] = a_xyzs[k][2] + b_xyzs[k][2] + c_xyzs[k][2]
-
-                xyzs.append(copy.deepcopy(xyz))
-#             print('xyzs', xyzs)
-#             print(len(xyzs))
-#             print(atomsmol[i])
-            xyzs_sym.append(copy.deepcopy(xyzs))
-            xyzs = []
-            a_xyzs = []
-            b_xyzs = []
-            c_xyzs = []
-
-            as_list = as_list + (copy.deepcopy(a_s))
-            bs_list = bs_list + (copy.deepcopy(b_s))
-            cs_list = cs_list + (copy.deepcopy(c_s))
-
-        xyzsmol.append(xyzs_sym)
+        # initialize
+        a_xyz = [0] * 3
+        b_xyz = [0] * 3
+        c_xyz = [0] * 3
+        xyz = [0] * 3
+        a_xyzs = []
+        b_xyzs = []
+        c_xyzs = []
+        xyzs = []
         xyzs_sym = []
+        xyzsmol = []
+        xyzs27mols = []
+        truemolid = []
+        molnum = len(atomsmol)
+        atomnum = len(atomsmol[0])
+        print('molnum', molnum)
+        print('atomnum', atomnum)
 
-        # print('as_list', as_list)
+        ## get cartesian  coordinate
+        for i in range(molnum):
+            print('\nrun mol', i)
+            tgtflag = False
+            length = lengthmol[i]
+            angle = anglemol[i]
+            # print(length)
+            # print(angle)
+            cella, cellb, cellc = copy.deepcopy(getcartesiancellvec(angle, length))
 
-        def getpermol(coords, anum_inmol):
-            permols = []
-            permol = []
-            count = 0
-            i = 0
-            for coord in coords:
-                permol.append(coord)
-                count += 1
-                if count == anum_inmol[i % len(anum_inmol)]:
-                    permols.append(permol)
-                    permol = []
-                    count = 0
-                    i += 1
-            return permols
-        # calc dist
+            as_list = []
+            bs_list = []
+            cs_list = []
+            for z_id in range(znum[i]):
+                a_s = []
+                b_s = []
+                c_s = []
+                for j in range(atomnum):
+                    # print('atom', j)
+                    atoms = atomsmol[i][j]
+                    coords = coordsmol[i][j]
+                    if sym == 'P21/N':
+                        if z_id == 0:
+                            acoord = coords[0]
+                            bcoord = coords[1]
+                            ccoord = coords[2]
 
-        # print(a_s)
-        if calc_dist == True:
-            a_permol = getpermol(as_list, anum_inmol)
-            b_permol = getpermol(bs_list, anum_inmol)
-            c_permol = getpermol(cs_list, anum_inmol)
-            atoms_permol = getpermol(atomsmol[0], anum_inmol)
-        # print('a_permol', a_permol)
+                        if z_id == 1:
+                            acoord = ((-coords[0]) + 0.5)
+                            bcoord = (coords[1] + 0.5)
+                            ccoord = ((-coords[2]) + 0.5)
 
-        for moli in range(len(a_permol)):
-            for molj in range(len(a_permol)):
-                if nointra == True:
-                    if moli == molj:
-                        continue
-                for atomi in range(len(a_permol[moli])):
-                    for atomj in range(len(a_permol[molj])):
-                        atmname_i = atoms_permol[moli % len(anum_inmol)][atomi]
-                        atmname_j = atoms_permol[molj % len(anum_inmol)][atomj]
-                        if (atmname_i in tgtatoms) and (atmname_j in tgtatoms):
+                        if z_id == 2:
+                            acoord = (-coords[0])
+                            bcoord = (-coords[1])
+                            ccoord = (-coords[2])
 
-                            adist = abs(a_permol[moli][atomi] - a_permol[molj][atomj])
-                            if adist > 0.5:
-                                adist = 1.0 - adist
-                            bdist = abs(b_permol[moli][atomi] - b_permol[molj][atomj])
-                            if bdist > 0.5:
-                                bdist = 1.0 - bdist
-                            cdist = abs(c_permol[moli][atomi] - c_permol[molj][atomj])
-                            if cdist > 0.5:
-                                cdist = 1.0 - cdist
-                            adistxyz, bdistxyz, cdistxyz = copy.deepcopy(getcartesianmol(adist, bdist, cdist, cella, cellb, cellc))
+                        if z_id == 3:
+                            acoord = (coords[0] + 0.5)
+                            bcoord = ((-coords[1]) + 0.5)
+                            ccoord = (coords[2] + 0.5)
 
-                            xvec = adistxyz[0] + bdistxyz[0] + cdistxyz[0]
-                            yvec = adistxyz[1] + bdistxyz[1] + cdistxyz[1]
-                            zvec = adistxyz[2] + bdistxyz[2] + cdistxyz[2]
-                            dist = math.sqrt(xvec**2 + yvec**2 + zvec**2)
+                    if sym == 'PNA21':
+                        if z_id == 0:
+                            acoord = coords[0]
+                            bcoord = coords[1]
+                            ccoord = coords[2]
 
-                            if dist < tgtdist:
-                                print('mol', moli+1, 'atom', atomi+1, atmname_i, '- mol', molj+1, 'atom', atomj+1, atmname_j, "{:6.3f}".format(dist))
-                                tgtflag = True
-        if tgtflag == True:
-            truemolid.append(i)
+                        if z_id == 1:
+                            acoord = (-coords[0])
+                            bcoord = (-coords[1])
+                            ccoord = (coords[2] + 0.5)
 
-        # print('as_list', as_list)
-        # print('len as_list', len(as_list))
+                        if z_id == 2:
+                            acoord = (coords[0] + 1/2)
+                            bcoord = (-coords[1]) + 1/2
+                            ccoord = coords[2]
 
-        as_27 = []
-        bs_27 = []
-        cs_27 = []
-        if image == 3:
-            for xshift in [1, 0, -1]:
-                for yshift in [1, 0, -1]:
-                    for zshift in [1, 0, -1]:
-                        as_27 = as_27 + list(np.array(as_list) + xshift)
-                        bs_27 = bs_27 + list(np.array(bs_list) + yshift)
-                        cs_27 = cs_27 + list(np.array(cs_list) + zshift)
+                        if z_id == 3:
+                            acoord = (-coords[0] + 0.5)
+                            bcoord = (coords[1] + 0.5)
+                            ccoord = (coords[2] + 0.5)
 
-        if image == 2:
-            for xshift in [1, 0]:
-                for yshift in [1, 0]:
-                    for zshift in [1, 0]:
-                        as_27 = as_27 + list(np.array(as_list) + xshift)
-                        bs_27 = bs_27 + list(np.array(bs_list) + yshift)
-                        cs_27 = cs_27 + list(np.array(cs_list) + zshift)
+                    if sym == 'P212121':
+                        if z_id == 0:
+                            acoord = coords[0]
+                            bcoord = coords[1]
+                            ccoord = coords[2]
 
-        # print(as_27, bs_27, cs_27)
-        # sys.exit()
+                        if z_id == 1:
+                            acoord = (-coords[0]) + 0.5
+                            bcoord = (-coords[1])
+                            ccoord = coords[2] + 0.5
 
-        a27_xyzs = []
-        b27_xyzs = []
-        c27_xyzs = []
+                        if z_id == 2:
+                            acoord = (-coords[0])
+                            bcoord = coords[1] + 0.5
+                            ccoord = (-coords[2]) + 0.5
 
-        for k in range(len(as_27)):
-            a27_xyz, b27_xyz, c27_xyz = copy.deepcopy(getcartesianmol(as_27[k], bs_27[k], cs_27[k], cella, cellb, cellc))
-            a27_xyzs.append(a27_xyz)
-            b27_xyzs.append(b27_xyz)
-            c27_xyzs.append(c27_xyz)
-            # print(a27_xyz, b27_xyz, c27_xyz)
+                        if z_id == 3:
+                            acoord = coords[0] + 0.5
+                            bcoord = (-coords[1]) + 0.5
+                            ccoord = -coords[2]
 
-        m27_xyz = [0, 0, 0]
-        # print(len(as_27))
-        # print('a27_xyzs[0]', a27_xyzs[0])
-        # print('a27_xyzs[1]', a27_xyzs[1])
-        # print('a27_xyzs[2]', a27_xyzs[2])
+                    if sym == 'P21/C':
+                        if z_id == 0:
+                            acoord = coords[0]
+                            bcoord = coords[1]
+                            ccoord = coords[2]
 
-        xyzs27mol = []
-        for k in range(len(as_27)):
-            m27_xyz[0] = a27_xyzs[k][0] + b27_xyzs[k][0] + c27_xyzs[k][0]
-            m27_xyz[1] = a27_xyzs[k][1] + b27_xyzs[k][1] + c27_xyzs[k][1]
-            m27_xyz[2] = a27_xyzs[k][2] + b27_xyzs[k][2] + c27_xyzs[k][2]
-            xyzs27mol.append(copy.deepcopy(m27_xyz))
+                        if z_id == 1:
+                            acoord = -coords[0]
+                            bcoord = coords[1] + 0.5
+                            ccoord = -coords[2] + 0.5
 
-        print(xyzs27mol[0], xyzs27mol[1])
+                        if z_id == 2:
+                            acoord = -coords[0]
+                            bcoord = -coords[1]
+                            ccoord = -coords[2]
 
-        xyzs27mols.append(copy.deepcopy(xyzs27mol))
+                        if z_id == 3:
+                            acoord = coords[0]
+                            bcoord = -coords[1] + 0.5
+                            ccoord = coords[2] + 0.5
 
-        print('len xyzmol', len(xyzs27mols[0]))
+                    if sym == 'C2/C':
+                        if z_id == 0:  #x,y,z
+                            acoord = coords[0]
+                            bcoord = coords[1]
+                            ccoord = coords[2]
 
-    ## write for file
-    for i in range(molnum):
-        print('mol -- ', i, ' --')
-        number = '%05d' % i
-        fo = open(odir + '/' + out + number + '.xyz', 'w')
-        print(len(xyzsmol[i][0]) * znum[i], file=fo)
-        print('', file=fo)
-        for j in range(len(xyzsmol[i])):
-            for k in range(len(xyzsmol[i][j])):
-                # print(i)
-                print(atomsmol[0][k], xyzsmol[i][j][k][0], xyzsmol[i][j][k][1], xyzsmol[i][j][k][2], file=fo)
-        fo.close()
+                        if z_id == 1:  #-x,y,-z+1/2
+                            acoord = (-coords[0])
+                            bcoord = coords[1]
+                            ccoord = -coords[2] + 0.5
 
-    for i in range(molnum):
-        print('mol -- ', i, ' --')
-        number = '%05d' % i
-        fo = open(odir + '/' + out + number + '_big.xyz', 'w')
-        print(len(xyzs27mols[i]), file=fo)
-        print('', file=fo)
-        for j in range(len(xyzs27mols[i])):
-            # for k in range(len(xyzs27mols[i][j])):
-                # print(i)
-            print((atomsmol[0][j % len(atomsmol[0])]), xyzs27mols[i][j][0], xyzs27mols[i][j][1], xyzs27mols[i][j][2], file=fo)
-        fo.close()
+                        if z_id == 2:  #-x, -y, -z
+                            acoord = -coords[0]
+                            bcoord = -coords[1]
+                            ccoord = -coords[2]
 
-    print('satisfy criteria mol:', truemolid)
+                        if z_id == 3:  #x, -y, z+1/2
+                            acoord = coords[0]
+                            bcoord = -coords[1]
+                            ccoord = coords[2]+ 0.5
 
-#         if line[0] == '_symmetry_equiv_pos_as_xyz':
-#         if line[0] =='x,y,z'
-#         if line[0] =='-x+1/2,y+1/2,-z+1/2'
-#         if line[0] =='-x,-y,-z'
-#         if line[0] =='x+1/2,-y+1/2,z+1/2'
+                        if z_id == 4:  #x, -y, z+1/2
+                            acoord = coords[0] + 0.5
+                            bcoord = coords[1] + 0.5
+                            ccoord = coords[2]
+
+                        if z_id == 5:  #-x+1/2,y+1/2,-z+1/2
+                            acoord = -coords[0] + 0.5
+                            bcoord = coords[1] + 0.5
+                            ccoord = -coords[2] + 0.5
+
+                        if z_id == 6:  #-x+1/2,-y+1/2,-z
+                            acoord = -coords[0] + 0.5
+                            bcoord = -coords[1] + 0.5
+                            ccoord = -coords[2]
+
+                        if z_id == 7:  #x+1/2,-y+1/2,z+1/2
+                            acoord = coords[0] + 0.5
+                            bcoord = -coords[1] + 0.5
+                            ccoord = coords[2] + 0.5
+
+                    if sym == 'P-1':
+                        if z_id == 0:  #x,y,z
+                            acoord = coords[0]
+                            bcoord = coords[1]
+                            ccoord = coords[2]
+
+                        if z_id == 1:  #-x,y,-z+1/2
+                            acoord = -coords[0]
+                            bcoord = -coords[1]
+                            ccoord = -coords[2]
+
+                    if sym == 'P21':
+                        if z_id == 0:  #x,y,z
+                            acoord = coords[0]
+                            bcoord = coords[1]
+                            ccoord = coords[2]
+
+                        if z_id == 1:  #-x,1/2+y,-z
+                            acoord = -coords[0]
+                            bcoord = coords[1] + 0.5
+                            ccoord = -coords[2]
+
+                    a_s.append(copy.deepcopy(acoord))
+                    b_s.append(copy.deepcopy(bcoord))
+                    c_s.append(copy.deepcopy(ccoord))
+
+                # print(len(a_s))
+                a_s = copy.deepcopy(intocell(a_s, anum_inmol))
+                b_s = copy.deepcopy(intocell(b_s, anum_inmol))
+                c_s = copy.deepcopy(intocell(c_s, anum_inmol))
+                # print(len(a_s))
+
+                # print('check shift (z_id:', z_id, ')')
+                # a_num = copy.deepcopy(intocell_xyz(a_s, anum_inmol))
+                # b_num= copy.deepcopy(intocell_xyz(b_s, anum_inmol))
+                # c_num = copy.deepcopy(intocell_xyz(c_s, anum_inmol))
+
+                # print('shiftnum', a_num, b_num, c_num)
+                for k in range(len(a_s)):
+                    a_xyz, b_xyz, c_xyz = copy.deepcopy(getcartesianmol(a_s[k], b_s[k], c_s[k], cella, cellb, cellc))
+
+                    # a_xyz, b_xyz, c_xyz = copy.deepcopy(shiftatom(a_xyz, b_xyz, c_xyz, a_num, b_num, c_num, cella, cellb, cellc, k))
+                    a_xyzs.append(copy.deepcopy(a_xyz))
+                    b_xyzs.append(copy.deepcopy(b_xyz))
+                    c_xyzs.append(copy.deepcopy(c_xyz))
+
+
+    #             print('cartesian section')
+    #             print('a_xyzs', a_xyzs)
+    #             print('b_xyzs', b_xyzs)
+    #             print('c_xyzs', c_xyzs)
+    #             print('lenaxyzs', len(a_xyzs))
+
+                for k in range(len(a_xyzs)):
+                    xyz[0] = a_xyzs[k][0] + b_xyzs[k][0] + c_xyzs[k][0]
+                    xyz[1] = a_xyzs[k][1] + b_xyzs[k][1] + c_xyzs[k][1]
+                    xyz[2] = a_xyzs[k][2] + b_xyzs[k][2] + c_xyzs[k][2]
+
+                    xyzs.append(copy.deepcopy(xyz))
+    #             print('xyzs', xyzs)
+    #             print(len(xyzs))
+    #             print(atomsmol[i])
+                xyzs_sym.append(copy.deepcopy(xyzs))
+                xyzs = []
+                a_xyzs = []
+                b_xyzs = []
+                c_xyzs = []
+
+                as_list = as_list + (copy.deepcopy(a_s))
+                bs_list = bs_list + (copy.deepcopy(b_s))
+                cs_list = cs_list + (copy.deepcopy(c_s))
+
+            xyzsmol.append(xyzs_sym)
+            xyzs_sym = []
+
+            # print('as_list', as_list)
+
+            def getpermol(coords, anum_inmol):
+                permols = []
+                permol = []
+                count = 0
+                i = 0
+                for coord in coords:
+                    permol.append(coord)
+                    count += 1
+                    if count == anum_inmol[i % len(anum_inmol)]:
+                        permols.append(permol)
+                        permol = []
+                        count = 0
+                        i += 1
+                return permols
+            # calc dist
+
+            # print(a_s)
+            if calc_dist == True:
+                a_permol = getpermol(as_list, anum_inmol)
+                b_permol = getpermol(bs_list, anum_inmol)
+                c_permol = getpermol(cs_list, anum_inmol)
+                atoms_permol = getpermol(atomsmol[0], anum_inmol)
+            # print('a_permol', a_permol)
+
+                for moli in range(len(a_permol)):
+                    for molj in range(len(a_permol)):
+                        if nointra == True:
+                            if moli == molj:
+                                continue
+                        for atomi in range(len(a_permol[moli])):
+                            for atomj in range(len(a_permol[molj])):
+                                atmname_i = atoms_permol[moli % len(anum_inmol)][atomi]
+                                atmname_j = atoms_permol[molj % len(anum_inmol)][atomj]
+                                if (atmname_i in tgtatoms) and (atmname_j in tgtatoms):
+
+                                    adist = abs(a_permol[moli][atomi] - a_permol[molj][atomj])
+                                    if adist > 0.5:
+                                        adist = 1.0 - adist
+                                    bdist = abs(b_permol[moli][atomi] - b_permol[molj][atomj])
+                                    if bdist > 0.5:
+                                        bdist = 1.0 - bdist
+                                    cdist = abs(c_permol[moli][atomi] - c_permol[molj][atomj])
+                                    if cdist > 0.5:
+                                        cdist = 1.0 - cdist
+                                    adistxyz, bdistxyz, cdistxyz = copy.deepcopy(getcartesianmol(adist, bdist, cdist, cella, cellb, cellc))
+
+                                    xvec = adistxyz[0] + bdistxyz[0] + cdistxyz[0]
+                                    yvec = adistxyz[1] + bdistxyz[1] + cdistxyz[1]
+                                    zvec = adistxyz[2] + bdistxyz[2] + cdistxyz[2]
+                                    dist = math.sqrt(xvec**2 + yvec**2 + zvec**2)
+
+                                    if dist < tgtdist:
+                                        print('mol', moli+1, 'atom', atomi+1, atmname_i, '- mol', molj+1, 'atom', atomj+1, atmname_j, "{:6.3f}".format(dist))
+                                        tgtflag = True
+                if tgtflag == True:
+                    truemolid.append(i)
+
+            # print('as_list', as_list)
+            # print('len as_list', len(as_list))
+
+            as_27 = []
+            bs_27 = []
+            cs_27 = []
+            if image == 5:
+                for xshift in [0, 1, -1, 2, -2]:
+                    for yshift in [0, 1, -1, 2, -2]:
+                        for zshift in [0, 1, -1, 2, -2]:
+                            as_27 = as_27 + list(np.array(as_list) + xshift)
+                            bs_27 = bs_27 + list(np.array(bs_list) + yshift)
+                            cs_27 = cs_27 + list(np.array(cs_list) + zshift)
+
+            if image == 4:
+                for xshift in [0, 1, -1, 2]:
+                    for yshift in [0, 1, -1, 2]:
+                        for zshift in [0, 1, -1, 2]:
+                            as_27 = as_27 + list(np.array(as_list) + xshift)
+                            bs_27 = bs_27 + list(np.array(bs_list) + yshift)
+                            cs_27 = cs_27 + list(np.array(cs_list) + zshift)
+
+            if image == 3:
+                for xshift in [0, 1, -1]:
+                    for yshift in [0, 1, -1]:
+                        for zshift in [0, 1, -1]:
+                            as_27 = as_27 + list(np.array(as_list) + xshift)
+                            bs_27 = bs_27 + list(np.array(bs_list) + yshift)
+                            cs_27 = cs_27 + list(np.array(cs_list) + zshift)
+
+            if image == 2:
+                for xshift in [0, 1]:
+                    for yshift in [0, 1]:
+                        for zshift in [0, 1]:
+                            as_27 = as_27 + list(np.array(as_list) + xshift)
+                            bs_27 = bs_27 + list(np.array(bs_list) + yshift)
+                            cs_27 = cs_27 + list(np.array(cs_list) + zshift)
+
+            if image == 1:
+                for xshift in [0]:
+                    for yshift in [0]:
+                        for zshift in [0]:
+                            as_27 = as_27 + list(np.array(as_list) + xshift)
+                            bs_27 = bs_27 + list(np.array(bs_list) + yshift)
+                            cs_27 = cs_27 + list(np.array(cs_list) + zshift)
+
+            if image >= 6:
+                print('Error!! layer over 5 is not supported yet.')
+                sys.exit()
+            # print(as_27, bs_27, cs_27)
+            # sys.exit()
+
+            a27_xyzs = []
+            b27_xyzs = []
+            c27_xyzs = []
+
+            for k in range(len(as_27)):
+                a27_xyz, b27_xyz, c27_xyz = copy.deepcopy(getcartesianmol(as_27[k], bs_27[k], cs_27[k], cella, cellb, cellc))
+                a27_xyzs.append(a27_xyz)
+                b27_xyzs.append(b27_xyz)
+                c27_xyzs.append(c27_xyz)
+                # print(a27_xyz, b27_xyz, c27_xyz)
+
+            m27_xyz = [0, 0, 0]
+            # print(len(as_27))
+            # print('a27_xyzs[0]', a27_xyzs[0])
+            # print('a27_xyzs[1]', a27_xyzs[1])
+            # print('a27_xyzs[2]', a27_xyzs[2])
+
+            xyzs27mol = []
+            for k in range(len(as_27)):
+                m27_xyz[0] = a27_xyzs[k][0] + b27_xyzs[k][0] + c27_xyzs[k][0]
+                m27_xyz[1] = a27_xyzs[k][1] + b27_xyzs[k][1] + c27_xyzs[k][1]
+                m27_xyz[2] = a27_xyzs[k][2] + b27_xyzs[k][2] + c27_xyzs[k][2]
+                xyzs27mol.append(copy.deepcopy(m27_xyz))
+
+            print(xyzs27mol[0], xyzs27mol[1])
+
+            xyzs27mols.append(copy.deepcopy(xyzs27mol))
+
+            print('len xyzmol', len(xyzs27mols[0]))
+
+        ## write for file
+#         print('## Write 1*1*1 sell ##')
+#         for i in range(molnum):
+#             print('mol -- ', i, ' --')
+#             if molnum ==1:
+#                 number = ''
+#             else:
+#                 number = '%05d' % i
+#             fo = open(odir + '/xyz/layer1' + out + number + '.xyz', 'w')
+#             print(len(xyzsmol[i][0]) * znum[i], file=fo)
+#             print('', file=fo)
+#             for j in range(len(xyzsmol[i])):
+#                 for k in range(len(xyzsmol[i][j])):
+#                     # print(i)
+#                     print(atomsmol[0][k], xyzsmol[i][j][k][0], xyzsmol[i][j][k][1], xyzsmol[i][j][k][2], file=fo)
+#             fo.close()
+
+        print('## Write ', args.layer, ' layer sell ##')
+        for i in range(molnum):
+            print('mol -- ', i, ' --')
+            if molnum ==1:
+                number = ''
+            else:
+                number = '%05d' % i
+            oname = xyzdir + '/' + out + number + 'layer' + str(args.layer) + '.xyz'
+            fo = open(oname, 'w')
+            print(len(xyzs27mols[i]), file=fo)
+            print('', file=fo)
+            for j in range(len(xyzs27mols[i])):
+                # for k in range(len(xyzs27mols[i][j])):
+                    # print(i)
+                print((atomsmol[0][j % len(atomsmol[0])]), xyzs27mols[i][j][0], xyzs27mols[i][j][1], xyzs27mols[i][j][2], file=fo)
+            fo.close()
+
+            if pdbflag:
+                aobj.convert_xyz_pdb(oname)
+
+        if calc_dist:
+            print('satisfy criteria mol:', truemolid)
+
+    if pdbflag:
+        pdbs = glob.glob(xyzdir + '/*pdb')
+        for pdb in pdbs:
+            shutil.move(pdb, pdbdir)
+
+    #         if line[0] == '_symmetry_equiv_pos_as_xyz':
+    #         if line[0] =='x,y,z'
+    #         if line[0] =='-x+1/2,y+1/2,-z+1/2'
+    #         if line[0] =='-x,-y,-z'
+    #         if line[0] =='x+1/2,-y+1/2,z+1/2'
 

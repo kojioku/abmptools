@@ -1,15 +1,17 @@
 #!/bin/bash
 stime=1
-etime=20
+etime=100
 interval=1
-script='runab24_fgk202107.sh'
-temp='1eo8-gmxtrr-wat4ang-xxx-renamed-MP2-6-31Gd-nbo.ajf'
+zeropad=5
+script='runab23q2_fgk.sh'
+temp='XXXI-MMFF-Rxxxlayer5-around_ar6.0.ajf'
 fhead=${temp%xxx*}
 ftail=${temp##*xxx}
 
 for i in `seq $stime $interval $etime`
 do
-    bash $script $fhead$i$ftail
+    num=`printf "%0${zeropad}d" $i`
+    bash $script $fhead$num$ftail
 done
 
 #!/bin/bash
