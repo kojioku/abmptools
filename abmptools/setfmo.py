@@ -38,6 +38,7 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         self.criteria = []
         self.tgtpos =[]
         self.mainpath = '.'
+        self.cmmflag = False
         pass
 
     def setrfmoparam(self, param_rfmo):
@@ -77,9 +78,14 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
             self.piedaflag = True
 
         try:
+            self.cmmflag = param_rfmo['cmmflag']
+        except KeyError:
+            self.cmmflag = False
+
+        try:
             self.abinit_ver = param_rfmo['abinit_ver']
         except KeyError:
-            self.abinit_ver = 'rev11'
+            self.abinit_ver = 'rev22'
 
         try:
             self.molname = param_rfmo['molname']
