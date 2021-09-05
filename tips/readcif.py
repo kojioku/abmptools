@@ -141,6 +141,27 @@ def intocell(incoords, anum_mol):
 
     return newcoordss
 
+def getsymcoord(sympos, incoord):
+
+    if sympos in ['x','y','z']:
+        coord = incoord
+    if sympos in ['-x','-y','-z']:
+        coord = -incoord
+    if sympos in ['1/2+x','1/2+y','1/2+z','x+1/2','y+1/2','z+1/2']:
+        coord =  incoord + 0.5
+    if sympos in ['1/2-x','1/2-y','1/2-z','-x+1/2','-y+1/2','-z+1/2']:
+        coord =  -incoord + 0.5
+    if sympos in ['-1/2+x','-1/2+y','-1/2+z','x-1/2','y-1/2','z-1/2']:
+        coord =  incoord - 0.5
+    if sympos in ['-1/2-x','-1/2-y','-1/2-z','-x-1/2','-y-1/2','-z-1/2']:
+        coord = -incoord - 0.5
+
+    return coord
+
+
+
+
+
 # def shiftatom_xyz(a_xyz, b_xyz, c_xyz, a_num, b_num, c_num, cella, cellb, cellc, atomid):
 #     print('abc_shiftnum', a_num, b_num, c_num)
 #     if atomid < anum_inmol[0]:
@@ -237,6 +258,8 @@ if __name__ == '__main__':
     image = args.layer
     pdbflag = args.nopdb
 
+    # symlist = ['P21/N', 'P21/M', 'P21', 'PNA21', 'P212121', 'P21212', 'PCA21', 'P21/C', 'C2/C', 'C2', 'CC', 'P-1', 'P1', 'PC', 'P2/N', 'IC', 'I2', 'IA',  'I2/A', 'I2/C', 'P2/C',  'PBCN', 'PCCN', 'PBCA', 'PNMA', 'PN']
+
     if pdbflag:
         import abmptools as ampt
         aobj = ampt.mol_io()
@@ -265,11 +288,18 @@ if __name__ == '__main__':
         num = 1
         coordflag = False
         coordend = False
+
         cellend = False
         atoms = []
         coords = []
         atomsmol = []
         coordsmol = []
+
+        symflag = False
+        symend = False
+        symxyzs = []
+        symxyz = []
+
         angle = []
         length = []
         lengthmol = []
@@ -277,6 +307,9 @@ if __name__ == '__main__':
         znum = []
         acolumns = []
         acolumnsflag = False
+        scolumns = []
+        scolumnsflag = False
+
 
         ## get line
         for i in range(len(lines)):
@@ -297,12 +330,11 @@ if __name__ == '__main__':
                     line[1] = line[1] + line[2] + line[3] + line[4]
                 sym = line[1].replace("'", '').upper()
                 print('space group:', sym)
-                symlist = ['P21/N', 'PNA21', 'P212121', 'P21/C', 'C2/C', 'P-1', 'P21']
-                if sym in symlist:
-                    pass
-                else:
-                    print(sym, 'Not supported yet.')
-                    sys.exit()
+#                 if sym in symlist:
+#                     pass
+#                 else:
+#                     print(sym, 'Not supported yet.')
+#                     sys.exit()
 
             ## get length and line
             if line[0:1] == ['_cell_length_a']:
@@ -337,6 +369,34 @@ if __name__ == '__main__':
                 # print('aaaaa', lengthmol)
                 length = []
                 angle = []
+
+            ## get _symmetry
+            if '_symmetry_equiv_pos' in line[0]:
+                print(line[0])
+                scolumns.append(line[0])
+                scolumnsflag = True
+                continue
+            if scolumnsflag == True:
+                if '_symmetry_equiv_pos' not in line[0]:
+                    scolumnsflag = False
+                    symflag = True
+                    xyzsym_idx = scolumns.index('_symmetry_equiv_pos_as_xyz')
+                    print('xyzsym_idx', xyzsym_idx)
+            if symflag == True:
+                print(line[0:1])
+                if 'loop_' in line[0] or '_cell' in line[0]:
+                    symflag = False
+                    symend = True
+                    continue
+
+                symxyz.append(line[xyzsym_idx].split(','))
+                print(symxyz)
+
+            if symend == True:
+                symend = False
+                symxyzs.append(symxyz)
+                symxyz = []
+
 
             ## get coord
             if '_atom_site' in line[0] and '_geom' not in line[0]:
@@ -416,152 +476,10 @@ if __name__ == '__main__':
                     # print('atom', j)
                     atoms = atomsmol[i][j]
                     coords = coordsmol[i][j]
-                    if sym == 'P21/N':
-                        if z_id == 0:
-                            acoord = coords[0]
-                            bcoord = coords[1]
-                            ccoord = coords[2]
 
-                        if z_id == 1:
-                            acoord = ((-coords[0]) + 0.5)
-                            bcoord = (coords[1] + 0.5)
-                            ccoord = ((-coords[2]) + 0.5)
-
-                        if z_id == 2:
-                            acoord = (-coords[0])
-                            bcoord = (-coords[1])
-                            ccoord = (-coords[2])
-
-                        if z_id == 3:
-                            acoord = (coords[0] + 0.5)
-                            bcoord = ((-coords[1]) + 0.5)
-                            ccoord = (coords[2] + 0.5)
-
-                    if sym == 'PNA21':
-                        if z_id == 0:
-                            acoord = coords[0]
-                            bcoord = coords[1]
-                            ccoord = coords[2]
-
-                        if z_id == 1:
-                            acoord = (-coords[0])
-                            bcoord = (-coords[1])
-                            ccoord = (coords[2] + 0.5)
-
-                        if z_id == 2:
-                            acoord = (coords[0] + 1/2)
-                            bcoord = (-coords[1]) + 1/2
-                            ccoord = coords[2]
-
-                        if z_id == 3:
-                            acoord = (-coords[0] + 0.5)
-                            bcoord = (coords[1] + 0.5)
-                            ccoord = (coords[2] + 0.5)
-
-                    if sym == 'P212121':
-                        if z_id == 0:
-                            acoord = coords[0]
-                            bcoord = coords[1]
-                            ccoord = coords[2]
-
-                        if z_id == 1:
-                            acoord = (-coords[0]) + 0.5
-                            bcoord = (-coords[1])
-                            ccoord = coords[2] + 0.5
-
-                        if z_id == 2:
-                            acoord = (-coords[0])
-                            bcoord = coords[1] + 0.5
-                            ccoord = (-coords[2]) + 0.5
-
-                        if z_id == 3:
-                            acoord = coords[0] + 0.5
-                            bcoord = (-coords[1]) + 0.5
-                            ccoord = -coords[2]
-
-                    if sym == 'P21/C':
-                        if z_id == 0:
-                            acoord = coords[0]
-                            bcoord = coords[1]
-                            ccoord = coords[2]
-
-                        if z_id == 1:
-                            acoord = -coords[0]
-                            bcoord = coords[1] + 0.5
-                            ccoord = -coords[2] + 0.5
-
-                        if z_id == 2:
-                            acoord = -coords[0]
-                            bcoord = -coords[1]
-                            ccoord = -coords[2]
-
-                        if z_id == 3:
-                            acoord = coords[0]
-                            bcoord = -coords[1] + 0.5
-                            ccoord = coords[2] + 0.5
-
-                    if sym == 'C2/C':
-                        if z_id == 0:  #x,y,z
-                            acoord = coords[0]
-                            bcoord = coords[1]
-                            ccoord = coords[2]
-
-                        if z_id == 1:  #-x,y,-z+1/2
-                            acoord = (-coords[0])
-                            bcoord = coords[1]
-                            ccoord = -coords[2] + 0.5
-
-                        if z_id == 2:  #-x, -y, -z
-                            acoord = -coords[0]
-                            bcoord = -coords[1]
-                            ccoord = -coords[2]
-
-                        if z_id == 3:  #x, -y, z+1/2
-                            acoord = coords[0]
-                            bcoord = -coords[1]
-                            ccoord = coords[2]+ 0.5
-
-                        if z_id == 4:  #x, -y, z+1/2
-                            acoord = coords[0] + 0.5
-                            bcoord = coords[1] + 0.5
-                            ccoord = coords[2]
-
-                        if z_id == 5:  #-x+1/2,y+1/2,-z+1/2
-                            acoord = -coords[0] + 0.5
-                            bcoord = coords[1] + 0.5
-                            ccoord = -coords[2] + 0.5
-
-                        if z_id == 6:  #-x+1/2,-y+1/2,-z
-                            acoord = -coords[0] + 0.5
-                            bcoord = -coords[1] + 0.5
-                            ccoord = -coords[2]
-
-                        if z_id == 7:  #x+1/2,-y+1/2,z+1/2
-                            acoord = coords[0] + 0.5
-                            bcoord = -coords[1] + 0.5
-                            ccoord = coords[2] + 0.5
-
-                    if sym == 'P-1':
-                        if z_id == 0:  #x,y,z
-                            acoord = coords[0]
-                            bcoord = coords[1]
-                            ccoord = coords[2]
-
-                        if z_id == 1:  #-x,y,-z+1/2
-                            acoord = -coords[0]
-                            bcoord = -coords[1]
-                            ccoord = -coords[2]
-
-                    if sym == 'P21':
-                        if z_id == 0:  #x,y,z
-                            acoord = coords[0]
-                            bcoord = coords[1]
-                            ccoord = coords[2]
-
-                        if z_id == 1:  #-x,1/2+y,-z
-                            acoord = -coords[0]
-                            bcoord = coords[1] + 0.5
-                            ccoord = -coords[2]
+                    acoord = getsymcoord(symxyzs[i][z_id][0], coords[0])
+                    bcoord = getsymcoord(symxyzs[i][z_id][1], coords[1])
+                    ccoord = getsymcoord(symxyzs[i][z_id][2], coords[2])
 
                     a_s.append(copy.deepcopy(acoord))
                     b_s.append(copy.deepcopy(bcoord))
@@ -807,4 +725,151 @@ if __name__ == '__main__':
     #         if line[0] =='-x+1/2,y+1/2,-z+1/2'
     #         if line[0] =='-x,-y,-z'
     #         if line[0] =='x+1/2,-y+1/2,z+1/2'
+
+#                     if sym == 'P21/N':
+#                         if z_id == 0:
+#                             acoord = coords[0]
+#                             bcoord = coords[1]
+#                             ccoord = coords[2]
+# 
+#                         if z_id == 1:
+#                             acoord = ((-coords[0]) + 0.5)
+#                             bcoord = (coords[1] + 0.5)
+#                             ccoord = ((-coords[2]) + 0.5)
+# 
+#                         if z_id == 2:
+#                             acoord = (-coords[0])
+#                             bcoord = (-coords[1])
+#                             ccoord = (-coords[2])
+# 
+#                         if z_id == 3:
+#                             acoord = (coords[0] + 0.5)
+#                             bcoord = ((-coords[1]) + 0.5)
+#                             ccoord = (coords[2] + 0.5)
+# 
+#                     if sym == 'PNA21':
+#                         if z_id == 0:
+#                             acoord = coords[0]
+#                             bcoord = coords[1]
+#                             ccoord = coords[2]
+# 
+#                         if z_id == 1:
+#                             acoord = (-coords[0])
+#                             bcoord = (-coords[1])
+#                             ccoord = (coords[2] + 0.5)
+# 
+#                         if z_id == 2:
+#                             acoord = (coords[0] + 1/2)
+#                             bcoord = (-coords[1]) + 1/2
+#                             ccoord = coords[2]
+# 
+#                         if z_id == 3:
+#                             acoord = (-coords[0] + 0.5)
+#                             bcoord = (coords[1] + 0.5)
+#                             ccoord = (coords[2] + 0.5)
+# 
+#                     if sym == 'P212121':
+#                         if z_id == 0:
+#                             acoord = coords[0]
+#                             bcoord = coords[1]
+#                             ccoord = coords[2]
+# 
+#                         if z_id == 1:
+#                             acoord = (-coords[0]) + 0.5
+#                             bcoord = (-coords[1])
+#                             ccoord = coords[2] + 0.5
+# 
+#                         if z_id == 2:
+#                             acoord = (-coords[0])
+#                             bcoord = coords[1] + 0.5
+#                             ccoord = (-coords[2]) + 0.5
+# 
+#                         if z_id == 3:
+#                             acoord = coords[0] + 0.5
+#                             bcoord = (-coords[1]) + 0.5
+#                             ccoord = -coords[2]
+# 
+#                     if sym == 'P21/C':
+#                         if z_id == 0:
+#                             acoord = coords[0]
+#                             bcoord = coords[1]
+#                             ccoord = coords[2]
+# 
+#                         if z_id == 1:
+#                             acoord = -coords[0]
+#                             bcoord = coords[1] + 0.5
+#                             ccoord = -coords[2] + 0.5
+# 
+#                         if z_id == 2:
+#                             acoord = -coords[0]
+#                             bcoord = -coords[1]
+#                             ccoord = -coords[2]
+# 
+#                         if z_id == 3:
+#                             acoord = coords[0]
+#                             bcoord = -coords[1] + 0.5
+#                             ccoord = coords[2] + 0.5
+# 
+#                     if sym == 'C2/C':
+#                         if z_id == 0:  #x,y,z
+#                             acoord = coords[0]
+#                             bcoord = coords[1]
+#                             ccoord = coords[2]
+# 
+#                         if z_id == 1:  #-x,y,-z+1/2
+#                             acoord = (-coords[0])
+#                             bcoord = coords[1]
+#                             ccoord = -coords[2] + 0.5
+# 
+#                         if z_id == 2:  #-x, -y, -z
+#                             acoord = -coords[0]
+#                             bcoord = -coords[1]
+#                             ccoord = -coords[2]
+# 
+#                         if z_id == 3:  #x, -y, z+1/2
+#                             acoord = coords[0]
+#                             bcoord = -coords[1]
+#                             ccoord = coords[2]+ 0.5
+# 
+#                         if z_id == 4:  #x, -y, z+1/2
+#                             acoord = coords[0] + 0.5
+#                             bcoord = coords[1] + 0.5
+#                             ccoord = coords[2]
+# 
+#                         if z_id == 5:  #-x+1/2,y+1/2,-z+1/2
+#                             acoord = -coords[0] + 0.5
+#                             bcoord = coords[1] + 0.5
+#                             ccoord = -coords[2] + 0.5
+# 
+#                         if z_id == 6:  #-x+1/2,-y+1/2,-z
+#                             acoord = -coords[0] + 0.5
+#                             bcoord = -coords[1] + 0.5
+#                             ccoord = -coords[2]
+# 
+#                         if z_id == 7:  #x+1/2,-y+1/2,z+1/2
+#                             acoord = coords[0] + 0.5
+#                             bcoord = -coords[1] + 0.5
+#                             ccoord = coords[2] + 0.5
+# 
+#                     if sym == 'P-1':
+#                         if z_id == 0:  #x,y,z
+#                             acoord = coords[0]
+#                             bcoord = coords[1]
+#                             ccoord = coords[2]
+# 
+#                         if z_id == 1:  #-x,y,-z+1/2
+#                             acoord = -coords[0]
+#                             bcoord = -coords[1]
+#                             ccoord = -coords[2]
+# 
+#                     if sym == 'P21':
+#                         if z_id == 0:  #x,y,z
+#                             acoord = coords[0]
+#                             bcoord = coords[1]
+#                             ccoord = coords[2]
+# 
+#                         if z_id == 1:  #-x,1/2+y,-z
+#                             acoord = -coords[0]
+#                             bcoord = coords[1] + 0.5
+#                             ccoord = -coords[2]
 
