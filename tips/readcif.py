@@ -55,10 +55,9 @@ def getcartesiancellvec(angle, length):
     # c_vec[0] = c*math.cos(beta) + (c*math.cos(alpha)*math.cos(gamma))
     # c_vec[1] = c*math.cos(alpha)*math.sin(gamma)
 
-    print(c_vec)
-
     # print(c_vec[0], c_vec[1], c_vec[2], c)
     # print(c**2 - (c_vec[0]**2 + c_vec[1]**2))
+
     print('a_vec', a_vec)
     print('b_vec', b_vec)
     print('c_vec', c_vec)
@@ -159,9 +158,6 @@ def getsymcoord(sympos, incoord):
     return coord
 
 
-
-
-
 # def shiftatom_xyz(a_xyz, b_xyz, c_xyz, a_num, b_num, c_num, cella, cellb, cellc, atomid):
 #     print('abc_shiftnum', a_num, b_num, c_num)
 #     if atomid < anum_inmol[0]:
@@ -175,6 +171,8 @@ def getsymcoord(sympos, incoord):
 #         b_xyz = np.array(b_xyz) + np.array(cellb) * b_num[1]
 #         c_xyz = np.array(c_xyz) + np.array(cellc) * c_num[1]
 #     return list(a_xyz), list(b_xyz), list(c_xyz)
+
+
 
 if __name__ == '__main__':
 
@@ -193,6 +191,28 @@ if __name__ == '__main__':
                         action='append',
                         required=True)
 
+    parser.add_argument('-calcd', '--calcdist',
+                        help='calcflag',
+                        action='store_true',
+                        )
+
+    parser.add_argument('-intra', '--intra',
+                        help='nointra',
+                        action='store_true',
+                        )
+
+    parser.add_argument('-d', '--dist',
+                        help='dist',
+                        type=float,
+                        default=2.0,
+                        )
+
+    parser.add_argument('-a', '--tgtatom',
+                        help='tgtatm',
+                        nargs='*',
+                        action='append',
+                        default=[])
+
     parser.add_argument('-od', '--odir',
                         help='outdir',
                         default='cifout'
@@ -205,6 +225,7 @@ if __name__ == '__main__':
                         action='append',
                         required=True)
 
+
     parser.add_argument('-l', '--layer',
                         help='layer',
                         type=int,
@@ -215,6 +236,15 @@ if __name__ == '__main__':
                         help='flag nopdb',
                         action='store_false')
 
+    parser.add_argument('-noout', '--noout',
+                        help='flag nopdb',
+                        action='store_true')
+
+    parser.add_argument('-min', '--min',
+                        help='min',
+                        action='store_true')
+
+
     # get args
     args = parser.parse_args()
 
@@ -223,8 +253,12 @@ if __name__ == '__main__':
     print('atomnum = ', args.atomnum)
     print('layer =', args.layer)
     print('pdbflag =', args.nopdb)
-
-    # sys.exit()
+    print('calcdist', args.calcdist)
+    print('intra', args.intra)
+    print('dist', args.dist)
+    print('tgtatom', args.tgtatom)
+    print('out', args.noout)
+    print('min', args.min)
 
     ## -- user setiing
     # anum_inmol = [24]
@@ -236,11 +270,16 @@ if __name__ == '__main__':
     # anum_inmol =[24, 17] CA_GA_2csp-PCS.cif
     # anum_inmol =[24, 0]
 
-    calc_dist = False
-    tgtdist = 1.5
-    tgtatoms = ['O', 'H']
+    calc_dist = args.calcdist
+    tgtdist = args.dist
 
-    nointra = True
+    if args.tgtatom:
+        tgtatoms = args.tgtatom[0]
+
+    if args.intra:
+        nointra = False
+    else:
+        nointra = True
     maxnum = 10
 
     ## -- user setting end
@@ -265,8 +304,8 @@ if __name__ == '__main__':
         aobj = ampt.mol_io()
 
     print('atom num mol:', anum_inmol)
-    print('tgtatom:', tgtatoms)
-    print('tgtdist:', tgtdist)
+    # print('tgtatom:', tgtatoms)
+    # print('tgtdist:', tgtdist)
     print('########## Read Start #########')
 
     if os.path.exists(odir) is False:
@@ -278,6 +317,8 @@ if __name__ == '__main__':
     if not os.path.exists(pdbdir) and pdbflag:
         os.makedirs(pdbdir)
 
+    minvals = []
+    mindatas = []
     for infile in infiles[0]:
         out, ext = os.path.splitext(infile)
         out = out.split('/')[-1]
@@ -552,49 +593,6 @@ if __name__ == '__main__':
                 return permols
             # calc dist
 
-            # print(a_s)
-            if calc_dist == True:
-                a_permol = getpermol(as_list, anum_inmol)
-                b_permol = getpermol(bs_list, anum_inmol)
-                c_permol = getpermol(cs_list, anum_inmol)
-                atoms_permol = getpermol(atomsmol[0], anum_inmol)
-            # print('a_permol', a_permol)
-
-                for moli in range(len(a_permol)):
-                    for molj in range(len(a_permol)):
-                        if nointra == True:
-                            if moli == molj:
-                                continue
-                        for atomi in range(len(a_permol[moli])):
-                            for atomj in range(len(a_permol[molj])):
-                                atmname_i = atoms_permol[moli % len(anum_inmol)][atomi]
-                                atmname_j = atoms_permol[molj % len(anum_inmol)][atomj]
-                                if (atmname_i in tgtatoms) and (atmname_j in tgtatoms):
-
-                                    adist = abs(a_permol[moli][atomi] - a_permol[molj][atomj])
-                                    if adist > 0.5:
-                                        adist = 1.0 - adist
-                                    bdist = abs(b_permol[moli][atomi] - b_permol[molj][atomj])
-                                    if bdist > 0.5:
-                                        bdist = 1.0 - bdist
-                                    cdist = abs(c_permol[moli][atomi] - c_permol[molj][atomj])
-                                    if cdist > 0.5:
-                                        cdist = 1.0 - cdist
-                                    adistxyz, bdistxyz, cdistxyz = copy.deepcopy(getcartesianmol(adist, bdist, cdist, cella, cellb, cellc))
-
-                                    xvec = adistxyz[0] + bdistxyz[0] + cdistxyz[0]
-                                    yvec = adistxyz[1] + bdistxyz[1] + cdistxyz[1]
-                                    zvec = adistxyz[2] + bdistxyz[2] + cdistxyz[2]
-                                    dist = math.sqrt(xvec**2 + yvec**2 + zvec**2)
-
-                                    if dist < tgtdist:
-                                        print('mol', moli+1, 'atom', atomi+1, atmname_i, '- mol', molj+1, 'atom', atomj+1, atmname_j, "{:6.3f}".format(dist))
-                                        tgtflag = True
-                if tgtflag == True:
-                    truemolid.append(i)
-
-            # print('as_list', as_list)
-            # print('len as_list', len(as_list))
 
             as_27 = []
             bs_27 = []
@@ -645,6 +643,63 @@ if __name__ == '__main__':
             # print(as_27, bs_27, cs_27)
             # sys.exit()
 
+            # print(a_s)
+            distdatas = []
+            distvals = []
+            if calc_dist == True:
+                # print(as_27)
+                a_permol = getpermol(as_27, anum_inmol)
+                b_permol = getpermol(bs_27, anum_inmol)
+                c_permol = getpermol(cs_27, anum_inmol)
+                atoms_permol = getpermol(atomsmol[0], anum_inmol)
+                # print('a_permol', len(a_permol))
+
+                for moli in range(len(a_permol)):
+                    for molj in range(len(a_permol)):
+                        if nointra == True:
+                            if moli == molj:
+                                continue
+                        for atomi in range(len(a_permol[moli])):
+                            for atomj in range(len(a_permol[molj])):
+                                atmname_i = atoms_permol[moli % len(anum_inmol)][atomi]
+                                atmname_j = atoms_permol[molj % len(anum_inmol)][atomj]
+                                if (atmname_i in tgtatoms) and (atmname_j in tgtatoms):
+
+                                    adist = abs(a_permol[moli][atomi] - a_permol[molj][atomj])
+#                                     if adist > 0.5:
+#                                         adist = 1.0 - adist
+                                    bdist = abs(b_permol[moli][atomi] - b_permol[molj][atomj])
+#                                     if bdist > 0.5:
+#                                         bdist = 1.0 - bdist
+                                    cdist = abs(c_permol[moli][atomi] - c_permol[molj][atomj])
+#                                     if cdist > 0.5:
+#                                         cdist = 1.0 - cdist
+                                    adistxyz, bdistxyz, cdistxyz = copy.deepcopy(getcartesianmol(adist, bdist, cdist, cella, cellb, cellc))
+
+                                    xvec = adistxyz[0] + bdistxyz[0] + cdistxyz[0]
+                                    yvec = adistxyz[1] + bdistxyz[1] + cdistxyz[1]
+                                    zvec = adistxyz[2] + bdistxyz[2] + cdistxyz[2]
+                                    dist = math.sqrt(xvec**2 + yvec**2 + zvec**2)
+
+                                    if dist < tgtdist and dist > 0.1:
+                                        print('mol', moli+1, 'atom', atomi+1, atmname_i, '- mol', molj+1, 'atom', atomj+1, atmname_j, "{:6.3f}".format(dist))
+                                        tgtflag = True
+                                        distdatas.append([moli+1, atomi+1, atmname_i, molj+1, atomj+1, atmname_j])
+                                        distvals.append(dist)
+                if tgtflag == True:
+                    truemolid.append(i)
+
+            if args.min:
+                minidx = distvals.index(min(distvals))
+                minval = min(distvals)
+                mindata = distdatas[minidx]
+                print('minval', minval)
+                print('distdata', mindata)
+                minvals.append(minval)
+                mindatas.append(['file', infile, 'molecules', i, mindata])
+            # print('as_list', as_list)
+            # print('len as_list', len(as_list))
+
             a27_xyzs = []
             b27_xyzs = []
             c27_xyzs = []
@@ -670,27 +725,15 @@ if __name__ == '__main__':
                 xyzs27mol.append(copy.deepcopy(m27_xyz))
 
             print(xyzs27mol[0], xyzs27mol[1])
-
             xyzs27mols.append(copy.deepcopy(xyzs27mol))
-
             print('len xyzmol', len(xyzs27mols[0]))
 
         ## write for file
-#         print('## Write 1*1*1 sell ##')
-#         for i in range(molnum):
-#             print('mol -- ', i, ' --')
-#             if molnum ==1:
-#                 number = ''
-#             else:
-#                 number = '%05d' % i
-#             fo = open(odir + '/xyz/layer1' + out + number + '.xyz', 'w')
-#             print(len(xyzsmol[i][0]) * znum[i], file=fo)
-#             print('', file=fo)
-#             for j in range(len(xyzsmol[i])):
-#                 for k in range(len(xyzsmol[i][j])):
-#                     # print(i)
-#                     print(atomsmol[0][k], xyzsmol[i][j][k][0], xyzsmol[i][j][k][1], xyzsmol[i][j][k][2], file=fo)
-#             fo.close()
+        if calc_dist:
+            print('satisfy criteria mol:', truemolid)
+
+        if args.noout:
+            continue
 
         print('## Write ', args.layer, ' layer sell ##')
         for i in range(molnum):
@@ -712,164 +755,15 @@ if __name__ == '__main__':
             if pdbflag:
                 aobj.convert_xyz_pdb(oname)
 
-        if calc_dist:
-            print('satisfy criteria mol:', truemolid)
+    if calc_dist and args.min:
+        fomin = open('mindist.log', 'w')
+        for i in range(len(minvals)):
+            print(mindatas[i], minvals[i], file=fomin)
+        print('generated mindist.log')
 
-    if pdbflag:
+    if pdbflag and not args.noout:
         pdbs = glob.glob(xyzdir + '/*pdb')
         for pdb in pdbs:
             shutil.move(pdb, pdbdir)
 
-    #         if line[0] == '_symmetry_equiv_pos_as_xyz':
-    #         if line[0] =='x,y,z'
-    #         if line[0] =='-x+1/2,y+1/2,-z+1/2'
-    #         if line[0] =='-x,-y,-z'
-    #         if line[0] =='x+1/2,-y+1/2,z+1/2'
-
-#                     if sym == 'P21/N':
-#                         if z_id == 0:
-#                             acoord = coords[0]
-#                             bcoord = coords[1]
-#                             ccoord = coords[2]
-# 
-#                         if z_id == 1:
-#                             acoord = ((-coords[0]) + 0.5)
-#                             bcoord = (coords[1] + 0.5)
-#                             ccoord = ((-coords[2]) + 0.5)
-# 
-#                         if z_id == 2:
-#                             acoord = (-coords[0])
-#                             bcoord = (-coords[1])
-#                             ccoord = (-coords[2])
-# 
-#                         if z_id == 3:
-#                             acoord = (coords[0] + 0.5)
-#                             bcoord = ((-coords[1]) + 0.5)
-#                             ccoord = (coords[2] + 0.5)
-# 
-#                     if sym == 'PNA21':
-#                         if z_id == 0:
-#                             acoord = coords[0]
-#                             bcoord = coords[1]
-#                             ccoord = coords[2]
-# 
-#                         if z_id == 1:
-#                             acoord = (-coords[0])
-#                             bcoord = (-coords[1])
-#                             ccoord = (coords[2] + 0.5)
-# 
-#                         if z_id == 2:
-#                             acoord = (coords[0] + 1/2)
-#                             bcoord = (-coords[1]) + 1/2
-#                             ccoord = coords[2]
-# 
-#                         if z_id == 3:
-#                             acoord = (-coords[0] + 0.5)
-#                             bcoord = (coords[1] + 0.5)
-#                             ccoord = (coords[2] + 0.5)
-# 
-#                     if sym == 'P212121':
-#                         if z_id == 0:
-#                             acoord = coords[0]
-#                             bcoord = coords[1]
-#                             ccoord = coords[2]
-# 
-#                         if z_id == 1:
-#                             acoord = (-coords[0]) + 0.5
-#                             bcoord = (-coords[1])
-#                             ccoord = coords[2] + 0.5
-# 
-#                         if z_id == 2:
-#                             acoord = (-coords[0])
-#                             bcoord = coords[1] + 0.5
-#                             ccoord = (-coords[2]) + 0.5
-# 
-#                         if z_id == 3:
-#                             acoord = coords[0] + 0.5
-#                             bcoord = (-coords[1]) + 0.5
-#                             ccoord = -coords[2]
-# 
-#                     if sym == 'P21/C':
-#                         if z_id == 0:
-#                             acoord = coords[0]
-#                             bcoord = coords[1]
-#                             ccoord = coords[2]
-# 
-#                         if z_id == 1:
-#                             acoord = -coords[0]
-#                             bcoord = coords[1] + 0.5
-#                             ccoord = -coords[2] + 0.5
-# 
-#                         if z_id == 2:
-#                             acoord = -coords[0]
-#                             bcoord = -coords[1]
-#                             ccoord = -coords[2]
-# 
-#                         if z_id == 3:
-#                             acoord = coords[0]
-#                             bcoord = -coords[1] + 0.5
-#                             ccoord = coords[2] + 0.5
-# 
-#                     if sym == 'C2/C':
-#                         if z_id == 0:  #x,y,z
-#                             acoord = coords[0]
-#                             bcoord = coords[1]
-#                             ccoord = coords[2]
-# 
-#                         if z_id == 1:  #-x,y,-z+1/2
-#                             acoord = (-coords[0])
-#                             bcoord = coords[1]
-#                             ccoord = -coords[2] + 0.5
-# 
-#                         if z_id == 2:  #-x, -y, -z
-#                             acoord = -coords[0]
-#                             bcoord = -coords[1]
-#                             ccoord = -coords[2]
-# 
-#                         if z_id == 3:  #x, -y, z+1/2
-#                             acoord = coords[0]
-#                             bcoord = -coords[1]
-#                             ccoord = coords[2]+ 0.5
-# 
-#                         if z_id == 4:  #x, -y, z+1/2
-#                             acoord = coords[0] + 0.5
-#                             bcoord = coords[1] + 0.5
-#                             ccoord = coords[2]
-# 
-#                         if z_id == 5:  #-x+1/2,y+1/2,-z+1/2
-#                             acoord = -coords[0] + 0.5
-#                             bcoord = coords[1] + 0.5
-#                             ccoord = -coords[2] + 0.5
-# 
-#                         if z_id == 6:  #-x+1/2,-y+1/2,-z
-#                             acoord = -coords[0] + 0.5
-#                             bcoord = -coords[1] + 0.5
-#                             ccoord = -coords[2]
-# 
-#                         if z_id == 7:  #x+1/2,-y+1/2,z+1/2
-#                             acoord = coords[0] + 0.5
-#                             bcoord = -coords[1] + 0.5
-#                             ccoord = coords[2] + 0.5
-# 
-#                     if sym == 'P-1':
-#                         if z_id == 0:  #x,y,z
-#                             acoord = coords[0]
-#                             bcoord = coords[1]
-#                             ccoord = coords[2]
-# 
-#                         if z_id == 1:  #-x,y,-z+1/2
-#                             acoord = -coords[0]
-#                             bcoord = -coords[1]
-#                             ccoord = -coords[2]
-# 
-#                     if sym == 'P21':
-#                         if z_id == 0:  #x,y,z
-#                             acoord = coords[0]
-#                             bcoord = coords[1]
-#                             ccoord = coords[2]
-# 
-#                         if z_id == 1:  #-x,1/2+y,-z
-#                             acoord = -coords[0]
-#                             bcoord = coords[1] + 0.5
-#                             ccoord = -coords[2]
 
