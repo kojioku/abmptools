@@ -229,7 +229,7 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--layer',
                         help='layer',
                         type=int,
-                        default='layer'
+                        default=1
                         )
 
     parser.add_argument('-nopdb', '--nopdb',
