@@ -91,6 +91,10 @@ if __name__ == '__main__':
                         help='input file',
                         required=True)
 
+    parser.add_argument('-dimeres', '--dimeres',
+                        help='get dimer-es info',
+                        action='store_true')
+
     parser.add_argument('-nof90', '--nof90so',
                         help='use f90',
                         action='store_false',
@@ -190,19 +194,25 @@ if __name__ == '__main__':
         aobj.end = int(args.time[1])
         aobj.interval = int(args.time[2])
 
+    if args.dimeres:
+        aobj.tgt2type = 'dimer-es'
+
     aobj.exceptfrag = args.exclude
     aobj.f90soflag = args.nof90so
     aobj.pynp = args.pynp
     aobj.addresinfo = args.noresinfo
 
+    ## read section
+    # multi(read and filter)
     if aobj.anlmode == 'multi':
-        if aobj.tgt2type == 'dist' or aobj.tgt2type == 'molname':
-            # multi-fd, f-mname
+        if aobj.tgt2type in ['dist', 'molname', 'dimer-es']:
+            # multi-fd(frag-dist), f-mname
             aobj = aobj.readifiewrap(tgtfrag1)
         else:
-            # multi-ff, tfmatrix
+            # multi-ff(frag-frag), tfmatrix
             aobj = aobj.readifiewrap(tgtfrag1, tgtfrag2)
 
+    # single-file(read)
     else:
         # frag-dist
         if aobj.anlmode == 'frag' and aobj.tgt2type == 'dist':
@@ -214,17 +224,18 @@ if __name__ == '__main__':
         if aobj.anlmode == 'fraginmol' or aobj.anlmode == 'mol':
             aobj = aobj.readifiewrap(logname)
 
+    ##  filter(for single mode) and write section
+    #  with pb
     if aobj.matrixtype == 'frags-frags' and aobj.pbflag:
         aobj = aobj.filterifiewrap()
         aobj.writecsvwrap(word='gas')
         aobj = aobj.filterifiewrap(myifdf=aobj.pbifdf, mypidf=aobj.pbpidf, is_pb=True)
         aobj.writecsvwrap(word='pb', pbwrite=True)
 
+    # only-gas
     else:
         aobj = aobj.filterifiewrap()
         aobj.writecsvwrap()
-
-
 
 
 
