@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-a', '--tgtatom',
                         help='tgtatm',
-                        nargs='*',
+                        nargs=2,
                         action='append',
                         default=[])
 
@@ -164,14 +164,14 @@ if __name__ == '__main__':
             for j in range(len(pdb.posRes[i])):
                 # k: solute mol id
                 # print(pdb.atmtypeRes[i][j])
-                if pdb.atmtypeRes[i][j].strip() not in tgtatoms:
+                if pdb.atmtypeRes[i][j].strip() != tgtatoms[1]:
                     continue
 
                 for solid in pdb.solutes:
                     k = solid -1
                     # l: solute atom id in mol k
                     for l in range(len(pdb.posRes[k])):
-                        if pdb.atmtypeRes[k][l].strip() not in tgtatoms:
+                        if pdb.atmtypeRes[k][l].strip() != tgtatoms[0]:
                             continue
                         dist = pdb.getdist(np.array(pdb.posRes[k][l]), np.array(pdb.posRes[i][j]))
                         if dist < tgtdist:
@@ -195,9 +195,10 @@ if __name__ == '__main__':
         ## write for file
 
     if args.min:
-        fomin = open('mindist.log', 'w')
+        ofile = 'mindist-' + tgtatoms[0] + '-' + tgtatoms[1] + '.log'
+        fomin = open(ofile, 'w')
         for i in range(len(minvals)):
             print(mindatas[i], minvals[i], file=fomin)
-        print('generated mindist.log')
+        print('generated' + ofile)
 # 
 
