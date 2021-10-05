@@ -5,14 +5,14 @@ import argparse
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
                 prog='pdb2fmo.py', # program name
-                usage='python generateajf.py -c xxx.pdb', # program usage
+                usage='python generateajf.py -i xxx.pdb', # program usage
                 description='generate ABNITMP input file (ajf)',
                 epilog='end',
                 add_help=True,
                 )
 
     # add args
-    parser.add_argument('-c', '--coord',
+    parser.add_argument('-i', '--incoord',
                         help='coordinate file (pdb)',
                         # nargs='*',
                         # action='append',
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     # get args
     args = parser.parse_args()
 
-    print('coord(pdb) =', args.coord)
+    print('coord(pdb) =', args.incoord)
     print('solv = ', args.solvation)
     print('pbcnv = ', args.thicnv)
     print('atmrad =', args.atmrad)
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     aobj.cmmflag = args.cmm
     aobj.npro = args.npro
     aobj.pbmolrad = args.atmrad
-    aobj.readgeom = args.coord
+    aobj.readgeom = args.incoord
     aobj.solv_flag = args.solvation
     aobj.pbcnv = args.thicnv
     aobj.dgemm = args.dgemm

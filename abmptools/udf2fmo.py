@@ -19,14 +19,14 @@ if __name__ == "__main__":
     # create parser
     parser = argparse.ArgumentParser(
                 prog='udf2fmo.py', # program name
-                usage='python udf2fmo.py -c xxx.udf -o yyy', # program usage
+                usage='python udf2fmo.py -i xxx.udf -o yyy', # program usage
                 description='generate ABNITMP input (ajf,pdb set) from udf(cognac) and segment_data file',
                 epilog='end',
                 add_help=True,
                 )
 
     # add args
-    parser.add_argument('-c', '--coord',
+    parser.add_argument('-i', '--incoord',
                         help='coordinate file (udf)',
                         # nargs='*',
                         # action='append',
@@ -43,11 +43,11 @@ if __name__ == "__main__":
     # get args
     args = parser.parse_args()
 
-    print('coord(udf) =', args.coord)
+    print('coord(udf) =', args.incoord)
     print('parameter = ', args.parameter)
     print('out(pdb, ajf) = ', args.output)
 
-    _udf_ = UDFManager(args.coord)
+    _udf_ = UDFManager(args.incoord)
 
     aobj = ampt.setfmo()
     totalMol, totalRec = aobj.gettotalmol_rec(_udf_)
