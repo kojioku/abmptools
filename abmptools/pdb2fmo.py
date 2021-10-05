@@ -15,14 +15,14 @@ if __name__ == "__main__":
     # create parser
     parser = argparse.ArgumentParser(
                 prog='pdb2fmo.py', # program name
-                usage='python pdb2fmo.py -c xxx.pdb', # program usage 
+                usage='python pdb2fmo.py -i xxx.pdb', # program usage 
                 description='generate ABNITMP input (ajf,pdb set) from orig pdb and segment_data file',
                 epilog='end',
                 add_help=True,
                 )
 
     # add args
-    parser.add_argument('-c', '--coord',
+    parser.add_argument('-i', '--incoord',
                         help='coordinate file (pdb)',
                         nargs='*',
                         # action='append',
@@ -45,11 +45,11 @@ if __name__ == "__main__":
     # get args
     args = parser.parse_args()
 
-    print('coord(pdb) =', args.coord)
+    print('coord(pdb) =', args.incoord)
     print('parameter = ', args.parameter)
 
-    for i in range(len(args.coord)):
-        fname = args.coord[i]
+    for i in range(len(args.incoord)):
+        fname = args.incoord[i]
         oname, ext = os.path.splitext(fname)
 
         aobj = abmp.setfmo()
