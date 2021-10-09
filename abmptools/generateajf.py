@@ -4,7 +4,7 @@ import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-                prog='pdb2fmo.py', # program name
+                prog='generateajf.py', # program name
                 usage='python generateajf.py -i xxx.pdb', # program usage
                 description='generate ABNITMP input file (ajf)',
                 epilog='end',
@@ -161,7 +161,6 @@ if __name__ == "__main__":
     print('bsse', args.bsse)
     print('mldat', args.mldat)
     print('disp', args.disp)
-
 
     aobj = ampt.setfmo()
 

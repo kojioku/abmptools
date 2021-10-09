@@ -25,7 +25,7 @@ if __name__ == "__main__":
                 )
 
     # add args
-    parser.add_argument('-i', '--input',
+    parser.add_argument('-i', '--incoord',
                         help='input frag info',
                         nargs='*',
                         # action='append',
@@ -45,13 +45,156 @@ if __name__ == "__main__":
                         action='store_false'
                         )
 
+    ###################################
+
+    parser.add_argument('-pb', '--solvation',
+                        help='parameter file',
+                        action='store_true')
+
+    parser.add_argument('-th', '--thicnv',
+                        help='threshold',
+                        type=float,
+                        default=1.0E-5
+                        )
+
+    parser.add_argument('-arad', '--atmrad',
+                        help='atmrad',
+                        default='delphi'
+                        )
+
+    parser.add_argument('-ajfv', '--ajfversion',
+                        help='ajf version',
+                        default='rev23'
+                        )
+
+    parser.add_argument('-np', '--npro',
+                        help='ajf version',
+                        type=int,
+                        default=4
+                        )
+
+    parser.add_argument('-nopieda', '--nopieda',
+                        help='pieda',
+                        action='store_false'
+                        )
+
     parser.add_argument('-cmm', '--cmm',
                         help='cmm',
                         action='store_true'
                         )
 
+    parser.add_argument('-nocpf', '--nocpf',
+                        help='cpfflag',
+                        action='store_false'
+                        )
+
+    parser.add_argument('-cpfv', '--cpfver',
+                        help='cpf version',
+                        default='10'
+                        )
+
+    parser.add_argument('-basis', '--basisset',
+                        help='basis',
+                        default='6-31G*',
+                        )
+
+    parser.add_argument('-m', '--method',
+                        help='method',
+                        default='MP2',
+                        )
+
+    parser.add_argument('-ml', '--mldat',
+                        help='mldat flag',
+                        action='store_true'
+                        )
+
+    parser.add_argument('-mll', '--mllimit',
+                        help='mldat fraglimit',
+                        type=int,
+                        default=0
+                        )
+
+    parser.add_argument('-disp', '--disp',
+                        help='flag disp',
+                        action='store_true')
+
+    # WriteMLdata='wstr-1E08_HIS_ES.new2.cmm5.mldat'
+    # MLfraglimit=921
+
+    parser.add_argument('-dg', '--dgemm',
+                        help='dgemm',
+                        action='store_true',
+                        )
+
+    parser.add_argument('-rp', '--resp',
+                        help='resp',
+                        action='store_true',
+                        )
+
+    parser.add_argument('-nonbo', '--nonbo',
+                        help='nonbo',
+                        action='store_false',
+                        )
+
+    parser.add_argument('-mem', '--memory',
+                        help='memory',
+                        default='3000',
+                        )
+
+    parser.add_argument('-lc', '--ligandcharge',
+                        help='ligand charge',
+                        nargs=2,
+                        action='append',
+                        # default='',
+                        )
+
+    parser.add_argument('-rs', '--rsolv',
+                        help='rsolv',
+                        nargs=2,
+                        action='append',
+                        # default='',
+                        )
+
+    parser.add_argument('-ma', '--manual',
+                        help='manual table',
+                        default=None,
+                        )
+
+    parser.add_argument('-bsse', '--bsse',
+                        help='bsse',
+                        action='store_true',
+                        )
+
+    # get args
     args = parser.parse_args()
-    print('input =', args.input)
+
+    print('coord(pdb) =', args.incoord)
+    print('solv = ', args.solvation)
+    print('pbcnv = ', args.thicnv)
+    print('atmrad =', args.atmrad)
+    print('ajfversion =', args.ajfversion)
+    print('np =', args.npro)
+    print('pieda =', args.nopieda)
+    print('cmm =', args.cmm)
+    print('cpf =', args.nocpf)
+    print('cpfver =', args.cpfver)
+    print('basis =', args.basisset)
+    print('method =', args.method)
+    print('dgemm', args.dgemm)
+    print('resp', args.resp)
+    print('nbo', args.nonbo)
+    print('memory', args.memory)
+    print('ligand charge', args.ligandcharge)
+    print('rsolv', args.rsolv)
+    print('manual', args.manual)
+    print('bsse', args.bsse)
+    print('mldat', args.mldat)
+    print('disp', args.disp)
+
+
+    ####################################
+
+    args = parser.parse_args()
     # print('output =', args.output)
 
     ajfname = args.template
@@ -69,8 +212,33 @@ if __name__ == "__main__":
     aobj.assignmolname = assignmolname
     aobj.refreshatmtype = refreshatmtype
     aobj.refreshresid = refreshresid
+
+    # gen ajf file
+    aobj.ajf_method = args.method
+    aobj.ajf_basis_set = args.basisset
+    aobj.abinit_ver = args.ajfversion
+    aobj.autofrag = True
+    aobj.piedaflag = args.nopieda
     aobj.cpfflag = args.nocpf
+    aobj.cpfver = args.cpfver
     aobj.cmmflag = args.cmm
+    aobj.npro = args.npro
+    aobj.pbmolrad = args.atmrad
+    # aobj.readgeom = args.incoord
+    aobj.solv_flag = args.solvation
+    aobj.pbcnv = args.thicnv
+    aobj.dgemm = args.dgemm
+    aobj.resp = args.resp
+    aobj.nbo = args.nonbo
+    aobj.memory = args.memory
+    aobj.ligchg = args.ligandcharge
+    aobj.rsolv = args.rsolv
+    aobj.bsseflag = args.bsse
+    aobj.disp = args.disp
+
+    if args.mldat:
+        aobj.mldatfrag = args.mldat
+        aobj.mllimit = args.mllimit
 
     # main
     pdbnames = []
@@ -124,12 +292,12 @@ if __name__ == "__main__":
         # print (frag_atoms, frag_charges)
 
         # gen ajf file
-        aobj.ajf_method = "MP2"
-        aobj.ajf_basis_set = "6-31G*"
-        aobj.abinit_ver = 'rev15'
-        aobj.piedaflag = True
-        aobj.npro = 1
-        aobj.para_job = 1
+        # aobj.ajf_method = "MP2"
+        # aobj.ajf_basis_set = "6-31G*"
+        # aobj.abinit_ver = 'rev23'
+        # aobj.piedaflag = True
+        # aobj.npro = 1
+        # aobj.para_job = 1
         ohead = os.path.splitext(pdbname)[0].split('/')[-1] + '_forabmp'
         aobj.readgeom = ohead + '.pdb'
         aobj.writegeom = os.path.splitext(pdbname)[0].split('/')[-1] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + ".cpf'"
