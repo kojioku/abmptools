@@ -360,6 +360,8 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
             # auto_set mol charge
             if molset[i] == 'NA':
                 charge = [1]
+            elif molset[i] == 'CL':
+                charge = [-1]
             else:
                 charge = mol_conf['charge']
 
