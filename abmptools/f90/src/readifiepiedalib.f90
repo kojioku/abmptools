@@ -1,17 +1,18 @@
 subroutine readifiepieda(inname, frag_i, frag_j, pfrag_i, pfrag_j, dist, hfifie, mp2ifie, &
-&prtype1, grimme, jung, hill, es, ex, ct, di, qval, fdimesint, ifpair, pipair)
+&prtype1, grimme, jung, hill, es, ex, ct, di, erest, qval, fdimesint, ifpair, pipair)
 
 ! 2020/05/17
 ! Author: Koji Okuwaki
 implicit none
 integer i, j, skip
 character*1, dimension(100000000):: fdimes
-character*25 head
+character*40 head
 integer, dimension(100000000):: frag_i, frag_j, pfrag_i, pfrag_j, fdimesint
 double precision, dimension(100000000):: dist, hfifie,mp2ifie,prtype1,grimme,jung,hill
-double precision, dimension(100000000):: es,ex,ct,di,qval
+double precision, dimension(100000000):: es,ex,ct,di,erest,qval
 
 integer ifpair, pipair
+logical disp
 character*200 inname
 character*3 :: method = 'Non'
 
@@ -39,14 +40,21 @@ es(:) = 0.0
 ex(:) = 0.0
 ct(:) = 0.0
 di(:) = 0.0
+erest(:) = 0.0
 qval(:) = 0.0
+disp=.false.
 ! Read File
 open(17,file=trim(adjustl(inname)), status='old')
 
 ! IFIE - Section
 do
     read(17,'(a)', end=999) head
-    if (trim(adjustl(head))=="## MP2-IFIE" .or. trim(adjustl(head))=="## MP3-IFIE" &
+    if (trim(adjustl(head)) == "Disp                    = ON") then
+        disp=.true.
+        print *, '-- DISP mode --'
+    end if
+
+    if (trim(adjustl(head)) == "## MP2-IFIE" .or. trim(adjustl(head))=="## MP3-IFIE" &
         .or. trim(adjustl(head))=="## MP4-IFIE") then
         method='MP'
         ! write(*, '(a)') 'Read IFIE Section'
@@ -117,7 +125,12 @@ end if
 i = 1
 do
         ! IJ-PAIR       ES             EX             CT+mix         DI(MP2)        q(I=>J).
-    read(17,*, err=210) pfrag_i(i),pfrag_j(i),es(i),ex(i),ct(i),di(i),qval(i)
+    if (disp .eqv. .false.) then
+        read(17,*, err=210) pfrag_i(i),pfrag_j(i),es(i),ex(i),ct(i),di(i),qval(i)
+    else
+        read(17,*, err=210) pfrag_i(i),pfrag_j(i),es(i),ex(i),ct(i),di(i),erest(i),qval(i)
+    end if
+
     ! if(i == 100) write(*, '(2i7, 5f10.3)') pfrag_i(i),pfrag_j(i),es(i),ex(i),ct(i),di(i),qval(i)
     i = i + 1
 end do

@@ -40,11 +40,6 @@ if __name__ == "__main__":
                         nargs='*',
                         default=['HOH', 'WAT', 'NA'])
 
-    parser.add_argument('-nocpf', '--nocpf',
-                        help='cpfflag',
-                        action='store_false'
-                        )
-
     ###################################
 
     parser.add_argument('-pb', '--solvation',
@@ -157,7 +152,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-ma', '--manual',
                         help='manual table',
-                        default=None,
+                        action='store_true',
                         )
 
     parser.add_argument('-bsse', '--bsse',
@@ -240,6 +235,10 @@ if __name__ == "__main__":
         aobj.mldatfrag = args.mldat
         aobj.mllimit = args.mllimit
 
+
+    if args.manual:
+        aobj.autofrag = False
+
     # main
     pdbnames = []
     for argv in sys.argv:
@@ -298,9 +297,14 @@ if __name__ == "__main__":
         # aobj.piedaflag = True
         # aobj.npro = 1
         # aobj.para_job = 1
-        ohead = os.path.splitext(pdbname)[0].split('/')[-1] + '_forabmp'
+        fname = os.path.splitext(pdbname)[0].split('/')[-1]
+        ohead = fname + '_forabmp'
         aobj.readgeom = ohead + '.pdb'
-        aobj.writegeom = os.path.splitext(pdbname)[0].split('/')[-1] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + ".cpf'"
+        aobj.writegeom = fname + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + ".cpf'"
+        if aobj.mllimit == 0:
+            aobj.mldatname = "'" + fname + ".mldat'"
+        else:
+            aobj.mldatname = "'" + fname + "limit" + str(aobj.mllimit) + ".mldat'"
 
         opath = 'for_abmp'
         if os.path.exists(opath) is False:
