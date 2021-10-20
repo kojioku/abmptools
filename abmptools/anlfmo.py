@@ -60,6 +60,7 @@ class anlfmo(pdio.pdb_io):
 
         self.rpdbflag = False
         self.pdbname = None   # 'iss2-spg2-ok20200130opt-for_abmp.pdb'
+        self.is_disp = False
 
         # -- for mol mode or multi mode--
         self.tgt2type = 'frag' #frag: mol-frag, mol: mol-mol
