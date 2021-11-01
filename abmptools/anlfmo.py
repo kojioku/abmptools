@@ -364,6 +364,7 @@ class anlfmo(pdio.pdb_io):
         # print('Frag Atom number\n', fragdatas)
 
         resname_perfrag = []
+        resnamenonum_perfrag = []
         if self.fragmode == 'manual':
             logabsitems = os.path.abspath(ifile).split('/')
             logabsitems[-1] = logreadGeom
@@ -393,6 +394,8 @@ class anlfmo(pdio.pdb_io):
                     if tgtstr in gatmlabs:
                         headid = [i, gatmlabs.index(tgtstr)]
                         resname_perfrag.append(self.resnameRes[headid[0]][headid[1]] + self.resnumRes[headid[0]][headid[1]].strip())
+                        resnamenonum_perfrag.append(self.resnameRes[headid[0]][headid[1]])
+
 
             # print(resname_perfrag)
 
@@ -405,9 +408,11 @@ class anlfmo(pdio.pdb_io):
                     continue
                 else:
                     resname_perfrag.append(residuestr[i] + seqnos[i])
+                    resnamenonum_perfrag.append(residuestr[i])
                     alreadys.append(fragnos[i])
             # print(resname_perfrag)
 
+        self.resnamenonum_perfrag = resnamenonum_perfrag
         return resname_perfrag, pdbabs
 
 
@@ -1404,15 +1409,31 @@ class anlfmo(pdio.pdb_io):
         print('### read frag info ###')
 
         molfragss = self.getallmolfrags(self.tgtlogs[i], ifdf, self.nfs[i])
-        print('frags', molfragss)
+        print('molfragss', molfragss)
+        print('len molfragss', len(molfragss))
+
         # get tgt frag id
         # IFIE
-        molnames_perrec = self.molnames_perrec
+        molnames_inrec = self.molnames_perrec[i]
+        rname_perfraginrec = self.resnamenonums_perfrag[i]
+
         tgtmolfrags = []
-        print('molnames', molnames_perrec[i])
-        for j in range(len(molnames_perrec[i])):
+        # print('molnames', molnames_inrec)
+        # print('len molnames', len(molnames_inrec))
+
+        print('molnames_perfrag', rname_perfraginrec)
+        print('len molnames_perfrag', len(rname_perfraginrec))
+
+        rname_permolinrec = copy.deepcopy(molfragss)
+        for j in range(len(rname_permolinrec)):
+            # if type(molfragss[j]) == list:
+            for k in range(len(molfragss[j])):
+                num = copy.deepcopy(molfragss[j][k]) - 1
+                rname_permolinrec[j][k] = rname_perfraginrec[num]
+
+        for j in range(len(rname_permolinrec)):
             try:
-                if molnames_perrec[i][j] == self.tgt2molname:
+                if self.tgt2molname in rname_permolinrec[j]:
                     tgtmolfrags += molfragss[j]
             except:
                 continue
@@ -1435,6 +1456,10 @@ class anlfmo(pdio.pdb_io):
             # print('ifdf_filters\n', ifdf_filters)
 
         ifdf_filters = pd.merge(ifdf_filters, pidf, on=['I', 'J'], how='left')
+
+        ## screening dist
+        if self.dist != 1000.0:
+            ifdf_filters = ifdf_filters[ifdf_filters['DIST'] < self.dist]
 
         HF_IFIE_sum = ifdf_filters['HF-IFIE'].sum()
         MP2_IFIE_sum = ifdf_filters['MP2-IFIE'].sum()
@@ -1972,6 +1997,7 @@ class anlfmo(pdio.pdb_io):
             if self.rpdbflag == True:
                 nfs = []
                 molnames_perrec = []
+                resnamenonums_perfrag = []
                 self.assignmolname = False
                 for i in range(len(tgtlogs)):
                     self.resname_perfrag, tgtpdb = self.getlogorpdbfrag(self.tgtlogs[i])
@@ -1982,8 +2008,10 @@ class anlfmo(pdio.pdb_io):
                     nf = self.getlognf(tgtlogs[i], self.fragmode)
                     nfs.append(nf)
                     molnames_perrec.append(self.resnames)
+                    resnamenonums_perfrag.append(self.resnamenonum_perfrag)
                 self.nfs = nfs
                 self.molnames_perrec  = molnames_perrec
+                self.resnamenonums_perfrag = resnamenonums_perfrag
                 self.tgtpdbs = tgtpdbs
 
         # single mode
@@ -2213,10 +2241,24 @@ class anlfmo(pdio.pdb_io):
             print('resnames', self.resnames)
             print('self.resnames', len(self.resnames))
 
+            print('resnames_perfrag', self.resnamenonum_perfrag)
+            print('len self.resnames', len(self.resnamenonum_perfrag))
+
+            rname_perfrag = self.resnamenonum_perfrag
+    
+            tgtmolfrags = []
+    
+            rname_permol = copy.deepcopy(molfragss)
+            for j in range(len(rname_permol)):
+                # if type(molfragss[j]) == list:
+                for k in range(len(molfragss[j])):
+                    num = copy.deepcopy(molfragss[j][k]) - 1
+                    rname_permol[j][k] = rname_perfrag[num]
+
             tgt2_glofrags = []
             # print('resnames', self.resnames)
-            for i in range(len(self.resnames)):
-                if self.resnames[i] == tgt2molname:
+            for i in range(len(rname_permol)):
+                if tgt2molname in rname_permol[i]:
                     # print(self.resnames[i], tgt2molname)
                     tgt2frag = molfragss[i][tgt2_lofrag - 1]
                     tgt2_glofrags.append(tgt2frag)
@@ -2695,8 +2737,8 @@ class anlfmo(pdio.pdb_io):
 
                 if tgt2type == 'molname':
                     tgt2molname = self.tgt2molname
-                    oifie = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-ifiesum.csv'
-                    oifiedt = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-ifiedt.csv'
+                    oifie = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-dist' + str(self.dist) + '-ifiesum.csv'
+                    oifiedt = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-dist' + str(self.dist) + '-ifiedt.csv'
 
                 if tgt2type == 'dist':
                     tgt2dist = self.dist
