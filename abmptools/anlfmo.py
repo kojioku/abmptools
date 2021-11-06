@@ -1009,6 +1009,7 @@ class anlfmo(pdio.pdb_io):
         # tgtdf_filter = df[((df['I'] == frag1) & (df['J'] == frag2)) | ((df['I'] == frag2) & (df['J'] == frag1))]
         return tgtdf_filter
 
+
     def gettgtdf_ffs(self, df, frag1, frag2):
         # print('--- ifie frag ', frag1, frag2, '----')
         print(frag1, frag2)
@@ -1447,41 +1448,41 @@ class anlfmo(pdio.pdb_io):
             frag1s = copy.deepcopy(frag1)
 
         self.frag1s = frag1s
-        # if ifdf.empty:
-            # continue
-        ifdf_filters = pd.DataFrame()
+        ifdf_filter = pd.DataFrame()
+        ifdf_filters = []
+        ifdfsums = []
         for frag1p in frag1s:
-            for tgt2frag in tgtmolfrags:
-                ifdf_filters = ifdf_filters.append(self.gettgtdf_ff(ifdf, frag1p, tgt2frag))
-            # print('ifdf_filters\n', ifdf_filters)
+            ifdf_filter = self.gettgtdf_ffs(ifdf, frag1p, tgtmolfrags)
+            print('ifdf_filter\n', ifdf_filter.head())
 
-        ifdf_filters = pd.merge(ifdf_filters, pidf, on=['I', 'J'], how='left')
+            # merge ifie and pieda
+            ifdf_filter = pd.merge(ifdf_filter, pidf, on=['I', 'J'], how='left')
 
-        ## screening dist
-        if self.dist != 1000.0:
-            ifdf_filters = ifdf_filters[ifdf_filters['DIST'] < self.dist]
+            ## screening dist
+            if self.dist != 1000.0:
+                ifdf_filter = ifdf_filter[ifdf_filter['DIST'] < self.dist]
 
-        HF_IFIE_sum = ifdf_filters['HF-IFIE'].sum()
-        MP2_IFIE_sum = ifdf_filters['MP2-IFIE'].sum()
-        PR_TYPE1_sum = ifdf_filters['PR-TYPE1'].sum()
-        GRIMME_sum = ifdf_filters['GRIMME'].sum()
-        JUNG_sum = ifdf_filters['JUNG'].sum()
-        HILL_sum = ifdf_filters['HILL'].sum()
+            HF_IFIE_sum = ifdf_filter['HF-IFIE'].sum()
+            MP2_IFIE_sum = ifdf_filter['MP2-IFIE'].sum()
+            PR_TYPE1_sum = ifdf_filter['PR-TYPE1'].sum()
+            GRIMME_sum = ifdf_filter['GRIMME'].sum()
+            JUNG_sum = ifdf_filter['JUNG'].sum()
+            HILL_sum = ifdf_filter['HILL'].sum()
 
-        ES_sum = ifdf_filters['ES'].sum()
-        EX_sum = ifdf_filters['EX'].sum()
-        CT_sum = ifdf_filters['CT-mix'].sum()
-        DI_sum = ifdf_filters['DI(MP2)'].sum()
-        q_sum = ifdf_filters['q(I=>J)'].sum()
+            ES_sum = ifdf_filter['ES'].sum()
+            EX_sum = ifdf_filter['EX'].sum()
+            CT_sum = ifdf_filter['CT-mix'].sum()
+            DI_sum = ifdf_filter['DI(MP2)'].sum()
+            q_sum = ifdf_filter['q(I=>J)'].sum()
 
-        ifdf_filters['TIMES'] = self.tgttimes[i]
+            ifdf_filter['TIMES'] = self.tgttimes[i]
 
-        ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum], index=self.ifdfsumcolumn, name=self.tgttimes[i])
+            ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum], index=self.ifdfsumcolumn, name=self.tgttimes[i])
+            print('ifdfsum\n', ifdfsum)
+            ifdf_filters.append(ifdf_filter)
+            ifdfsums.append(ifdfsum)
 
-        print('ifdfsum\n', ifdfsum)
-
-        # pieda
-        return ifdf_filters, ifdfsum
+        return ifdf_filters, ifdfsums
 
 
     def getfiltifpifd(self, i, ifdf, pidf, momenedf):
@@ -1712,8 +1713,8 @@ class anlfmo(pdio.pdb_io):
                 return ifdf_filter
 
         if tgt2type == 'molname':
-            ifdf_filter, ifdfsum = self.getfiltifpifm(i, ifdf, pidf)
-            return ifdf_filter, ifdfsum
+            ifdf_filters, ifdfsums = self.getfiltifpifm(i, ifdf, pidf)
+            return ifdf_filters, ifdfsums
 
         if tgt2type in ['dist','dimer-es']:
             ifdf_filter, ifdfsum  = self.getfiltifpifd(i, ifdf, pidf, momenedf)
@@ -1801,13 +1802,36 @@ class anlfmo(pdio.pdb_io):
                     for dfs in ifpidfs:
                         self.ifdf_filters = self.ifdf_filters.append(dfs)
 
-            if self.tgt2type in ['molname', 'dist', 'dimer-es']:
+            if self.tgt2type in ['dist', 'dimer-es']:
                 self.ifdf_filters = pd.DataFrame()
                 self.ifdfsum = pd.DataFrame(columns=self.ifdfsumcolumn)
 
                 for dfs in ifpidfs:
-                    self.ifdf_filters = self.ifdf_filters.append(dfs[0])
-                    self.ifdfsum = self.ifdfsum.append(dfs[1])
+                    for j in dfs[0]:
+                        self.ifdf_filters = self.ifdf_filters.append(dfs[0])
+                        self.ifdfsum = self.ifdfsum.append(dfs[1])
+
+            if self.tgt2type in ['molname']:
+                self.ifdf_filters = []
+                self.ifdfsum = []
+
+                nfrag = len(ifpidfs[0][0])
+                print('nfrag', nfrag)
+                # i:time, j:frag
+                for j in range(nfrag):
+                    ifdf_filter = pd.DataFrame()
+                    ifdfsum = pd.DataFrame(columns=self.ifdfsumcolumn)
+                    for i in range(len(ifpidfs)):
+                        ifdf_filter = ifdf_filter.append(ifpidfs[i][0][j])
+                        ifdfsum = ifdfsum.append(ifpidfs[i][1][j])
+
+                    self.ifdf_filters.append(ifdf_filter)
+                    self.ifdfsum.append(ifdfsum)
+
+                # print(self.ifdf_filters)
+                # print(self.ifdfsum)
+                # print('len ifdf_filters', len(self.ifdf_filters))
+                # print('len ifdfsum', len(self.ifdfsum))
 
             p.close()
             print('read elapsed', time.time() - st)
@@ -2172,7 +2196,6 @@ class anlfmo(pdio.pdb_io):
                         self.tgt1frag == [self.tgt2frag]
                     for tgt1 in self.tgt1frag:
                         ifdf_filter = self.gettgtdf_ffs(self.ifdf, tgt1, self.tgt2frag)
-                        # self.ifdf_filters.append(self.gettgtdf_ffs(self.ifdf, tgt1, self.tgt2frag))
                         self.ifdf_filters.append(pd.merge(ifdf_filter, self.pidf, on=['I', 'J'], how='left'))
                         if self.pbflag == True:
                             pbifdf_filter = self.gettgtdf_ffs(self.pbifdf, tgt1, self.tgt2frag)
@@ -2245,9 +2268,9 @@ class anlfmo(pdio.pdb_io):
             print('len self.resnames', len(self.resnamenonum_perfrag))
 
             rname_perfrag = self.resnamenonum_perfrag
-    
+
             tgtmolfrags = []
-    
+
             rname_permol = copy.deepcopy(molfragss)
             for j in range(len(rname_permol)):
                 # if type(molfragss[j]) == list:
@@ -2731,7 +2754,7 @@ class anlfmo(pdio.pdb_io):
                     print(path + '/' + oifie, 'was created.')
 
 
-            if tgt2type in ['molname', 'dist', 'dimer-es']:
+            if tgt2type in ['dist', 'dimer-es']:
 
                 tgt1frag = self.tgt1frag[0]
 
@@ -2761,6 +2784,29 @@ class anlfmo(pdio.pdb_io):
 
                 print(path + '/' + oifie)
                 print(path + '/' + oifiedt, 'was created.')
+
+            if tgt2type in ['molname']:
+
+                for j in range(len(self.tgt1frag)):
+                    tgt1frag = self.tgt1frag[j]
+
+                    if tgt2type == 'molname':
+                        tgt2molname = self.tgt2molname
+                        oifie = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-dist' + str(self.dist) + '-ifiesum.csv'
+                        oifiedt = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-dist' + str(self.dist) + '-ifiedt.csv'
+
+                    if self.addresinfo == True:
+                        for i in range(1, len(self.resname_perfrag)+1):
+                            val1 = i
+                            val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
+                            self.ifdf_filters[j].I = self.ifdf_filters[j].I.replace(val1, val2)
+                            self.ifdf_filters[j].J = self.ifdf_filters[j].J.replace(val1, val2)
+
+                    self.ifdfsum[j].to_csv(path + '/' + oifie)
+                    self.ifdf_filters[j].to_csv(path + '/' + oifiedt)
+
+                    print(path + '/' + oifie)
+                    print(path + '/' + oifiedt, 'was created.')
 
 
         if self.anlmode == 'mol':
