@@ -111,6 +111,7 @@ class anlfmo(pdio.pdb_io):
         self.exceptfrag = []
 
         self.pbflag = False
+        self.nf = 0
         pass
 
 
@@ -183,7 +184,6 @@ class anlfmo(pdio.pdb_io):
             neighbors_list.append(neighbors)
         neighbors_flat = list(itertools.chain.from_iterable(neighbors_list))
         # print(idx)
-        # print('neighbors_flat', neighbors_flat)
 
         newfrags = []
         for idx in neighbors_flat:
@@ -226,6 +226,7 @@ class anlfmo(pdio.pdb_io):
 
 
     def getlognf(self, logname, fragmode):
+        # print('fragmode', fragmode)
         if fragmode == 'manual':
             text = open(logname, "r").readlines()
             for i in range(len(text)):
@@ -236,6 +237,83 @@ class anlfmo(pdio.pdb_io):
                 if itemList[:2]== ['NF', '=']:
                    nf = int(itemList[2])
                    break
+        if fragmode == 'auto':
+            f = open(logname, 'r')
+            readflag = False
+            autoreadflag = False
+            fragdata = []
+            fragdatas = []
+            elecs = []
+            seqnos = []
+            fragnos = []
+            residuestr = []
+            logreadGeom = []
+            pdbabs = ""
+
+            for line in f:
+                items = line[1:].split()
+                chains = line[0]
+                if len(items) == 0:
+                    continue
+
+                if items[0] == 'ReadGeom':
+                     logreadGeom = items[2]
+
+                if items[0] == 'AutoFrag':
+                    if items[2] == 'ON':
+                        self.fragmode = 'auto'
+                    else:
+                        self.fragmode = 'manual'
+
+                # read frag table
+                # if len(items) == 3:
+                    # print (items)
+                if items[0:3] == ['Frag.', 'Elec.', 'ATOM']:
+                    readflag = True
+                    # print('# readflag ON #')
+                    continue
+                if items[0:2] == ["ALL", "ELECTRON"]:
+                    fragdatas.append(fragdata)
+                    readflag = False
+                if items[0:2] == ["ALL", "ATOM"]:
+                    natom = int(items[3])
+                if readflag == True:
+                    if line[0:21] == "                     ":
+                        # print(line)
+                        fragdata = fragdata + items
+                    else:
+                        if len(fragdata) != 0:
+                            fragdatas.append(fragdata)
+                            elecs.append(int(elec))
+                        fragdata = []
+                        elec = items[1]
+                        fragdata = fragdata + items[2:]
+
+                if items [0:2] == ['START', 'FRAGMENT']:
+                    break
+
+                ## AUTOMATIC FRAGMENTATION
+                if items[0:3] == ['Seq.', 'Frag.', 'Residue']:
+                    autoreadflag = True
+                    continue
+
+                if autoreadflag == True and items[0:2] == ['The', 'system']:
+                    autoreadflag = False
+                    continue
+
+                if autoreadflag == True and items[0] == 'Ions':
+                    autoreadflag = False
+                    continue
+
+                if autoreadflag == True:
+                   # print(items)
+                   seqnos.append(items[0])
+                   fragnos.append(items[1])
+                   residuestr.append(items[2])
+
+            nf = len(fragdatas)
+            print('-------nf--------', nf)
+
         return nf
 
 
@@ -342,7 +420,7 @@ class anlfmo(pdio.pdb_io):
                 continue
 
             if autoreadflag == True:
-               print(items)
+               # print(items)
                seqnos.append(items[0])
                fragnos.append(items[1])
                residuestr.append(items[2])
@@ -410,7 +488,7 @@ class anlfmo(pdio.pdb_io):
                     resname_perfrag.append(residuestr[i] + seqnos[i])
                     resnamenonum_perfrag.append(residuestr[i])
                     alreadys.append(fragnos[i])
-            # print(resname_perfrag)
+#            print('resname_perfrag', resname_perfrag)
 
         self.resnamenonum_perfrag = resnamenonum_perfrag
         return resname_perfrag, pdbabs
@@ -869,7 +947,7 @@ class anlfmo(pdio.pdb_io):
             # print ([i for i in range(len(tgtdf_filter.columns))])
             adddf = pd.DataFrame([f1, f1]+ [0 for j in range(len(tgtdf_filter.columns)-2)], index=tgtdf_filter.columns).T
             tgtdf_filter = tgtdf_filter.append(adddf).sort_values('I')
-        print(tgtdf_filter.head())
+        # print(tgtdf_filter.head())
 
         hfifie = 0
         mp2corr = 0
@@ -2026,9 +2104,9 @@ class anlfmo(pdio.pdb_io):
                 for i in range(len(tgtlogs)):
                     self.resname_perfrag, tgtpdb = self.getlogorpdbfrag(self.tgtlogs[i])
                     tgtpdbs.append(tgtpdb)
-                    if self.fragmode == 'auto':
-                        print('Error: auto fragment in mol mode is not suppoted yet.')
-                        sys.exit()
+#                     if self.fragmode == 'auto':
+#                         print('Error: auto fragment in mol mode is not suppoted yet.')
+#                         sys.exit()
                     nf = self.getlognf(tgtlogs[i], self.fragmode)
                     nfs.append(nf)
                     molnames_perrec.append(self.resnames)
