@@ -656,7 +656,7 @@ MD='OFF'
                 flag = True
                 # head.append(itemList)
                 continue
-            if itemList[1] == 'Mulliken' or itemList[1] =='PIEDA':
+            if itemList[1] == 'Mulliken' or itemList[1] =='PIEDA' or itemList[1] =='NATURAL':
                 # flag = False
                 break
             if flag is True:
@@ -670,6 +670,7 @@ MD='OFF'
             except:
                 pass
 
+        # print('ifie', ifie)
         for i in range(len(ifie)):
             if float(ifie[i][4]) < -2 or float(ifie[i][5]) < -2:
                 ifie[i][4] = 0.0
