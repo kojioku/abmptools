@@ -706,8 +706,9 @@ MD='OFF'
                     flag = True
                 # head.append(itemList)
                 continue
-            if flag is True and itemList[1] == 'Mulliken':
-                flag = False
+            if flag:
+                if itemList[1] == 'Mulliken' or itemList[1] =='PIEDA' or itemList[1] =='NATURAL':
+                    flag = False
                 # break
             if flag is True:
                 count += 1
