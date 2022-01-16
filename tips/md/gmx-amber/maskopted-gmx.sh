@@ -17,10 +17,10 @@ module load amber 2> /dev/null
 # caputure time info(ps)
 stimeps=100000  # please specify the start time of production run
 etimeps=200000
-intervalps=5000
+intervalps=1000
 
-centerinfo=":1-921"
-maskinfo=":1-921"
+centerinfo=":1-xxx"
+maskinfo=":1-xxx"
 stripdist=4.0
 maskflag=true
 #--user setting end--

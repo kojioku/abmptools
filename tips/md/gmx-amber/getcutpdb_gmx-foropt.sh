@@ -18,7 +18,7 @@ module load amber 2> /dev/null
 
 prmtop=$1
 traj=$2
-centerinfo=":1-921"
+centerinfo=":1-xxx"
 dir='gmxpdbs-foropt'
 headbuf=${traj%.*}
 head=${headbuf##*/}
@@ -27,7 +27,7 @@ startframe=1
 endframe=101
 interval=1
 
-stimeps=0  # please specify the start time of production run
+stimeps=100000  # please specify the start time of production run
 intervalps=1000
 
 mkdir $dir 2> /dev/null
