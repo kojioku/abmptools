@@ -1607,6 +1607,9 @@ class anlfmo(pdio.pdb_io):
 
     def read_ifpif90(self, tgtlog):
         print('read', tgtlog)
+        if not os.path.exists(tgtlog):
+            print('Warning:', tgtlog, 'is not exist: skip data')
+            return []
         f = np.ctypeslib.load_library(self.f90sofile, ".")
 
         f.readifiepieda_.argtypes = [
