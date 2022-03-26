@@ -9,6 +9,7 @@ import time
 import copy
 import abinit_io as fab
 import collections
+import itertools
 try:
     import numpy as np
 except:
@@ -463,6 +464,25 @@ class pdb_io(fab.abinit_io):
     #14 77 - 78 元素記号
     #15 79 - 80 原子の電荷
 
+    def exportardxyzfull(self, ifile, out_file, gatmlabRes):
+
+        out_file = out_file + '.xyz'
+        print('outfile', out_file)
+
+        f = open(out_file, "w", newline = "\n")
+        itemlines = open(ifile, "r", newline = "\n").readlines()
+        print(itemlines)
+
+        #flatten gatm
+        gatms = list(itertools.chain.from_iterable(gatmlabRes))
+        print(len(gatms), file=f)
+        print("", file=f)
+        for gatm in gatms:
+            print('gatm', gatm)
+            print(itemlines[int(gatm) + 1][:-1], file=f)
+
+        return
+
     def exportardpdb(self, out_file, mollist, posRes, nameAtom, molnames_orig):
 
         ohead, ext = os.path.splitext(out_file)
@@ -540,6 +560,7 @@ class pdb_io(fab.abinit_io):
         tempRes_orig    = copy.deepcopy(self.tempRes)
         amarkRes_orig   = copy.deepcopy(self.amarkRes)
         chargeRes_orig  = copy.deepcopy(self.chargeRes)
+        gatmlabRes_orig = copy.deepcopy(self.gatmlabRes)
 
         print("totalmol:",self.totalRes)
         # getmolatomnum(_udf_, totalRes)
@@ -782,6 +803,7 @@ class pdb_io(fab.abinit_io):
         tempRes = []
         amarkRes = []
         chargeRes = []
+        gatmlabRes = []
         # for i in range(totalRes):
         for i in neighborindex:
         # for i in range(1, 2):
@@ -797,6 +819,7 @@ class pdb_io(fab.abinit_io):
             tempRes.append(self.tempRes[i])
             amarkRes.append(self.amarkRes[i])
             chargeRes.append(self.chargeRes[i])
+            gatmlabRes.append(self.gatmlabRes[i])
 
         self.posRes = posRes
         self.atmtypeRes = atmtypeRes
@@ -810,6 +833,7 @@ class pdb_io(fab.abinit_io):
         self.tempRes = tempRes
         self.amarkRes = amarkRes
         self.chargeRes = chargeRes
+        self.gatmlabRes = gatmlabRes
 
         # get atomnum
         atomnums = []
@@ -834,6 +858,8 @@ class pdb_io(fab.abinit_io):
         # refresh
         index = [i for i in range(len(posRes))]
         self.exportardpdbfull(opath + '/' + oname, index)
+        self.exportardxyzfull(os.path.splitext(fname)[0] + '.xyz', opath + '/' + oname, gatmlabRes)
+
 
         self.make_abinput_rmap(tgtmolnames, resnames, oname, opath, atomnums)
         # monomer structure
