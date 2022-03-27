@@ -178,14 +178,14 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
                 prog='readcif.py', # program name
-                usage='python readcif.py -c xxx.cif -odir dir', # program usage
+                usage='python readcif.py -i xxx.cif -odir dir', # program usage
                 description='readcif script',
                 epilog='end',
                 add_help=True,
                 )
 
     # add args
-    parser.add_argument('-c', '--coord',
+    parser.add_argument('-i', '--input',
                         help='coordinate file (pdb)',
                         nargs='*',
                         action='append',
