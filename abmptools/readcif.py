@@ -186,7 +186,7 @@ if __name__ == '__main__':
 
     # add args
     parser.add_argument('-i', '--input',
-                        help='coordinate file (pdb)',
+                        help='input coordinate file (pdb)',
                         nargs='*',
                         action='append',
                         required=True)
@@ -248,7 +248,7 @@ if __name__ == '__main__':
     # get args
     args = parser.parse_args()
 
-    print('coord(cif) =', args.coord)
+    print('coord(cif) =', args.input)
     print('odir = ', args.odir)
     print('atomnum = ', args.atomnum)
     print('layer =', args.layer)
@@ -287,7 +287,7 @@ if __name__ == '__main__':
     # print(argvs)
 
     # infile = argvs[1]
-    infiles = args.coord
+    infiles = args.input
     # odir = argvs[2]
     odir = args.odir
     xyzdir = odir + '/layer' + str(args.layer) + '/xyz'
