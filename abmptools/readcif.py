@@ -116,6 +116,7 @@ def intocell(incoords, anum_mol):
                 # print('mean', statistics.mean(coords))
             newcoordss.extend(coords)
         # print('newcoordss', newcoordss)
+
     elif len(anum_mol) == 1:
         coordss = []
         a1 = anum_mol[0]
@@ -178,7 +179,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
                 prog='readcif.py', # program name
-                usage='python readcif.py -i xxx.cif -odir dir', # program usage
+                usage='python readcif.py -i xxx.cif --atomnum xx -l x', # program usage
                 description='readcif script',
                 epilog='end',
                 add_help=True,
@@ -260,16 +261,6 @@ if __name__ == '__main__':
     print('out', args.noout)
     print('min', args.min)
 
-    ## -- user setiing
-    # anum_inmol = [24]
-    # anum_inmol =[7, 55]
-    # anum_inmol = [32] # csp7 31
-    # anum_inmol =[47, 14]
-    # anum_inmol =[24, 1] clonidine_hydrochloride2-PCS.cif
-    # anum_inmol =[21, 1] hydralazine_hydrochloride200-PCS.cif
-    # anum_inmol =[24, 17] CA_GA_2csp-PCS.cif
-    # anum_inmol =[24, 0]
-
     calc_dist = args.calcdist
     tgtdist = args.dist
 
@@ -286,9 +277,7 @@ if __name__ == '__main__':
     # argvs = sys.argv
     # print(argvs)
 
-    # infile = argvs[1]
     infiles = args.input
-    # odir = argvs[2]
     odir = args.odir
     xyzdir = odir + '/layer' + str(args.layer) + '/xyz'
     pdbdir = odir + '/layer' + str(args.layer) + '/pdb'
@@ -310,10 +299,8 @@ if __name__ == '__main__':
 
     if os.path.exists(odir) is False:
         os.makedirs(odir)
-
     if os.path.exists(xyzdir) is False:
         os.makedirs(xyzdir)
-
     if not os.path.exists(pdbdir) and pdbflag:
         os.makedirs(pdbdir)
 
@@ -337,7 +324,6 @@ if __name__ == '__main__':
         coordsmol = []
 
         symflag = False
-        symend = False
         symxyzs = []
         symxyz = []
 
@@ -345,18 +331,21 @@ if __name__ == '__main__':
         length = []
         lengthmol = []
         anglemol = []
+        paxnums = []
         znum = []
         acolumns = []
         acolumnsflag = False
         scolumns = []
         scolumnsflag = False
-
+        is_eq_pax = False
+        paxnum = 0
 
         ## get line
         for i in range(len(lines)):
             line = lines[i].split()
             if len(line) == 0:
                 continue
+            # CONFLEX case
             if line[0:2] == ['#', 'CONFLEX8']:
                 if num > maxnum:
                     break
@@ -371,13 +360,44 @@ if __name__ == '__main__':
                     line[1] = line[1] + line[2] + line[3] + line[4]
                 sym = line[1].replace("'", '').upper()
                 print('space group:', sym)
-#                 if sym in symlist:
-#                     pass
-#                 else:
-#                     print(sym, 'Not supported yet.')
-#                     sys.exit()
 
-            ## get length and line
+            ## get _symmetry
+            if '_symmetry_equiv_pos' in line[0]:
+                print(line[0])
+                scolumns.append(line[0])
+                scolumnsflag = True
+                if line[0] == '_symmetry_equiv_pos_as_xyz':
+                    print('start!!!!')
+                    is_eq_pax = True
+                    paxnum = 0
+                continue
+            if scolumnsflag:
+                if '_symmetry_equiv_pos' not in line[0]:
+                    scolumnsflag = False
+                    symflag = True
+                    xyzsym_idx = scolumns.index('_symmetry_equiv_pos_as_xyz')
+                    print('xyzsym_idx', xyzsym_idx)
+
+            if symflag == True:
+                print(line[0:1])
+                if 'loop_' in line[0] or '_cell' in line[0]:
+                    symflag = False
+                    symxyzs.append(symxyz)
+                    symxyz = []
+                else:
+                    symxyz.append(line[xyzsym_idx].split(','))
+                    print(symxyz)
+
+            # stop count equiv pos as xyz
+            if is_eq_pax:
+                if line[0:1] == ['_cell_length_a']:
+                    print('stop!')
+                    is_eq_pax = False
+                    paxnums.append(paxnum)
+                else:
+                    paxnum += 1
+
+            ## get cell length and line
             if line[0:1] == ['_cell_length_a']:
                 length.append(float(line[1]))
                 continue
@@ -411,34 +431,6 @@ if __name__ == '__main__':
                 length = []
                 angle = []
 
-            ## get _symmetry
-            if '_symmetry_equiv_pos' in line[0]:
-                print(line[0])
-                scolumns.append(line[0])
-                scolumnsflag = True
-                continue
-            if scolumnsflag == True:
-                if '_symmetry_equiv_pos' not in line[0]:
-                    scolumnsflag = False
-                    symflag = True
-                    xyzsym_idx = scolumns.index('_symmetry_equiv_pos_as_xyz')
-                    print('xyzsym_idx', xyzsym_idx)
-            if symflag == True:
-                print(line[0:1])
-                if 'loop_' in line[0] or '_cell' in line[0]:
-                    symflag = False
-                    symend = True
-                    continue
-
-                symxyz.append(line[xyzsym_idx].split(','))
-                print(symxyz)
-
-            if symend == True:
-                symend = False
-                symxyzs.append(symxyz)
-                symxyz = []
-
-
             ## get coord
             if '_atom_site' in line[0] and '_geom' not in line[0]:
                 print(line[0])
@@ -463,6 +455,7 @@ if __name__ == '__main__':
                 atoms.append(line[symbol_idx])
                 coords.append([float(line[x_idx]), float(line[y_idx]), float(line[z_idx])])
 
+            # end read coord xyz and save for list
             if coordend == True:
                 coordend = False
                 atomsmol.append(atoms)
@@ -478,6 +471,8 @@ if __name__ == '__main__':
     #     print(len(lengthmol))
     #     print(len(anglemol))
 
+        print('znum', znum)
+        print('paxnums', paxnums)
         # initialize
         a_xyz = [0] * 3
         b_xyz = [0] * 3
@@ -491,12 +486,14 @@ if __name__ == '__main__':
         xyzsmol = []
         xyzs27mols = []
         truemolid = []
+        zprime = []
         molnum = len(atomsmol)
         atomnum = len(atomsmol[0])
         print('molnum', molnum)
         print('atomnum', atomnum)
 
         ## get cartesian  coordinate
+        # i: datanum in each cif file
         for i in range(molnum):
             print('\nrun mol', i)
             tgtflag = False
@@ -509,15 +506,24 @@ if __name__ == '__main__':
             as_list = []
             bs_list = []
             cs_list = []
-            for z_id in range(znum[i]):
+
+            # compare znum and num(equiv_pos_as_xyz)
+            # zprime = znum / eq_pax
+            zprime.append(int(znum[i] / paxnums[i]))
+
+            # f = open('zprime.log', 'a')
+            # print("Z'=", zprime[i], file=f)
+
+            for z_id in range(paxnums[i]):
                 a_s = []
                 b_s = []
                 c_s = []
+                # j: atomnum
                 for j in range(atomnum):
-                    # print('atom', j)
                     atoms = atomsmol[i][j]
                     coords = coordsmol[i][j]
 
+                    # get symmetry_equiv_pos_as_xyz from cif file
                     acoord = getsymcoord(symxyzs[i][z_id][0], coords[0])
                     bcoord = getsymcoord(symxyzs[i][z_id][1], coords[1])
                     ccoord = getsymcoord(symxyzs[i][z_id][2], coords[2])
@@ -525,6 +531,11 @@ if __name__ == '__main__':
                     a_s.append(copy.deepcopy(acoord))
                     b_s.append(copy.deepcopy(bcoord))
                     c_s.append(copy.deepcopy(ccoord))
+
+                if len(anum_inmol) == 1:
+                    anum_inmol *= zprime[i]
+                if len(anum_inmol) == 2 and zprime[i] == 1:
+                    print("Z' != 1 and multi-type mol is not supported.")
 
                 # print(len(a_s))
                 a_s = copy.deepcopy(intocell(a_s, anum_inmol))
@@ -546,7 +557,6 @@ if __name__ == '__main__':
                     b_xyzs.append(copy.deepcopy(b_xyz))
                     c_xyzs.append(copy.deepcopy(c_xyz))
 
-
     #             print('cartesian section')
     #             print('a_xyzs', a_xyzs)
     #             print('b_xyzs', b_xyzs)
@@ -562,6 +572,7 @@ if __name__ == '__main__':
     #             print('xyzs', xyzs)
     #             print(len(xyzs))
     #             print(atomsmol[i])
+
                 xyzs_sym.append(copy.deepcopy(xyzs))
                 xyzs = []
                 a_xyzs = []
@@ -591,9 +602,8 @@ if __name__ == '__main__':
                         count = 0
                         i += 1
                 return permols
+
             # calc dist
-
-
             as_27 = []
             bs_27 = []
             cs_27 = []
@@ -643,6 +653,7 @@ if __name__ == '__main__':
             # print(as_27, bs_27, cs_27)
             # sys.exit()
 
+            # --- calc_dist case ---
             # print(a_s)
             distdatas = []
             distvals = []
@@ -742,7 +753,7 @@ if __name__ == '__main__':
                 number = ''
             else:
                 number = '%05d' % i
-            oname = xyzdir + '/' + out + number + 'layer' + str(args.layer) + '.xyz'
+            oname = xyzdir + '/' + out + number + 'layer' + str(args.layer) + 'Zp' + str(zprime[i]) + '.xyz'
             fo = open(oname, 'w')
             print(len(xyzs27mols[i]), file=fo)
             print('', file=fo)
@@ -764,6 +775,4 @@ if __name__ == '__main__':
     if pdbflag and not args.noout:
         pdbs = glob.glob(xyzdir + '/*pdb')
         for pdb in pdbs:
-            shutil.move(pdb, pdbdir)
-
-
+            shutil.move(pdb, pdbdir + '/' + pdb.split('/')[-1])
