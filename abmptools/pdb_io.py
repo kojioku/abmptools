@@ -470,18 +470,18 @@ class pdb_io(fab.abinit_io):
         print('outfile', out_file)
 
         f = open(out_file, "w", newline = "\n")
-        itemlines = open(ifile, "r", newline = "\n").readlines().split()
+        itemlines = open(ifile, "r", newline = "\n").readlines()
         print(itemlines)
 
         #flatten gatm
         gatms = list(itertools.chain.from_iterable(gatmlabRes))
-        print(len(gatms), file=f)
-        print("", file=f)
+        # print(len(gatms), file=f)
+        # print("", file=f)
         xyzi = 0
         for gatm in gatms:
             xyzi += 1
-            print('gatm', gatm)
-            tgt = itemlines[int(gatm) + 1]
+            # print('gatm', gatm)
+            tgt = itemlines[int(gatm) + 1].split()
             print(str(xyzi), tgt[0], '1', tgt[1], tgt[2], tgt[3], '1', file=f)
 
         return
