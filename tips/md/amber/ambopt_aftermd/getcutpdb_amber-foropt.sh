@@ -113,9 +113,9 @@ done < inbuf.txt
 echo "parminfo $prmtop" >> cpptraj.in
 echo "autoimage anchor $centerinfo origin" >> cpptraj.in
 
-for i in `seq $stime_inprod $interval $stime_inprod`
+for i in `seq $sframe_inprod $ivframe $sframe_inprod`
 do
-    label=`echo "$i + $stime" | bc`
+    label=`echo "$i + $sframe - 1" | bc`
     newtraj=tgt${label}.rst
     echo "trajout $newtraj onlyframes $i restart" >> cpptraj.in
 done
