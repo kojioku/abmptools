@@ -99,10 +99,10 @@ if "$maskflag"; then
     cpptraj < cpptraj_mask.in
 fi
 
-echo "$dir/mdout.pdb ($sframe,$eframe) was generated."
+echo "$dir/mdout.pdb ($stime,$etime) was generated."
 
 num=1
-for i in `seq $sframe $ivframe $eframe`
+for i in `seq $stime $ivtime $etime`
 do
     mv $dir/$head.pdb.$num $dir/${head}.pdb.${i}
     num=$((num+1))

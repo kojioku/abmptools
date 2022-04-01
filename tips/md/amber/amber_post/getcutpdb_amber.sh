@@ -66,14 +66,14 @@ do
     fi
     buf=${traj%.*}
     number=${buf##*.}
-    if [ $number -le $sframe ]; then
+    if [ $number -le $stime ]; then
         echo $traj skip
     else
         trajs_filt="$trajs_filt $traj"
     fi
 
-    if [ $number -ge $eframe ]; then
-        echo $traj: last 
+    if [ $number -ge $etime ]; then
+        echo $traj: last
         break
     fi
 done
@@ -126,7 +126,7 @@ if "$maskflag"; then
 fi
 
 num=1
-for i in `seq $sframe $ivframe $eframe`
+for i in `seq $stime $interval $etime`
 do
     echo $num to $i
     # future work: add zero pading
@@ -134,5 +134,5 @@ do
     num=$((num+1))
 done
 
-echo "$dir/mdout.pdb ($sframe,$eframe) was generated."
+echo "$dir/mdout.pdb ($stime,$etime) was generated."
 

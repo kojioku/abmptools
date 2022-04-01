@@ -54,5 +54,5 @@ echo "trajout $dir/${head}.pdb multi start $sframe stop $eframe offset $ivframe"
 echo 'run' >> cpptraj.in
 cpptraj < cpptraj.in
 
-echo "$dir/mdout.pdb ($sframe,$eframe) was generated."
+echo "$dir/mdout.pdb ($stime,$etime) was generated."
 

@@ -30,5 +30,5 @@ echo "crdout coord mdout/${head}.pdb multi crdframes $sframe,$eframe,$ivframe" >
 echo 'run' >> cpptraj.in
 cpptraj < cpptraj.in
 
-echo "mdout/mdout.pdb ($sframe,$eframe) was generated."
+echo "mdout/mdout.pdb ($stime,$etime) was generated."
 
