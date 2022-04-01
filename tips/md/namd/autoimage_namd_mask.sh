@@ -63,5 +63,5 @@ echo "mask \"$centerinfo<:$stripdist\" maskpdb $dir/$head.pdb" >> cpptraj.in
 echo 'run' >> cpptraj.in
 cpptraj < cpptraj.in
 
-echo "$dir/mdout.pdb ($sframe,$eframe) was generated."
+echo "$dir/mdout.pdb ($stime,$etime) was generated."
 

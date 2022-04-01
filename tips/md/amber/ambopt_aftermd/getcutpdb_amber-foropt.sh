@@ -66,13 +66,13 @@ do
     fi
     buf=${traj%.*}
     number=${buf##*.}
-    if [ $number -le $sframe ]; then
+    if [ $number -le $stime ]; then
         echo $traj skip
     else
         trajs_filt="$trajs_filt $traj"
     fi
 
-    if [ $number -ge $eframe ]; then
+    if [ $number -ge $etime ]; then
         echo $traj: last
         break
     fi
@@ -113,9 +113,9 @@ done < inbuf.txt
 echo "parminfo $prmtop" >> cpptraj.in
 echo "autoimage anchor $centerinfo origin" >> cpptraj.in
 
-for i in `seq $sframe_inprod $ivframe $eframe_inprod`
+for i in `seq $stime_inprod $interval $stime_inprod`
 do
-    label=`echo "$i + $sframe - 1" | bc`
+    label=`echo "$i + $stime" | bc`
     newtraj=tgt${label}.rst
     echo "trajout $newtraj onlyframes $i restart" >> cpptraj.in
 done
@@ -125,5 +125,5 @@ cpptraj < cpptraj.in
 
 mv tgt*.rst $dir
 cp $prmtop $dir
-echo "$dir/tgt*.rst ($sframe,$eframe) was generated."
+echo "$dir/tgt*.rst ($stime,$etime) was generated."
 

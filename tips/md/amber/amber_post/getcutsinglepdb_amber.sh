@@ -60,7 +60,7 @@ do
     buf=${traj%.*}
     number=${buf##*.}
     trajs_filt="$trajs_filt $traj"
-    if [ $number -ge $tgtframe ]; then
+    if [ $number -ge $tgttime ]; then
         echo $traj: last 
         break
     fi
@@ -71,7 +71,7 @@ newtraj='tgt.pdb'
 
 #-- print section --
 echo "## input info"
-echo - tgtframe, $tgttime
+echo - tgttime, $tgttime
 echo - centerinfo, $centerinfo
 echo - stripdist, $stripdist
 echo - tgtframe, $tgtframe
@@ -102,9 +102,9 @@ if "$maskflag"; then
     cpptraj < cpptraj_mask.in
 fi
 
-echo 1 to $tgtframe
+echo 1 to $tgttime
 # future work: add zero pading
-mv $dir/${head}.pdb.1 $dir/${head}-${tgtframe}ps.pdb
+mv $dir/${head}.pdb.1 $dir/${head}-${tgttime}ps.pdb
 
-echo "$dir/mdout.pdb ($tgtframe) was generated."
+echo "$dir/mdout.pdb ($tgttime) was generated."
 
