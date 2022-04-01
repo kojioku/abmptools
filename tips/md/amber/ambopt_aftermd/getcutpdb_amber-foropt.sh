@@ -115,7 +115,7 @@ echo "autoimage anchor $centerinfo origin" >> cpptraj.in
 
 for i in `seq $sframe_inprod $ivframe $sframe_inprod`
 do
-    label=`echo "$i + $sframe - 1" | bc`
+    label=`echo "($i + $sframe -1) * $sampletime" | bc | awk '{printf("%d\n",$1)}'`
     newtraj=tgt${label}.rst
     echo "trajout $newtraj onlyframes $i restart" >> cpptraj.in
 done
