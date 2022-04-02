@@ -15,15 +15,12 @@ module load amber 2> /dev/null
 
 #--user setting--
 # caputure time info(ps)
-stime=1100  # please specify the start time of production run
+stime=41100  # please specify the start time of production run
 etime=51100
-interval=10000
-sampletime=1.0
+interval=1000
+sampletime=0.5
 
-centerinfo=":1-306"
-maskinfo=":1-312"
-stripdist=4.0
-maskflag=true
+centerinfo=":1-151"
 #--user setting end--
 
 
@@ -113,17 +110,26 @@ done < inbuf.txt
 echo "parminfo $prmtop" >> cpptraj.in
 echo "autoimage anchor $centerinfo origin" >> cpptraj.in
 
-for i in `seq $sframe_inprod $ivframe $sframe_inprod`
+for i in `seq $sframe_inprod $ivframe $eframe_inprod`
 do
     label=`echo "($i + $sframe -1) * $sampletime" | bc | awk '{printf("%d\n",$1)}'`
-    newtraj=tgt${label}.rst
+    newtraj=tgt${label}ps.rst
     echo "trajout $newtraj onlyframes $i restart" >> cpptraj.in
 done
 echo 'run' >> cpptraj.in
-cpptraj < cpptraj.in
+
+today=$(date "+%Y%m%d")
+ofile="getcutpdb-foropt.${today}.log"
+
+cpptraj < cpptraj.in | tee $ofile
 
 
 mv tgt*.rst $dir
 cp $prmtop $dir
 echo "$dir/tgt*.rst ($stime,$etime) was generated."
 
+
+echo `date` >> $ofile
+echo $prmtop >> $ofile
+echo $traj >> $ofile
+echo $starttime, $endtime, $interval >> $ofile
