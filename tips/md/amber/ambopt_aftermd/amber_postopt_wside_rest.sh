@@ -1,5 +1,18 @@
 #!/bin/bash
 # Author: Koji Okuwaki
+
+# OpenPBS(qsub)ディレクティブ(#PBS始まり行)
+## gpu設定
+## 長時間実行する場合は、select=ngpus=1:gpu_id=gpu0のようにgpuを指定してください
+#PBS -l select=ncpus=10:ngpus=1 
+
+# TSUBAME(qsub)ディレクティブ(#$始まり行)
+#$ -l f_node=1                 ## * [資源タイプ名]=[使用ノード数個数]
+#$ -l h_rt=24:00:00             ## * 経過時間 -> Max 24時間までです。
+#$ -p -5                      ## * ジョブの優先度 *デフォルトは-5です。
+# カレントディレクトリに移動
+#$ -cwd
+
 set -e
 
 # optimize program using AMBER program after MD
@@ -7,14 +20,24 @@ set -e
 # input: all .rst files in directory
 # output: optimize structure (1.Hopt -> 2.SCopt(w/restraint) -> 3.Hopt)
 
+## カレントディレクトリに移動(OpenPBSの場合)
+if [ ""$PBS_O_WORKDIR != "" ]; then cd $PBS_O_WORKDIR; fi
+
+# load amber
+module load amber
+
 # -- user setting --
-np=8
-mpi="mpirun -np $np"
-ambermin="pmemd.MPI"
-prmtop=$1
+# np=4
+#mpi="mpirun -np $np"
+mpi=""
+ambermin="pmemd.cuda"
+# ambermin="pmemd"
+# prmtop=$1
+prmtop=`ls *.prmtop`
 backbone="@N,CA,C,O3',C3',C4',C5',O5',P"
 trajs=`ls tgt*.rst`
 # ---------
+
 
 function run_cp_md(){
 \cp -f $3 inpcrd
