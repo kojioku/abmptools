@@ -32,6 +32,11 @@ if __name__ == "__main__":
                         help='parameter file',
                         default='input_param')
 
+    parser.add_argument('-xyz', '--xyz',
+                        help='xyz mode',
+                        action='store_true'
+                        )
+
     parser.add_argument('-noreid', '--norefreshresid',
                         help='refreshresid',
                         action='store_false'
@@ -63,14 +68,14 @@ if __name__ == "__main__":
             aobj.refreshresid = True
         if args.norefreshatmtype:
             aobj.refreshatmtype = True
-
+        if args.xyz:
+            aobj.is_xyz = True
         print('--- info ---')
         print('setup mode', aobj.cutmode)
         print('piedaflag', aobj.piedaflag)
         print('cmmflag', aobj.cmmflag)
         print('refreshresid', aobj.refreshresid)
         print('refreshatmtype', aobj.refreshatmtype)
-
 
         if aobj.cutmode == 'sphere':
             oname = oname + '-' + aobj.cutmode + 'p' + str(aobj.tgtpos[0]) + '_' + str(aobj.tgtpos[1]) + '_' + str(aobj.tgtpos[2]) + '_ar' + str(aobj.criteria)
