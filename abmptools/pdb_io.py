@@ -471,19 +471,21 @@ class pdb_io(fab.abinit_io):
 
         f = open(out_file, "w", newline = "\n")
         itemlines = open(ifile, "r", newline = "\n").readlines()
-        print(itemlines)
+        # print(itemlines)
 
         #flatten gatm
         gatms = list(itertools.chain.from_iterable(gatmlabRes))
-        # print(len(gatms), file=f)
-        # print("", file=f)
+        self.natom = len(gatms)
+        print(len(gatms), file=f)
+        print("", file=f)
         xyzi = 0
         for gatm in gatms:
             xyzi += 1
             # print('gatm', gatm)
             tgt = itemlines[int(gatm) + 1].split()
-            print(str(xyzi), tgt[0], '1', tgt[1], tgt[2], tgt[3], '1', file=f)
-
+            print(tgt[0], tgt[1], tgt[2], tgt[3], file=f)
+            self.xyzstr += str(xyzi) + ' ' + tgt[0] + ' 1 ' + ' ' + tgt[1] + ' ' + tgt[2] + ' ' + tgt[3] + ' 1\n'
+        print(self.xyzstr)
         return
 
     def exportardpdb(self, out_file, mollist, posRes, nameAtom, molnames_orig):
@@ -861,8 +863,9 @@ class pdb_io(fab.abinit_io):
         # refresh
         index = [i for i in range(len(posRes))]
         self.exportardpdbfull(opath + '/' + oname, index)
-        self.exportardxyzfull(os.path.splitext(fname)[0] + '.xyz', opath + '/' + oname, gatmlabRes)
 
+        if self.is_xyz:
+            self.exportardxyzfull(os.path.splitext(fname)[0] + '.xyz', opath + '/' + oname, gatmlabRes)
 
         self.make_abinput_rmap(tgtmolnames, resnames, oname, opath, atomnums)
         # monomer structure

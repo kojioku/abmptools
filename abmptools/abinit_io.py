@@ -66,6 +66,9 @@ class abinit_io(mi.mol_io):
         self.mldatname = None
         self.mllimit = None
         self.disp = False
+        self.is_xyz = False
+        self.natom = 0
+        self.xyzstr = ''
         # distlitname
 
         # frag table
@@ -188,13 +191,15 @@ class abinit_io(mi.mol_io):
     def gen_ajf_body(self, param, fzctemp="YES"):
         ajf_charge, ajf_fragment, num_fragment, MOME_flag = param
 
-        if self.autofrag == True:
+        if self.autofrag:
             auto = 'ON'
         else:
             auto = 'OFF'
 
+        if not self.is_xyz:
+            self.natom = 0
 
-        if MOME_flag is True:
+        if MOME_flag:
             frag_section = """
 NF= """ + str(num_fragment) + """
 LMOTYP='MOME' """
@@ -219,14 +224,14 @@ ElecState='S1'
 Method='""" + str(self.ajf_method) + """'
 Nprint=3
 Memory=""" + str(self.memory) + """
-Natom=0
-Charge=""" + str(ajf_charge) + """
-ReadGeom='""" + str(self.readgeom) + "'\n"
-
-        if self.cpfflag == True:
+Natom=""" + str(self.natom) + """
+Charge=""" + str(ajf_charge) + "\n"
+        if not self.is_xyz:
+            ajf_body += """ReadGeom='""" + str(self.readgeom) + "'\n"
+        if self.cpfflag:
             ajf_body += "WriteGeom=" + str(self.writegeom) + "\n"
             ajf_body += "CPFVER=" + str(self.cpfver) + "\n"
-        if self.mldatfrag is True:
+        if self.mldatfrag:
             ajf_body += "WriteMLdata=" + str(self.mldatname) + "\n"
         if self.mllimit not in [0, None]:
             ajf_body += "MLfraglimit=" + str(self.mllimit) + "\n"
@@ -504,7 +509,7 @@ LPRINT=2
 
         ajf_body += str(new_section2) + """
 &XYZ
-/
+""" + self.xyzstr + """/
 
 &FRAGMENT
 """ + str(ajf_fragment) + """
