@@ -148,7 +148,10 @@ if __name__ == '__main__':
 
     if args.fraginmol != None:
         aobj.anlmode = 'fraginmol'
-        aobj.tgtmolid = int(args.fraginmol[0])
+        try:
+            aobj.tgtmolid = int(args.fraginmol[0])
+        except:
+            aobj.tgtmolid = args.fraginmol[0]
         aobj.tgt1_lofrag = int(args.fraginmol[1])
         aobj.tgt2molname = args.fraginmol[2]
         aobj.tgt2_lofrag = int(args.fraginmol[3])

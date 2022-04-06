@@ -211,6 +211,7 @@ class anlfmo(pdio.pdb_io):
 
 
     def getallmolfrags(self, logname, df, nf):
+        # fragment connect is judged by checking frag-frag distance
         alfrags = []
         molfragss = []
         for i in range(1, nf+1):
@@ -1487,7 +1488,9 @@ class anlfmo(pdio.pdb_io):
 
         print('### read frag info ###')
 
+        # molfragss
         molfragss = self.getallmolfrags(self.tgtlogs[i], ifdf, self.nfs[i])
+        # molfragss fragment ids per mol (fragment connect is judged by checking frag-frag distance)
         print('molfragss', molfragss)
         print('len molfragss', len(molfragss))
 
@@ -1748,6 +1751,7 @@ class anlfmo(pdio.pdb_io):
                 return None
             ifdf, pidf = dfs
 
+        # note: nof90 mode only can get momnomer energy
         else:
             dfs = self.read_ifiepiedas(self.tgtlogs[i])
             if len(dfs) == 0:
@@ -1759,6 +1763,7 @@ class anlfmo(pdio.pdb_io):
         print('tgttimes', self.tgttimes[i])
         print('tgt2type', tgt2type)
 
+        # frag mode
         if tgt2type == 'frag':
             if self.matrixtype == 'times-frags':
                 hfdfs = []
@@ -1793,10 +1798,12 @@ class anlfmo(pdio.pdb_io):
                 iftgtdfsum = None
                 return ifdf_filter
 
+        # molname mode
         if tgt2type == 'molname':
             ifdf_filters, ifdfsums = self.getfiltifpifm(i, ifdf, pidf)
             return ifdf_filters, ifdfsums
 
+        # dist or dimer-es mode
         if tgt2type in ['dist','dimer-es']:
             ifdf_filter, ifdfsum  = self.getfiltifpifd(i, ifdf, pidf, momenedf)
             return ifdf_filter, ifdfsum
@@ -1819,16 +1826,19 @@ class anlfmo(pdio.pdb_io):
             st = time.time()
             p = Pool(self.pynp)
 
+            # chack f90 library
             if self.f90soflag == True:
                 print("use fortran library")
 
+            # main-read module
             ifpidfs = p.map(self.read_ifpimulti, [i for i in range(len(self.tgtlogs))])
-             # i: time j:type, k:tgt1frag
+            # i: time j:type, k:tgt1frag
             # [[hfdf[time 1][frag 1, frag2...], , mp2df[time 1], ...], [hfdf[time 2], mp2df[time 2], ...], ...]
 
             pd.set_option('display.width', 500)
             print('valid data num:', len(ifpidfs))
 
+            # delete label of unfinished log
             delids = []
             for i in range(len(ifpidfs)):
                 try:
