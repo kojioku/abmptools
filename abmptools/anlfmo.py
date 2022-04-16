@@ -1605,6 +1605,7 @@ class anlfmo(pdio.pdb_io):
 #                 ifdf_filter.I = ifdf_filter.I.replace(j, frags[j-1])
 #                 ifdf_filter.J = ifdf_filter.J.replace(j, frags[j-1])
 
+        # print(ifdf_filter)
         return ifdf_filter, ifdfsum
 
 
@@ -1837,6 +1838,7 @@ class anlfmo(pdio.pdb_io):
 
             pd.set_option('display.width', 500)
             print('valid data num:', len(ifpidfs))
+            # print(ifpidfs)
 
             # delete label of unfinished log
             delids = []
@@ -1898,9 +1900,10 @@ class anlfmo(pdio.pdb_io):
                 self.ifdfsum = pd.DataFrame(columns=self.ifdfsumcolumn)
 
                 for dfs in ifpidfs:
-                    for j in dfs[0]:
-                        self.ifdf_filters = self.ifdf_filters.append(dfs[0])
-                        self.ifdfsum = self.ifdfsum.append(dfs[1])
+                    # for j in dfs:
+                        # print('aaaaa', j)
+                    self.ifdf_filters = self.ifdf_filters.append(dfs[0])
+                    self.ifdfsum = self.ifdfsum.append(dfs[1])
 
             if self.tgt2type in ['molname']:
                 self.ifdf_filters = []
