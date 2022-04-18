@@ -38,14 +38,23 @@ if __name__ == "__main__":
 
     parser.add_argument('-o', '--output',
                         help='output file',
-                        default='out-forfmo')
+                        default=None)
+
+    parser.add_argument('-s', '--solutes',
+                        help='solute id',
+                        nargs = '*',
+                        type=int,
+                        default=None,)
 
     # get args
     args = parser.parse_args()
 
     print('coord(udf) =', args.incoord)
     print('parameter = ', args.parameter)
-    print('out(pdb, ajf) = ', args.output)
+
+    is_solutes = False
+    if args.solutes != None:
+        is_solutes = True
 
     _udf_ = UDFManager(args.incoord)
 
@@ -58,6 +67,20 @@ if __name__ == "__main__":
     param_rfmo = param_read['param']
     aobj.setrfmoparam(param_rfmo)
 
+    if is_solutes:
+        aobj.solutes = args.solutes
+
+    print('solutes', aobj.solutes)
+
+    if args.output == None:
+        oname= os.path.splitext(args.incoord)[0].split('/')[-1] + '-' + aobj.cutmode
+
+        if aobj.cutmode == 'around':
+            oname += str(aobj.solutes[0]) + '-' + str(aobj.solutes[-1])
+    else:
+        oname = args.output
+    print('out(pdb, ajf) = ', oname)
+
     aobj.mainpath = '.'
     aobj.getcontact_rmapfmo(
-        totalRec-1, _udf_, totalMol, totalMol, path, args.output)
+        totalRec-1, _udf_, totalMol, totalMol, path, oname)
