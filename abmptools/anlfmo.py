@@ -1361,7 +1361,7 @@ class anlfmo(pdio.pdb_io):
 
         if not flag and not pflag:
             print("can't read ifie", fname.split("/")[-1])
-            return [], [], []
+            return [], [], [], []
 
         for i in range(len(ifie)):
             if float(ifie[i][4]) < -2:
@@ -1619,7 +1619,7 @@ class anlfmo(pdio.pdb_io):
             momlabel = 'MonomerEnergy(' + str(self.momfrag) + ')'
         except:
             momene_tgt = None
-            momlabel = 'MonomerEnergy'
+            momlabel = 'MonomerEnergy(' + str(self.momfrag) + ')'
 
         try:
             # dimene_tgt = momenedf['HF'][0] + momenedf['MP2'][0]
@@ -1629,7 +1629,8 @@ class anlfmo(pdio.pdb_io):
 
         except:
             dimene_tgt = None
-            dimlabel = 'DimerEnergy'
+            dimlabel = 'DimerEnergy(' + str(self.dimfrag1) + '-' + str(self.dimfrag2) + ')'
+
 
         ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum, momene_tgt, dimene_tgt], index=self.ifdfsumcolumn + [momlabel, dimlabel], name=self.tgttimes[i])
         # print(ifdfsum)

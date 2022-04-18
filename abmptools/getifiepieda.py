@@ -115,7 +115,7 @@ if __name__ == '__main__':
                         help='monomer energy label',
                         nargs=1,
                         type=int,
-                        default=1)
+                        default=[1])
 
     # get args
     args = parser.parse_args()
