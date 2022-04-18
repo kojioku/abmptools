@@ -299,6 +299,10 @@ class udf_io(molc.molcalc):
         print('totalAtm:', totalAtm)
         print('cellinfo:', cell)
 
+        molnamelist = self.getnamelist([i for i in range(totalMol)], uobj, totalMol)
+        import collections
+        print(collections.Counter(molnamelist))
+
         return totalMol, totalRec, totalAtm, cell
 
     def gettotalmol_rec(self, uobj):
