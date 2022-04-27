@@ -2101,7 +2101,8 @@ class anlfmo(pdio.pdb_io):
                         if self.tgt1frag in self.tgt1frag:
                             del self.tgt1frag[self.tgt1frag.index(self.tgt1frag)]
                     else:
-                        self.tgt1frag = [eval(item1)]
+                        self.tgt1frag = list(map(int, item1.split(',')))
+                        print(self.tgt1frag)
                 else:
                         self.tgt1frag = item1
 
@@ -2132,7 +2133,8 @@ class anlfmo(pdio.pdb_io):
                             if self.tgt1frag in self.tgt2frag:
                                 del self.tgt2frag[self.tgt2frag.index(self.tgt1frag)]
                         else:
-                            self.tgt2frag = [eval(item2)]
+                            self.tgt2frag = list(map(int, item2.split(',')))
+                            print(self.tgt2frag)
                     else:
                             self.tgt2frag = [item2]
                     if type(self.tgt2frag) == list:
@@ -2183,11 +2185,12 @@ class anlfmo(pdio.pdb_io):
                     self.tgtmolid = int(item2)
                 else:
                     print('item2', item2)
-                    if type(eval(item2)) != list:
-                        self.tgt1frag = [item2]
-                    else:
-                        self.tgt1frag = eval(item2)
-
+#                     if type(eval(item2)) != list:
+#                         self.tgt1frag = [item2]
+#                     else:
+#                         self.tgt1frag = eval(item2)
+                    self.tgt1frag = list(map(int, item2.split(',')))
+                    print(self.tgt1frag)
 
             if self.anlmode == 'fraginmol' or self.anlmode == 'mol':
                 if type(self.tgtmolid) == str:
@@ -2211,15 +2214,17 @@ class anlfmo(pdio.pdb_io):
                             self.tgt1frag = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
                         else:
                             print('check2')
-                            if type(eval(item2)) != list:
-                                self.tgt1frag = [eval(item2)]
-                            else:
-                                self.tgt1frag = eval(item2)
+                            self.tgt1frag = list(map(int, item2.split(',')))
+                            print(self.tgt1frag)
 
-
-
+#                             if type(eval(item2)) != list:
+#                                 self.tgt1frag = [eval(item2)]
+#                             else:
+#                                 self.tgt1frag = eval(item2)
                     else:
                         self.tgt1frag = [item2]
+
+
             if self.tgt2type == 'frag':
                 if item3 != None:
                     # print('type tgt2', type(item3))
@@ -2229,7 +2234,9 @@ class anlfmo(pdio.pdb_io):
                             print('tgt2', tgt)
                             self.tgt2frag = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
                         else:
-                            self.tgt2frag = [eval(item3)]
+                            self.tgt2frag = list(map(int, item3.split(',')))
+                            print(self.tgt2frag)
+                            # self.tgt2frag = [eval(item3)]
 
                     else:
                         self.tgt2frag = [item3]
