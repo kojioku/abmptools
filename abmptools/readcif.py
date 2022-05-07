@@ -141,20 +141,145 @@ def intocell(incoords, anum_mol):
 
     return newcoordss
 
-def getsymcoord(sympos, incoord):
+def getsymcoord(sympos, incoord, label):
 
-    if sympos in ['x','y','z']:
-        coord = incoord
-    if sympos in ['-x','-y','-z']:
-        coord = -incoord
-    if sympos in ['1/2+x','1/2+y','1/2+z','x+1/2','y+1/2','z+1/2']:
-        coord =  incoord + 0.5
-    if sympos in ['1/2-x','1/2-y','1/2-z','-x+1/2','-y+1/2','-z+1/2']:
-        coord =  -incoord + 0.5
-    if sympos in ['-1/2+x','-1/2+y','-1/2+z','x-1/2','y-1/2','z-1/2']:
-        coord =  incoord - 0.5
-    if sympos in ['-1/2-x','-1/2-y','-1/2-z','-x-1/2','-y-1/2','-z-1/2']:
-        coord = -incoord - 0.5
+    if sympos in ['x']:
+        coord = incoord[0]
+    if sympos in ['y']:
+        coord = incoord[1]
+    if sympos in ['z']:
+        coord = incoord[2]
+    if sympos in ['-x']:
+        coord = -incoord[0]
+    if sympos in ['-y']:
+        coord = -incoord[1]
+    if sympos in ['-z']:
+        coord = -incoord[2]
+
+    if sympos in ['1/2+z', 'z+1/2']:
+        coord = 1/2 + incoord[2]
+    if sympos in ['1/2+y', 'y+1/2']:
+        coord = 1/2 + incoord[1]
+    if sympos in ['1/2+x', 'x+1/2']:
+        coord = 1/2 + incoord[0]
+    if sympos in ['1/2-z', '-z+1/2']:
+        coord = 1/2 - incoord[2]
+    if sympos in ['1/2-y', '-y+1/2']:
+        coord = 1/2 - incoord[1]
+    if sympos in ['1/2-x', '-x+1/2']:
+        coord = 1/2 - incoord[0]
+
+    if sympos in ['-1/2+z', 'z-1/2']:
+        coord = -1/2 + incoord[2]
+    if sympos in ['-1/2+y', 'y-1/2']:
+        coord = -1/2 + incoord[1]
+    if sympos in ['-1/2+x', 'x-1/2']:
+        coord = -1/2 + incoord[0]
+    if sympos in ['-1/2-z', '-z-1/2']:
+        coord = -1/2 - incoord[2]
+    if sympos in ['-1/2-y', '-y-1/2']:
+        coord = -1/2 - incoord[1]
+    if sympos in ['-1/2-x', '-x-1/2']:
+        coord = -1/2 - incoord[0]
+
+
+
+    if sympos in ['1/3+z']:
+        coord = 1/3 + incoord[2]
+    if sympos in ['1/3+y']:
+        coord = 1/3 + incoord[1]
+    if sympos in ['1/3+x']:
+        coord = 1/3 + incoord[0]
+    if sympos in ['2/3+z']:
+        coord = 2/3 + incoord[2]
+    if sympos in ['2/3+y']:
+        coord = 2/3 + incoord[1]
+    if sympos in ['2/3+x']:
+        coord = 2/3 + incoord[0]
+
+    if sympos in ['1/3-z']:
+        coord = 1/3 - incoord[2]
+    if sympos in ['1/3-y']:
+        coord = 1/3 - incoord[1]
+    if sympos in ['1/3-x']:
+        coord = 1/3 - incoord[0]
+    if sympos in ['2/3-z']:
+        coord = 2/3 - incoord[2]
+    if sympos in ['2/3-y']:
+        coord = 2/3 - incoord[1]
+    if sympos in ['2/3-x']:
+        coord = 2/3 - incoord[0]
+
+    if sympos in ['1/6+z']:
+        coord = 1/6 + incoord[2]
+    if sympos in ['1/6+y']:
+        coord = 1/6 + incoord[1]
+    if sympos in ['1/6+x']:
+        coord = 1/6 + incoord[0]
+    if sympos in ['1/6-z']:
+        coord = 1/6 - incoord[2]
+    if sympos in ['1/6-y']:
+        coord = 1/6 - incoord[1]
+    if sympos in ['1/6-x']:
+        coord = 1/6 - incoord[0]
+
+    if sympos in ['1/4+z']:
+        coord = 1/4 + incoord[2]
+    if sympos in ['1/4+y']:
+        coord = 1/4 + incoord[1]
+    if sympos in ['1/4+x']:
+        coord = 1/4 + incoord[0]
+    if sympos in ['1/4-z']:
+        coord = 1/4 - incoord[2]
+    if sympos in ['1/4-y']:
+        coord = 1/4 - incoord[1]
+    if sympos in ['1/4-x']:
+        coord = 1/4 - incoord[0]
+
+    if sympos in ['3/4+z']:
+        coord = 3/4 + incoord[2]
+    if sympos in ['3/4+y']:
+        coord = 3/4 + incoord[1]
+    if sympos in ['3/4+x']:
+        coord = 3/4 + incoord[0]
+    if sympos in ['3/4-z']:
+        coord = 3/4 - incoord[2]
+    if sympos in ['3/4-y']:
+        coord = 3/4 - incoord[1]
+    if sympos in ['3/4-x']:
+        coord = 3/4 - incoord[0]
+
+
+    if sympos in ['5/6+z']:
+        coord = 5/6 + incoord[2]
+    if sympos in ['5/6+y']:
+        coord = 5/6 + incoord[1]
+    if sympos in ['5/6+x']:
+        coord = 5/6 + incoord[0]
+    if sympos in ['5/6-z']:
+        coord = 5/6 - incoord[2]
+    if sympos in ['5/6-y']:
+        coord = 5/6 - incoord[1]
+    if sympos in ['5/6-x']:
+        coord = 5/6 - incoord[0]
+
+    if sympos in ['x-y']:
+        coord = incoord[0] - incoord[1]
+
+    if sympos in ['-x+y']:
+        coord = - incoord[0] + incoord[1]
+
+    if sympos in ['1/3+x-y']:
+        coord = 1/3 + incoord[0] - incoord[1]
+
+    if sympos in ['1/3-x+y']:
+        coord = 1/3 - incoord[0] + incoord[1]
+
+    if sympos in ['2/3-x+y']:
+        coord = 2/3 - incoord[0] + incoord[1]
+
+    if sympos in ['2/3+x-y']:
+        coord = 2/3 + incoord[0] - incoord[1]
 
     return coord
 
@@ -524,9 +649,9 @@ if __name__ == '__main__':
                     coords = coordsmol[i][j]
 
                     # get symmetry_equiv_pos_as_xyz from cif file
-                    acoord = getsymcoord(symxyzs[i][z_id][0], coords[0])
-                    bcoord = getsymcoord(symxyzs[i][z_id][1], coords[1])
-                    ccoord = getsymcoord(symxyzs[i][z_id][2], coords[2])
+                    acoord = getsymcoord(symxyzs[i][z_id][0], coords, 0)
+                    bcoord = getsymcoord(symxyzs[i][z_id][1], coords, 1)
+                    ccoord = getsymcoord(symxyzs[i][z_id][2], coords, 2)
 
                     a_s.append(copy.deepcopy(acoord))
                     b_s.append(copy.deepcopy(bcoord))
