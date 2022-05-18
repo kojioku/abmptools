@@ -2185,12 +2185,19 @@ class anlfmo(pdio.pdb_io):
                     self.tgtmolid = int(item2)
                 else:
                     print('item2', item2)
+                    if '-' in item2:
+                        tgt = item2.split('-')
+                        print('tgt1', tgt)
+                        self.tgt1frag = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
+
 #                     if type(eval(item2)) != list:
 #                         self.tgt1frag = [item2]
 #                     else:
 #                         self.tgt1frag = eval(item2)
-                    self.tgt1frag = list(map(int, item2.split(',')))
-                    print(self.tgt1frag)
+
+                    else:
+                        self.tgt1frag = list(map(int, item2.split(',')))
+                        print(self.tgt1frag)
 
             if self.anlmode == 'fraginmol' or self.anlmode == 'mol':
                 if type(self.tgtmolid) == str:
@@ -2696,10 +2703,12 @@ class anlfmo(pdio.pdb_io):
                     # N:1 sheet
                     for j in range(len(self.ifdf_filters)):
                         if j == 0:
-                            ifdf_fil_n1 = self.ifdf_filters[j]
+                            ifdf_fil_n1 = self.ifdf_filters[j].fillna(0.0)
                             # pidf_fil_n1 = self.pidf_filters[j]
                         else:
-                            ifdf_fil_n1 += self.ifdf_filters[j].values
+                            ifdf_fil_n1 += self.ifdf_filters[j].fillna(0.0).values
+
+                            print(self.ifdf_filters[j])
                             # pidf_fil_n1 += self.pidf_filters[j].values
 
                     ohead = head + '-frag' + str(self.tgt1frag[0]) + '-' + str(self.tgt1frag[-1]) + '-frag' + str(self.tgt2frag[0]) + '-' + str(self.tgt2frag[-1]) + 'n-1sum'
