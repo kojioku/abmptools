@@ -574,8 +574,9 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
             # solutes = [0, 1]
             for k in self.solutes:
                 for l in range(len(posMol_orig[k])):
+                    print('check mol', k, 'atom', l)
                     for i in range(len(posMol_orig)):
-                        if k == i:
+                        if (i in self.solutes) or (i in neighborindex):
                             continue
                         for j in range(len(posMol_orig[i])):
                             dist = self.getdist(np.array(posMol_orig[k][l]), np.array(posMol_orig[i][j]))
@@ -591,19 +592,26 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         molnamelist = []
         atomnameMol = []
         # for i in range(totalMol):
-        for i in neighborindex:
-        # for i in range(1, 2):
+        for i in self.solutes:
             posMol.append(posMol_orig[i])
             typenameMol.append(typenameMol_orig[i])
             molnamelist.append(molnamelist_orig[i])
             atomnameMol.append(atomname_orig[i])
+
+        for i in neighborindex:
+        # for i in range(1, 2):
+            if molnamelist_orig[i] in molname:
+                posMol.append(posMol_orig[i])
+                typenameMol.append(typenameMol_orig[i])
+                molnamelist.append(molnamelist_orig[i])
+                atomnameMol.append(atomname_orig[i])
 
         # get atomnum
         atomnums = []
         for i in range(len(molname)):
             for j in range(totalMol):
             # for j in range(1):
-                print (molname[i], molnamelist_orig[j])
+                # print (molname[i], molnamelist_orig[j])
                 if molname[i] == molnamelist_orig[j]:
                     atomnums.append(len(posMol_orig[j]))
                     break
@@ -614,7 +622,7 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
         # oname = "mdout"
         index = [i for i in range(len(posMol))]
         self.Exportardpos(opath, oname, index, posMol, atomnameMol)
-        self.exportardpdb(opath + '/' + oname, index, posMol, atomnameMol, molnamelist)
+        self.exportardpdb(opath + '/' + oname + '.ext', index, posMol, atomnameMol, molnamelist)
 
         #fmo param
         # self.ajf_method = 'HF'
