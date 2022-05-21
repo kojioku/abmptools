@@ -64,7 +64,7 @@ do
 done
 
 echo "parminfo $prmtop" >> cpptraj.in
-# echo "autoimage anchor $centerinfo origin" >> cpptraj.in
+echo "autoimage anchor $centerinfo origin" >> cpptraj.in
 # echo "trajout $newtraj start $sframe_inprod stop $eframe_inprod offset $ivframe" >> cpptraj.in
 echo "trajout $newtraj" >> cpptraj.in
 echo 'run' >> cpptraj.in
