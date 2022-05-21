@@ -105,6 +105,17 @@ if __name__ == '__main__':
                         action='store_false',
                         default=True)
 
+    parser.add_argument('-dimene', '--dimene',
+                        help='dimer energy label',
+                        nargs=2,
+                        type=int,
+                        default=[2,1],)
+
+    parser.add_argument('-momene', '--momene',
+                        help='monomer energy label',
+                        nargs=1,
+                        type=int,
+                        default=[1])
 
     # get args
     args = parser.parse_args()
@@ -125,6 +136,9 @@ if __name__ == '__main__':
     print('f90soflag =', args.nof90so)
     print('addresinfo =', args.noresinfo)
     print('zero padding =', args.zp)
+    print('monomer energy label =', args.momene)
+    print('dimer energy label =', args.dimene)
+
 
     aobj = ampt.anlfmo()
     aobj.zp = args.zp
@@ -204,6 +218,10 @@ if __name__ == '__main__':
     aobj.f90soflag = args.nof90so
     aobj.pynp = args.pynp
     aobj.addresinfo = args.noresinfo
+
+    aobj.dimfrag1 = args.dimene[0]
+    aobj.dimfrag2 = args.dimene[1]
+    aobj.momfrag = args.momene[0]
 
     ## read section
     # multi(read and filter)

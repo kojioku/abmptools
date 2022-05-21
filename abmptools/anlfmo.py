@@ -542,6 +542,14 @@ class anlfmo(pdio.pdb_io):
         df['MP2'] = df['MP2'].astype(float)
         return df
 
+    def getdimenedf(self, dimene):
+        df = pd.DataFrame(dimene, columns=['I', 'J', 'DIMER-HF', 'DIMER-MP2'])
+        df['I'] = df['I'].astype(int)
+        df['J'] = df['J'].astype(int)
+        df['DIMER-HF'] = df['DIMER-HF'].astype(float)
+        df['DIMER-MP2'] = df['DIMER-MP2'].astype(float)
+        return df
+
     def getpbpiedadf(self, pieda):
         pidf = pd.DataFrame(pieda, columns=self.pcolumnpb)
         pidf['I'] = pidf['I'].astype(int)
@@ -1278,7 +1286,9 @@ class anlfmo(pdio.pdb_io):
         pieda = []
         pcount = 0
         momcount = 0
+        dimcount = 0 
         momene = []
+        dimene = []
         pflag = False
 
         try:
@@ -1287,9 +1297,10 @@ class anlfmo(pdio.pdb_io):
             f.close()
         except:
             print("can't open", fname)
-            return ifie, pieda, momene
+            return ifie, pieda, momene, dimene
         flag = False
         momflag = False
+        dimflag = False
         # print text
         for i in range(len(text)):
             itemList = text[i][:-1].split()
@@ -1299,6 +1310,17 @@ class anlfmo(pdio.pdb_io):
             if itemList[1:3] == ['MONOMER', 'ENERGY']:
                 momflag = True
                 continue
+            if itemList[1:3] == ['DIMER', 'ENERGY']:
+                dimflag = True
+                continue
+            if itemList[1:3] == ['DIMER', '<S^2>']:
+                dimflag = False
+            if dimflag is True:
+                dimcount += 1
+            if dimflag is True and dimcount > 2:
+                # print('DIMER Energy', itemList)
+                dimene.append(itemList)
+
             if momflag:
                 # print(itemList)
                 momcount += 1
@@ -1339,7 +1361,7 @@ class anlfmo(pdio.pdb_io):
 
         if not flag and not pflag:
             print("can't read ifie", fname.split("/")[-1])
-            return [], [], []
+            return [], [], [], []
 
         for i in range(len(ifie)):
             if float(ifie[i][4]) < -2:
@@ -1348,7 +1370,7 @@ class anlfmo(pdio.pdb_io):
                     ifie[i][5] = 0.0
                     ifie[i][6] = 0.0
 
-        return ifie, pieda, momene
+        return ifie, pieda, momene, dimene
         # print ifie
 
     def read_pbifiepieda(self, fname):
@@ -1443,15 +1465,17 @@ class anlfmo(pdio.pdb_io):
     def read_ifiepiedas(self, tgtlog):
         # tgtlog, tgttime = args
         print('read', tgtlog)
-        ifie, pieda, momene = self.read_ifiepieda(tgtlog)
+        ifie, pieda, momene, dimene = self.read_ifiepieda(tgtlog)
         # print('ifie', ifie[0], 'pieda', pieda[0], 'mom', momene)
         ifdfs = self.getifiedf(ifie)
         pidfs = self.getpiedadf(pieda)
         momenedf = self.getmomenedf(momene)
+        dimenedf = self.getdimenedf(dimene)
+
         # print('ifdfs', ifdfs)
         # print('pidfs', pidfs)
 
-        return [ifdfs, pidfs, momenedf]
+        return [ifdfs, pidfs, momenedf, dimenedf]
 
 
     def getfiltifpiff(self, i, ifdf, pidf):
@@ -1566,7 +1590,7 @@ class anlfmo(pdio.pdb_io):
         return ifdf_filters, ifdfsums
 
 
-    def getfiltifpifd(self, i, ifdf, pidf, momenedf):
+    def getfiltifpifd(self, i, ifdf, pidf, momenedf, dimenedf):
         # in class var: tgttime
         #    local var: i, ifdf,pidf
         # out local var: tgtifdfsum, tgtdf_filter
@@ -1575,6 +1599,7 @@ class anlfmo(pdio.pdb_io):
         # get tgt frag id
         ifdf, ifdf_filter = self.gettgtdf_fd(ifdf)
         ifdf_filter = pd.merge(ifdf_filter, pidf, on=['I', 'J'], how='left')
+        ifdf_filter = pd.merge(ifdf_filter, dimenedf, on=['I', 'J'], how='left')
         ifdf_filter['TIMES'] = self.tgttimes[i]
 
         HF_IFIE_sum = ifdf_filter['HF-IFIE'].sum()
@@ -1589,11 +1614,25 @@ class anlfmo(pdio.pdb_io):
         DI_sum = ifdf_filter['DI(MP2)'].sum()
         q_sum = ifdf_filter['q(I=>J)'].sum()
         try:
-            momene_tgt = momenedf['HF'][0] + momenedf['MP2'][0]
+            momenetgtdf = momenedf[momenedf['Frag.'] == self.momfrag]
+            momene_tgt = momenetgtdf['HF'][0] + momenetgtdf['MP2'][0]
+            momlabel = 'MonomerEnergy(' + str(self.momfrag) + ')'
         except:
             momene_tgt = None
+            momlabel = 'MonomerEnergy(' + str(self.momfrag) + ')'
 
-        ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum, momene_tgt], index=self.ifdfsumcolumn + ['MonomerEnergy'], name=self.tgttimes[i])
+        try:
+            # dimene_tgt = momenedf['HF'][0] + momenedf['MP2'][0]
+            dimenetgtdf = dimenedf[((dimenedf['I'] == self.dimfrag1) & (dimenedf['J'] == self.dimfrag2)) | ((dimenedf['I'] == self.dimfrag2) & (dimenedf['J'] == self.dimfrag1))]
+            dimene_tgt = dimenetgtdf['DIMER-HF'][0] + dimenetgtdf['DIMER-MP2'][0]
+            dimlabel = 'DimerEnergy(' + str(self.dimfrag1) + '-' + str(self.dimfrag2) + ')'
+
+        except:
+            dimene_tgt = None
+            dimlabel = 'DimerEnergy(' + str(self.dimfrag1) + '-' + str(self.dimfrag2) + ')'
+
+
+        ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum, momene_tgt, dimene_tgt], index=self.ifdfsumcolumn + [momlabel, dimlabel], name=self.tgttimes[i])
         # print(ifdfsum)
 
         # pieda
@@ -1605,6 +1644,7 @@ class anlfmo(pdio.pdb_io):
 #                 ifdf_filter.I = ifdf_filter.I.replace(j, frags[j-1])
 #                 ifdf_filter.J = ifdf_filter.J.replace(j, frags[j-1])
 
+        # print(ifdf_filter)
         return ifdf_filter, ifdfsum
 
 
@@ -1756,7 +1796,7 @@ class anlfmo(pdio.pdb_io):
             dfs = self.read_ifiepiedas(self.tgtlogs[i])
             if len(dfs) == 0:
                 return None
-            ifdf, pidf, momenedf = dfs
+            ifdf, pidf, momenedf, dimenedf = dfs
 
         # IFIE pieda filter
         tgt2type = self.tgt2type
@@ -1805,7 +1845,7 @@ class anlfmo(pdio.pdb_io):
 
         # dist or dimer-es mode
         if tgt2type in ['dist','dimer-es']:
-            ifdf_filter, ifdfsum  = self.getfiltifpifd(i, ifdf, pidf, momenedf)
+            ifdf_filter, ifdfsum  = self.getfiltifpifd(i, ifdf, pidf, momenedf, dimenedf)
             return ifdf_filter, ifdfsum
 
         else:
@@ -1837,6 +1877,7 @@ class anlfmo(pdio.pdb_io):
 
             pd.set_option('display.width', 500)
             print('valid data num:', len(ifpidfs))
+            # print(ifpidfs)
 
             # delete label of unfinished log
             delids = []
@@ -1898,9 +1939,10 @@ class anlfmo(pdio.pdb_io):
                 self.ifdfsum = pd.DataFrame(columns=self.ifdfsumcolumn)
 
                 for dfs in ifpidfs:
-                    for j in dfs[0]:
-                        self.ifdf_filters = self.ifdf_filters.append(dfs[0])
-                        self.ifdfsum = self.ifdfsum.append(dfs[1])
+                    # for j in dfs:
+                        # print('aaaaa', j)
+                    self.ifdf_filters = self.ifdf_filters.append(dfs[0])
+                    self.ifdfsum = self.ifdfsum.append(dfs[1])
 
             if self.tgt2type in ['molname']:
                 self.ifdf_filters = []
@@ -1947,7 +1989,7 @@ class anlfmo(pdio.pdb_io):
 
             # pb python-based capture only in this version.
             if self.pbflag == True:
-                ifie, pieda, momene = self.read_ifiepieda(self.tgtlogs)
+                ifie, pieda, momene, dimene = self.read_ifiepieda(self.tgtlogs)
                 df = self.getifiedf(ifie)
                 self.ifdf = df
 
@@ -1977,7 +2019,7 @@ class anlfmo(pdio.pdb_io):
                 # print(self.pidf)
 
             else:
-                ifie, pieda, momene = self.read_ifiepieda(self.tgtlogs)
+                ifie, pieda, momene, dimene = self.read_ifiepieda(self.tgtlogs)
                 df = self.getifiedf(ifie)
                 self.ifdf = df
 
@@ -2059,7 +2101,8 @@ class anlfmo(pdio.pdb_io):
                         if self.tgt1frag in self.tgt1frag:
                             del self.tgt1frag[self.tgt1frag.index(self.tgt1frag)]
                     else:
-                        self.tgt1frag = [eval(item1)]
+                        self.tgt1frag = list(map(int, item1.split(',')))
+                        print(self.tgt1frag)
                 else:
                         self.tgt1frag = item1
 
@@ -2090,7 +2133,8 @@ class anlfmo(pdio.pdb_io):
                             if self.tgt1frag in self.tgt2frag:
                                 del self.tgt2frag[self.tgt2frag.index(self.tgt1frag)]
                         else:
-                            self.tgt2frag = [eval(item2)]
+                            self.tgt2frag = list(map(int, item2.split(',')))
+                            print(self.tgt2frag)
                     else:
                             self.tgt2frag = [item2]
                     if type(self.tgt2frag) == list:
@@ -2141,11 +2185,19 @@ class anlfmo(pdio.pdb_io):
                     self.tgtmolid = int(item2)
                 else:
                     print('item2', item2)
-                    if type(eval(item2)) != list:
-                        self.tgt1frag = [item2]
-                    else:
-                        self.tgt1frag = eval(item2)
+                    if '-' in item2:
+                        tgt = item2.split('-')
+                        print('tgt1', tgt)
+                        self.tgt1frag = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
 
+#                     if type(eval(item2)) != list:
+#                         self.tgt1frag = [item2]
+#                     else:
+#                         self.tgt1frag = eval(item2)
+
+                    else:
+                        self.tgt1frag = list(map(int, item2.split(',')))
+                        print(self.tgt1frag)
 
             if self.anlmode == 'fraginmol' or self.anlmode == 'mol':
                 if type(self.tgtmolid) == str:
@@ -2169,15 +2221,17 @@ class anlfmo(pdio.pdb_io):
                             self.tgt1frag = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
                         else:
                             print('check2')
-                            if type(eval(item2)) != list:
-                                self.tgt1frag = [eval(item2)]
-                            else:
-                                self.tgt1frag = eval(item2)
+                            self.tgt1frag = list(map(int, item2.split(',')))
+                            print(self.tgt1frag)
 
-
-
+#                             if type(eval(item2)) != list:
+#                                 self.tgt1frag = [eval(item2)]
+#                             else:
+#                                 self.tgt1frag = eval(item2)
                     else:
                         self.tgt1frag = [item2]
+
+
             if self.tgt2type == 'frag':
                 if item3 != None:
                     # print('type tgt2', type(item3))
@@ -2187,7 +2241,9 @@ class anlfmo(pdio.pdb_io):
                             print('tgt2', tgt)
                             self.tgt2frag = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
                         else:
-                            self.tgt2frag = [eval(item3)]
+                            self.tgt2frag = list(map(int, item3.split(',')))
+                            print(self.tgt2frag)
+                            # self.tgt2frag = [eval(item3)]
 
                     else:
                         self.tgt2frag = [item3]
@@ -2647,10 +2703,12 @@ class anlfmo(pdio.pdb_io):
                     # N:1 sheet
                     for j in range(len(self.ifdf_filters)):
                         if j == 0:
-                            ifdf_fil_n1 = self.ifdf_filters[j]
+                            ifdf_fil_n1 = self.ifdf_filters[j].fillna(0.0)
                             # pidf_fil_n1 = self.pidf_filters[j]
                         else:
-                            ifdf_fil_n1 += self.ifdf_filters[j].values
+                            ifdf_fil_n1 += self.ifdf_filters[j].fillna(0.0).values
+
+                            print(self.ifdf_filters[j])
                             # pidf_fil_n1 += self.pidf_filters[j].values
 
                     ohead = head + '-frag' + str(self.tgt1frag[0]) + '-' + str(self.tgt1frag[-1]) + '-frag' + str(self.tgt2frag[0]) + '-' + str(self.tgt2frag[-1]) + 'n-1sum'
