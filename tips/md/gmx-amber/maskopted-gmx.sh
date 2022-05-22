@@ -19,8 +19,8 @@ stimeps=100000  # please specify the start time of production run
 etimeps=200000
 intervalps=1000
 
-centerinfo=":1-xxx"
-maskinfo=":1-xxx"
+centerinfo=":1-127"
+maskinfo=":1-127"
 stripdist=4.0
 maskflag=true
 #--user setting end--
@@ -59,6 +59,7 @@ do
 done
 
 echo "parminfo $prmtop" >> cpptraj.in
+echo "autoimage anchor $centerinfo origin" >> cpptraj.in
 echo "trajout $newtraj" >> cpptraj.in
 echo 'run' >> cpptraj.in
 cpptraj < cpptraj.in
