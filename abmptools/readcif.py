@@ -370,6 +370,10 @@ if __name__ == '__main__':
                         help='min',
                         action='store_true')
 
+    parser.add_argument('-au', '--asymonly',
+                        help='assymmetric unit only',
+                        action='store_true')
+
 
     # get args
     args = parser.parse_args()
@@ -385,6 +389,7 @@ if __name__ == '__main__':
     print('tgtatom', args.tgtatom)
     print('out', args.noout)
     print('min', args.min)
+    print('asymmetric only', args.asymonly)
 
     calc_dist = args.calcdist
     tgtdist = args.dist
@@ -639,6 +644,9 @@ if __name__ == '__main__':
             # f = open('zprime.log', 'a')
             # print("Z'=", zprime[i], file=f)
 
+            if args.asymonly:
+                paxnums[i] = 1
+
             for z_id in range(paxnums[i]):
                 a_s = []
                 b_s = []
@@ -878,7 +886,11 @@ if __name__ == '__main__':
                 number = ''
             else:
                 number = '%05d' % i
-            oname = xyzdir + '/' + out + number + 'layer' + str(args.layer) + 'Zp' + str(zprime[i]) + '.xyz'
+            if args.asymonly:
+                austr = 'asymonly'
+            else:
+                austr = ''
+            oname = xyzdir + '/' + out + number + 'layer' + str(args.layer) + 'Zp' + str(zprime[i]) + austr + '.xyz'
             fo = open(oname, 'w')
             print(len(xyzs27mols[i]), file=fo)
             print('', file=fo)
