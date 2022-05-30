@@ -667,7 +667,7 @@ if __name__ == '__main__':
 
                 if len(anum_inmol) == 1:
                     anum_inmol *= zprime[i]
-                if len(anum_inmol) == 2 and zprime[i] == 1:
+                elif len(anum_inmol) == 2 and zprime[i] == 1:
                     print("Z' != 1 and multi-type mol is not supported.")
 
                 # print(len(a_s))
