@@ -577,7 +577,7 @@ if __name__ == '__main__':
                     z_idx = acolumns.index('_atom_site_fract_z')
                     print(symbol_idx, x_idx, y_idx, z_idx)
             if coordflag == True:
-                if line[0:1] == ['loop_']:
+                if line[0:1] == ['loop_'] or len(line) == 0:
                     coordflag = False
                     coordend = True
                     continue
