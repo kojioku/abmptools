@@ -536,6 +536,8 @@ if __name__ == '__main__':
                 continue
             if line[0:1] == ['_cell_length_c']:
                 length.append(float(line[1]))
+                lengthmol.append(length)
+                length = []
                 continue
             if line[0:1] == ['_cell_angle_alpha']:
                 angle.append(float(line[1]))
@@ -545,6 +547,8 @@ if __name__ == '__main__':
                 continue
             if line[0:1] == ['_cell_angle_gamma']:
                 angle.append(float(line[1]))
+                anglemol.append(angle)
+                angle = []
                 continue
             if line[0:1] == ['_cell_formula_units_Z']:
                 znum.append(int(line[1]))
@@ -555,11 +559,11 @@ if __name__ == '__main__':
             if cellend == True:
                 cellend = False
                 # coords = np.array(coords)
-                lengthmol.append(length)
-                anglemol.append(angle)
+                # lengthmol.append(length)
+                # anglemol.append(angle)
                 # print('aaaaa', lengthmol)
-                length = []
-                angle = []
+                # length = []
+                # angle = []
 
             ## get coord
             if '_atom_site' in line[0] and '_geom' not in line[0]:
@@ -577,13 +581,19 @@ if __name__ == '__main__':
                     z_idx = acolumns.index('_atom_site_fract_z')
                     print(symbol_idx, x_idx, y_idx, z_idx)
             if coordflag == True:
+                # print('line!!!!!', line, len(line))
                 if line[0:1] == ['loop_']:
                     coordflag = False
                     coordend = True
                     continue
-
-                atoms.append(line[symbol_idx])
-                coords.append([float(line[x_idx]), float(line[y_idx]), float(line[z_idx])])
+                elif len(line) == 1: # case '#END'
+                    coordflag = False
+                    coordend = True
+                    pass
+                else:
+                    # print('atoms', atoms)
+                    atoms.append(line[symbol_idx])
+                    coords.append([float(line[x_idx]), float(line[y_idx]), float(line[z_idx])])
 
             # end read coord xyz and save for list
             if coordend == True:
@@ -592,7 +602,6 @@ if __name__ == '__main__':
                 coordsmol.append(coords)
                 atoms = []
                 coords = []
-    #     print(atomsmol)
     #     print(coordsmol)
     #     print(len(atomsmol[0]))
     #     print(len(coordsmol[0]))
@@ -639,6 +648,9 @@ if __name__ == '__main__':
 
             # compare znum and num(equiv_pos_as_xyz)
             # zprime = znum / eq_pax
+            if len(znum) == 0:
+                znum = copy.deepcopy(paxnums)
+
             zprime.append(int(znum[i] / paxnums[i]))
 
             # f = open('zprime.log', 'a')
@@ -667,7 +679,7 @@ if __name__ == '__main__':
 
                 if len(anum_inmol) == 1:
                     anum_inmol *= zprime[i]
-                if len(anum_inmol) == 2 and zprime[i] == 1:
+                elif len(anum_inmol) == 2 and zprime[i] == 1:
                     print("Z' != 1 and multi-type mol is not supported.")
 
                 # print(len(a_s))
