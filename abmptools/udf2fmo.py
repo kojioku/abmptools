@@ -46,6 +46,11 @@ if __name__ == "__main__":
                         type=int,
                         default=None,)
 
+    parser.add_argument('-r', '--record',
+                        help='record id',
+                        type=int,
+                        default=None,)
+
     # get args
     args = parser.parse_args()
 
@@ -62,6 +67,15 @@ if __name__ == "__main__":
     totalMol, totalRec = aobj.gettotalmol_rec(_udf_)
     path = ['.', '.']
 
+    if args.record is None:
+        tgtrec = totalRec-1
+    else:
+        tgtrec = args.record
+
+    # print(totalRec)
+    print('tgtrec:',tgtrec)
+    # sys.exit()
+
     param_read = {}
     exec(open(args.parameter, 'r').read(), param_read)
     param_rfmo = param_read['param']
@@ -73,14 +87,16 @@ if __name__ == "__main__":
     print('solutes', aobj.solutes)
 
     if args.output == None:
-        oname= os.path.splitext(args.incoord)[0].split('/')[-1] + '-' + aobj.cutmode
+        oname= os.path.splitext(args.incoord)[0].split('/')[-1] + '-' + aobj.cutmode + '-' + 'rec' + str(tgtrec)
 
         if aobj.cutmode == 'around':
-            oname += str(aobj.solutes[0]) + '-' + str(aobj.solutes[-1])
+            oname += '-solu' + str(aobj.solutes[0]) + '-' + str(aobj.solutes[-1])
     else:
         oname = args.output
     print('out(pdb, ajf) = ', oname)
 
+    # sys.exit()
+
     aobj.mainpath = '.'
     aobj.getcontact_rmapfmo(
-        totalRec-1, _udf_, totalMol, totalMol, path, oname)
+        tgtrec, _udf_, totalMol, totalMol, path, oname)
