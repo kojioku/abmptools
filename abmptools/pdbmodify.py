@@ -82,6 +82,11 @@ if __name__ == "__main__":
                         nargs='*',
                         )
 
+    parser.add_argument('-s', '--sort',
+                        help='sort',
+                        nargs=2,
+                        )
+
     args = parser.parse_args()
     print('input =', args.input)
     print('mode =', args.mode)
@@ -92,9 +97,14 @@ if __name__ == "__main__":
     print('intoflag =', args.into)
     print('refreshresid =', args.refreshresid)
     print('assignresname =', args.assignresname)
-    print('refreshresid =', args.refreshresid)
     print('refreshatmtype =', args.refreshatmtype)
+    print('sort', args.sort)
 
+    is_sort = False
+    if args.sort != None:
+        is_sort = True
+        sortres = args.sort[0]
+        sortres2 = args.sort[1]
     ## -- user setting --
     # read info
     mode = args.mode #rfile, resnum
@@ -208,12 +218,16 @@ if __name__ == "__main__":
             temps = aobj.tempRes
             amarks = aobj.amarkRes
             charges = aobj.chargeRes
+            resnameRes = aobj.resnameRes
 
             mollist = [i for i in range(totalMol)]
     #         cellsize = aobj.getpdbcell(fname)
     #         aobj.cellsize = cellsize
 
             print('totalMol:', totalMol)
+            # print('molnames:', molnames)
+            # print('resnameRes', resnameRes)
+            # print('gatmlabRes', gatmlabRes)
 
             # print(resnums)
             if addchain == True:
@@ -237,6 +251,43 @@ if __name__ == "__main__":
     #         else:
     #             print('cellsize:', aobj.cellsize)
 
+
+
+            if is_sort == True:
+                for i in range(len(molnames)):
+                    if sortres == molnames[i]:
+                        print(molnames[i], i)
+                        ival = i
+                        break
+
+                for i in range(len(molnames)):
+                    if sortres2 == molnames[i]:
+                        print(molnames[i], i)
+                        jval = i
+                        break
+
+                # print(aobj.posRes[ival])
+
+                if (ival > jval):
+                    aobj.atmtypeRes[ival],aobj.atmtypeRes[jval] = aobj.atmtypeRes[jval],aobj.atmtypeRes[ival]
+                    aobj.amarkRes[ival],aobj.amarkRes[jval] = aobj.amarkRes[jval],aobj.amarkRes[ival]
+                    aobj.resnumRes[ival],aobj.resnumRes[jval] = aobj.resnumRes[jval],aobj.resnumRes[ival]
+                    aobj.headRes[ival],aobj.headRes[jval] = aobj.headRes[jval],aobj.headRes[ival]
+                    aobj.labRes[ival],aobj.labRes[jval] =  aobj.labRes[jval],aobj.labRes[ival]
+                    aobj.resnames[ival],aobj.resnames[jval] = aobj.resnames[jval],aobj.resnames[ival]
+                    aobj.chainRes[ival],aobj.chainRes[jval] = aobj.chainRes[jval],aobj.chainRes[ival]
+                    aobj.codeRes[ival],aobj.codeRes[jval] = aobj.codeRes[jval],aobj.codeRes[ival]
+                    aobj.occRes[ival],aobj.occRes[jval] = aobj.occRes[jval],aobj.occRes[ival]
+                    aobj.tempRes[ival],aobj.tempRes[jval] = aobj.tempRes[jval],aobj.tempRes[ival]
+                    aobj.chargeRes[ival],aobj.chargeRes[jval] = aobj.chargeRes[jval],aobj.chargeRes[ival]
+                    aobj.posRes[ival],aobj.posRes[jval] = aobj.posRes[jval],aobj.posRes[ival]
+                    aobj.gatmlabRes[ival],aobj.gatmlabRes[jval] = aobj.gatmlabRes[jval],aobj.gatmlabRes[ival]
+                    aobj.resnameRes[ival],aobj.resnameRes[jval] = aobj.resnameRes[jval],aobj.resnameRes[ival]
+
+#                 print(aobj.posRes[ival], aobj.resnameRes[ival])
+#                 print(aobj.posRes[jval], aobj.resnameRes[jval])
+#                 print(posMol[ival])
+#                 print(posMol[jval])
 
             if moveflag == True:
                 # get center of solute
