@@ -407,8 +407,7 @@ class pdb_io(fab.abinit_io):
         f = open(out_file, "a+", newline = "\n")
         tatomlab = 0
         reslab = 0
-        # print(mollist)
-
+        # print('mollist', mollist)
 
         for i in mollist:
             posMol = self.posRes[i]
@@ -437,6 +436,22 @@ class pdb_io(fab.abinit_io):
 
                 if atomname.strip() == 'CL':
                     self.headRes[i][j] = 'HETATM'
+
+#                 print(self.headRes[i][j])
+#                 print(str(tatomlab))
+#                 print(atomname)
+#                 print(self.labRes[i][j])
+#                 print(self.resnames[i])
+#                 print(self.chainRes[i][j])
+#                 print(resid)
+#                 print(self.codeRes[i][j])
+#                 print('{:.3f}'.format(posMol[j][0]))
+#                 print('{:.3f}'.format(posMol[j][1]))
+#                 print('{:.3f}'.format(posMol[j][2]))
+#                 print(self.occRes[i][j])
+#                 print(self.tempRes[i][j])
+#                 print(self.amarkRes[i][j])
+#                 print(self.chargeRes[i][j])
 
                 olist = [self.headRes[i][j], str(tatomlab), atomname, self.labRes[i][j], self.resnames[i], self.chainRes[i][j], resid, self.codeRes[i][j], '{:.3f}'.format(posMol[j][0]), '{:.3f}'.format(posMol[j][1]), '{:.3f}'.format(posMol[j][2]), self.occRes[i][j], self.tempRes[i][j], self.amarkRes[i][j], self.chargeRes[i][j]]
                 print(form.format(olist), file=f)
