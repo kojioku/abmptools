@@ -6,9 +6,9 @@
 # whole: 330racks -> 384nodes * 330rack -> 126720 nodes -> 6082560 cores
 
 # ---user input --- #
-node=12
+node=1
 proc_per_node=2
-jobtime="24:00:00"  # "hour:minutes:seconds"
+jobtime="10:00:00"  # "hour:minutes:seconds"
 ABINIT_DIR=/data/hp190133/programs/ABINIT-MP/binds/ver1rev23q2/lang-tcsds-1.2.31
 BINARY_NAME=abinitmp_smp
 rscgrp='small'
@@ -40,7 +40,7 @@ echo """#!/bin/bash
 #PJM -g \"${group}\"
 #PJM -j
 
-module switch lang/tcsds-1.2.31
+module switch lang/tcsds-1.2.34
 
 export OMP_NUM_THREADS=${OMP_NUM_THREADS}
 export OMP_STACKSIZE=${OMP_STACKSIZE}
