@@ -117,6 +117,12 @@ if __name__ == '__main__':
                         type=int,
                         default=[1])
 
+    parser.add_argument('-imd', '--is_momdim',
+                        help='get monomer dimer energy ',
+                        action='store_true',
+                        default=False)
+
+
     # get args
     args = parser.parse_args()
 
@@ -138,7 +144,7 @@ if __name__ == '__main__':
     print('zero padding =', args.zp)
     print('monomer energy label =', args.momene)
     print('dimer energy label =', args.dimene)
-
+    print('get monomer dimer energy =', args.is_momdim)
 
     aobj = ampt.anlfmo()
     aobj.zp = args.zp
@@ -223,6 +229,9 @@ if __name__ == '__main__':
     aobj.dimfrag2 = args.dimene[1]
     aobj.momfrag = args.momene[0]
 
+    aobj.is_momdimene = False
+    if args.is_momdim is True:
+        aobj.is_momdimene = True
     ## read section
     # multi(read and filter)
     if aobj.anlmode == 'multi':
