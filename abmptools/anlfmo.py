@@ -1469,9 +1469,12 @@ class anlfmo(pdio.pdb_io):
         # print('ifie', ifie[0], 'pieda', pieda[0], 'mom', momene)
         ifdfs = self.getifiedf(ifie)
         pidfs = self.getpiedadf(pieda)
-        momenedf = self.getmomenedf(momene)
-        dimenedf = self.getdimenedf(dimene)
-
+        if self.is_momdimene:
+            momenedf = self.getmomenedf(momene)
+            dimenedf = self.getdimenedf(dimene)
+        else:
+            momenedf = []
+            dimenedf = []
         # print('ifdfs', ifdfs)
         # print('pidfs', pidfs)
 
@@ -1590,7 +1593,7 @@ class anlfmo(pdio.pdb_io):
         return ifdf_filters, ifdfsums
 
 
-    def getfiltifpifd(self, i, ifdf, pidf, momenedf, dimenedf):
+    def getfiltifpifd(self, i, ifdf, pidf, momenedf=None, dimenedf=None):
         # in class var: tgttime
         #    local var: i, ifdf,pidf
         # out local var: tgtifdfsum, tgtdf_filter
@@ -1599,7 +1602,8 @@ class anlfmo(pdio.pdb_io):
         # get tgt frag id
         ifdf, ifdf_filter = self.gettgtdf_fd(ifdf)
         ifdf_filter = pd.merge(ifdf_filter, pidf, on=['I', 'J'], how='left')
-        ifdf_filter = pd.merge(ifdf_filter, dimenedf, on=['I', 'J'], how='left')
+        if self.is_momdimene:
+            ifdf_filter = pd.merge(ifdf_filter, dimenedf, on=['I', 'J'], how='left')
         ifdf_filter['TIMES'] = self.tgttimes[i]
 
         HF_IFIE_sum = ifdf_filter['HF-IFIE'].sum()
@@ -1844,8 +1848,12 @@ class anlfmo(pdio.pdb_io):
             return ifdf_filters, ifdfsums
 
         # dist or dimer-es mode
-        if tgt2type in ['dist','dimer-es']:
+        if tgt2type in ['dist', 'dimer-es'] and self.is_momdimene:
             ifdf_filter, ifdfsum  = self.getfiltifpifd(i, ifdf, pidf, momenedf, dimenedf)
+            return ifdf_filter, ifdfsum
+
+        if tgt2type in ['dist', 'dimer-es'] and not self.is_momdimene:
+            ifdf_filter, ifdfsum  = self.getfiltifpifd(i, ifdf, pidf)
             return ifdf_filter, ifdfsum
 
         else:
