@@ -8,7 +8,11 @@ param = {
             # 'criteria': 25.0,
 
             'cutmode': 'around',
-            'criteria': 25.0,,
+            'solutes': [0, 1],
+            'criteria': 8.0,
+
+            'ionmode': 'remain',
+            'ionname': ['NA'],
 
             # 'cutmode': 'none',
 
@@ -18,12 +22,12 @@ param = {
 
             'getmode': 'rfile',
             'ajf_method': 'MP2',
-            'ajf_basis_set': '6-31Gdag',
+            'ajf_basis_set': '6-31G*',
             'cpfflag': True,
             'solv_flag': False,  # True -> in water , False -> in vacuum,
-            'abinit_ver': 'rev15',
+            'abinit_ver': 'rev22',
             'piedaflag': True,
             'memory': 3000,
-            'npro': 8,
+            'npro': 4,
         }
 
