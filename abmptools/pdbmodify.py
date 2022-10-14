@@ -295,8 +295,9 @@ if __name__ == "__main__":
                     coctgt = aobj.getCenter(posMol[tgtmol-1])
                 elif movemode == 'pos':
                     coctgt = tgtpos
-                transVec = np.array(-coctgt, dtype='float64')
-                # print(transVec)
+                transVec = np.array(coctgt, dtype='float64')
+                transVec = -transVec
+                print('print', transVec)
 
                 # move
                 posmoveMol = []
