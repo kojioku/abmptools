@@ -317,6 +317,96 @@ class anlfmo(pdio.pdb_io):
 
         return nf
 
+    def readlog(self, logname, fragmode):
+        # print('fragmode', fragmode)
+        if fragmode == 'manual':
+            text = open(logname, "r").readlines()
+            for i in range(len(text)):
+                itemList = text[i][:-1].split()
+                # print(itemList)
+                if len(itemList) < 2:
+                    continue
+                if itemList[:2]== ['NF', '=']:
+                   nf = int(itemList[2])
+                   break
+        if fragmode == 'auto':
+            f = open(logname, 'r')
+            readflag = False
+            autoreadflag = False
+            fragdata = []
+            fragdatas = []
+            elecs = []
+            seqnos = []
+            fragnos = []
+            residuestr = []
+            logreadGeom = []
+            pdbabs = ""
+
+            for line in f:
+                items = line[1:].split()
+                chains = line[0]
+                if len(items) == 0:
+                    continue
+
+                if items[0] == 'ReadGeom':
+                     logreadGeom = items[2]
+
+                if items[0] == 'AutoFrag':
+                    if items[2] == 'ON':
+                        self.fragmode = 'auto'
+                    else:
+                        self.fragmode = 'manual'
+
+                # read frag table
+                # if len(items) == 3:
+                    # print (items)
+                if items[0:3] == ['Frag.', 'Elec.', 'ATOM']:
+                    readflag = True
+                    # print('# readflag ON #')
+                    continue
+                if items[0:2] == ["ALL", "ELECTRON"]:
+                    fragdatas.append(fragdata)
+                    readflag = False
+                if items[0:2] == ["ALL", "ATOM"]:
+                    natom = int(items[3])
+                if readflag == True:
+                    if line[0:21] == "                     ":
+                        # print(line)
+                        fragdata = fragdata + items
+                    else:
+                        if len(fragdata) != 0:
+                            fragdatas.append(fragdata)
+                            elecs.append(int(elec))
+                        fragdata = []
+                        elec = items[1]
+                        fragdata = fragdata + items[2:]
+
+                if items [0:2] == ['START', 'FRAGMENT']:
+                    break
+
+                ## AUTOMATIC FRAGMENTATION
+                if items[0:3] == ['Seq.', 'Frag.', 'Residue']:
+                    autoreadflag = True
+                    continue
+
+                if autoreadflag == True and items[0:2] == ['The', 'system']:
+                    autoreadflag = False
+                    continue
+
+                if autoreadflag == True and items[0] == 'Ions':
+                    autoreadflag = False
+                    continue
+
+                if autoreadflag == True:
+                   # print(items)
+                   seqnos.append(items[0])
+                   fragnos.append(items[1])
+                   residuestr.append(items[2])
+
+            nf = len(fragdatas)
+            print('-------nf--------', nf)
+
+        return natom
 
     def getlognatom(self, fname):
         acount = 0
@@ -357,6 +447,59 @@ class anlfmo(pdio.pdb_io):
                     chgs.append(float(chgval[4]))
         return chgs
 
+
+    def getlogchgall(self, fname, natom, chgtype):
+        alabs = []
+        elems = []
+        ress = []
+        frags = []
+        chgs = []
+        pops = []
+        f =open(fname, "r")
+        text = f.readlines()
+        if chgtype == 'nbo':
+            for i in range(len(text)):
+                itemList = text[i].split()
+                # FMO
+                if itemList == ['##', 'NATURAL', 'ATOMIC', 'POPULATIONS']:
+                    for j in range(int(natom)):
+                        chgval = text[i+6+j].split()
+                        alabs.append(int(chgval[0]))
+                        elems.append(str(chgval[1]))
+                        ress.append(int(chgval[2]))
+                        frags.append(int(chgval[3]))
+                        chgs.append(float(chgval[4]))
+                        pops.append(float(chgval[5]))
+                    chgdf=pd.DataFrame({'AtomLabel':alabs,
+                                       'Elem': elems,
+                                       'Res': ress,
+                                       'Frag': frags,
+                                       'Charge': chgs,
+                                       'Pop': pops})
+        else:
+            print('Options except A are not supported yet.')
+            sys.exit()
+        return chgdf
+
+        '''
+         ========================================================
+           ## NATURAL POPULATION ANALYSIS -- Ver.2.73(20131003)
+         ========================================================
+        
+        
+           ## NATURAL ATOMIC POPULATIONS
+        
+         -----------------------------------------
+             Atom  Res Frag     Charge      Pop
+                               FMO2-HF    FMO2-HF
+         -----------------------------------------
+             1 N     1    1  -0.801541   7.801541
+             2 C     1    1  -0.108078   6.108078
+             3 C     1    2   0.847514   5.152486
+             4 O     1    2  -0.776786   8.776786
+             5 C     1    1  -0.669410   6.669410
+             6 H     1    1   0.461111   0.538889
+        '''
 
     def getlogorpdbfrag(self, ifile):
 
@@ -1286,7 +1429,7 @@ class anlfmo(pdio.pdb_io):
         pieda = []
         pcount = 0
         momcount = 0
-        dimcount = 0 
+        dimcount = 0
         momene = []
         dimene = []
         pflag = False
