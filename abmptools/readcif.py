@@ -647,6 +647,8 @@ if __name__ == '__main__':
             cs_list = []
 
             # compare znum and num(equiv_pos_as_xyz)
+            # paxnum: number of pacikng symmetry variation in hitaisho mol (_symmetry_equiv .. )
+            # znum: witten coordinate number in cif file (fomula Z)
             # zprime = znum / eq_pax
             if len(znum) == 0:
                 znum = copy.deepcopy(paxnums)
@@ -679,7 +681,7 @@ if __name__ == '__main__':
 
                 if len(anum_inmol) == 1:
                     anum_inmol *= zprime[i]
-                elif len(anum_inmol) == 2 and zprime[i] == 1:
+                elif len(anum_inmol) == 2 and zprime[i] != 1:
                     print("Z' != 1 and multi-type mol is not supported.")
 
                 # print(len(a_s))
