@@ -401,7 +401,7 @@ if __name__ == '__main__':
         nointra = False
     else:
         nointra = True
-    maxnum = 10
+    maxnum = 999999
 
     ## -- user setting end
     # argvs = sys.argv
@@ -478,6 +478,7 @@ if __name__ == '__main__':
             # CONFLEX case
             if line[0:2] == ['#', 'CONFLEX8']:
                 if num > maxnum:
+                    print('you reached max number of mol. Exit')
                     break
                 print('start data', num)
                 num += 1
