@@ -47,6 +47,7 @@ class anlfmo(pdio.pdb_io):
         self.criteria = []
         self.tgtpos =[]
         self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL']
+        self.bicolumn = ['I', 'J', 'DIST', 'DIMER-ES-BSSE', 'HF-BSSE', 'MP2-BSSE', 'PR-T1-BSSE', 'GRIMME-BSSE', 'JUNG-BSSE', 'HILL-BSSE']
         self.pcolumn = ['I', 'J', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'q(I=>J)']
         self.pcolumnpb = ['I', 'J', 'ES', 'EX', 'CT-mix', 'Solv(ES)', 'DI(MP2)', 'q(I=>J)']
         self.ifdfsumcolumn = ['HF-IFIE', 'MP2-IFIE', 'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'q(I=>J)']
@@ -662,10 +663,29 @@ class anlfmo(pdio.pdb_io):
             # print(df.head())
             # print(solvdf.head())
             df = pd.merge(df, solvdf, on=['I', 'J'], how='left')
-            print(df.head())
+        print(df.head())
+        return df
+
+    def getbssedf(self, ifie, solv=[]):
+        df = pd.DataFrame(ifie, columns=self.bicolumn)
+        df['I'] = df['I'].astype(int)
+        df['J'] = df['J'].astype(int)
+        df['DIST'] = df['DIST'].astype(float)
+        df['HF-BSSE'] = df['HF-BSSE'].astype(float) * 627.5095
+
+        if self.logMethod == 'MP2':
+            df['MP2-BSSE'] = df['MP2-BSSE'].astype(float) * 627.5095
+            df['PR-T1-BSSE'] = df['PR-T1-BSSE'].astype(float) * 627.5095
+            df['GRIMME-BSSE'] = df['GRIMME-BSSE'].astype(float) * 627.5095
+            df['JUNG-BSSE'] = df['JUNG-BSSE'].astype(float) * 627.5095
+            df['HILL-BSSE'] = df['HILL-BSSE'].astype(float) * 627.5095
+
+        df = df.drop(columns='DIST')
+        # print(df.head())
         return df
 
     def getpiedadf(self, pieda):
+        # print('l669', pieda[1])
         pidf = pd.DataFrame(pieda, columns=self.pcolumn)
         pidf['I'] = pidf['I'].astype(int)
         pidf['J'] = pidf['J'].astype(int)
@@ -1218,6 +1238,7 @@ class anlfmo(pdio.pdb_io):
 
     def gettgtdf_fd(self, df):
 
+        # filter tgt1frag IFIE
         tgtdf = df[(df['I'] == self.tgt1frag[0]) | (df['J'] == self.tgt1frag[0])]
         if self.tgt2type == 'dist':
             print('--- ifie around tgt ', self.tgt1frag, self.dist, 'angstrom ---')
@@ -1422,8 +1443,8 @@ class anlfmo(pdio.pdb_io):
         return pitgtdf_filters
 
 
-
     def read_ifiepieda(self, fname):
+        # print('start getifiepieda')
         ifie = []
         count = 0
         pieda = []
@@ -1433,6 +1454,9 @@ class anlfmo(pdio.pdb_io):
         momene = []
         dimene = []
         pflag = False
+        bsseflag = False
+        bssecount = 0
+        bsse = []
 
         try:
             f = open(fname, "r")
@@ -1478,6 +1502,7 @@ class anlfmo(pdio.pdb_io):
             if itemList[1] == 'PIEDA':
                 flag = False
                 pflag = True
+                # print('pieda start!!')
                 continue
             if flag is True:
                 count += 1
@@ -1486,23 +1511,38 @@ class anlfmo(pdio.pdb_io):
                     ifie.append(itemList[:-2])
                 else:
                     ifie.append(itemList)
-            # print itemList
             if len(itemList) < 2:
                 continue
 
-            if itemList[1] == 'PIEDA':
-                pflag = True
-                # head.append(itemList)
-                continue
+#             if itemList[1] == 'PIEDA':
+#                 pflag = True
+#                 # head.append(itemList)
+#                 continue
+            # after pieda or BSSE (break)
             if itemList[1] == 'Mulliken':
                 # flag = False
                 break
+            # for BSSE
+            if pflag is True and itemList[:5] == ['##','BSSE', 'for','non-bonding','MP2-IFIE']:
+                pflag = False
+                # print('pieda end! next is BSSE')
+                continue
+            if itemList[:4] == ['##','BSSE', 'for', 'MP2-IFIE']:
+                bsseflag = True
+                # print('BSSE start!')
+                continue
+            if bsseflag is True:
+                bssecount += 1
+            if bsseflag is True and bssecount > 2:
+                bsse.append(itemList)
+
+            # for pieda 
             if pflag is True:
                 pcount += 1
             if pflag is True and pcount > 2:
                 pieda.append(itemList)
 
-        if not flag and not pflag:
+        if not flag and not pflag and not bsseflag:
             print("can't read ifie", fname.split("/")[-1])
             return [], [], [], []
 
@@ -1513,7 +1553,8 @@ class anlfmo(pdio.pdb_io):
                     ifie[i][5] = 0.0
                     ifie[i][6] = 0.0
 
-        return ifie, pieda, momene, dimene
+        print('bsse', bsse[0])
+        return ifie, pieda, momene, dimene, bsse
         # print ifie
 
     def read_pbifiepieda(self, fname):
@@ -1608,10 +1649,15 @@ class anlfmo(pdio.pdb_io):
     def read_ifiepiedas(self, tgtlog):
         # tgtlog, tgttime = args
         print('read', tgtlog)
-        ifie, pieda, momene, dimene = self.read_ifiepieda(tgtlog)
-        # print('ifie', ifie[0], 'pieda', pieda[0], 'mom', momene)
+        ifie, pieda, momene, dimene, bsse = self.read_ifiepieda(tgtlog)
+        # print('l1613', 'ifie', ifie[0], 'pieda', pieda[0], 'mom', momene)
         ifdfs = self.getifiedf(ifie)
         pidfs = self.getpiedadf(pieda)
+        self.is_bsse = True
+        if self.is_bsse:
+            bssedfs = self.getbssedf(bsse)
+        else:
+            bssedfs = []
         if self.is_momdimene:
             momenedf = self.getmomenedf(momene)
             dimenedf = self.getdimenedf(dimene)
@@ -1621,7 +1667,7 @@ class anlfmo(pdio.pdb_io):
         # print('ifdfs', ifdfs)
         # print('pidfs', pidfs)
 
-        return [ifdfs, pidfs, momenedf, dimenedf]
+        return [ifdfs, pidfs, momenedf, dimenedf, bssedfs]
 
 
     def getfiltifpiff(self, i, ifdf, pidf):
@@ -1736,7 +1782,7 @@ class anlfmo(pdio.pdb_io):
         return ifdf_filters, ifdfsums
 
 
-    def getfiltifpifd(self, i, ifdf, pidf, momenedf=None, dimenedf=None):
+    def getfiltifpifd(self, i, ifdf, pidf, momenedf=None, dimenedf=None, bssedf=None):
         # in class var: tgttime
         #    local var: i, ifdf,pidf
         # out local var: tgtifdfsum, tgtdf_filter
@@ -1744,11 +1790,20 @@ class anlfmo(pdio.pdb_io):
 
         # get tgt frag id
         ifdf, ifdf_filter = self.gettgtdf_fd(ifdf)
+
+        # merge ifiedf and pieda df
         ifdf_filter = pd.merge(ifdf_filter, pidf, on=['I', 'J'], how='left')
+
+        # merge filtered-ifie data and dimer energy data
         if self.is_momdimene:
             ifdf_filter = pd.merge(ifdf_filter, dimenedf, on=['I', 'J'], how='left')
-        ifdf_filter['TIMES'] = self.tgttimes[i]
 
+        # merge ifiedf and pieda df
+        if self.is_bsse:
+            ifdf_filter = pd.merge(ifdf_filter, bssedf, on=['I', 'J'], how='left')
+
+        print(ifdf_filter.head())
+        ifdf_filter['TIMES'] = self.tgttimes[i]
         HF_IFIE_sum = ifdf_filter['HF-IFIE'].sum()
         MP2_IFIE_sum = ifdf_filter['MP2-IFIE'].sum()
         PR_TYPE1_sum = ifdf_filter['PR-TYPE1'].sum()
@@ -1760,6 +1815,15 @@ class anlfmo(pdio.pdb_io):
         CT_sum = ifdf_filter['CT-mix'].sum()
         DI_sum = ifdf_filter['DI(MP2)'].sum()
         q_sum = ifdf_filter['q(I=>J)'].sum()
+
+        try:
+            HF_BSSE_sum = ifdf_filter['HF-BSSE'].sum()
+            MP2_BSSE_sum = ifdf_filter['MP2-BSSE'].sum()
+        except:
+            HF_BSSE_sum = 0
+            MP2_BSSE_sum = 0
+
+        # data for bsse
         try:
             momenetgtdf = momenedf[momenedf['Frag.'] == self.momfrag]
             momene_tgt = momenetgtdf['HF'][0] + momenetgtdf['MP2'][0]
@@ -1779,7 +1843,7 @@ class anlfmo(pdio.pdb_io):
             dimlabel = 'DimerEnergy(' + str(self.dimfrag1) + '-' + str(self.dimfrag2) + ')'
 
 
-        ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum, momene_tgt, dimene_tgt], index=self.ifdfsumcolumn + [momlabel, dimlabel], name=self.tgttimes[i])
+        ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum, momene_tgt, dimene_tgt, HF_BSSE_sum, MP2_BSSE_sum], index=self.ifdfsumcolumn + [momlabel, dimlabel] + ['HF-BSSE', 'MP2-BSSE'], name=self.tgttimes[i])
         # print(ifdfsum)
 
         # pieda
@@ -1943,7 +2007,7 @@ class anlfmo(pdio.pdb_io):
             dfs = self.read_ifiepiedas(self.tgtlogs[i])
             if len(dfs) == 0:
                 return None
-            ifdf, pidf, momenedf, dimenedf = dfs
+            ifdf, pidf, momenedf, dimenedf, bssedf = dfs
 
         # IFIE pieda filter
         tgt2type = self.tgt2type
@@ -1991,13 +2055,21 @@ class anlfmo(pdio.pdb_io):
             return ifdf_filters, ifdfsums
 
         # dist or dimer-es mode
-        if tgt2type in ['dist', 'dimer-es'] and self.is_momdimene:
-            ifdf_filter, ifdfsum  = self.getfiltifpifd(i, ifdf, pidf, momenedf, dimenedf)
-            return ifdf_filter, ifdfsum
-
-        if tgt2type in ['dist', 'dimer-es'] and not self.is_momdimene:
-            ifdf_filter, ifdfsum  = self.getfiltifpifd(i, ifdf, pidf)
-            return ifdf_filter, ifdfsum
+        if tgt2type in ['dist', 'dimer-es']:
+            if self.is_momdimene:
+                if self.is_bsse:
+                    ifdf_filter, ifdfsum  = self.getfiltifpifd(i, ifdf, pidf, momenedf, dimenedf, bssedf)
+                    return ifdf_filter, ifdfsum
+                else:
+                    ifdf_filter, ifdfsum  = self.getfiltifpifd(i, ifdf, pidf, momenedf, dimenedf)
+                    return ifdf_filter, ifdfsum
+            else:
+                if self.is_bsse:
+                    ifdf_filter, ifdfsum  = self.getfiltifpifd(i, ifdf, pidf, None, None, bssedf)
+                    return ifdf_filter, ifdfsum
+                else:
+                    ifdf_filter, ifdfsum  = self.getfiltifpifd(i, ifdf, pidf)
+                    return ifdf_filter, ifdfsum
 
         else:
             print('tgt2type error!!')
@@ -2140,7 +2212,7 @@ class anlfmo(pdio.pdb_io):
 
             # pb python-based capture only in this version.
             if self.pbflag == True:
-                ifie, pieda, momene, dimene = self.read_ifiepieda(self.tgtlogs)
+                ifie, pieda, momene, dimene, bsse = self.read_ifiepieda(self.tgtlogs)
                 df = self.getifiedf(ifie)
                 self.ifdf = df
 
@@ -2170,7 +2242,7 @@ class anlfmo(pdio.pdb_io):
                 # print(self.pidf)
 
             else:
-                ifie, pieda, momene, dimene = self.read_ifiepieda(self.tgtlogs)
+                ifie, pieda, momene, dimene, bsse = self.read_ifiepieda(self.tgtlogs)
                 df = self.getifiedf(ifie)
                 self.ifdf = df
 
