@@ -34,22 +34,22 @@ Overview
 
 ## Requirement
 
-numpy
-pandas
+`numpy`
+`pandas`
 
 ## Usage
 
- python -m abmptools.addsolvfrag
- python -m abmptools.generateajf
- python -m abmptools.getifiepieda
- python -m abmptools.pdb2fmo
- python -m abmptools.pdbmodify
- python -m abmptools.pdbread
- python -m abmptools.setupserialpdb
- python -m abmptools.udf2fmo
+ `python -m abmptools.addsolvfrag`
+ `python -m abmptools.generateajf`
+ `python -m abmptools.getifiepieda`
+ `python -m abmptools.pdb2fmo`
+ `python -m abmptools.pdbmodify`
+ `python -m abmptools.pdbread`
+ `python -m abmptools.setupserialpdb`
+ `python -m abmptools.udf2fmo`
 
 ## Install
-python setup.py install
+`python setup.py install`
 
 ## Contribution
 
@@ -60,6 +60,4 @@ python setup.py install
 [Koji Okuwaki](koujioku81@gmail.com)
 
 ## example
-
-## update
 
