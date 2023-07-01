@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.12.1] - 2023-07-01
+### Added
+- 会合体フラグメント情報割り当て機能(pdb2fmo, udf2fmo) のsp2分割への対応
+
 ## [1.12.0] - 2023-04-02
 ### Added
 - CHANGELOG.md の追加 (change historyの整理)
