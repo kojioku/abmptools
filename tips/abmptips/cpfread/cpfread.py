@@ -1,3 +1,108 @@
+import math
+
+def flatten(nested_list):
+    """2重のリストをフラットにする関数"""
+    return [int(e) for inner_list in nested_list for e in inner_list]
+
+def functor(f, l):
+    if isinstance(l,list):
+        return [functor(f,i) for i in l]
+    else:
+        return f(l)
+
+# def listtoint(nested_list):
+#     """リストの中をintegerに"""
+#     return [int(e) for inner_list in nested_list for e in inner_list]
+
+def readfragcpf(file, nf):
+    # lines = open(fname, 'r').readlines()
+
+    flag = True
+    baseline = 1
+
+    datas = []
+    fatomnums = []
+    fchgs = []
+    fbaas = []
+    nfcount = 0
+    fatminfo = []
+    fatminfos = []
+    connects = []
+    typcount = 0
+    lcount = 0
+
+    # for i in range(10000):
+    while True:
+        itemlist = file.readline().strip().split()
+        if len(itemlist) == 0:
+            continue
+        if nf > 10:
+            baseline = math.ceil(self.nf/10)
+            print('n_line', baseline)
+        # fatom section
+        if flag == True and typcount == 0:
+            fatomnums.append(itemlist)
+            lcount += 1
+            if lcount == baseline:
+                typcount += 1
+                lcount = 0
+                fatomnums = flatten(fatomnums)
+                continue
+
+        # chg section
+        if flag == True and typcount == 1:
+            fchgs.append(itemlist)
+            lcount += 1
+            if lcount == baseline:
+                typcount += 1
+                lcount = 0
+                fchgs = flatten(fchgs)
+                continue
+
+        # bda section
+        if flag == True and typcount == 2:
+            fbaas.append(itemlist)
+            lcount += 1
+            if lcount == baseline:
+                typcount += 1
+                lcount = 0
+                fbaas = flatten(fbaas)
+                continue
+
+        # seginfo section
+        if flag == True and typcount == 3:
+            # print('typ', typcount)
+            # print(nfcount)
+            fatomnum = fatomnums[nfcount]
+            base2 = math.ceil(int(fatomnum)/10)
+            fatminfo.append(itemlist)
+            lcount += 1
+            if lcount == base2:
+                nfcount += 1
+                lcount = 0
+                fatminfo = flatten(fatminfo)
+                fatminfos.append(fatminfo)
+                fatminfo = []
+                if  nfcount > nf - 1:
+                    typcount += 1
+                    lcount = 0
+                    continue
+
+        # bda-baa atom section
+        if flag == True and typcount == 4:
+            connects.append(itemlist)
+            connects = functor(int, connects)
+            bdacount =
+            if 
+            break
+
+            # datas.append(itemlist)
+
+    return fatomnums, fchgs, fbaas, fatminfos, connects 
+
+
+
+
 def read_data(filepath):
     # Initialize the data structures
     cpfver = ''
@@ -72,7 +177,11 @@ def read_data(filepath):
                 atominfo[chg].append(atom_data[lstart:lend])
 
 
+        # return fatomnums, fchgs, fbaas, fatminfos, connects
+
+
           # Read the fragment data
+        readfragcpf(file, nfrag)
 #         for _ in range(fragment_count):
 #             fragment_data = list(map(int, file.readline().split()))
 #             data['fragments'].append(fragment_data)
