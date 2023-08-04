@@ -165,6 +165,8 @@ class abinit_io(mi.mol_io):
             for j in range(len(frag_connect[i])):
                 ajf_fragment += '%8d' % (frag_connect[i][j][0] + atom_count)
                 ajf_fragment += '%8d' % (frag_connect[i][j][1] + atom_count)
+                if len(frag_connect[i][j]) == 3:
+                    ajf_fragment += '%8d' % (frag_connect[i][j][2])
                 ajf_fragment += '\n'
             atom_count += sum(frag_atom[0])
         return ajf_fragment
@@ -1433,6 +1435,8 @@ MD='OFF'
                         frag_connect[nameid[i]][j][0] + atom_count)
                 ajf_fragment += '%8d' % (
                         frag_connect[nameid[i]][j][1] + atom_count)
+                if len(frag_connect[nameid[i]][j]) == 3:
+                    ajf_fragment += '%8d' % (frag_connect[nameid[i]][j][2])
                 ajf_fragment += '\n'
             atom_count += sum(frag_atom[nameid[i]])
 
