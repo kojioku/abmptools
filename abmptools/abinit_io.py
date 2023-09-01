@@ -314,9 +314,15 @@ OPT='OFF'
 /
 
 """
-        if self.abinit_ver in ['rev22', 'rev23', 'v2rev4']:
+        if self.abinit_ver in ['rev22', 'rev23', 'v2rev4', 'v2rev8']:
             ajf_body += """
 &MFMO
+/
+"""
+
+        if self.abinit_ver in ['v2rev8']:
+            ajf_body += """
+&EXPROP
 /
 """
 
@@ -324,7 +330,7 @@ OPT='OFF'
 DimerResponseTerm='NO'
 /
 """
-        if self.abinit_ver in ['rev22', 'rev23', 'v2rev4']:
+        if self.abinit_ver in ['rev22', 'rev23', 'v2rev4', 'v2rev8']:
             ajf_body += """
 &XUFF
 /
@@ -376,7 +382,7 @@ LPRINT=2"""
 /
 """
         # define new section
-        if self.abinit_ver in ['rev15', 'rev17', 'rev22', 'rev23', 'v2rev4']:
+        if self.abinit_ver in ['rev15', 'rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
             new_section = """
 &LRD
 """
@@ -388,7 +394,7 @@ LPRINT=2"""
         else:
             new_section = ""
 
-        if self.abinit_ver in ['rev10', 'rev11', 'rev15', 'rev17', 'rev22', 'rev23', 'v2rev4']:
+        if self.abinit_ver in ['rev10', 'rev11', 'rev15', 'rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8' ]:
             new_section += """
 &DFT
 /
@@ -467,10 +473,10 @@ MAXITR=1000
 JDGCNV='RMS'
 THRCNV=1.0E-5
 """
-            if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4']:
-                ajf_body +="ATMRAD='" + self.pbmolrad + "'"
+            if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
+                ajf_body += "ATMRAD='" + self.pbmolrad + "'"
             else:
-                ajf_body +="MOLRAD='" + self.pbmolrad + "'"
+                ajf_body += "MOLRAD='" + self.pbmolrad + "'"
         ajf_body +="""
 /
 
@@ -483,7 +489,15 @@ THRCNV=1.0E-5
             ajf_body +="NBOANL='ON'"
         ajf_body +="""
 /
+"""
 
+        if self.abinit_ver in ['rev22', 'rev23', 'v2rev4', 'v2rev8']:
+            ajf_body += """
+&COUPLING
+/
+"""
+
+        ajf_body += """
 &GRIDCNTRL
 GRID='NO'
 /
@@ -502,7 +516,7 @@ LPRINT=2
 /
 """
         # new section2
-        if self.abinit_ver in ['rev11', 'rev15', 'rev17', 'rev22', 'rev23', 'v2rev4']:
+        if self.abinit_ver in ['rev11', 'rev15', 'rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
             new_section2 = """
 &CCPT
 /
@@ -934,7 +948,7 @@ MD='OFF'
                 print("Warning: can't get result:", target)
                 return 0, 0, 0, 0, 0
 
-        if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4']:
+        if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
             text = f.readlines()
             f.close()
             index = 0
@@ -1032,7 +1046,7 @@ MD='OFF'
                 # sys.exit()
                 return 0, 0, 0, 0, 0
 
-        if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4']:
+        if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
             a, b, c, d, e = self.getfmopbenergy(target)
             return a, b, c, d, e
 
