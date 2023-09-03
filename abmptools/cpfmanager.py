@@ -16,6 +16,7 @@ class CPFManager:
         return
 
     def parse(self, filepath):
+
         # Initialize the data structures
         natom = 0
         nfrag = 0
@@ -128,11 +129,11 @@ class CPFManager:
                 }
             '''
 
-            fnatoms, fbaas, fatminfos = CPFManager.readfragcpf(file, nfrag)
+            fnatoms, fbaas, fconnects = CPFManager.readfragcpf(file, nfrag)
             fraginfo = {
                 'natoms': fnatoms,
                 'baas': fbaas,
-                'atminfos': fatminfos
+                'connects': fconnects
             }
 
             # Read the fragment distance data
@@ -351,7 +352,8 @@ class CPFManager:
         '''Write the CPF file.
 
         Args:
-            None
+            header (str): Header of the CPF file.
+            filename (str): Filename of the CPF file.
 
         Returns:
             None
@@ -360,17 +362,22 @@ class CPFManager:
         # header section
         if self.cpfver == 23:
             header = 'CPF Open1.0 rev23 ' + header
-            chglabel = ' '.join(self.labels['charge'])
-            dpmlabel = ' '.join(self.labels['DPM'])
-            momlabel = ' '.join(self.labels['monomer'])
-            dimlabel = ' '.join(self.labels['dimer'])
-
         if self.cpfver == 10:
             header = 'CPF Open1.0 rev10 ' + header
         if self.cpfver == 4:
             header = 'CPF Open1.0 rev4 ' + header
 
+        header += '\n' + '{:>10}'.format(self.static_data['natom']) \
+            + '{:>10}'.format(self.static_data['nfrag']) + '\n'
+
+        if self.cpfver == 23:
+            header += ' '.join(self.labels['charge']) + '\n'
+            header += ' '.join(self.labels['DPM']) + '\n'
+            header += ' '.join(self.labels['monomer']) + '\n'
+            header += ' '.join(self.labels['dimer'])
+
         # atom section
+        # setup format dict
         formats = {
             'alabels': "{:>10}",  # 原子の番号(i10)
             'elems': "{:>2}",  # 元素記号(a2)
@@ -385,30 +392,108 @@ class CPFManager:
             'optflags': "{:>1}",  # 構造最適化オプション(i1)
         }
 
+        for chglabel in self.labels['charge']:
+            formats[chglabel] = "{:20.10f}"
+
+        # update atominfodf using fmt
         atominfo = copy.deepcopy(self.atominfo)
         for col, fmt in formats.items():
             atominfo[col] = atominfo[col].apply(lambda x: fmt.format(x))
 
         atomstr = ''
         for index, row in atominfo.iterrows():
-            atomstr += ''.join(row.astype(str).tolist()) + '\n'
-
-        pass
+            atomstr += ' '.join(row.astype(str).tolist()) + '\n'
 
         out = header + '\n' + atomstr
         with open(filename, 'w') as f:
             f.write(out)
         # print('atomstr', atomstr)
 
+        # fragment section
+        fragstr = CPFManager.setupfragstr(self.fraginfo)
+
         '''
-        self.fraginfo
+            fraginfo = {
+                'natoms': fnatoms,
+                'baas': fbaas,
+                'connects': fconnects
+            }
+        '''
+
+        # self.diminfoの内容を'fragi', 'fragj', 'min-dist'の順に出力
+        dimstr = ''
+        for i in range(self.static_data['nfrag']):
+            dimstr += diminfo['fragi'][i] + diminfo['fragj'][i] diminfo['min-dist'][i]
+
+        '''
+            diminfo = {
+                'fragi': [],
+                'fragj': [],
+                'min-dist': []
+                }
+        '''
+        # static section
+        staticstr = ''
+        staticstr += static_data['nuclear_repulsion_energy']
+        staticstr = static_data['total_electronic_energy']
+        staticstr = static_data['total_energy']
+
+        '''
+            static_data = {}
+            static_data['nuclear_repulsion_energy'] = float(file.readline().strip())
+            static_data['total_electronic_energy'] = float(file.readline().strip())
+            static_data['total_energy'] = float(file.readline().strip())
+            static_data['natom'] = natom
+            static_data['nfrag'] = nfrag
+        '''
+
+
+        # condition
+        conditionstr = ''
+        conditionstr += condition['basis_set']
+        conditionstr += condition['electronic_state']
+        conditionstr += condition['calculation_method']
+        conditionstr += condition['aoc'] + condition['ptc'] + condition['ldimer']
+
+
+        '''
         self.condition
-        self.static_data
+            condition = {}
+            condition['basis_set'] = file.readline().strip()
+            condition['electronic_state'] = file.readline().strip()
+            condition['calculation_method'] = file.readline().strip()
+            condition['aoc'] = float(data_approxy[0])
+            condition['ptc'] = float(data_approxy[1])
+            condition['ldimer'] = float(data_approxy[2])
+        '''
+
+        '''
         self.mominfo
-        self.diminfo
         '''
 
         return None
+
+    @staticmethod
+    def setupfragstr(fraginfo):
+        fragstr = ''
+        count = 0
+        for fnatom in fraginfo['natoms']:
+            fragstr += '{:>8}'.format(fnatom)
+            count += 1
+            if count == 10:
+                fragstr += '\n'
+        for fnatom in fraginfo['baas']:
+            fragstr += '{:>8}'.format(fnatom)
+            count += 1
+            if count == 10:
+                fragstr += '\n'
+        for fnatom in fraginfo['connects']:
+            fragstr += '{:>8}'.format(fnatom)
+            count += 1
+            if count == 10:
+                fragstr += '\n'
+
+        return fragstr
 
     @staticmethod
     def flatten(nested_list):
@@ -423,7 +508,6 @@ class CPFManager:
 
         return [int(e) for inner_list in nested_list for e in inner_list]
 
-
     @staticmethod
     def readfragcpf(file, nf):
         '''Read the fragment data from the CPF file.
@@ -435,14 +519,14 @@ class CPFManager:
         Returns:
             fnatoms (list): The number of atoms in each fragment
             fbaas (list): The BAA of each fragment
-            connects (list): The connect (bda baa) atom IDs of each fragment
+            fconnects (list): The connect (bda baa) atom IDs of each fragment
 
         Note:
             The CPF file format is described in the CPF manual.
 
             fnatoms = [natom1, natom2, ...]
             fbaas = [baa1, baa2, ...]
-            connects = [[atomid1, atomid2, ...], [atomid1, atomid2, ...], ...]
+            fconnects = [[atomid1, atomid2, ...], [atomid1, atomid2, ...], ...]
         '''
 
         # Initialize the data structures
@@ -450,8 +534,8 @@ class CPFManager:
         nline = 1  # line number
         fnatoms = []  # fragment natom section
         fbaas = []  # bda section
-        connects = []  # bda-baa atom section
-        typcount = 0   # type (0: fnatoms, 1: fbaas, 2: connects)
+        fconnects = []  # bda-baa atom section
+        typcount = 0   # type (0: fnatoms, 1: fbaas, 2: fconnects)
         lcount = 0  # line count
 
         if nf > 10:
@@ -486,14 +570,14 @@ class CPFManager:
             # bda-baa atom section
             if flag is True and typcount == 2:
                 count += 1
-                connects.append(itemlist)
-                connects = CPFManager.functor(int, connects)
+                fconnects.append(itemlist)
+                fconnects = CPFManager.functor(int, fconnects)
                 if count == sum(fbaas):
                     break
 
                 # datas.append(itemlist)
 
-        return fnatoms, fbaas, connects
+        return fnatoms, fbaas, fconnects
 
     @staticmethod
     def functor(f, lname):
