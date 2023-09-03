@@ -404,73 +404,179 @@ class CPFManager:
         for index, row in atominfo.iterrows():
             atomstr += ' '.join(row.astype(str).tolist()) + '\n'
 
-        out = header + '\n' + atomstr
-        with open(filename, 'w') as f:
-            f.write(out)
-        # print('atomstr', atomstr)
-
         # fragment section
         fragstr = CPFManager.setupfragstr(self.fraginfo)
 
         '''
             fraginfo = {
-                'natoms': fnatoms,
-                'baas': fbaas,
-                'connects': fconnects
+                'natoms': fnatoms,      10i8
+                'baas': fbaas,          10i8
+                'connects': fconnects   i10
             }
         '''
 
         # self.diminfoの内容を'fragi', 'fragj', 'min-dist'の順に出力
+        diminfo = copy.deepcopy(self.diminfo)
         dimstr = ''
         for i in range(self.static_data['nfrag']):
-            dimstr += diminfo['fragi'][i] + diminfo['fragj'][i] diminfo['min-dist'][i]
+            dimstr += str(diminfo['fragi'][i]) + str(diminfo['fragj'][i]) + str(diminfo['min-dist'][i])
 
         '''
             diminfo = {
-                'fragi': [],
-                'fragj': [],
+                'fragi': [],        space
+                'fragj': [],        space
                 'min-dist': []
                 }
         '''
         # static section
         staticstr = ''
-        staticstr += static_data['nuclear_repulsion_energy']
-        staticstr = static_data['total_electronic_energy']
-        staticstr = static_data['total_energy']
+        staticstr += str(self.static_data['nuclear_repulsion_energy']) + '\n'
+        staticstr += str(self.static_data['total_electronic_energy']) + '\n'
+        staticstr += str(self.static_data['total_energy']) + '\n'
 
         '''
             static_data = {}
-            static_data['nuclear_repulsion_energy'] = float(file.readline().strip())
-            static_data['total_electronic_energy'] = float(file.readline().strip())
-            static_data['total_energy'] = float(file.readline().strip())
+            static_data['nuclear_repulsion_energy'] = float(file.readline().strip()) -
+            static_data['total_electronic_energy'] = float(file.readline().strip()) -
+            static_data['total_energy'] = float(file.readline().strip()) -
             static_data['natom'] = natom
             static_data['nfrag'] = nfrag
         '''
 
-
         # condition
         conditionstr = ''
-        conditionstr += condition['basis_set']
-        conditionstr += condition['electronic_state']
-        conditionstr += condition['calculation_method']
-        conditionstr += condition['aoc'] + condition['ptc'] + condition['ldimer']
-
+        conditionstr += "{:>20}".format(self.condition['basis_set'])
+        conditionstr += "{:>4}".format(self.condition['electronic_state'])
+        conditionstr += "{:>20}".format(self.condition['calculation_method'])
+        conditionstr += str(self.condition['aoc']) + str(self.condition['ptc'])
+        conditionstr += str(self.condition['ldimer'])
 
         '''
         self.condition
             condition = {}
-            condition['basis_set'] = file.readline().strip()
-            condition['electronic_state'] = file.readline().strip()
-            condition['calculation_method'] = file.readline().strip()
-            condition['aoc'] = float(data_approxy[0])
-            condition['ptc'] = float(data_approxy[1])
-            condition['ldimer'] = float(data_approxy[2])
+            condition['basis_set'] = file.readline().strip() a20
+            condition['electronic_state'] = file.readline().strip() a4
+            condition['calculation_method'] = file.readline().strip() a20
+            condition['aoc'] = float(data_approxy[0]) -
+            condition['ptc'] = float(data_approxy[1]) -
+            condition['ldimer'] = float(data_approxy[2]) -
         '''
 
+        formats = {
+            'fragi': "{:>10}",  # フラグメント番号(i10)
+        }
+
+        for dpmlabel in self.labels['DPM']:
+            formats[dpmlabel] = "{:24.15f}"
+
+        for momlabel in self.labels['monomer']:
+            formats[momlabel] = "{:24.15f}"
+
+        # update mominfodf using fmt
+        mominfo = copy.deepcopy(self.mominfo)
+        for col, fmt in formats.items():
+            mominfo[col] = mominfo[col].apply(lambda x: fmt.format(x))
+
+        momstr = ''
+        for index, row in mominfo.iterrows():
+            momstr += ' '.join(row.astype(str).tolist()) + '\n'
+
         '''
+                labels = {
+                    'charge': charge_label,
+                    'DPM': DPM_label,
+                    'monomer': monomer_label,
+                    'dimer': dimer_label,
+                    }
+
         self.mominfo
+            # read the dipole data
+            0.785970969662152E+00    0.281296712643063E+01   -0.132604581524068E+01
+            0.145048892092187E+01   -0.334817286212412E+01   -0.161464626780787E+01
+           -0.524704704075969E+00   -0.357367905308988E+01    0.156523382974318E+01
+            0.245666859488253E+01   -0.160468359833147E+01    0.280152739221378E+01
+            0.368656733092432E+01   -0.478966423463728E+01   -0.248675894502097E+00
+
+                モノマー数行ループ {
+                    !双極子モーメント(HF密度)のx成分,!y成分,!z成分,!双極子モーメント(MP2密度)のx成分,!y成分,!z成分
+                }
+
+            mominfo = {
+                'fragi': []
+                }
+
+
         '''
 
+        formats = {
+            'fragj': "{:>10}",  # フラグメント番号(i10)
+            'fragi': "{:>10}",  # フラグメント番号(i10)
+        }
+
+        for dimlabel in self.labels['dimer']:
+            formats[dimlabel] = "{:24.15f}"
+
+        # update diminfodf using fmt
+        for col, fmt in formats.items():
+            diminfo[col] = diminfo[col].apply(lambda x: fmt.format(x))
+
+        dimstr = ''
+        for index, row in diminfo.iterrows():
+            dimstr += ' '.join(row.astype(str).tolist()) + '\n'
+
+        out = header + '\n' + conditionstr + staticstr + momstr + dimstr
+        with open(filename, 'w') as f:
+            f.write(out)
+        # print('atomstr', atomstr)
+
+            '''
+            10
+             2         1
+                0.898358210380181E+02  -0.104597690503434E+03  -0.144643244417453E+02
+                -0.170246083060746E+00  -0.127298940609776E+00   0.100810192882720E+02
+             3         1
+                0.481151423108853E+02  -0.481122012096812E+02   0.292560697485555E-02
+                0.199376860194889E-04  -0.444345681671621E-05   0.257150081637292E-04
+             3         2
+                0.151596219157517E+03  -0.166354359041009E+03  -0.144607605291407E+02
+                -0.171095817875511E+00  -0.126283536475938E+00   0.100219172897770E+02
+             4         1
+                0.472340649687743E+02  -0.472327218765366E+02   0.135816158277180E-02
+                0.380952857454986E-04  -0.531646308132849E-04   0.292747285648431E-04
+             4         2
+                0.103751129938383E+03  -0.103749009778853E+03   0.201925943345316E-02
+                0.734678685546442E-03  -0.633778588650102E-03   0.186391389006602E-02
+             0
+             0
+
+            モノマーの数(i10)
+            モノマー数分ループ {
+            !モノマーの番号(i10), !モノマーの核間反発エネルギー(e24.15), !モノマーの電子エネルギー(e24.15)
+            !モノマーのMP2相関エネルギー(e24.15), !モノマーのMP3相関エネルギー(e24.15)
+            }
+            ダイマーの数(i10)
+            ダイマー数分ループ {I(I10) J(I10), !IFIEの核間反発エネルギー項(e24.15),
+                !HF-IFIEの電子エネルギー項(e24.15), !HF-IFIEの静電エネルギー項(e24.15),
+                !MP2-IFIE (e24.15) PR-MP2-IFIE (e24.15),
+                !SCS-MP2(Grimme)-IFIE (e24.15),
+                !MP3-IFIE(e24.15), !SCS-MP3(MP2.5)-IFIE(e24.15),
+                !HF-IFIE-BSSE(e24.15),
+                !MP2-IFIE-BSSE (e24.15) SCS-MP2(Grimme)-IFIE-BSSE (e24.15),
+                !MP3-IFIE-BSSE (e24.15)SCS-MP3(MP2.5)-IFIE-BSSE (e24.15),
+                !溶媒による遮蔽効果のES項 (e24.15) 溶媒による遮蔽効果のNP項 (e24.15),
+                !PIEDAのEX項 (e24.15), !PIEDAのCT項 (e24.15), !PIEDAのΔq(e24.15)
+            }
+            トリマーの数(I10)
+            トリマー数分ループ {I(I10), J(I10), K(I10), HF(e24.15), MP2(e24.15),
+                SCS-MP2(e24.15), MP3(e24.15), SCS-MP3(e24.15)
+            }
+            テトラマーの数(I10),
+            テトラマー数分ループ {I(I10), J(I10), K(I10), L(I10),
+                HF(e24.15), MP2(e24.15), SCS-MP2(e24.15),
+                MP3(e24.15), SCS-MP3(e24.15)
+            }
+            END(a3)
+            '''
         return None
 
     @staticmethod
@@ -488,7 +594,8 @@ class CPFManager:
             if count == 10:
                 fragstr += '\n'
         for fnatom in fraginfo['connects']:
-            fragstr += '{:>8}'.format(fnatom)
+            print(fnatom)
+            fragstr += '{:>8}'.format(fnatom[0]) + '{:>8}'.format(fnatom[1])
             count += 1
             if count == 10:
                 fragstr += '\n'
