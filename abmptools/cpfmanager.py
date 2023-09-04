@@ -5,7 +5,7 @@ import copy
 
 class CPFManager:
     def __init__(self):
-        self.cpfver = ""
+        self.cpfver = 23
         self.atominfo = {}
         self.fraginfo = []
         self.condition = []
@@ -13,10 +13,10 @@ class CPFManager:
         self.mominfo = {}
         self.diminfo = {}
         self.labels = {}
+        self.tgtfrag = 0
         return
 
     def parse(self, filepath):
-
         # Initialize the data structures
         natom = 0
         nfrag = 0
@@ -41,6 +41,7 @@ class CPFManager:
             ''' \
             CPF Open1.0 rev23
             CPF Open1.0 rev10
+            CPF Ver.4.201
             '''
             # Read the number of atoms and fragments
             natom, nfrag = map(int, file.readline().split())
@@ -54,22 +55,46 @@ class CPFManager:
                     SOLV-ES, SOLV-NP, EX, CT, DQ
             '''
 
-            if header[0:18] == 'CPF Open1.0 rev23':
+            if header[0:17] == 'CPF Open1.0 rev23':
                 cpfver = 23
-            if header[0:18] == 'CPF Open1.0 rev10':
+            if header[0:17] == 'CPF Open1.0 rev10':
                 cpfver = 10
+            if header[0:13] == 'CPF Ver.4.201':
+                cpfver = 4.201
 
+            print('cpfver', cpfver)
             if cpfver == 23:
                 charge_label = file.readline().strip().split()
                 DPM_label = file.readline().strip().split()
                 monomer_label = file.readline().strip().split()
                 dimer_label = file.readline().strip().split()
-                labels = {
-                    'charge': charge_label,
-                    'DPM': DPM_label,
-                    'monomer': monomer_label,
-                    'dimer': dimer_label,
-                    }
+
+            if cpfver == 10:
+                charge_label = ["MUL-HF", "MUL-MP2", "NPA-HF", "NPA-MP2", "ESP-HF", "ESP-MP2"]
+                DPM_label = ["DPM-HF-X", "DPM-HF-Y", "DPM-HF-Z", "DPM-MP2-X",
+                             "DPM-MP2-Y", "DPM-MP2-Z"]
+                monomer_label = ["NR", "HF", "MP2", "MP3"]
+                dimer_label = ["NR", "HF", "ES", "MP2", "PR-MP2", "SCS-MP2(Grimme)",
+                               "MP3", "SCS-MP3(MP2.5)", "HF-BSSE", "MP2-BSSE",
+                               "SCS-MP2-BSSE", "MP3-BSSE", "SCS-MP3-BSSE",
+                               "SOLV-ES", "SOLV-NP", "EX", "CT", "DQ"]
+
+            if cpfver == 4.201:
+                charge_label = ["MUL-HF", "MUL-MP2", "NPA-HF", "NPA-MP2", "ESP-HF", "ESP-MP2"]
+                DPM_label = ["DPM-HF-X", "DPM-HF-Y", "DPM-HF-Z", "DPM-MP2-X",
+                             "DPM-MP2-Y", "DPM-MP2-Z"]
+                monomer_label = ["NR", "HF", "MP2", "MP3"]
+                dimer_label = ["NR", "HF", "ES", "MP2", "SCS-MP2(Grimme)",
+                               "MP3", "SCS-MP3(MP2.5)", "HF-BSSE", "MP2-BSSE",
+                               "SCS-MP2-BSSE", "MP3-BSSE", "SCS-MP3-BSSE",
+                               "EX", "CT", "DQ"]
+
+            labels = {
+                'charge': charge_label,
+                'DPM': DPM_label,
+                'monomer': monomer_label,
+                'dimer': dimer_label,
+                }
 
             # Read the atom data
             ''' \
@@ -87,30 +112,52 @@ class CPFManager:
                     }
             '''
 
-            if cpfver == 23:
-                # Initialize the data structures
-                for chg in charge_label:
-                    atominfo[chg] = []
+            # Initialize the data structures
+            for chg in charge_label:
+                atominfo[chg] = []
 
             # Read the atom data
             for _ in range(natom):
                 atom_data = file.readline().rstrip()
-                atominfo['alabels'].append(int(atom_data[0:10].strip()))
-                atominfo['elems'].append(atom_data[11:13].strip())
-                atominfo['elemtypes'].append(atom_data[14:18])
-                atominfo['resnames'].append(atom_data[19:22].strip())
-                atominfo['resids'].append(int(atom_data[23:33].strip()))
-                atominfo['fragids'].append(int(atom_data[34:44].strip()))
-                atominfo['xcoords'].append(float(atom_data[45:65].strip()))
-                atominfo['ycoords'].append(float(atom_data[66:85].strip()))
-                atominfo['zcoords'].append(float(atom_data[86:105].strip()))
-                atominfo['chainids'].append(atom_data[106:109].strip())
-                atominfo['optflags'].append(int(atom_data[110:111].strip()))
                 if cpfver == 23:
+                    if self.tgtfrag != 0 and \
+                            int(atom_data[34:44].strip()) not in self.tgtfrag:
+                        continue
+                    atominfo['alabels'].append(int(atom_data[0:10].strip()))
+                    atominfo['elems'].append(atom_data[11:13].strip())
+                    atominfo['elemtypes'].append(atom_data[14:18])
+                    atominfo['resnames'].append(atom_data[19:22].strip())
+                    atominfo['resids'].append(int(atom_data[23:33].strip()))
+                    atominfo['fragids'].append(int(atom_data[34:44].strip()))
+                    atominfo['xcoords'].append(float(atom_data[45:65].strip()))
+                    atominfo['ycoords'].append(float(atom_data[65:85].strip()))
+                    atominfo['zcoords'].append(float(atom_data[85:105].strip()))
+                    atominfo['chainids'].append(atom_data[106:109].strip())
+                    atominfo['optflags'].append(int(atom_data[110:111].strip()))
                     for chg in charge_label:
                         lstart = charge_label.index(chg)*20 + 111
                         lend = lstart + 20
                         atominfo[chg].append(float(atom_data[lstart:lend].strip()))
+
+                elif cpfver in [10, 4.201]:
+                    if self.tgtfrag != 0 and \
+                            int(atom_data[23:27].strip()) not in self.tgtfrag:
+                        continue
+                    atominfo['alabels'].append(int(atom_data[0:5].strip()))
+                    atominfo['elems'].append(atom_data[6:8].strip())
+                    atominfo['elemtypes'].append(atom_data[9:13])
+                    atominfo['resnames'].append(atom_data[14:17].strip())
+                    atominfo['resids'].append(int(atom_data[18:22].strip()))
+                    atominfo['fragids'].append(int(atom_data[23:27].strip()))
+                    atominfo['xcoords'].append(float(atom_data[28:40].strip()))
+                    atominfo['ycoords'].append(float(atom_data[40:52].strip()))
+                    atominfo['zcoords'].append(float(atom_data[52:64].strip()))
+                    for chg in charge_label:
+                        lstart = charge_label.index(chg)*12 + 64
+                        lend = lstart + 12
+                        atominfo[chg].append(float(atom_data[lstart:lend].strip()))
+                    atominfo['chainids'].append(atom_data[137:138].strip())
+                    atominfo['optflags'].append("")
 
             # Read the fragment data
             '''
@@ -125,11 +172,13 @@ class CPFManager:
                 結合電子を自分のフラグメントに割り当てたフラグメント間の結合の本数(フラグメントごとのBDA数)(10i8)
                 }
             BDA総数行ループ{
-                フラグメントが結合している相手の原子の番号(i10), 相手のフラグメントと結合している原子の番号(i10)
+                フラグメントが結合している相手の原子番号(i10), 相手フラグメントと結合している原子の番号(i10)
                 }
             '''
 
-            fnatoms, fbaas, fconnects = CPFManager.readfragcpf(file, nfrag)
+            fnatoms, fbaas, fconnects = CPFManager.readfragcpf(
+                file, nfrag, self.tgtfrag, atominfo['alabels'])
+            # print(fconnects)
             fraginfo = {
                 'natoms': fnatoms,
                 'baas': fbaas,
@@ -161,11 +210,16 @@ class CPFManager:
                 'min-dist': []
                 }
 
+            dimaccept = []
             for _ in range(nfrag*(nfrag-1)//2):
                 dim_data = file.readline().strip().split()
+                if self.tgtfrag != 0:
+                    if int(dim_data[0]) not in self.tgtfrag or int(dim_data[1]) not in self.tgtfrag:
+                        continue
                 diminfo['fragj'].append(int(dim_data[0]))
                 diminfo['fragi'].append(int(dim_data[1]))
                 diminfo['min-dist'].append(float(dim_data[2]))
+                dimaccept.append(_)
 
             # read the dipole data
             '''
@@ -184,13 +238,15 @@ class CPFManager:
                 'fragi': []
                 }
 
-            if cpfver == 23:
-                # Initialize the data structures
-                for dpm in DPM_label:
-                    mominfo[dpm] = []
+            # Initialize the data structures
+            for dpm in DPM_label:
+                mominfo[dpm] = []
 
             for _ in range(nfrag):
                 dipole_data = file.readline().strip().split()
+                if self.tgtfrag != 0:
+                    if (_+1) not in self.tgtfrag:
+                        continue
                 count = 0
                 for dpm in DPM_label:
                     mominfo[dpm].append(float(dipole_data[count]))
@@ -230,8 +286,13 @@ class CPFManager:
             static_data['nuclear_repulsion_energy'] = float(file.readline().strip())
             static_data['total_electronic_energy'] = float(file.readline().strip())
             static_data['total_energy'] = float(file.readline().strip())
-            static_data['natom'] = natom
-            static_data['nfrag'] = nfrag
+            if self.tgtfrag != 0:
+                static_data['natom'] = len(atominfo['alabels'])
+                static_data['nfrag'] = len(self.tgtfrag)
+
+            else:
+                static_data['natom'] = natom
+                static_data['nfrag'] = nfrag
 
             # Read the nuclear repulsion energy,
             # total electronic energy, and total energy
@@ -244,20 +305,40 @@ class CPFManager:
              5   0.302972088661468E+03  -0.692375396192077E+03
             '''
 
-            if cpfver == 23:
-                # Initialize the data structures
-                for mom in monomer_label:
-                    mominfo[mom] = []
+            # Initialize the data structures
+            for mom in monomer_label:
+                mominfo[mom] = []
 
-            nmonomer = int(file.readline().strip())
-            for _ in range(nmonomer):
-                count = 1
-                monomer_data = file.readline().strip().split()
-                mominfo['fragi'].append(int(monomer_data[0]))
-                if cpfver == 23:
+            if cpfver == 23:
+                nmonomer = int(file.readline().strip())
+                if self.tgtfrag != 0:
+                    nmonomer = static_data['nfrag']
+                for _ in range(nmonomer):
+                    monomer_data = file.readline().strip().split()
+                    if self.tgtfrag != 0:
+                        if _ not in self.tgtfrag:
+                            continue
+                    count = 1
+                    mominfo['fragi'].append(int(monomer_data[0]))
                     for mom in monomer_label:
                         mominfo[mom].append(float(monomer_data[count]))
                         count += 1
+
+            else:
+                nmonomer = nfrag
+                for _ in range(nmonomer):
+                    monomer_data = file.readline().strip().split()
+                    if self.tgtfrag != 0:
+                        if (_+1) not in self.tgtfrag:
+                            continue
+                    count = 0
+                    icount = 1
+                    mominfo['fragi'].append(icount)
+                    icount += 1
+                    for mom in monomer_label:
+                        mominfo[mom].append(float(monomer_data[count]))
+                        count += 1
+            # print(mominfo)
 
             '''
             10
@@ -270,9 +351,6 @@ class CPFManager:
              3         2
                 0.151596219157517E+03  -0.166354359041009E+03  -0.144607605291407E+02
                 -0.171095817875511E+00  -0.126283536475938E+00   0.100219172897770E+02
-             4         1
-                0.472340649687743E+02  -0.472327218765366E+02   0.135816158277180E-02
-                0.380952857454986E-04  -0.531646308132849E-04   0.292747285648431E-04
              0
              0
 
@@ -305,23 +383,33 @@ class CPFManager:
             END(a3)
             '''
 
-            if cpfver == 23:
-                # Initialize the data structures
-                for dim in dimer_label:
-                    diminfo[dim] = []
+            # Initialize the data structures
+            for dim in dimer_label:
+                diminfo[dim] = []
 
-            ndimer = int(file.readline().strip())
+            if cpfver == 23:
+                ndimer = int(file.readline().strip())
+            else:
+                ndimer = nfrag*(nfrag-1)//2
             static_data['ndimer'] = ndimer
+
             for _ in range(ndimer):
-                count = 2
-                dimer_data = file.readline().strip().split()
                 if cpfver == 23:
-                    for dim in dimer_label:
-                        diminfo[dim].append(float(dimer_data[count]))
-                        count += 1
-            print(diminfo)
+                    count = 2
+                else:
+                    count = 0
+                dimer_data = file.readline().strip().split()
+                if self.tgtfrag != 0:
+                    if _ not in dimaccept:
+                        continue
+                for dim in dimer_label:
+                    diminfo[dim].append(float(dimer_data[count]))
+                    count += 1
             static_data['ntrimer'] = "0"
             static_data['ntetramer'] = "0"
+
+            if self.tgtfrag != 0:
+                static_data['ndimer'] = len(dimaccept)
 
             self.cpfver = cpfver
             self.atominfo = pd.DataFrame(atominfo)
@@ -334,7 +422,7 @@ class CPFManager:
 
         return None
 
-    def write(self, header, filename):
+    def write(self, header, filename, cpfver=23):
         '''Write the CPF file.
 
         Args:
@@ -346,17 +434,17 @@ class CPFManager:
         '''
 
         # header section
-        if self.cpfver == 23:
+        if cpfver == 23:
             header = 'CPF Open1.0 rev23 ' + header
-        if self.cpfver == 10:
+        if cpfver == 10:
             header = 'CPF Open1.0 rev10 ' + header
-        if self.cpfver == 4:
-            header = 'CPF Open1.0 rev4 ' + header
+        if cpfver == 4:
+            header = 'CPF Ver.4.201 ' + header
 
         header += '\n' + '{:>10}'.format(self.static_data['natom']) \
             + '{:>10}'.format(self.static_data['nfrag']) + '\n'
 
-        if self.cpfver == 23:
+        if cpfver == 23:
             header += ' '.join(self.labels['charge']) + '\n'
             header += ' '.join(self.labels['DPM']) + '\n'
             header += ' '.join(self.labels['monomer']) + '\n'
@@ -557,12 +645,14 @@ class CPFManager:
         tetrstr = "{:>10}".format(self.static_data['ntetramer']) + '\n'
 
         out = header + '\n' + atomstr + fragstr + diststr + dpmstr + \
-            conditionstr + staticstr + momstr + dimstr + trmstr + tetrstr
+            conditionstr + staticstr + momstr + \
+            dimstr + trmstr + tetrstr + 'END'
         with open(filename, 'w') as f:
             f.write(out)
         # print('atomstr', atomstr)
 
             '''
+
             10
              2         1
                 0.898358210380181E+02  -0.104597690503434E+03  -0.144643244417453E+02
@@ -573,12 +663,6 @@ class CPFManager:
              3         2
                 0.151596219157517E+03  -0.166354359041009E+03  -0.144607605291407E+02
                 -0.171095817875511E+00  -0.126283536475938E+00   0.100219172897770E+02
-             4         1
-                0.472340649687743E+02  -0.472327218765366E+02   0.135816158277180E-02
-                0.380952857454986E-04  -0.531646308132849E-04   0.292747285648431E-04
-             4         2
-                0.103751129938383E+03  -0.103749009778853E+03   0.201925943345316E-02
-                0.734678685546442E-03  -0.633778588650102E-03   0.186391389006602E-02
              0
              0
 
@@ -600,16 +684,12 @@ class CPFManager:
                 !PIEDAのEX項 (e24.15), !PIEDAのCT項 (e24.15), !PIEDAのΔq(e24.15)
             }
             トリマーの数(I10)
-            トリマー数分ループ {I(I10), J(I10), K(I10), HF(e24.15), MP2(e24.15),
-                SCS-MP2(e24.15), MP3(e24.15), SCS-MP3(e24.15)
             }
             テトラマーの数(I10),
-            テトラマー数分ループ {I(I10), J(I10), K(I10), L(I10),
-                HF(e24.15), MP2(e24.15), SCS-MP2(e24.15),
-                MP3(e24.15), SCS-MP3(e24.15)
             }
             END(a3)
             '''
+
         return None
 
     @staticmethod
@@ -655,7 +735,7 @@ class CPFManager:
         return [int(e) for inner_list in nested_list for e in inner_list]
 
     @staticmethod
-    def readfragcpf(file, nf):
+    def readfragcpf(file, nf, tgtfrag=0, alabels=None):
         '''Read the fragment data from the CPF file.
 
         Args:
@@ -716,10 +796,20 @@ class CPFManager:
             # bda-baa atom section
             if flag is True and typcount == 2:
                 count += 1
+                if count == sum(fbaas):
+                    if tgtfrag != 0:
+                        if int(itemlist[0]) not in alabels or int(itemlist[1]) not in alabels:
+                            break
+                    fconnects.append(itemlist)
+                    fconnects = CPFManager.functor(int, fconnects)
+                    break
+                if tgtfrag != 0:
+                    print(alabels)
+                    if int(itemlist[0]) not in alabels or int(itemlist[1]) not in alabels:
+                        print(itemlist, 'skip!!!!')
+                        continue
                 fconnects.append(itemlist)
                 fconnects = CPFManager.functor(int, fconnects)
-                if count == sum(fbaas):
-                    break
 
                 # datas.append(itemlist)
 
@@ -746,13 +836,38 @@ class CPFManager:
     #     """リストの中をintegerに"""
     #     return [int(e) for inner_list in nested_list for e in inner_list]
 
+    @staticmethod
+    def selectfrag(item1):
+        if type(item1) == str:
+            if '-' in item1:
+                tgt = item1.split('-')
+                print('tgt', tgt)
+                tgtlist = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
+            else:
+                tgtlist = list(map(int, item1.split(',')))
+            return tgtlist
+
+        elif type(item1) == int:
+            return int(item1)
+
 
 cpf = CPFManager()
-cpf.parse('gly5.cpf')
+# cpf.parse('gly50.cpf')
+# cpf.tgtfrag = cpf10.selectfrag('1-5')
+# print('tgtfrag', cpf10.tgtfrag)
+
+cpf.parse('gly5-10.cpf')
+cpf.write('test-from10to23', 'test-i10o23.cpf')
+
+# cpf10.write('test-from10to23', 'test-i10o23-trim.cpf')
+
+# cpf4 = CPFManager()
+# cpf4.parse('gly5-4201.cpf')
+# cpf4.write('test-from42to23', 'test-i42o23.cpf')
 
 # print(dir(cpf))
 # print(vars(cpf))
-cpf.write('test', 'test.cpf')
+# cpf.write('test', 'test.cpf')
 # print('cpfver\n', cpf.cpfver)
 # print('labels\n', cpf.labels)
 # print('atominfo\n', cpf.atominfo.head())
@@ -761,3 +876,4 @@ cpf.write('test', 'test.cpf')
 # print('static_data\n', cpf.static_data)
 # print('mominfo\n', cpf.mominfo)
 # print('diminfo\n', cpf.diminfo)
+# print('labels\n', cpf.labels)
