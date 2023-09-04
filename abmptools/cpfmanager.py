@@ -77,7 +77,7 @@ class CPFManager:
                 -0.2020000000        0.0000000000     1       -0.3972241421
             '''
             '''"原子数"分ループ{
-                    原子の番号(i10), x, 元素記号(a2), x, \
+                    原子の番号(i10), 元素記号(a2), x, \
                     原子タイプ(a4), x, 残基名(a3), x, 残基番号(i10), x,フラグメント番号(i10), x,\
                     x座標(f20.10), y座標(f20.10) z座標(f20.10), x, Chain ID(a3), x, \
                     構造最適化オプション(i1), !Mulliken原子電荷(HF密度)(f20.10), \
@@ -97,13 +97,13 @@ class CPFManager:
                 atom_data = file.readline().rstrip()
                 atominfo['alabels'].append(int(atom_data[0:10].strip()))
                 atominfo['elems'].append(atom_data[11:13].strip())
-                atominfo['elemtypes'].append(atom_data[14:18].strip())
+                atominfo['elemtypes'].append(atom_data[14:18])
                 atominfo['resnames'].append(atom_data[19:22].strip())
                 atominfo['resids'].append(int(atom_data[23:33].strip()))
                 atominfo['fragids'].append(int(atom_data[34:44].strip()))
                 atominfo['xcoords'].append(float(atom_data[45:65].strip()))
-                atominfo['ycoords'].append(float(atom_data[65:85].strip()))
-                atominfo['zcoords'].append(float(atom_data[85:105].strip()))
+                atominfo['ycoords'].append(float(atom_data[66:85].strip()))
+                atominfo['zcoords'].append(float(atom_data[86:105].strip()))
                 atominfo['chainids'].append(atom_data[106:109].strip())
                 atominfo['optflags'].append(int(atom_data[110:111].strip()))
                 if cpfver == 23:
@@ -163,8 +163,8 @@ class CPFManager:
 
             for _ in range(nfrag*(nfrag-1)//2):
                 dim_data = file.readline().strip().split()
-                diminfo['fragi'].append(int(dim_data[0]))
-                diminfo['fragj'].append(int(dim_data[1]))
+                diminfo['fragj'].append(int(dim_data[0]))
+                diminfo['fragi'].append(int(dim_data[1]))
                 diminfo['min-dist'].append(float(dim_data[2]))
 
             # read the dipole data
@@ -273,24 +273,6 @@ class CPFManager:
              4         1
                 0.472340649687743E+02  -0.472327218765366E+02   0.135816158277180E-02
                 0.380952857454986E-04  -0.531646308132849E-04   0.292747285648431E-04
-             4         2
-                0.103751129938383E+03  -0.103749009778853E+03   0.201925943345316E-02
-                0.734678685546442E-03  -0.633778588650102E-03   0.186391389006602E-02
-             4         3
-                0.151609836272825E+03  -0.166363652509399E+03  -0.144566293381012E+02
-                -0.170776291331123E+00  -0.126410607141253E+00   0.100185717607355E+02
-             5         1
-                0.693589957512211E+02  -0.693562420378788E+02   0.278835582868453E-02
-                0.343382369294432E-05  -0.380763100480408E-04  -0.695127646110905E-05
-             5         2
-                0.159493576274165E+03  -0.159501166271000E+03  -0.716229202939189E-02
-                0.448447060864510E-02  -0.491217541426181E-02   0.144539031120985E-01
-             5         3
-                0.181521409736929E+03  -0.181515319038899E+03   0.598906538814958E-02
-                0.747041979622054E-03  -0.645409338090985E-03   0.184540822159818E-02
-             5         4
-                0.235076980380320E+03  -0.249830849163806E+03  -0.144568950278076E+02
-                -0.171820856781494E+00  -0.125152898897113E+00   0.100103224179901E+02
              0
              0
 
@@ -329,13 +311,17 @@ class CPFManager:
                     diminfo[dim] = []
 
             ndimer = int(file.readline().strip())
+            static_data['ndimer'] = ndimer
             for _ in range(ndimer):
-                count = 0
+                count = 2
                 dimer_data = file.readline().strip().split()
                 if cpfver == 23:
                     for dim in dimer_label:
                         diminfo[dim].append(float(dimer_data[count]))
                         count += 1
+            print(diminfo)
+            static_data['ntrimer'] = "0"
+            static_data['ntetramer'] = "0"
 
             self.cpfver = cpfver
             self.atominfo = pd.DataFrame(atominfo)
@@ -381,19 +367,19 @@ class CPFManager:
         formats = {
             'alabels': "{:>10}",  # 原子の番号(i10)
             'elems': "{:>2}",  # 元素記号(a2)
-            'elemtypes': "{:>4}",  # 原子タイプ(a4)
-            'resnames': "{:<3}",  # 残基名(a3)
+            'elemtypes': "{:<4}",  # 原子タイプ(a4)
+            'resnames': "{:>3}",  # 残基名(a3)
             'resids': "{:>10}",  # 残基番号(i10)
             'fragids': "{:>10}",  # フラグメント番号(i10)
             'xcoords': "{:20.10f}",  # x座標(f20.10)
-            'ycoords': "{:20.10f}",  # y座標(f20.10)
-            'zcoords': "{:20.10f}",  # z座標(f20.10)
+            'ycoords': "{:19.10f}",  # y座標(f20.10)
+            'zcoords': "{:19.10f}",  # z座標(f20.10)
             'chainids': "{:>3}",  # Chain ID(a3)
             'optflags': "{:>1}",  # 構造最適化オプション(i1)
         }
 
         for chglabel in self.labels['charge']:
-            formats[chglabel] = "{:20.10f}"
+            formats[chglabel] = "{:19.10f}"
 
         # update atominfodf using fmt
         atominfo = copy.deepcopy(self.atominfo)
@@ -415,19 +401,6 @@ class CPFManager:
             }
         '''
 
-        # self.diminfoの内容を'fragi', 'fragj', 'min-dist'の順に出力
-        diminfo = copy.deepcopy(self.diminfo)
-        dimstr = ''
-        for i in range(self.static_data['nfrag']):
-            dimstr += str(diminfo['fragi'][i]) + str(diminfo['fragj'][i]) + str(diminfo['min-dist'][i])
-
-        '''
-            diminfo = {
-                'fragi': [],        space
-                'fragj': [],        space
-                'min-dist': []
-                }
-        '''
         # static section
         staticstr = ''
         staticstr += str(self.static_data['nuclear_repulsion_energy']) + '\n'
@@ -445,11 +418,12 @@ class CPFManager:
 
         # condition
         conditionstr = ''
-        conditionstr += "{:>20}".format(self.condition['basis_set'])
-        conditionstr += "{:>4}".format(self.condition['electronic_state'])
-        conditionstr += "{:>20}".format(self.condition['calculation_method'])
-        conditionstr += str(self.condition['aoc']) + str(self.condition['ptc'])
-        conditionstr += str(self.condition['ldimer'])
+        conditionstr += "{:<20}".format(self.condition['basis_set']) + '\n'
+        conditionstr += "{:<4}".format(self.condition['electronic_state']) + '\n'
+        conditionstr += "{:<20}".format(self.condition['calculation_method']) + '\n'
+        conditionstr += "{:24.15e}".format(self.condition['aoc']) + \
+            "{:24.15e}".format(self.condition['ptc']) + \
+            "{:24.15e}".format(self.condition['ldimer']) + '\n'
 
         '''
         self.condition
@@ -467,19 +441,30 @@ class CPFManager:
         }
 
         for dpmlabel in self.labels['DPM']:
-            formats[dpmlabel] = "{:24.15f}"
+            formats[dpmlabel] = "{:24.15e}"
 
         for momlabel in self.labels['monomer']:
-            formats[momlabel] = "{:24.15f}"
+            formats[momlabel] = "{:24.15e}"
 
         # update mominfodf using fmt
         mominfo = copy.deepcopy(self.mominfo)
         for col, fmt in formats.items():
             mominfo[col] = mominfo[col].apply(lambda x: fmt.format(x))
 
-        momstr = ''
-        for index, row in mominfo.iterrows():
-            momstr += ' '.join(row.astype(str).tolist()) + '\n'
+        # dpmlist に含まれるカラムのみを選択
+        selected_columns = [col for col in mominfo.columns if col in self.labels['DPM']]
+
+        dpmstr = ''
+        # 選択したカラムのデータをスペース区切りで出力
+        for index, row in mominfo[selected_columns].iterrows():
+            dpmstr += ''.join(row.astype(str).tolist()) + '\n'
+
+        selected_columns = [col for col in mominfo.columns if col in self.labels['monomer']]
+        selected_columns.insert(0, 'fragi')
+
+        momstr = "{:>10}".format(self.static_data['nfrag']) + '\n'
+        for index, row in mominfo[selected_columns].iterrows():
+            momstr += ''.join(row.astype(str).tolist()) + '\n'
 
         '''
                 labels = {
@@ -496,35 +481,83 @@ class CPFManager:
            -0.524704704075969E+00   -0.357367905308988E+01    0.156523382974318E+01
             0.245666859488253E+01   -0.160468359833147E+01    0.280152739221378E+01
             0.368656733092432E+01   -0.478966423463728E+01   -0.248675894502097E+00
+        '''
+
+        '''
+        atominfo = {
+            'alabels': [],  # 原子の番号(i10)
+            'elems': [],  # 元素記号(a2)
+            'elemtypes': [],  # 原子タイプ(a4)
+            'resnames': [],  # 残基名(a3)
+            'resids': [],  # 残基番号(i10)
+            'fragids': [],  # フラグメント番号(i10)
+            'xcoords': [],  # x座標(f20.10)
+            'ycoords': [],  # y座標(f20.10)
+            'zcoords': [],  # z座標(f20.10)
+            'chainids': [],  # Chain ID(a3)
+            'optflags': [],  # 構造最適化オプション(i1)
+            }
+            MUL-HF, MUL-MP2, NPA-HF, NPA-MP2, ESP-HF, ESP-MP2
+
+
+        diminfo
+            fragi, fragj, min-dist
+            NR, HF, ES, MP2, PR-MP2, SCS-MP2(Grimme), MP3, SCS-MP3(MP2.5), \
+                HF-BSSE, MP2-BSSE, SCS-MP2-BSSE, MP3-BSSE, SCS-MP3-BSSE, \
+                    SOLV-ES, SOLV-NP, EX, CT, DQ
+
+        mominfo
+            fragi, DPM-HF-X DPM-HF-Y DPM-HF-Z DPM-MP2-X DPM-MP2-Y DPM-MP2-Z
+            NR, HF, MP2, MP3
 
                 モノマー数行ループ {
                     !双極子モーメント(HF密度)のx成分,!y成分,!z成分,!双極子モーメント(MP2密度)のx成分,!y成分,!z成分
                 }
 
-            mominfo = {
-                'fragi': []
+        '''
+        # self.diminfoの内容を'fragi', 'fragj', 'min-dist'の順に出力
+        '''
+            diminfo = {
+                'fragi': [],        space
+                'fragj': [],        space
+                'min-dist': []
                 }
-
-
         '''
 
         formats = {
             'fragj': "{:>10}",  # フラグメント番号(i10)
             'fragi': "{:>10}",  # フラグメント番号(i10)
+            'min-dist': "{:24.15e}",  # 最小距離(24.15e)
         }
 
+        diminfo = copy.deepcopy(self.diminfo)
         for dimlabel in self.labels['dimer']:
-            formats[dimlabel] = "{:24.15f}"
+            formats[dimlabel] = "{:24.15e}"
 
         # update diminfodf using fmt
         for col, fmt in formats.items():
             diminfo[col] = diminfo[col].apply(lambda x: fmt.format(x))
 
-        dimstr = ''
-        for index, row in diminfo.iterrows():
-            dimstr += ' '.join(row.astype(str).tolist()) + '\n'
+        diststr = ''
+        for i in range(self.static_data['ndimer']):
+            diststr += str(diminfo['fragj'][i]) + str(diminfo['fragi'][i]) \
+                + str(diminfo['min-dist'][i]) + '\n'
 
-        out = header + '\n' + conditionstr + staticstr + momstr + dimstr
+        # dpmlist に含まれるカラムのみを選択
+        selected_columns = [col for col in diminfo.columns if col in self.labels['dimer']]
+        selected_columns.insert(0, 'fragi')
+        selected_columns.insert(0, 'fragj')
+
+        dimstr = "{:>10}".format(self.static_data['ndimer']) + '\n'
+        # 選択したカラムのデータをスペース区切りで出力
+        for index, row in diminfo[selected_columns].iterrows():
+            dimstr += ''.join(row.astype(str).tolist()) + '\n'
+
+        trmstr = "{:>10}".format(self.static_data['ntrimer']) + '\n'
+        tetrstr = "{:>10}".format(self.static_data['ntetramer']) + '\n'
+
+        out = header + '\n' + atomstr + fragstr + diststr + dpmstr + \
+            conditionstr + staticstr + momstr + dimstr + trmstr + tetrstr
         with open(filename, 'w') as f:
             f.write(out)
         # print('atomstr', atomstr)
@@ -588,17 +621,23 @@ class CPFManager:
             count += 1
             if count == 10:
                 fragstr += '\n'
+                count = 0
+        if count != 0:
+            fragstr += '\n'
+
+        count = 0
         for fnatom in fraginfo['baas']:
             fragstr += '{:>8}'.format(fnatom)
             count += 1
             if count == 10:
                 fragstr += '\n'
+                count = 0
+        if count != 0:
+            fragstr += '\n'
+
         for fnatom in fraginfo['connects']:
             print(fnatom)
-            fragstr += '{:>8}'.format(fnatom[0]) + '{:>8}'.format(fnatom[1])
-            count += 1
-            if count == 10:
-                fragstr += '\n'
+            fragstr += '{:>10}'.format(fnatom[0]) + '{:>10}'.format(fnatom[1]) + '\n'
 
         return fragstr
 
