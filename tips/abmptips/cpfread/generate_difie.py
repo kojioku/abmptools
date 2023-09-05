@@ -1,6 +1,7 @@
 import abmptools.cpfmanager
-
 import argparse
+import pandas as pd
+import os
 
 def get_args():
     parser = argparse.ArgumentParser(description="generate DIFIE")
@@ -28,6 +29,7 @@ def get_args():
     parser.add_argument("-s",
                         "--structure",
                         type=int,
+                        default=0,
                         help="Number of the representative structure for average CPF. Default is the start number.")
 
     # Target residues, default is removing WAT, HOH at the end of the file
@@ -57,37 +59,69 @@ def get_args():
 if __name__ == "__main__":
     args = get_args()
     cpf = abmptools.CPFManager()
+    cpfs = []
     for i in range(args.time[0], args.time[1]+1, args.time[2]):
         padded = str(i).zfill(args.zero_padding)
         input_cpf = args.input.replace('xxx', padded)
-        output_cpf = args.input.replace('xxx', padded + 'out')
+        # output_cpf = args.input.replace('xxx', padded + 'out')
         cpf.tgtfrag = cpf.selectfrag(args.fragments)
-        cpf = cpf.parse(input_cpf)
-        cpf.write('test', output_cpf)
+        cpfs.append(cpf.parse(input_cpf))
+        # cpf.write('test', output_cpf)
+
+    # print(cpfs[0].fraginfo)
+    tgtnum = args.structure
+    difiename = os.path.basename(args.input) + '-DIFIE.cpf'
+    stdevname = os.path.basename(args.input) + '-STDEV.cpf'
+    outcpf = abmptools.CPFManager()
+    outcpf.cpfver = args.version
+    outcpf.labels = cpfs[tgtnum].labels
+    outcpf.atominfo = cpfs[tgtnum].atominfo
+    outcpf.fraginfo = cpfs[tgtnum].fraginfo
+    outcpf.condition = cpfs[tgtnum].condition
+    outcpf.static_data = cpfs[tgtnum].static_data
+    outcpf.mominfo = cpfs[tgtnum].mominfo
+    outcpf.diminfo = cpfs[tgtnum].diminfo
+    outcpf.write('difie', difiename)
+    outcpf.write('difie-stdev', stdevname)
+
+    # diminfos = []
+    # for i in range(len(cpfs)):
+    #     diminfos.append(cpfs[i].diminfo)
+    # all_dfs = pd.concat(diminfos)
+    # print(all_dfs)
+    # average_df = all_dfs.groupby(level=1).mean()
+    # stddev_df = all_dfs.groupby(level=1).std()
+
+    # average_df = all_dfs.groupby(['fragi', 'fragj']).mean()
+    # stddev_df = all_dfs.groupby(['fragi', 'fragj']).std()
+    # print(average_df)
+    # print(stddev_df)
+
+    # outcpf.diminfo = cpfs[tgtnum].diminfo
+    # outcpf.write('difie test', 'aaa.cpf')
 
     # cpf = abmptools.CPFManager()
     # cpf.parse('CS4_ligX_md1_12ns_mod_mp2_631gd.cpf')
     # cpf.write('test-from10to23', 'test-i10o23.cpf')
 
+    # cpf.parse('gly5-10.cpf')
+    # cpf.write('test-from10to23', 'test-i10o23.cpf')
+    # cpf.write('test-from10to23', 'test-i10o23-trim.cpf')
 
-#         cpf.parse('gly5-10.cpf')
-#         cpf.write('test-from10to23', 'test-i10o23.cpf')
+    # cpf4 = CPFManager()
+    # cpf4.parse('gly5-4201.cpf')
+    # cpf4.write('test-from42to23', 'test-i42o23.cpf')
 
-# cpf10.write('test-from10to23', 'test-i10o23-trim.cpf')
-
-# cpf4 = CPFManager()
-# cpf4.parse('gly5-4201.cpf')
-# cpf4.write('test-from42to23', 'test-i42o23.cpf')
-
-# print(dir(cpf))
-# print(vars(cpf))
-# cpf.write('test', 'test.cpf')
-# print('cpfver\n', cpf.cpfver)
-# print('labels\n', cpf.labels)
-# print('atominfo\n', cpf.atominfo.head())
-# print('fraginfo\n', cpf.fraginfo)
-# print('condition\n', cpf.condition)
-# print('static_data\n', cpf.static_data)
-# print('mominfo\n', cpf.mominfo)
-# print('diminfo\n', cpf.diminfo)
-# print('labels\n', cpf.labels)
+    # print(dir(cpf))
+    # print(vars(cpf))
+    # cpf = abmptools.CPFManager()
+    # cpf.parse('gly5-10.cpf')
+    # cpf.write('test', 'test.cpf')
+    # print('cpfver\n', cpf.cpfver)
+    # print('labels\n', cpf.labels)
+    # print('atominfo\n', cpf.atominfo.head())
+    # print('fraginfo\n', cpf.fraginfo)
+    # print('condition\n', cpf.condition)
+    # print('static_data\n', cpf.static_data)
+    # print('mominfo\n', cpf.mominfo)
+    # print('diminfo\n', cpf.diminfo)
