@@ -62,7 +62,7 @@ class abinit_io(mi.mol_io):
         self.resp = True
         self.ligchg = None
         self.rsolv= None
-        self.mldatfrag = False 
+        self.mldatfrag = False
         self.mldatname = None
         self.mllimit = None
         self.disp = False
@@ -1132,6 +1132,111 @@ MD='OFF'
         self.connects = connects
         return self
         # return fatomnums, fchgs, fbaas, fatminfos, connects
+
+# def readfragcpf(file, nf):
+#     '''Read the fragment data from the CPF file.
+#
+#     Args:
+#         file (file): The CPF file to read from
+#         nf (int): The number of fragments in the CPF file
+#
+#     Returns:
+#         fnatoms (list): The number of atoms in each fragment
+#         fchgs (list): The charge of each fragment
+#         fbaas (list): The BAA of each fragment
+#         fatminfos (list): The atom IDs of each fragment
+#         connects (list): The connect (bda baa) atom IDs of each fragment
+#
+#     Note:
+#         The CPF file format is described in the CPF manual.
+#
+#         fnatoms = [natom1, natom2, ...]
+#         fchgs = [chg1, chg2, ...]
+#         fbaas = [baa1, baa2, ...]
+#         fatminfos = [[atomid1, atomid2, ...], [atomid1, atomid2, ...], ...]
+#         connects = [[atomid1, atomid2, ...], [atomid1, atomid2, ...], ...]
+#     '''
+#
+#     # Initialize the data structures
+#     flag = True
+#     nline = 1  # line number
+#     fnatoms = []  # fragment natom section
+#     fchgs = []  # fragment charge section
+#     fbaas = []  # bda section
+#     nfcount = 0  # fragment count
+#     fatminfo = []  # fraginfo atomid section
+#     fatminfos = []  # fraginfo atomid section
+#     connects = []  # bda-baa atom section
+#     typcount = 0
+#     # type (0: fnatoms, 1: fchgs, # 2: fbaas, 3: fatminfo, 4: connects)
+#     lcount = 0  # line count
+#
+#     while True:
+#         itemlist = file.readline().strip().split()
+#         if len(itemlist) == 0:
+#             continue
+#         if nf > 10:
+#             nline = math.ceil(nf/10)
+#             print('n_line', nline)
+#         # fragment natom section
+#         if flag is True and typcount == 0:
+#             fnatoms.append(itemlist)
+#             lcount += 1
+#             if lcount == nline:
+#                 typcount += 1
+#                 lcount = 0
+#                 fnatoms = flatten(fnatoms)
+#                 continue
+#
+#         # fragment charge section
+#         if flag is True and typcount == 1:
+#             fchgs.append(itemlist)
+#             lcount += 1
+#             if lcount == nline:
+#                 typcount += 1
+#                 lcount = 0
+#                 fchgs = flatten(fchgs)
+#                 continue
+#
+#         # bda section
+#         if flag is True and typcount == 2:
+#             fbaas.append(itemlist)
+#             lcount += 1
+#             if lcount == nline:
+#                 typcount += 1
+#                 lcount = 0
+#                 fbaas = flatten(fbaas)
+#                 continue
+#
+#         # fraginfo atomid section
+#         if flag is True and typcount == 3:
+#             fatomnum = fnatoms[nfcount]
+#             base2 = math.ceil(int(fatomnum)/10)
+#             fatminfo.append(itemlist)
+#             lcount += 1
+#             if lcount == base2:
+#                 nfcount += 1
+#                 lcount = 0
+#                 fatminfo = flatten(fatminfo)
+#                 fatminfos.append(fatminfo)
+#                 fatminfo = []
+#                 if nfcount > nf - 1:
+#                     typcount += 1
+#                     lcount = 0
+#                     continue
+#
+#         # bda-baa atom section
+#         count = 0
+#         if flag is True and typcount == 4:
+#             count += 1
+#             connects.append(itemlist)
+#             connects = functor(int, connects)
+#             if count == sum(fbaas):
+#                 break
+#
+#             # datas.append(itemlist)
+#
+#     return fnatoms, fchgs, fbaas, fatminfos, connects
 
 
     def modifyfragparam(self, totalMol, atomnameMol, molnames, anummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges, fatomnums, fchgs, fbaas, fatminfos, connects, bridgeds, doubles, nagatoms, nagmolids, nagbdas):
