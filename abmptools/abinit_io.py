@@ -505,6 +505,12 @@ GRID='NO'
 &MCP
 /
 
+$CIS
+/
+
+$CISGRD
+/
+
 &CAFI
 METLOC='PIPE'
 IFLOC='OCC'
@@ -513,6 +519,9 @@ LPRINT=2
 /
 
 &POL
+/
+
+&GF2
 /
 """
         # new section2
