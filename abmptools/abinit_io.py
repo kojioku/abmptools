@@ -212,6 +212,7 @@ LMOTYP='ANO' """
 
         if num_fragment == 1:
             use_FMO = 'OFF'
+            frag_section = ''
         else:
             use_FMO = 'ON'
 
