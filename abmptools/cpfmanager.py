@@ -149,7 +149,7 @@ class CPFManager:
                 atominfo['ycoords'].append(float(atom_data[65:85].strip()))
                 atominfo['zcoords'].append(float(atom_data[85:105].strip()))
                 atominfo['chainids'].append(atom_data[106:109].strip())
-                atominfo['optflags'].append(int(atom_data[110:111].strip()))
+                atominfo['optflags'].append(atom_data[110:111].strip())
                 for chg in charge_label:
                     lstart = charge_label.index(chg)*20 + 111
                     lend = lstart + 20
