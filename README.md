@@ -3,7 +3,7 @@ ABMPTools (ABINIT-MP Tools)
 
 Overview
 フラグメント分子軌道計算プログラムABINIT-MPの解析支援ツールです。
-※ 2022/03現在、サンプルファイルは非公開リポジトリとさせて頂いています。
+※ 2022/09現在、意図部を除くサンプルファイルは非公開リポジトリとさせて頂いています。
 
 ## Description
 
@@ -20,6 +20,10 @@ Overview
         - 対象フラグメント-フラグメント群間の時間-IFIEの相互作用マトリックス出力 (1:1, 1:N, N:1, N:Nの時間変化の一括出力）
 
     - SVD実行スクリプト
+
+- CPF parser(cpfmanager)
+    - cpf残基切り出し、バージョンコンバート(convertcpf)
+    - 動的平均cpf作成機能(generate_difie)
 
 - FMO実行支援
     - PDB読み込み(pdbread)　-> 雛形ajf生成(generateajf)

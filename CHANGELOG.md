@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.12.4] - 2023-09-09
+### Added
+- CPFparser機能(CPFManager)
+- DIFIE CPF出力機能(abmptools.generate_difie)
+- 一部機能のサンプルを追加
+
+## [1.12.3] - 2023-09-08
+### Added
+- ABINIT-MP Ver.2 Rev.8 対応('v2rev8')
+
 ## [1.12.2] - 2023-08-21
 ### Fixed
 - v1最新版でFMO='OFF'でNFの記載があるとエラーが出るとに合わせたajf出力対応
