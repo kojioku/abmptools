@@ -58,9 +58,9 @@ def get_args():
 
 if __name__ == "__main__":
     args = get_args()
-    cpf = abmptools.CPFManager()
     cpfs = []
     for i in range(args.time[0], args.time[1]+1, args.time[2]):
+        cpf = abmptools.CPFManager()
         padded = str(i).zfill(args.zero_padding)
         input_cpf = args.input.replace('xxx', padded)
         # output_cpf = args.input.replace('xxx', padded + 'out')
@@ -80,26 +80,35 @@ if __name__ == "__main__":
     outcpf.condition = cpfs[tgtnum].condition
     outcpf.static_data = cpfs[tgtnum].static_data
     outcpf.mominfo = cpfs[tgtnum].mominfo
-    outcpf.diminfo = cpfs[tgtnum].diminfo
-    outcpf.write('difie', difiename)
-    outcpf.write('difie-stdev', stdevname)
+    # outcpf.diminfo = cpfs[tgtnum].diminfo
+    # outcpf.write('ifie', difiename)
 
-    # diminfos = []
-    # for i in range(len(cpfs)):
-    #     diminfos.append(cpfs[i].diminfo)
-    # all_dfs = pd.concat(diminfos)
+    diminfos = []
+    for i in range(len(cpfs)):
+        diminfos.append(cpfs[i].diminfo)
+        print(cpfs[i].diminfo.head())
+    all_dfs = pd.concat(diminfos)
     # print(all_dfs)
+    # all_dfs.to_csv('all_dfs.csv')
+
     # average_df = all_dfs.groupby(level=1).mean()
     # stddev_df = all_dfs.groupby(level=1).std()
 
-    # average_df = all_dfs.groupby(['fragi', 'fragj']).mean()
-    # stddev_df = all_dfs.groupby(['fragi', 'fragj']).std()
-    # print(average_df)
-    # print(stddev_df)
+    average_df = all_dfs.groupby(['fragi', 'fragj']).mean().reset_index()
+    stddev_df = all_dfs.groupby(['fragi', 'fragj']).std().reset_index()
+    print('average_df\n', average_df.head())
+    print('stddev_df\n', stddev_df.head())
+    # average_df.to_csv('average_df.csv')
+    # stddev_df.to_csv('stddev_df.csv')
 
-    # outcpf.diminfo = cpfs[tgtnum].diminfo
-    # outcpf.write('difie test', 'aaa.cpf')
+    # print(cpfs[0].diminfo)
+    outcpf.diminfo = average_df
+    outcpf.write('difie', difiename)
 
+#     outcpf.diminfo = stddev_df
+#     outcpf.write('difie-stdev', stdevname)
+
+    # --- tips ---
     # cpf = abmptools.CPFManager()
     # cpf.parse('CS4_ligX_md1_12ns_mod_mp2_631gd.cpf')
     # cpf.write('test-from10to23', 'test-i10o23.cpf')

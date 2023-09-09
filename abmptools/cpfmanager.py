@@ -227,8 +227,8 @@ class CPFManager:
                 if self.tgtfrag != 0:
                     if int(dim_data[0]) not in self.tgtfrag or int(dim_data[1]) not in self.tgtfrag:
                         continue
-                diminfo['fragj'].append(int(dim_data[0]))
-                diminfo['fragi'].append(int(dim_data[1]))
+                diminfo['fragi'].append(int(dim_data[0]))
+                diminfo['fragj'].append(int(dim_data[1]))
                 diminfo['min-dist'].append(float(dim_data[2]))
                 dimaccept.append(_)
 
@@ -629,8 +629,8 @@ class CPFManager:
         '''
 
         formats = {
-            'fragj': "{:>10}",  # フラグメント番号(i10)
             'fragi': "{:>10}",  # フラグメント番号(i10)
+            'fragj': "{:>10}",  # フラグメント番号(i10)
             'min-dist': "{:24.15e}",  # 最小距離(24.15e)
         }
 
@@ -649,8 +649,8 @@ class CPFManager:
 
         # dpmlist に含まれるカラムのみを選択
         selected_columns = [col for col in diminfo.columns if col in self.labels['dimer']]
-        selected_columns.insert(0, 'fragi')
         selected_columns.insert(0, 'fragj')
+        selected_columns.insert(0, 'fragi')
 
         dimstr = "{:>10}".format(self.static_data['ndimer']) + '\n'
         # 選択したカラムのデータをスペース区切りで出力
