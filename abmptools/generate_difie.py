@@ -3,6 +3,7 @@ import argparse
 import pandas as pd
 import os
 
+
 def get_args():
     parser = argparse.ArgumentParser(description="generate DIFIE")
 
@@ -35,7 +36,7 @@ def get_args():
     # Target residues, default is removing WAT, HOH at the end of the file
     parser.add_argument("-f",
                         "--fragments",
-                        default=None,
+                        default=0,
                         help="Specify target residues. Default is None")
 
     # Version, default is "23"
