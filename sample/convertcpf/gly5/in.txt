@@ -1,0 +1,15 @@
+import abmptools
+cpf = abmptools.CPFManager()
+cpf.parse('gly5-10.cpf')
+cpf.write('test-from10to23', 'gly5-10to23.cpf')
+
+cpf = abmptools.CPFManager()
+cpf.parse('gly5-23.cpf')
+cpf.write('test-from23to23', 'gly5-23to23.cpf')
+
+cpf = abmptools.CPFManager()
+cpf.parse('gly5-4201.cpf')
+cpf.write('test-from4to23', 'gly5-4to23.cpf')
+
+
+
