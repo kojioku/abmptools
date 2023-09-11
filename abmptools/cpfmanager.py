@@ -447,6 +447,7 @@ class CPFManager:
         self.diminfo = pd.DataFrame(diminfo)
         self.labels = labels
 
+        file.close()
         return self
 
     def write(self, header, filename, cpfver=23):
