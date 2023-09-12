@@ -1,5 +1,4 @@
 import math
-import pandas as pd
 import copy
 import os
 import gzip
@@ -438,6 +437,7 @@ class CPFManager:
         if self.tgtfrag != 0:
             static_data['ndimer'] = len(dimaccept)
 
+        import pandas as pd
         self.cpfver = cpfver
         self.atominfo = pd.DataFrame(atominfo)
         self.fraginfo = fraginfo
@@ -881,6 +881,4 @@ class CPFManager:
 
         elif type(item1) == int:
             return int(item1)
-
-
 
