@@ -2196,6 +2196,179 @@ class anlfmo(pdio.pdb_io):
             print('tgt2type error!!')
             return
 
+    def readmultiifie(self):
+        # check disp(LRD)
+        self.is_disp = self.getisdisp(self.tgtlogs[0])
+        print('## read multi mode')
+        st = time.time()
+        p = Pool(self.pynp)
+
+        # main-read module
+        ifpidfs = p.map(self.read_ifpimulti, [i for i in range(len(self.tgtlogs))])
+        # i: time j:type, k:tgt1frag
+        # [[hfdf[time 1][frag 1, frag2...], , mp2df[time 1], ...], [hfdf[time 2], mp2df[time 2], ...], ...]
+        pd.set_option('display.width', 500)
+        print('valid data num:', len(ifpidfs))
+        # print(ifpidfs)
+
+        # delete label of unfinished log
+        delids = []
+        for i in range(len(ifpidfs)):
+            try:
+                if ifpidfs[i] is None:
+                    delids.append(i)
+            except:
+                pass
+        dellist = lambda items, indexes: [item for index, item in enumerate(items) if index not in indexes]
+        ifpidfs = dellist(ifpidfs, delids)
+
+        # filter section
+        if self.tgt2type == 'frag':
+            if self.matrixtype == 'times-frags':
+                self.hfdfs = []
+                self.mp2corrdfs = []
+                self.prmp2corrdfs = []
+                self.mp2tdfs = []
+                self.prmp2tdfs = []
+                self.esdfs = []
+                self.exdfs = []
+                self.ctdfs = []
+                self.distdfs = []
+                self.didfs = []
+                self.erestdfs = []
+                print('readable file num:', len(ifpidfs))
+                for i in range(len(self.tgt1frag)):
+                    hfdf = pd.concat([dfs[0][i] for dfs in ifpidfs], axis=1)
+                    mp2corrdf = pd.concat([dfs[1][i] for dfs in ifpidfs], axis=1)
+                    prmp2corrdf = pd.concat([dfs[2][i] for dfs in ifpidfs], axis=1)
+                    mp2tdf = pd.concat([dfs[3][i] for dfs in ifpidfs], axis=1)
+                    prmp2tdf = pd.concat([dfs[4][i] for dfs in ifpidfs], axis=1)
+                    esdf = pd.concat([dfs[5][i] for dfs in ifpidfs], axis=1)
+                    exdf = pd.concat([dfs[6][i] for dfs in ifpidfs], axis=1)
+                    ctdf = pd.concat([dfs[7][i] for dfs in ifpidfs], axis=1)
+                    distdf = pd.concat([dfs[8][i] for dfs in ifpidfs], axis=1)
+                    didf = pd.concat([dfs[9][i] for dfs in ifpidfs], axis=1)
+                    erestdf = pd.concat([dfs[10][i] for dfs in ifpidfs], axis=1)
+
+                    self.hfdfs.append(hfdf)
+                    self.mp2corrdfs.append(mp2corrdf)
+                    self.prmp2corrdfs.append(prmp2corrdf)
+                    self.mp2tdfs.append(mp2tdf)
+                    self.prmp2tdfs.append(prmp2tdf)
+                    self.esdfs.append(esdf)
+                    self.exdfs.append(exdf)
+                    self.ctdfs.append(ctdf)
+                    self.distdfs.append(distdf)
+                    self.didfs.append(didf)
+                    self.erestdfs.append(erestdf)
+            else:
+                self.ifdf_filters = pd.DataFrame()
+                for dfs in ifpidfs:
+                    self.ifdf_filters = self.ifdf_filters.append(dfs)
+
+        if self.tgt2type in ['dist', 'dimer-es']:
+            self.ifdf_filters = pd.DataFrame()
+            self.ifdfsum = pd.DataFrame(columns=self.ifdfsumcolumn)
+
+            for dfs in ifpidfs:
+                # for j in dfs:
+                    # print('aaaaa', j)
+                self.ifdf_filters = self.ifdf_filters.append(dfs[0])
+                self.ifdfsum = self.ifdfsum.append(dfs[1])
+
+        if self.tgt2type in ['molname']:
+            self.ifdf_filters = []
+            self.ifdfsum = []
+
+            nfrag = len(ifpidfs[0][0])
+            print('nfrag', nfrag)
+            # i:time, j:frag
+            for j in range(nfrag):
+                ifdf_filter = pd.DataFrame()
+                ifdfsum = pd.DataFrame(columns=self.ifdfsumcolumn)
+                for i in range(len(ifpidfs)):
+                    ifdf_filter = ifdf_filter.append(ifpidfs[i][0][j])
+                    ifdfsum = ifdfsum.append(ifpidfs[i][1][j])
+
+                self.ifdf_filters.append(ifdf_filter)
+                self.ifdfsum.append(ifdfsum)
+
+            # print(self.ifdf_filters)
+            # print(self.ifdfsum)
+            # print('len ifdf_filters', len(self.ifdf_filters))
+            # print('len ifdfsum', len(self.ifdfsum))
+
+        p.close()
+        print('read elapsed', time.time() - st)
+
+        return
+
+    def readsingleifie(self):
+        '''read single mode
+
+        read ifie single mode
+
+        Args:
+            None
+        Returns:
+            None(self.ifdf, self.pidf, self.pbifdf, self.pbpidf)
+        '''
+
+        print('## read single mode')
+        self.logMethod = self.getlogmethod(self.tgtlogs)
+        if self.logMethod == 'HF':
+            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE']
+        elif self.logMethod == 'MP3':
+            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'USER-MP2', 'MP3-IFIE','USER-MP3', 'PADE[2/1]' ]
+        elif self.logMethod == 'CCPT':
+            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'GRIMME-MP2', 'MP3-IFIE','GRIMME-MP3', 'MP4-IFIE' ]
+        self.getpbflag(self.tgtlogs)
+
+        # self.logMethod = 'MP2'
+        if self.matrixtype != 'frags-frags' and (self.logMethod == 'MP3' or self.logMethod == 'CCPT'):
+            print('Error: ' + self.logMethod + ' mode for this mode is unsupported yet.')
+            sys.exit()
+
+        # pb python-based capture only in this version.
+        if self.pbflag:
+            ifie, pieda, momene, dimene, bsse = self.read_ifiepieda(self.tgtlogs)
+            df = self.getifiedf(ifie)
+            self.ifdf = df
+
+            pidf = self.getpiedadf(pieda)
+            self.pidf = pidf
+
+            # pbpieda
+            pbifie, pbpieda, solvterm = self.read_pbifiepieda(self.tgtlogs)
+            pbifdf = self.getifiedf(pbifie, solvterm)
+            self.pbifdf = pbifdf
+
+            pbpidf = self.getpbpiedadf(pbpieda)
+            self.pbpidf = pbpidf
+
+            # debug write
+            # print(self.pbifdf)
+            # sys.exit()
+            return self
+
+        if self.f90soflag is True:
+            print("use fortran library")
+            ifpidfs = self.read_ifpif90(self.tgtlogs)
+            self.ifdf = ifpidfs[0]
+            self.pidf = ifpidfs[1]
+            # print(self.ifdf)
+            # print(self.pidf)
+
+        else:
+            ifie, pieda, momene, dimene, bsse = self.read_ifiepieda(self.tgtlogs)
+            df = self.getifiedf(ifie)
+            self.ifdf = df
+
+            pidf = self.getpiedadf(pieda)
+            self.pidf = pidf
+
+        return
+
 
     def readifiewrap(self, item1=None, item2=None, item3=None):
         '''read ifie and pieda
@@ -2204,8 +2377,6 @@ class anlfmo(pdio.pdb_io):
             item2: tgt1frag
             item3: tgt2type
         Returns:
-            ifdf: ifie dataframe
-            pidf: pieda dataframe
         '''
 
         # param setup
@@ -2213,168 +2384,12 @@ class anlfmo(pdio.pdb_io):
 
         # multi mode (read and filter)
         if self.anlmode == 'multi':
-            # check disp(LRD)
-            self.is_disp = self.getisdisp(self.tgtlogs[0])
-            print('## read multi mode')
-            st = time.time()
-            p = Pool(self.pynp)
-
-            # main-read module
-            ifpidfs = p.map(self.read_ifpimulti, [i for i in range(len(self.tgtlogs))])
-            # i: time j:type, k:tgt1frag
-            # [[hfdf[time 1][frag 1, frag2...], , mp2df[time 1], ...], [hfdf[time 2], mp2df[time 2], ...], ...]
-            pd.set_option('display.width', 500)
-            print('valid data num:', len(ifpidfs))
-            # print(ifpidfs)
-
-            # delete label of unfinished log
-            delids = []
-            for i in range(len(ifpidfs)):
-                try:
-                    if ifpidfs[i] is None:
-                        delids.append(i)
-                except:
-                    pass
-            dellist = lambda items, indexes: [item for index, item in enumerate(items) if index not in indexes]
-            ifpidfs = dellist(ifpidfs, delids)
-
-            # filter section
-            if self.tgt2type == 'frag':
-                if self.matrixtype == 'times-frags':
-                    self.hfdfs = []
-                    self.mp2corrdfs = []
-                    self.prmp2corrdfs = []
-                    self.mp2tdfs = []
-                    self.prmp2tdfs = []
-                    self.esdfs = []
-                    self.exdfs = []
-                    self.ctdfs = []
-                    self.distdfs = []
-                    self.didfs = []
-                    self.erestdfs = []
-                    print('readable file num:', len(ifpidfs))
-                    for i in range(len(self.tgt1frag)):
-                        hfdf = pd.concat([dfs[0][i] for dfs in ifpidfs], axis=1)
-                        mp2corrdf = pd.concat([dfs[1][i] for dfs in ifpidfs], axis=1)
-                        prmp2corrdf = pd.concat([dfs[2][i] for dfs in ifpidfs], axis=1)
-                        mp2tdf = pd.concat([dfs[3][i] for dfs in ifpidfs], axis=1)
-                        prmp2tdf = pd.concat([dfs[4][i] for dfs in ifpidfs], axis=1)
-                        esdf = pd.concat([dfs[5][i] for dfs in ifpidfs], axis=1)
-                        exdf = pd.concat([dfs[6][i] for dfs in ifpidfs], axis=1)
-                        ctdf = pd.concat([dfs[7][i] for dfs in ifpidfs], axis=1)
-                        distdf = pd.concat([dfs[8][i] for dfs in ifpidfs], axis=1)
-                        didf = pd.concat([dfs[9][i] for dfs in ifpidfs], axis=1)
-                        erestdf = pd.concat([dfs[10][i] for dfs in ifpidfs], axis=1)
-
-                        self.hfdfs.append(hfdf)
-                        self.mp2corrdfs.append(mp2corrdf)
-                        self.prmp2corrdfs.append(prmp2corrdf)
-                        self.mp2tdfs.append(mp2tdf)
-                        self.prmp2tdfs.append(prmp2tdf)
-                        self.esdfs.append(esdf)
-                        self.exdfs.append(exdf)
-                        self.ctdfs.append(ctdf)
-                        self.distdfs.append(distdf)
-                        self.didfs.append(didf)
-                        self.erestdfs.append(erestdf)
-                else:
-                    self.ifdf_filters = pd.DataFrame()
-                    for dfs in ifpidfs:
-                        self.ifdf_filters = self.ifdf_filters.append(dfs)
-
-            if self.tgt2type in ['dist', 'dimer-es']:
-                self.ifdf_filters = pd.DataFrame()
-                self.ifdfsum = pd.DataFrame(columns=self.ifdfsumcolumn)
-
-                for dfs in ifpidfs:
-                    # for j in dfs:
-                        # print('aaaaa', j)
-                    self.ifdf_filters = self.ifdf_filters.append(dfs[0])
-                    self.ifdfsum = self.ifdfsum.append(dfs[1])
-
-            if self.tgt2type in ['molname']:
-                self.ifdf_filters = []
-                self.ifdfsum = []
-
-                nfrag = len(ifpidfs[0][0])
-                print('nfrag', nfrag)
-                # i:time, j:frag
-                for j in range(nfrag):
-                    ifdf_filter = pd.DataFrame()
-                    ifdfsum = pd.DataFrame(columns=self.ifdfsumcolumn)
-                    for i in range(len(ifpidfs)):
-                        ifdf_filter = ifdf_filter.append(ifpidfs[i][0][j])
-                        ifdfsum = ifdfsum.append(ifpidfs[i][1][j])
-
-                    self.ifdf_filters.append(ifdf_filter)
-                    self.ifdfsum.append(ifdfsum)
-
-                # print(self.ifdf_filters)
-                # print(self.ifdfsum)
-                # print('len ifdf_filters', len(self.ifdf_filters))
-                # print('len ifdfsum', len(self.ifdfsum))
-
-            p.close()
-            print('read elapsed', time.time() - st)
-
+            readmultiifie()
         ## single mode
         else:
-            print('## read single mode')
-            self.logMethod = self.getlogmethod(self.tgtlogs)
-            if self.logMethod == 'HF':
-                 self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE']
-            elif self.logMethod == 'MP3':
-                self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'USER-MP2', 'MP3-IFIE','USER-MP3', 'PADE[2/1]' ]
-            elif self.logMethod == 'CCPT':
-                self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'GRIMME-MP2', 'MP3-IFIE','GRIMME-MP3', 'MP4-IFIE' ]
-            self.getpbflag(self.tgtlogs)
-
-            # self.logMethod = 'MP2'
-            if self.matrixtype != 'frags-frags' and (self.logMethod == 'MP3' or self.logMethod == 'CCPT'):
-                print('Error: ' + self.logMethod + ' mode for this mode is unsupported yet.')
-                sys.exit()
-
-            # pb python-based capture only in this version.
-            if self.pbflag == True:
-                ifie, pieda, momene, dimene, bsse = self.read_ifiepieda(self.tgtlogs)
-                df = self.getifiedf(ifie)
-                self.ifdf = df
-
-                pidf = self.getpiedadf(pieda)
-                self.pidf = pidf
-
-                pbifie, pbpieda, solvterm = self.read_pbifiepieda(self.tgtlogs)
-                pbifdf = self.getifiedf(pbifie, solvterm)
-                self.pbifdf = pbifdf
-
-                pbpidf = self.getpbpiedadf(pbpieda)
-                self.pbpidf = pbpidf
-
-                #debug write
-                # print(self.pbifdf)
-                # sys.exit()
-
-                return self
-
-
-            if self.f90soflag == True:
-                print("use fortran library")
-                ifpidfs = self.read_ifpif90(self.tgtlogs)
-                self.ifdf = ifpidfs[0]
-                self.pidf = ifpidfs[1]
-                # print(self.ifdf)
-                # print(self.pidf)
-
-            else:
-                ifie, pieda, momene, dimene, bsse = self.read_ifiepieda(self.tgtlogs)
-                df = self.getifiedf(ifie)
-                self.ifdf = df
-
-                pidf = self.getpiedadf(pieda)
-                self.pidf = pidf
+            readsingleifie()
 
         return self
-
 
     def getisdisp(self, tgtlog):
         f = open(tgtlog, 'r')
@@ -2387,7 +2402,6 @@ class anlfmo(pdio.pdb_io):
                 return True
         return False
 
-
     def getlogmethod(self, tgtlog):
         f = open(tgtlog, 'r')
         for line in f:
@@ -2397,7 +2411,6 @@ class anlfmo(pdio.pdb_io):
             if Items[0:2] == ['Method', '=']:
                 print('logMethod =', Items[2])
                 return Items[2]
-
 
     def getpbflag(self, tgtlog):
         self.pbflag = False
@@ -2568,7 +2581,7 @@ class anlfmo(pdio.pdb_io):
                 elif type(self.tgtmolid) == int:
                     self.tgtmolid = [self.tgtmolid]
 
-            if self.tgt2type == 'frag' or self.tgt2type == 'dist':
+            if self.tgt2type is 'frag' or self.tgt2type is 'dist':
                 if item2 != None:
                     # print('type tgt2', type(item2))
                     if type(item2) == str:
@@ -2588,7 +2601,6 @@ class anlfmo(pdio.pdb_io):
                     else:
                         self.tgt1frag = [item2]
 
-
             if self.tgt2type == 'frag':
                 if item3 != None:
                     # print('type tgt2', type(item3))
@@ -2601,10 +2613,8 @@ class anlfmo(pdio.pdb_io):
                             self.tgt2frag = list(map(int, item3.split(',')))
                             print(self.tgt2frag)
                             # self.tgt2frag = [eval(item3)]
-
                     else:
                         self.tgt2frag = [item3]
-
 
         if self.matrixtype == 'frags-frags':
             print(self.tgt1frag, self.tgt2frag)
@@ -2846,11 +2856,11 @@ class anlfmo(pdio.pdb_io):
         print('## Write Section')
         path = 'csv'
         tgt2type = self.tgt2type
-        if os.path.exists('csv') == False:
+        if os.path.exists('csv') is False:
             os.mkdir('csv')
 
         if self.anlmode == 'frag':
-            if head == None:
+            if head is None:
                 head = os.path.splitext(self.tgtlogs)[0].split('/')[-1]
 
             if self.matrixtype == 'frags-frags':
