@@ -45,26 +45,31 @@ class anlfmo(pdio.pdb_io):
         self.piedaflag = True
         self.molname = []
         self.criteria = []
-        self.tgtpos =[]
-        self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL']
-        self.bicolumn = ['I', 'J', 'DIST', 'DIMER-ES-BSSE', 'HF-BSSE', 'MP2-BSSE', 'PR-T1-BSSE', 'GRIMME-BSSE', 'JUNG-BSSE', 'HILL-BSSE']
+        self.tgtpos = []
+        self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
+                        'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL']
+        self.bicolumn = ['I', 'J', 'DIST', 'DIMER-ES-BSSE', 'HF-BSSE',
+                         'MP2-BSSE', 'PR-T1-BSSE', 'GRIMME-BSSE',
+                         'JUNG-BSSE', 'HILL-BSSE']
         self.pcolumn = ['I', 'J', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'q(I=>J)']
-        self.pcolumnpb = ['I', 'J', 'ES', 'EX', 'CT-mix', 'Solv(ES)', 'DI(MP2)', 'q(I=>J)']
-        self.ifdfsumcolumn = ['HF-IFIE', 'MP2-IFIE', 'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'q(I=>J)']
+        self.pcolumnpb = ['I', 'J', 'ES', 'EX', 'CT-mix', 'Solv(ES)',
+                          'DI(MP2)', 'q(I=>J)']
+        self.ifdfsumcolumn = ['HF-IFIE', 'MP2-IFIE', 'PR-TYPE1',
+                              'GRIMME', 'JUNG', 'HILL', 'ES',
+                              'EX', 'CT-mix', 'DI(MP2)', 'q(I=>J)']
         self.logMethod = 'MP2'
 
-
-        self.anlmode= 'frag' #frag, 'mol', 'fraginmol', 'multi'
-        self.fragmode = 'auto'  #'hybrid', 'auto', 'manual'
+        self.anlmode = 'frag'  # frag, 'mol', 'fraginmol', 'multi'
+        self.fragmode = 'auto'  # 'hybrid', 'auto', 'manual'
         self.dist = 1000.0
         self.tgt1frag = None
 
         self.rpdbflag = False
-        self.pdbname = None   # 'iss2-spg2-ok20200130opt-for_abmp.pdb'
+        self.pdbname = None
         self.is_disp = False
 
         # -- for mol mode or multi mode--
-        self.tgt2type = 'frag' #frag: mol-frag, mol: mol-mol
+        self.tgt2type = 'frag'  # frag: mol-frag, mol: mol-mol
 
         # mol - mol mode
         self.selecttype = 'molid'
@@ -95,13 +100,12 @@ class anlfmo(pdio.pdb_io):
         self.interval = None
 
         # --hybrid mode
-        self.hyfrag = None #320
+        self.hyfrag = None  # 320
         self.hynum = None
 
         self.pynp = 3
         self.addresinfo = True
         self.writeresnamecsv = True
-
 
         mydir = os.path.dirname(os.path.abspath(__file__))
         self.f90sofile = mydir + '/f90/bin/readifiepiedalib.so'
@@ -115,34 +119,36 @@ class anlfmo(pdio.pdb_io):
         self.nf = 0
         pass
 
-
     def read_fraginfo(self, fname):
         frags = []
         count = 0
-        text = open(fname, "r").readlines()
-        flag = False
-        for i in range(len(text)):
-            itemList = text[i][:-1].split()
-            if len(itemList) < 2:
-                continue
-            if itemList[1] == 'AUTOMATIC' or itemList[1] == 'HYBRID':
-                flag = True
-                continue
-            if itemList[1] == 'MANUAL':
-                manflag = True
-            if itemList[1] == 'system' or itemList[0] == 'Ions':
-                print('read end')
-                break
-            if flag is True:
-                count += 1
-            if flag is True and count > 2:
-                if self.fragmode == 'hybrid':
-                    frags.append(itemList[3] + itemList[1])
-                elif self.fragmode == 'auto':
-                    frags.append(itemList[2] + itemList[0])
+        # text = open(fname, "r").readlines()
+        with open(fname, 'r') as file:
+            while True:
+                flag = False
+                # for i in range(len(text)):
+                # itemList = text[i][:-1].split()
+                itemList = file.readline().strip().split()
+
+                if len(itemList) < 2:
+                    continue
+                if itemList[1] == 'AUTOMATIC' or itemList[1] == 'HYBRID':
+                    flag = True
+                    continue
+                if itemList[1] == 'MANUAL':
+                    manflag = True
+                if itemList[1] == 'system' or itemList[0] == 'Ions':
+                    print('read end')
+                    break
+                if flag is True:
+                    count += 1
+                if flag is True and count > 2:
+                    if self.fragmode == 'hybrid':
+                        frags.append(itemList[3] + itemList[1])
+                    elif self.fragmode == 'auto':
+                        frags.append(itemList[2] + itemList[0])
 
         return frags
-
 
     def read_pieda(self, fname):
         ifie = []
@@ -2384,10 +2390,10 @@ class anlfmo(pdio.pdb_io):
 
         # multi mode (read and filter)
         if self.anlmode == 'multi':
-            readmultiifie()
+            self.readmultiifie()
         ## single mode
         else:
-            readsingleifie()
+            self.readsingleifie()
 
         return self
 
@@ -2838,7 +2844,6 @@ class anlfmo(pdio.pdb_io):
 
         return self
 
-
     def writecsvwrap(self, head=None, word='', pbwrite=False):
         '''writecsvwrap
 
@@ -3069,7 +3074,7 @@ class anlfmo(pdio.pdb_io):
 
                         ifdf_filter = self.ifdf_filters[count]
 
-                        if self.addresinfo == True:
+                        if self.addresinfo:
                             for i in range(1, len(self.resname_perfrag)+1):
                                 val1 = i
                                 val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
@@ -3095,8 +3100,7 @@ class anlfmo(pdio.pdb_io):
 
                     ifdf_fil_n1 = ifdf_fil_n1.reset_index(drop=True)
 
-
-                    if self.addresinfo == True:
+                    if self.addresinfo:
                         ifdf_fil_n1["I"] = self.resname_perfrag[int(self.tgt1frag[0])-1] + '(' + str(self.tgt1frag[0]) + ')' + '-' + \
                             self.resname_perfrag[int(self.tgt1frag[-1])-1] + '(' + str(self.tgt1frag[-1]) + ')'
                         ifdf_fil_n1["J"] = self.tgt2frag
@@ -3107,7 +3111,7 @@ class anlfmo(pdio.pdb_io):
                             ifdf_fil_n1.J = ifdf_fil_n1.J.replace(val1, val2)
                     else:
                         # print(self.tgt1frag)
-                        ifdf_fil_n1["I"] = str(self.tgt1frag[0]) + '-' +  str(self.tgt1frag[-1])
+                        ifdf_fil_n1["I"] = str(self.tgt1frag[0]) + '-' + str(self.tgt1frag[-1])
                         ifdf_fil_n1["J"] = self.tgt2frag
 
                     del ifdf_fil_n1['DIMER-ES']
@@ -3118,7 +3122,7 @@ class anlfmo(pdio.pdb_io):
                     print(path + '/' + oifie, 'was generated.')
 
                     # pb
-                    if self.pbflag == True:
+                    if self.pbflag:
                         count = 0
                         for tgt1 in tgt1s:
                             ohead = head + '-frag' + str(tgt1) + '-frag' + str(self.tgt2frag[0]) + '-' + str(self.tgt2frag[-1])
@@ -3126,7 +3130,7 @@ class anlfmo(pdio.pdb_io):
 
                             pbifdf_filter = self.pbifdf_filters[count]
 
-                            if self.addresinfo == True:
+                            if self.addresinfo:
                                 for i in range(1, len(self.resname_perfrag)+1):
                                     val1 = i
                                     val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
@@ -3151,8 +3155,7 @@ class anlfmo(pdio.pdb_io):
 
                         pbifdf_fil_n1 = pbifdf_fil_n1.reset_index(drop=True)
 
-
-                        if self.addresinfo == True:
+                        if self.addresinfo:
                             pbifdf_fil_n1["I"] = self.resname_perfrag[int(self.tgt1frag[0])-1] + '(' + str(self.tgt1frag[0]) + ')' + '-' + \
                                 self.resname_perfrag[int(self.tgt1frag[-1])-1] + '(' + str(self.tgt1frag[-1]) + ')'
                             pbifdf_fil_n1["J"] = self.tgt2frag
@@ -3162,7 +3165,7 @@ class anlfmo(pdio.pdb_io):
                                 val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
                                 pbifdf_fil_n1.J = pbifdf_fil_n1.J.replace(val1, val2)
                         else:
-                            pbifdf_fil_n1["I"] = self.tgt1frag[0] + '-' +  self.tgt1frag[-1]
+                            pbifdf_fil_n1["I"] = self.tgt1frag[0] + '-' + self.tgt1frag[-1]
                             pbifdf_fil_n1["J"] = self.tgt2frag
 
                         del pbifdf_fil_n1['DIMER-ES']
@@ -3229,11 +3232,9 @@ class anlfmo(pdio.pdb_io):
                                     'distance',
                                 ]
 
-
-                    tgt2str = str(self.tgt2frag[0]) + '-'  + str(self.tgt2frag[-1])
+                    tgt2str = str(self.tgt2frag[0]) + '-' + str(self.tgt2frag[-1])
                     if self.depth(self.tgt2frag) >= 2:
                         tgt2str = str(self.tgt2frag[0][0]) + '-end'
-
 
                     print('--- out files ---')
                     # i:type, j:tgt1frag
@@ -3242,14 +3243,14 @@ class anlfmo(pdio.pdb_io):
                         for j in range(len(datadfs[i])):
                             tgt1frag = self.tgt1frag[j]
                             ocsv = head + '_frag' + str(tgt1frag) + '-frag' + str(tgt2str) + '-' + names[i] + '-tfmatrix.csv'
-                            if self.addresinfo == True:
+                            if self.addresinfo:
                                 datadfs[i][j].rename(index = lambda x: self.resname_perfrag[int(x)-1] + '(' + str(x) + ')', inplace=True)
                             datadfs[i][j].T.to_csv(path + '/' + ocsv)
                             print(path + '/' + ocsv)
 
                             # gen tgtfrag1 sum matrix
                             if j == 0:
-                                sum1df =  datadfs[i][j]
+                                sum1df = datadfs[i][j]
                             else:
                                 sum1df = sum1df + datadfs[i][j]
 
@@ -3281,7 +3282,6 @@ class anlfmo(pdio.pdb_io):
                     self.ifdf_filters.to_csv(path + '/' + oifie)
                     print(path + '/' + oifie, 'was created.')
 
-
             if tgt2type in ['dist', 'dimer-es']:
 
                 tgt1frag = self.tgt1frag[0]
@@ -3300,7 +3300,7 @@ class anlfmo(pdio.pdb_io):
                     oifie = 'frag' + str(tgt1frag) + '-dimer-es-false-ifiesum.csv'
                     oifiedt = 'frag' + str(tgt1frag) + '-dimer-es-false-ifiedt.csv'
 
-                if self.addresinfo == True:
+                if self.addresinfo:
                     for i in range(1, len(self.resname_perfrag)+1):
                         val1 = i
                         val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
@@ -3323,7 +3323,7 @@ class anlfmo(pdio.pdb_io):
                         oifie = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-dist' + str(self.dist) + '-ifiesum.csv'
                         oifiedt = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-dist' + str(self.dist) + '-ifiedt.csv'
 
-                    if self.addresinfo == True:
+                    if self.addresinfo:
                         for i in range(1, len(self.resname_perfrag)+1):
                             val1 = i
                             val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
@@ -3336,16 +3336,15 @@ class anlfmo(pdio.pdb_io):
                     print(path + '/' + oifie)
                     print(path + '/' + oifiedt, 'was created.')
 
-
         if self.anlmode == 'mol':
-            if head == None:
+            if head is None:
                 head = os.path.splitext(self.tgtlogs)[0].split('/')[-1]
 
             dist = self.dist
             selecttype = self.selecttype
             # piedamol_mol = self.piedamol_mol
             ifdf_frag_mols = self.ifdf_frag_mols
-            ifdfmol_mols= self.ifdfmol_mols
+            ifdfmol_mols = self.ifdfmol_mols
 
             # pieda_frag_mols = self.pieda_frag_mols
             if selecttype == 'molid':
@@ -3363,7 +3362,7 @@ class anlfmo(pdio.pdb_io):
 #             for ifdf_frag_mol in ifdf_frag_mols:
 #                 ifdf_frag_molsdt = ifdf_frag_molsdt.append(ifdf_frag_mol)
 
-            if self.addresinfo == True:
+            if self.addresinfo:
                 for i in range(1, len(self.resname_perfrag)+1):
                     val1 = i
                     val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
@@ -3386,7 +3385,7 @@ class anlfmo(pdio.pdb_io):
 
             ohead = head + '-' 'tgt1frag' + str(self.tgt1_lofrag) + '-mol' + str(self.tgt2molname) + 'frag' + str(self.tgt2_lofrag)
 
-            if self.addresinfo == True:
+            if self.addresinfo is True:
                 for i in range(1, len(self.resname_perfrag)+1):
                     val1 = i
                     val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
@@ -3402,4 +3401,3 @@ class anlfmo(pdio.pdb_io):
             self.ifdfsums.to_csv(oifiesum)
             print(oifie, 'was generated.')
             print(oifiesum, 'was generated.')
-

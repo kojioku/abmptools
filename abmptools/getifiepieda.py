@@ -144,6 +144,18 @@ def get_args():
     print('process =', args.pynp)
     print('excludefrag =', args.exclude)
 
+
+    return args
+
+
+def setupmode(aobj):
+    '''setupmode
+    Args:
+        args
+    Returns:
+        tgtfrag1, tgtfrag2
+    '''
+
     # input setup
     if args.input:
         if args.multi is None and args.tfmatrix is None:
@@ -155,8 +167,8 @@ def get_args():
 
     elif args.inputx:
         print('inputlog =', args.inputx)
-        args.ilog_head = args.inputx.split('xxx')[0]
-        args.ilog_tail = args.inputx.split('xxx')[1]
+        aobj.ilog_head = args.inputx.split('xxx')[0]
+        aobj.ilog_tail = args.inputx.split('xxx')[1]
 
     else:
         print('Error! No input log name')
@@ -168,17 +180,6 @@ def get_args():
     print('monomer energy label =', args.momene)
     print('dimer energy label =', args.dimene)
     print('get monomer dimer energy =', args.is_momdim)
-
-    return args
-
-
-def setupmode():
-    '''setupmode
-    Args:
-        args
-    Returns:
-        tgtfrag1, tgtfrag2
-    '''
 
     tgtfrag1 = []
     tgtfrag2 = []
@@ -276,7 +277,7 @@ if __name__ == '__main__':
     aobj = ampt.anlfmo()
 
     # setup mode
-    tgtfrag1, tgtfrag2 = setupmode()
+    tgtfrag1, tgtfrag2 = setupmode(aobj)
 
     # set zero padding
     aobj.zp = args.zp
