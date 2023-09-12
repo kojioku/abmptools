@@ -2208,6 +2208,7 @@ class anlfmo(pdio.pdb_io):
             pidf: pieda dataframe
         '''
 
+        # param setup
         self.setupreadparm(item1, item2, item3)
 
         # multi mode (read and filter)
@@ -2217,7 +2218,6 @@ class anlfmo(pdio.pdb_io):
             print('## read multi mode')
             st = time.time()
             p = Pool(self.pynp)
-
 
             # main-read module
             ifpidfs = p.map(self.read_ifpimulti, [i for i in range(len(self.tgtlogs))])
@@ -2231,7 +2231,7 @@ class anlfmo(pdio.pdb_io):
             delids = []
             for i in range(len(ifpidfs)):
                 try:
-                    if ifpidfs[i] == None:
+                    if ifpidfs[i] is None:
                         delids.append(i)
                 except:
                     pass
@@ -2316,7 +2316,6 @@ class anlfmo(pdio.pdb_io):
 
             p.close()
             print('read elapsed', time.time() - st)
-
 
         ## single mode
         else:

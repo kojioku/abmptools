@@ -57,7 +57,7 @@ def get_args():
                         nargs='*'
                         )
 
-    parser.add_argument('-z', '-zp', '--zp'
+    parser.add_argument('-z', '-zp', '--zp',
                         help='zeropadding',
                         default = 0,
                         type=int
@@ -147,7 +147,7 @@ def get_args():
     # input setup
     if args.input:
         if args.multi is None and args.tfmatrix is None:
-            logname = args.input
+            aobj.ilog_head = args.input
         else:
             aobj.ilog_head = eval(args.input)[0]
             aobj.ilog_tail = eval(args.input)[1]
@@ -241,10 +241,10 @@ def setupmode():
             tgtfrag2 = args.multi[1]
 
     # check tfmatrix mode
-    if args.tfmatrix != None:
+    if args.tfmatrix is not None:
         aobj.anlmode = 'multi'
-        aobj.tgt2type='frag'
-        aobj.matrixtype='times-frags'
+        aobj.tgt2type = 'frag'
+        aobj.matrixtype = 'times-frags'
         tgtfrag1 = args.tfmatrix[0]
         tgtfrag2 = args.tfmatrix[1]
         aobj.start = int(args.time[0])
@@ -295,20 +295,21 @@ if __name__ == '__main__':
     else:
         # frag-dist
         if aobj.anlmode == 'frag' and aobj.tgt2type == 'dist':
-            aobj = aobj.readifiewrap(logname, tgtfrag1)
+            aobj = aobj.readifiewrap(aobj.ilog_head, tgtfrag1)
         # ffmatrix, fragids
         if aobj.anlmode == 'frag' and aobj.tgt2type == 'frag':
-            aobj = aobj.readifiewrap(logname, tgtfrag1, tgtfrag2)
+            aobj = aobj.readifiewrap(aobj.ilog_head, tgtfrag1, tgtfrag2)
         # fraginmol
         if aobj.anlmode == 'fraginmol' or aobj.anlmode == 'mol':
-            aobj = aobj.readifiewrap(logname)
+            aobj = aobj.readifiewrap(aobj.ilog_head)
 
     #  filter(for single mode) and write section
     #  with pb
     if aobj.matrixtype == 'frags-frags' and aobj.pbflag:
         aobj = aobj.filterifiewrap()
         aobj.writecsvwrap(word='gas')
-        aobj = aobj.filterifiewrap(myifdf=aobj.pbifdf, mypidf=aobj.pbpidf, is_pb=True)
+        aobj = aobj.filterifiewrap(
+            myifdf=aobj.pbifdf, mypidf=aobj.pbpidf, is_pb=True)
         aobj.writecsvwrap(word='pb', pbwrite=True)
 
     # only-gas
