@@ -49,7 +49,7 @@ class abinit_io(mi.mol_io):
         self.pbcnv = 1.0
         self.piedaflag = True
         self.cpfflag = False
-        self.cpfver='10'
+        self.cpfver = 23
         self.cmmflag = False
         self.nofzc_flag = False
         self.bsseflag = False
@@ -233,7 +233,8 @@ Charge=""" + str(ajf_charge) + "\n"
             ajf_body += """ReadGeom='""" + str(self.readgeom) + "'\n"
         if self.cpfflag:
             ajf_body += "WriteGeom=" + str(self.writegeom) + "\n"
-            ajf_body += "CPFVER=" + str(self.cpfver) + "\n"
+            if self.cpfver != 23:
+                ajf_body += "CPFVER=" + str(self.cpfver) + "\n"
         if self.mldatfrag:
             ajf_body += "WriteMLdata=" + str(self.mldatname) + "\n"
         if self.mllimit not in [0, None]:
@@ -1496,7 +1497,6 @@ MD='OFF'
 
         # return frag_atoms, frag_charges, frag_baanums, frag_atmlabss, frag_connectss
 
-
     def writemb_frag_section(self, param, nameid):
         frag_atom = param[0]
         frag_charge = param[1]
@@ -1584,4 +1584,3 @@ MD='OFF'
         ajf_file = open(oname, 'w')
 
         print(ajf_body, file=ajf_file)
-

@@ -721,6 +721,14 @@ class CPFManager:
 
         return None
 
+    def info(self):
+        import pprint
+
+        pprint.pprint(dir(self))
+        pprint.pprint(vars(self))
+
+        return
+
     @staticmethod
     def setupfragstr(fraginfo):
         fragstr = ''
@@ -882,6 +890,5 @@ class CPFManager:
 
         elif type(item1) == int:
             return int(item1)
-
 
 

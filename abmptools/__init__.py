@@ -8,3 +8,4 @@ from .udf_io import udf_io
 from .udfcreate import udfcreate
 from .anlfmo import anlfmo
 from .cpfmanager import CPFManager
+from .logmanager import LOGManager
