@@ -122,14 +122,13 @@ class anlfmo(pdio.pdb_io):
     def read_fraginfo(self, fname):
         frags = []
         count = 0
-        # text = open(fname, "r").readlines()
         with open(fname, 'r') as file:
+            flag = False
             while True:
-                flag = False
                 # for i in range(len(text)):
                 # itemList = text[i][:-1].split()
                 itemList = file.readline().strip().split()
-
+                print(itemList)
                 if len(itemList) < 2:
                     continue
                 if itemList[1] == 'AUTOMATIC' or itemList[1] == 'HYBRID':
@@ -174,7 +173,6 @@ class anlfmo(pdio.pdb_io):
                 ifie.append(itemList)
 
         return ifie
-
 
     def getconnect(self, idxs, molfrags, df, tgtid):
         '''getconnect
@@ -241,7 +239,6 @@ class anlfmo(pdio.pdb_io):
 
         return molfrags
 
-
     def getallmolfrags(self, logname, df, nf):
         # fragment connect is judged by checking frag-frag distance
         alfrags = []
@@ -256,7 +253,6 @@ class anlfmo(pdio.pdb_io):
                 alfrags.append(j)
         # print(molfragss)
         return molfragss
-
 
     def getlognf(self, logname, fragmode):
         # print('fragmode', fragmode)
@@ -310,7 +306,7 @@ class anlfmo(pdio.pdb_io):
                     readflag = False
                 if items[0:2] == ["ALL", "ATOM"]:
                     natom = int(items[3])
-                if readflag == True:
+                if readflag is True:
                     if line[0:21] == "                     ":
                         # print(line)
                         fragdata = fragdata + items
@@ -345,7 +341,8 @@ class anlfmo(pdio.pdb_io):
                    residuestr.append(items[2])
 
             nf = len(fragdatas)
-            print('-------nf--------', nf)
+            # print('-------nf--------', nf)
+            # print(fragdatas)
 
         return nf
 
@@ -2391,7 +2388,7 @@ class anlfmo(pdio.pdb_io):
         # multi mode (read and filter)
         if self.anlmode == 'multi':
             self.readmultiifie()
-        ## single mode
+        # single mode
         else:
             self.readsingleifie()
 
@@ -2434,7 +2431,6 @@ class anlfmo(pdio.pdb_io):
 
         return
 
-
     def setupreadparm(self, item1=None, item2=None, item3=None):
         '''setup read parameter
         Args:
@@ -2458,7 +2454,7 @@ class anlfmo(pdio.pdb_io):
         if self.anlmode == 'multi':
             # item1: tgt1
             # item2: tgt2
-            print('tgt2type:' ,self.tgt2type)
+            print('tgt2type:', self.tgt2type)
 
             # setup tgttimes, logs, and pdbs
             for i in range(self.start, self.end+1, self.interval):
@@ -2467,13 +2463,13 @@ class anlfmo(pdio.pdb_io):
             print('tgtlogs', tgtlogs)
 
             # setup tgt1frag
-            if item1 != None:
+            if item1 is not None:
                 print('type', type(item1))
                 if type(item1) == str:
                     if '-' in item1:
                         tgt = item1.split('-')
                         print('tgt', tgt)
-                        self.tgt1frag = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
+                        self.tgt1frag = [i for i in range(int(tgt[0]), int(tgt[1]) + 1)]
                         if self.tgt1frag in self.tgt1frag:
                             del self.tgt1frag[self.tgt1frag.index(self.tgt1frag)]
                     else:
@@ -2498,7 +2494,7 @@ class anlfmo(pdio.pdb_io):
                             nf = self.getlognf(tgtlogs[i], self.fragmode)
                             tgt = item2.split('-')[0]
                             print('tgt', tgt)
-                            tgt2frag = [ i for i in range(int(tgt), nf + 1) ]
+                            tgt2frag = [i for i in range(int(tgt), nf + 1)]
                             self.tgt2frag.append(tgt2frag)
 
                     elif type(item2) == str:
@@ -2554,9 +2550,9 @@ class anlfmo(pdio.pdb_io):
         # item2 tgt1
         # item3 tgt2
         else:
-            if item1 != None:
+            if item1 is not None:
                 self.tgtlogs = item1
-            if item2 != None:
+            if item2 is not None:
                 if self.anlmode == 'mol' and self.selecttype == 'molid':
                     self.tgtmolid = int(item2)
                 else:
@@ -2587,8 +2583,8 @@ class anlfmo(pdio.pdb_io):
                 elif type(self.tgtmolid) == int:
                     self.tgtmolid = [self.tgtmolid]
 
-            if self.tgt2type is 'frag' or self.tgt2type is 'dist':
-                if item2 != None:
+            if self.tgt2type == 'frag' or self.tgt2type == 'dist':
+                if item2 is not None:
                     # print('type tgt2', type(item2))
                     if type(item2) == str:
                         if '-' in item2:
@@ -2608,7 +2604,7 @@ class anlfmo(pdio.pdb_io):
                         self.tgt1frag = [item2]
 
             if self.tgt2type == 'frag':
-                if item3 != None:
+                if item3 is not None:
                     # print('type tgt2', type(item3))
                     if type(item3) == str:
                         if '-' in item3:

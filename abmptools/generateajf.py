@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-cpfv', '--cpfver',
                         help='cpf version',
-                        default='10'
+                        default=23
                         )
 
     parser.add_argument('-basis', '--basisset',
@@ -199,7 +199,6 @@ if __name__ == "__main__":
         fragfile = args.manual
         aobj.getfragdict([fragfile], 'segment_data.dat')
 
-
         # fatomnums, fchgs, fbaas, fatminfos, connects = aobj.getfragtable(tgtmolsets, atomnumsets, nameidMol)
         head, ext = os.path.splitext(fragfile)
         ftemp = head.split('/')[-1]
@@ -208,7 +207,6 @@ if __name__ == "__main__":
         # print (frag_atoms, frag_charges)
 
         aobj.saveajf()
-
 
     addstr = ''
 
