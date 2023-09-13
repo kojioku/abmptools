@@ -2832,9 +2832,14 @@ class anlfmo(pdio.pdb_io):
                 ifdf_filters = ifdf_filters.append(ifdf_filter)
 
                 # print(ifdf_filter)
-                HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum = self.getsumdf(ifdf_filter)
+                HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, \
+                    JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, \
+                    q_sum = self.getsumdf(ifdf_filter)
 
-                ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum], index=self.ifdfsumcolumn, name='mol' + str(tgtmol+1))
+                ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum,
+                                     GRIMME_sum, JUNG_sum, HILL_sum, ES_sum,
+                                     EX_sum, CT_sum, DI_sum, q_sum],
+                                    index=self.ifdfsumcolumn, name='mol' + str(tgtmol+1))
                 ifdfsums = ifdfsums.append(ifdfsum)
 
             # self.tgt1_glofrag = tgt1_glofrags
@@ -2998,8 +3003,8 @@ class anlfmo(pdio.pdb_io):
                 for i in range(len(datadfs)):
                     # rename index-columns
                     if self.addresinfo:
-                        datadfs[i].rename(index = lambda x: self.resname_perfrag[int(x)-1] + '(' + str(x) + ')', \
-                                          columns = lambda x: self.resname_perfrag[int(x)-1] + '(' + str(x) + ')', inplace=True)
+                        datadfs[i].rename(index=lambda x: self.resname_perfrag[int(x)-1] + '(' + str(x) + ')',
+                                          columns=lambda x: self.resname_perfrag[int(x)-1] + '(' + str(x) + ')', inplace=True)
 
                     ocsv = head + '_frag' + str(tgt1str) + '-frag' + str(tgt2str) + '-' + word + names[i] + '-ffmatrix.csv'
                     datadfs[i].T.to_csv(path + '/' + ocsv)
@@ -3007,8 +3012,8 @@ class anlfmo(pdio.pdb_io):
 
                 if pbwrite:
                     if self.addresinfo:
-                        self.solvesdf.rename(index = lambda x: self.resname_perfrag[int(x)-1] + '(' + str(x) + ')', \
-                                          columns = lambda x: self.resname_perfrag[int(x)-1] + '(' + str(x) + ')', inplace=True)
+                        self.solvesdf.rename(index=lambda x: self.resname_perfrag[int(x)-1] + '(' + str(x) + ')',
+                                             columns=lambda x: self.resname_perfrag[int(x)-1] + '(' + str(x) + ')', inplace=True)
 
                     ocsv = head + '_frag' + str(tgt1str) + '-frag' + str(tgt2str) + '-' + word + 'SolvES-ffmatrix.csv'
                     self.solvesdf.T.to_csv(path + '/' + ocsv)
@@ -3271,7 +3276,7 @@ class anlfmo(pdio.pdb_io):
                     tgt1frag = self.tgt1frag[0]
                     tgt2frag = self.tgt2frag[0]
 
-                    if self.addresinfo == True:
+                    if self.addresinfo:
                         for i in range(1, len(self.resname_perfrag)+1):
                             val1 = i
                             val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
@@ -3320,15 +3325,22 @@ class anlfmo(pdio.pdb_io):
 
                     if tgt2type == 'molname':
                         tgt2molname = self.tgt2molname
-                        oifie = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-dist' + str(self.dist) + '-ifiesum.csv'
-                        oifiedt = 'frag' + str(tgt1frag) + '-' + str(tgt2molname) + '-dist' + str(self.dist) + '-ifiedt.csv'
+                        oifie = 'frag' + str(tgt1frag) + '-' + \
+                            str(tgt2molname) + '-dist' + \
+                            str(self.dist) + '-ifiesum.csv'
+                        oifiedt = 'frag' + str(tgt1frag) + \
+                            '-' + str(tgt2molname) + '-dist' + \
+                            str(self.dist) + '-ifiedt.csv'
 
                     if self.addresinfo:
                         for i in range(1, len(self.resname_perfrag)+1):
                             val1 = i
-                            val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
-                            self.ifdf_filters[j].I = self.ifdf_filters[j].I.replace(val1, val2)
-                            self.ifdf_filters[j].J = self.ifdf_filters[j].J.replace(val1, val2)
+                            val2 = self.resname_perfrag[i-1] + '(' + \
+                                str(val1) + ')'
+                            self.ifdf_filters[j].I = \
+                                self.ifdf_filters[j].I.replace(val1, val2)
+                            self.ifdf_filters[j].J = \
+                                self.ifdf_filters[j].J.replace(val1, val2)
 
                     self.ifdfsum[j].to_csv(path + '/' + oifie)
                     self.ifdf_filters[j].to_csv(path + '/' + oifiedt)
@@ -3353,9 +3365,12 @@ class anlfmo(pdio.pdb_io):
                 tgtid = self.tgt1frag[0]
 
             idstr = str(tgtid[0]) + '-' + str(tgtid[-1])
-            ilogdtname = path + '/' + head + '_ifie-fragmol-' +  selecttype + idstr + 'dist' + str(dist) + '.csv'
-            imolname = path + '/' + head + '_ifiemol-mol-' + selecttype + idstr + 'dist' + str(dist) + '.csv'
-            isumname = path + '/' + head + '_ifiesummol-mol-' + selecttype + idstr + 'dist' + str(dist) + '.csv'
+            ilogdtname = path + '/' + head + '_ifie-fragmol-' + selecttype + \
+                idstr + 'dist' + str(dist) + '.csv'
+            imolname = path + '/' + head + '_ifiemol-mol-' + selecttype + \
+                idstr + 'dist' + str(dist) + '.csv'
+            isumname = path + '/' + head + '_ifiesummol-mol-' + selecttype + \
+                idstr + 'dist' + str(dist) + '.csv'
 
 #             ifdf_frag_molsdt = pd.DataFrame()
 #             pd.set_option('display.width', 500)
@@ -3380,23 +3395,28 @@ class anlfmo(pdio.pdb_io):
             print(isumname)
 
         if self.anlmode == 'fraginmol':
-            if head == None:
+            if head is None:
                 head = os.path.splitext(self.tgtlogs)[0].split('/')[-1]
 
-            ohead = head + '-' 'tgt1frag' + str(self.tgt1_lofrag) + '-mol' + str(self.tgt2molname) + 'frag' + str(self.tgt2_lofrag)
+            ohead = head + '-' 'tgt1frag' + str(self.tgt1_lofrag) + '-mol' + \
+                str(self.tgt2molname) + 'frag' + str(self.tgt2_lofrag)
 
             if self.addresinfo is True:
                 for i in range(1, len(self.resname_perfrag)+1):
                     val1 = i
                     val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'
-                    self.ifdf_filters.I = self.ifdf_filters.I.replace(val1, val2)
-                    self.ifdf_filters.J = self.ifdf_filters.J.replace(val1, val2)
+                    self.ifdf_filters.I = \
+                        self.ifdf_filters.I.replace(val1, val2)
+                    self.ifdf_filters.J = \
+                        self.ifdf_filters.J.replace(val1, val2)
                     # self.ifdf.I = self.ifdf.I.replace(val1, val2)
                     # self.ifdf.J = self.ifdf.J.replace(val1, val2)
 
             # self.ifdf.to_csv(path + '/' + head + '-ifie.csv')
-            oifie = path + '/' + ohead + '-ifie_'  + 'dist' + str(self.dist) + '.csv'
-            oifiesum = path + '/' + ohead + '-ifiesum_'  + 'dist' + str(self.dist) + '.csv'
+            oifie = path + '/' + ohead + '-ifie_' + 'dist' + \
+                str(self.dist) + '.csv'
+            oifiesum = path + '/' + ohead + '-ifiesum_' + 'dist' + \
+                str(self.dist) + '.csv'
             self.ifdf_filters.to_csv(oifie)
             self.ifdfsums.to_csv(oifiesum)
             print(oifie, 'was generated.')
