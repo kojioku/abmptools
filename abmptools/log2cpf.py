@@ -6,6 +6,8 @@ import copy
 import csv
 import abmptools
 import argparse
+import datetime
+
 # Author: Koji Okuwaki
 
 
@@ -58,6 +60,20 @@ if __name__ == '__main__':
 
     # def read_fraginfo(self, fname):
     aobj.parse(args.input)
+
+    cpf = abmptools.CPFManager()
+    cpf.cpfver = 23
+    cpf.labels = aobj.labels
+    cpf.atominfo = aobj.atominfo
+    cpf.fraginfo = aobj.fraginfo
+    cpf.condition = aobj.condition
+    cpf.static_data = aobj.static_data
+    cpf.mominfo = aobj.mominfo
+    cpf.diminfo = aobj.diminfo
+
+    d_today = str(datetime.date.today())
+    cpf.write(d_today, 'log2cpftest.cpf')
+
 #     frags = aobj.readfraginfo(args.input)
 #     print(frags)
 #     nf = aobj.getlognf(args.input, 'auto')
