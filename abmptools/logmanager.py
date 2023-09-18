@@ -1,36 +1,11 @@
 import sys
 import os
 import gzip
-import pprint
 scrdir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(scrdir)
-
-from multiprocessing import Pool
-import copy
-import random
-import math
-import re
-import subprocess
-import csv
-import pdb_io as pdio
-import time
-import abmptools
-
-try:
-    import numpy as np
-except:
-    pass
-try:
-    import collections
-except:
-    pass
 try:
     import pandas as pd
-except:
-    pass
-try:
-    import itertools
-except:
+except ImportError:
     pass
 
 
@@ -272,33 +247,35 @@ class LOGManager():
             print("Methods other than MP2 are not supported.")
             sys.exit()
 
+        hartree = 627.5095
         ifieinfo = {
             "fragi": ifrags,
             "fragj": jfrags,
             "min-dist": dists,
             "NR": [0 for i in range(len(ifrags))],
-            "HF": hfs,
-            "MP2": mp2s,
-            "PR-MP2": prs,
-            "SCS-MP2(Grimme)": grimmes,
+            "HF": [x / hartree for x in hfs],
+            "MP2": [x / hartree for x in mp2s],
+            "PR-MP2": [x / hartree for x in prs],
+            "SCS-MP2(Grimme)": [x / hartree for x in grimmes],
         }
 
         piedainfo = {
             "fragi": pifrags,
             "fragj": pjfrags,
-            "ES": ess,
-            "EX": exs,
-            "CT": cts,
+            "ES": [x / hartree for x in ess],
+            "EX": [x / hartree for x in exs],
+            "CT": [x / hartree for x in cts],
             "DQ": dqs,
         }
-
 
         # for dim in dimer_label:
         #     diminfo[dim] = []
 
         ifiedf = pd.DataFrame(ifieinfo)
         piedadf = pd.DataFrame(piedainfo)
-        ifpidf = pd.merge(ifiedf, piedadf, on=['fragi', 'fragj'])
+        ifpidf = pd.merge(ifiedf, piedadf, on=['fragi', 'fragj'], how='left') \
+            .fillna(0.0)
+        ifpidf = ifpidf[['fragi', 'fragj', 'min-dist'] + dimer_label]
         # print(ifpidf)
 
         total_electronic_energy, total_energy = self.gettotalenergy(file)
@@ -586,18 +563,13 @@ class LOGManager():
         '''
         # print('start getifiepieda')
 
-        ifie = []
         count = 0
-        pieda = []
         pcount = 0
-        pflag = False
-        bsseflag = False
-        bssecount = 0
-        bsse = []
-
         flag = False
-        momflag = False
-        dimflag = False
+        pflag = False
+        # bsseflag = False
+        # bssecount = 0
+        # bsse = []
 
         ifrags = []
         jfrags = []
@@ -615,7 +587,7 @@ class LOGManager():
         dqs = []
 
         # print text
-        print('--- get mominfo from log ---')
+        print('--- get IFIE-PIEDA info from log ---')
         while True:
             Items = file.readline().strip().split()
 
