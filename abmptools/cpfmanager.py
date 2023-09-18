@@ -656,7 +656,7 @@ class CPFManager:
 
         diststr = ''
         for i in range(self.static_data['ndimer']):
-            diststr += str(diminfo['fragj'][i]) + str(diminfo['fragi'][i]) \
+            diststr += str(diminfo['fragi'][i]) + str(diminfo['fragj'][i]) \
                 + str(diminfo['min-dist'][i]) + '\n'
 
         # dpmlist に含まれるカラムのみを選択
