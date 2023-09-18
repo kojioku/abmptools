@@ -1,0 +1,1311 @@
+
+   ----------------------------------------------
+     ABINIT-MP - Open Ver. 1 Rev. 23 (BINDS Ver. 1) / 20230712
+   ----------------------------------------------
+
+     Ab initio Fragment Molecular Orbital (FMO) Method Program
+                                                                                 
+     Open Series: Rev. 5 (December 2016), Rev. 10 (February 2018), 
+                  Rev. 15 (March 2019), Rev. 20 (March 2020)
+                                                                                 
+     Social and scientific priority issue #6 (Accelerated Development of
+     Innovative Clean Energy Systems) to be tackled by using post-K computer
+     Faculty of Engineering, the University of Tokyo, Tokyo (2015).
+                                                                                 
+     Contributions form Platform Project for Supporting Drug Discovery and
+     Life Science Research (Basis for Supporting Innovative Drug Discovery
+     and Life Science Research (BINDS)) from AMED under Grant Number
+     JP18am0101113j (2018).
+                                                                                 
+     Severall supports from "Grant-in-Aid for Scientific Researchi" from MEXT
+     and "SFR" from Rikkyo University.
+                                                                                 
+     Some modules such as DFT and related numerical quadrature were imported
+     from SMASH code developed by K. Ishimura.
+                                                                                 
+     Research and Development of Innovative Simulation Software (RISS) Project
+     Center for Research on Innovative Simulation Software (CISS)
+     Insititute of Industrial Science, the University of Tokyo, Tokyo (2013).
+                                                                                 
+     Open Edition: Y. Mochizuki, T. Nakano, Y. Okiyama, K. Sakakura,
+       Y. Akinaga, H. Watanabe, K. Kato, S. Sato, J. Yamamoto,
+       Y. Yamashita, T. Murase, T. Ishikawa, Y. Komeiji, Y. Kato,
+       N. Watanabe, T. Tsukamoto, H. Mori, K. Okuwaki, S. Tanaka,
+       A. Kato, C. Watanabe, K. Fukuzawa,
+       Rikkyo University, Tokyo - the University of Tokyo, Tokyo &
+       Kobe University, Kobe (2005-2020)
+     BINDS Edition: N. Watanabe, K. Kato, T. Nakano, Y. Okiyama,
+       K. Okuwaki, A. Kato, C. Watanabe, K. Fukuzawa, T. Honma, Y. Mochizuki,
+       RIKEN, Yokohama & Hoshi University, Tokyo (2018)
+     CREST-RISS (X) Edition with PEACH (MD): Y. Mochizuki, Y. Okiyama,
+       J. Yamamoto, K. Sakakura, Y. Komeiji, K. Yamashita, T. Murase,
+       T. Ishikawa, T. Nakano, S. Tanaka, the University of Tokyo,
+       Tokyo & Kobe University, Kobe (2005-2013)
+     RISS Edition: Y. Mochizuki, J. Yamamoto, K. Sakakura,
+       K. Yamashita, T. Murase, Y. Okiyama, T. Nakano,
+       the University of Tokyo, Tokyo (2008-2013)
+     CREST Edition: T. Ishikawa, Y. Mochizuki, T. Nakano,
+       K. Yamashita, Kobe University, Kobe (2005-2010)
+     RSS21 Edition: Y. Mochizuki, T. Nakano, T. Murase,
+       K. Yamashita, M. Kobayashi, the University of Tokyo, Tokyo
+       (2005-2007)
+     FSIS Edition: T. Nakano, Y. Mochizuki, Y. Abe, S. Koikegami,
+       T. Yamaguchi, the University of Tokyo, Tokyo (2002-2005)
+     IPA Edition: T. Nakano, T. Harada,
+       National Institute of Health Sciences, Tokyo (2001)
+     Original ABINIT Program: O. Kikuchi, T. Nakano, K. Morihashi,
+       the University of Tsukuba, Tsukuba (1992)
+                                                                                 
+     References:
+     [ 1] K. Kitaura, T. Sawai, T. Asada, T. Nakano, M. Uebayasi,
+          Chem. Phys. Lett. 312, 319-324 (1999).
+     [ 2] K. Kitaura, E. Ikeo, T. Asada, T. Nakano, M. Uebayasi,
+          Chem. Phys. Lett. 313, 701-706 (1999).
+     [ 3] T. Nakano, T. Kaminuma, T. Sato, Y. Akiyama, M. Uebayasi,
+          K. Kitaura, Chem. Phys. Lett. 318, 614-618 (2000).
+     [ 4] K. Kitaura, S. Sugiki, T. Nakano, Y. Komeiji, M. Uebayasi,
+          Chem. Phys. Lett. 336, 163-170 (2001).
+     [ 5] T. Nakano, T. Kaminuma, T. Sato, K. Fukuzawa, Y. Akiyama,
+          M. Uebayasi, K. Kitaura, Chem. Phys. Lett. 351, 475-480 (2002).
+     [ 6] Y. Komeiji, T. Nakano, K. Fukuzawa, Y. Ueno, Y. Inadomi,
+          T. Nemoto, M. Uebayasi, D. G. Fedorov, K. Kitaura,
+          Chem. Phys. Lett. 372, 342-347 (2003).
+     [ 7] Y. Mochizuki, T. Nakano, S. Koikegami, S. Tanimori, Y. Abe,
+          U. Nagashima, K. Kitaura, Theor. Chem. Acc. 112, 442-452 (2004).
+     [ 8] Y. Mochizuki, S. Koikegami, T. Nakano, S. Amari, K. Kitaura,
+          Chem. Phys. Lett. 396, 473-479 (2004).
+     [ 9] Y. Mochizuki, S. Koikegami, S. Amari, K. Segawa, K. Kitaura,
+          T. Nakano, Chem. Phys. Lett. 406, 283-288 (2005).
+     [10] Y. Mochizuki, Chem. Phys. Lett. 410, 165-171 (2005).
+     [11] Y. Mochizuki, K. Fukuzawa, A. Kato, S. Tanaka, K. Kitaura,
+          T. Nakano, Chem. Phys. Lett. 410, 247-253 (2005).
+     [12] Y. Mochizuki, T. Ishikawa, K. Tanaka, H. Tokiwa, T. Nakano,
+          S. Tanaka, Chem. Phys. Lett. 418, 418-422 (2006).
+     [13] T. Ishikawa, Y. Mochizuki, H. Mori, H. Honda, T. Fujita, S. Amari,
+          Y. Komeiji, H. Tokiwa, S. Tanaka, T. Nakano, K. Tanaka,
+          E. Miyoshi, Chem. Phys. Lett. 427, 159-165 (2006).
+     [14] T. Ishikawa, Y. Mochizuki, K. Imamura, T. Nakano, H. Mori,
+          H. Tokiwa, K. Tanaka, E. Miyoshi, and S. Tanaka, Chem. Phys. Lett.
+          430, 361-366 (2006).
+     [15] Y. Mochizuki, K. Tanaka, K. Yamashita, T. Ishikawa, T. Nakano,
+          S. Amari, K. Segawa, T. Murase, H. Tokiwa, M. Sakurai,
+          Theor. Chem. Acc. 117, 541-553 (2007).
+     [16] T. Ishikawa, Y. Mochizuki, K. Imamura, T. Nakano, H. Mori,
+          H. Tokiwa, K. Tanaka, E. Miyoshi, S. Tanaka, Chem. Phys. Lett.
+          430, 361-366 (2006).
+     [17] Y. Mochizuki, K. Tanaka, Chem. Phys. Lett. 443, 389-397 (2007).
+     [18] Y. Okiyama, H. Watanabe, K. Fukuzawa, T. Nakano, Y. Mochizuki,
+          T. Ishikawa, S. Tanaka, K. Ebina, Chem. Phys. Lett. 449,
+          329-335 (2007).
+     [19] T. Ishikawa, Y. Mochizuki, S. Amari, T. Nakano, H. Tokiwa,
+          S. Tanaka, K. Tanaka, Theor. Chem. Acc. 118, 937-945 (2007).
+     [20] Y. Komeiji, CBI J. 7, 12-23 (2007).
+     [21] Y. Mochizuki, Chem. Phys. Lett. 453, 109-116 (2008).
+     [22] Y. Mochizuki, K. Yamashita, T. Murase, T. Nakano, K. Fukuzawa,
+          K. Takematsu, H. Watanabe, S. Tanaka, Chem. Phys. Lett. 457,
+          396-403 (2008).
+     [23] Y. Okiyama, H. Watanabe, K. Fukuzawa, T. Nakano, Y. Mochizuki,
+          T. Ishikawa, K. Ebina, S. Tanaka, Chem. Phys. Lett. 467,
+          417-423 (2009).
+     [24] Y. Mochizuki, Chem. Phys. Lett. 472, 143-148 (2009).
+     [25] Y. Komeiji, T. Ishikawa, Y. Mochizuki, H. Yamataka, T. Nakano,
+          J. Comput. Chem. 30, 40-50 (2009).
+     [26] Y. Komeiji, Y. Mochizuki, T. Nakano, D. G. Fedorov, J. Mol.
+          Struct. (THEOCHEM) 898, 2-7 (2009).
+     [27] Y. Komeiji, Y. Mochizuki, T. Nakano, Chem. Phys. Lett. 484,
+          380-386 (2010).
+     [28] Y. Okiyama, T. Nakano, K. Yamashita, Y. Mochizuki, N. Taguchi,
+          S. Tanaka, Chem. Phys. Lett. 490, 84-89 (2010).
+     [29] Y. Mochizuki, K. Yamashita, K. Fukuzawa, K. Takematsu,
+          H. Watanabe, N. Taguchi, Y. Okiyama, M. Tsuboi, T. Nakano,
+          S. Tanaka, Chem. Phys. Lett. 493, 346-352 (2010).
+     [30] H. Watanabe, Y. Okiyama, T. Nakano, S. Tanaka,
+          Chem. Phys. Lett. 500, 116-119 (2010).
+     [31] Y. Mochizuki, T. Nakano, Y. Komeiji, K. Yamashita,
+          Y. Okiyama, H. Yoshikawa, H. Yamataka, Chem. Phys. Lett.
+          504, 95-93 (2011) 95-99.
+     [32] Y. Okiyama K. Fukuzawa H. Yamada, Y. Mochizuki, T. Nakano,
+          S. Tanaka, Chem. Phys. Lett. 509, 67-71 (2011).
+     [33] Y. Mochizuki, K. Yamashita, T. Nakano, Y. Okiyama,
+          K. Fukuzawa, N. Taguchi, S. Tanaka, Theor. Chem. Acc.
+          130, 515-530 (2011).
+     [34] T Nakano, Y. Mochizuki, K. Yamashita, C. Watanabe,
+          K. Fukuzawa, K. Segawa, Y. Okiyama, T. Tsukamoto, S. Tanaka,
+          Chem. Phys. Lett. 523, 128-133 (2012).
+     [35] T. Tsukamoto, Y. Mochizuki, N. Watanabe, K. Fukuzawa,
+          T. Nakano, Chem. Phys. Lett. 535, 157-162 (2012).
+     [36] Y. Komeiji, Y. Mochizuki, T. Nakano, H. Mori, InTech, Rijeka,
+          Kroatia, http://bit.ly/HkefpI
+     [37] S. Tanaka, C. Watanabe, Y. Okiyama, Chem. Phys. Lett.
+          556, 272-277 (2013).
+     [38] Y. Okiyama, T. Tsukamoto, C. Watanabe, K. Fukuzawa, S. Tanaka,
+          Y. Mochizuki, Chem. Phys. Lett. 566, 25-31 (2013).
+     [39] C. Watanabe, K. Fukuzawa, Y. Okiyama, T. Tsukamoto, A. Kato,
+          S. Tanaka, Y. Mochizuki, T. Nakano, J. Mol. Graph. Mod. 41,
+          31-42 (2013).
+     [40] C. Watanabe, K. Fukuzawa, Y. Okiyama, T. Tsukamoto, A. Kato,
+          S. Tanaka, Y. Mochizuki, T. Nakano, J. Mol. Gr. Mod. 41,
+          31-42 (2013).
+     [41] Y. Komeiji, T. Fujiwara, Y. Okiyama, Y. Mochizuki, CBI J. 13,
+          45-57 (2013).
+     [42] K. Fukuzawa, C. Watanabe, I. Kurisaki, N. Taguchi, Y. Mochizuki,
+          T. Nakano, S. Tanaka, Y. Komeiji, Comp. Theor. Chem. 1034,
+          7-16 (2014).
+     [43] S. Tanaka, Y. Mochizuki, Y. Komeiji, Y. Okiyama, and K. Fukuzawa,
+          Phys. Chem. Chem. Phys. 16, 10310-10344 (2014).
+     [44] S. Anzaki, C. Watanabe, K. Fukuzawa, Y. Mochizuki, S. Tanaka,
+          J. Mol. Gr. Mod. 53, 48-58 (2014).
+     [45] Y. Kato, T. Fujiwara, Y. Komeiji, T. Nakano, H. Mori, Y. Okiyama,
+          Y. Mochizuki, CBI J. 14, 1-13 (2014).
+     [46] J. Yamamoto, Y. Mochizuki, CBI J. 14, 14-33 (2014).
+     [47] T. Fujiwara, H. Mori, Y. Komeiji, Y. Mochizuki, CSW2014, JPS-Conf.
+          Series 5, 011001-1-8 (2015).
+     [48] K. Fukuzawa, I. Kurisaki, C. Watanabe, Y. Okiyama, Y. Mochizuki,
+          S. Tanaka, Y. Komeiji, Comp. Theo. Chem. 1054, 29-37 (2015).
+     [49] H. Ando, Y. Shigeta, T. Baba, C. Watanabe, Y. Okiyama, Y. Mochizuki,
+          M. Nakano, Mol. Phys. 113, 319-326 (2015).
+     [50] K. Kato, K. Fukuzawa, Y. Mochizuki, Chem. Phys. Lett. 629,
+          58-64 (2015).
+     [51] T. Tsukamoto, K. Kato, A. Kato, T. Nakano, Y. Mochizuki,
+          K. Fukuzawa, J. Comp. Chem. Jpn. 14, 1-9 (2015).
+     [52] K. Tokuda, C. Watanabe, Y. Okiyama, Y. Mochizuki, K. Fukuzawa,
+          Yuto Komeiji, J. Mol. Graphics Model. 69, 144-153 (2016).
+     [53] H. Yamada, Y. Mochizuki, K. Fukuzawa, Y. Okiyama, Y. Komeiji,
+          Comp. Theor. Chem. 1101, 46-54 (2017).
+     [54] K. Okuwaki, Y. Mochizuki, H. Doi, T. Ozawa, J. Phys. Chem. B
+          122, 338-347 (2018).
+     [55] S. Saitou, J. Iijima, M. Fujimoto, Y. Mochizuki, K. Okuwaki, H. Doi,
+          Y. Komeiji, CBI-J. 18, 58-69 (2018).
+     [56] Y. Okiyama, T. Nakano, C. Watanabe, K. Fukuzawa, Y. Mochiuzki,
+          S. Tanaka, J. Phys. Chem. B 122, 4457-4471 (2018).
+     [57] K. Okuwaki, Y. Mochizuki, H. Doi, S. Kawada, T. Ozawa, K. Yasuoka,
+          RSC Adv. 8, 34582-34595 (2018).
+     [58] T. Nakano, K. Fukuzawa, Y. Okiyama, C. Watanabe, Y. Komeiji,
+          Y. Mochizuki, CBI-J. 18, 119-122 (2018).
+     [59] Y. Okiyama, C. Watanabe, K. Fukuzawa, Y. Mochiuzki, T. Nakano, 
+          S. Tanaka, J. Phys. Chem. B 123, 957-973 (2019).
+     [60] Y Komeiji, Y. Okiyama, Y. Mochizuki, K. Fukuzawa, Bull. Chem. Soc.
+          Jpn. 91, 1596-1605 (2018).
+     [61] A. Rossberg, T. Abe, K. Okuwaki, A. Barkleit, K. Fukuzawa, T. Nakano,
+          Y. Mochizuki, S. Tsushima, Chem. Comm. 55, 2015-2018 (2019).
+     [62] B. Drobot, M. Schmidt, Y. Mochizuki, T. Abe, K. Okuwaki, F. Brulfert, 
+          S. Falke, S. A. Samsonov, Y. Komeiji, C. Betzel, T. Stumpf, J. Raff, 
+          S. Tsushima, Phys. Chem. Chem. Phys. 21, 21213-21222 (2019).
+     [63] K. Kato, K. Fukuzawa, Y. Mochizuki, Jpn. J. Appl. Phys. 58, 
+          120906-1-4 (2019).
+     [64] K. Okuwaki, H. Doi, K. Fukuzawa, Y. Mochizuki, Appl. Phys. Express 
+          13, 017002-1-4 (2020).
+     [65] M. Ninomiya, H. Doi, Y. Matsumoto, Y. Mochizuki, Y. Komeiji,
+          Bull. Chem. Soc. Jpn. 93, 553-560 (2020).
+     [66] Y. Akianaga, K. Kato, T. Nakano, K. Fukuzawa, Y. Mochizuki,
+          J. Comp. Chem. 41, 1416-1420 (2020).
+                                                                                 
+     2023/09/18  16:36:10
+
+
+  =======================
+     ## PROCESSOR NAME
+  =======================
+ 
+        Rank =     0 :   DESKTOP-VONN3IO
+ 
+  ======================
+     ## READ NAMELIST
+  ======================
+ 
+     ## READ NAMELIST "CNTRL" : IOSTAT =    0
+
+        Title                   = 
+        NATOM                   =     0
+        ElecState               = S1  
+        Method                  = HF      
+        Nprint                  =     3
+        Memory per processor    =        3000 MB
+        MPIMemSize              =         250 MB
+        TEIBUF                  =           0 MB
+        Charge (Charge of mol.) =     0
+        ReadGeom                = gly5.pdb
+        WriteGeom               = gly5-HF-STO-3G-resp-ref.cpf
+        WriteIFIE               = 
+        Vlength                 =   256
+        FLUSH                   = YES 
+        GMSINP                  = NO  
+        ABINP                   = NO  
+        GRADIENT                = NO  
+        LOGFILE                 =                                         
+        CPFVER                  =  23.00
+        DEBUG_MEMORY            = NO  
+        AJFVER                  = 3.00
+        CPFBIN                  = NO  
+        MULT                    = 1
+        UHFDIIS                 = YES
+        ReadInitMO              = NO 
+        WrtieMO                 = NO 
+        InitDmat                = NO 
+        InitialGuess            = DEFAULT 
+        ROFOCKcoeff             = ROOTHAAN  
+        THOVL                   = 0.100E-11
+        E_THSWZ                 = 0.100E-11
+        G_THSWZ                 = 0.100E-11
+        Dispersion              = OFF       
+        DispersionCutoff        =  50.00
+        DispersionGrimmeD2_s6   =   1.00
+        DispersionGrimmeD2_d    =  20.00
+        DispersionGrimmeD2_sr6  =   1.10
+ 
+     ## READ NAMELIST "FMOCNTRL" : IOSTAT =    0
+
+        FMO                     = ON 
+        NBody                   = 2
+        FMO3                    = OFF
+        FMO3L                   = NO 
+        FMO3SL                  = NO 
+        FMO4                    = NO 
+        AutoFrag                = ON    
+        ReadFragList            = 
+        FragSizeResidue         =     1
+        FragSizeNucleotide      = /base 
+        FragSizeAminoacid       = +amino  
+        HybridNF                =     0
+        HybridFrag              = 
+        HybridSort              = NO 
+        MainProj                = SP3
+        Rsolv                   = 
+        CheckFragment           = ON 
+        SetBond                 = 
+        MergeCoord              = 
+        RCoord                  = 
+        SplitSide               = ON
+        NF                      =     0
+        ESPSET                  = AUTO
+        ESPAOC                  = ON
+        ESPPTC                  = ON
+        Laoc                    =     0.000
+        Lptc                    =     2.000
+        Ldimer                  =     2.000
+        FScale                  =     2.000
+        np_monomer              =     1
+        np_dimer                =     1
+        np_trimer               =     1
+        np_tetramer             =     1
+        MaxSCCenergy            = 0.500E-06
+        MaxSCCcyc               =   250
+        LigandCharge            = 
+        READ_SCC                =                                         
+        WRITE_SCC               =                                         
+        READ_MONOMER_MP2        =                                         
+        WRITE_MONOMER_MP2       =                                         
+        READ_DIMER_ES           =                                         
+        WRITE_DIMER_ES          =                                         
+        READ_DIMER              = NO  
+        WRITE_DIMER             = NO  
+        DIMER_DIR               = 
+        READ_INIT_MO            = NO  
+        LMOTYP                  = ANO 
+        NOT_DIMER               = NO  
+        ReadLMO_C               = 
+        ReadLMO_Si              = 
+        FmtReadLMO              =     2
+        dimer_es_multipole      = NO  
+        esp_ptc_multipole       = NO  
+        monomer_scc_mode        = HF      
+        monomer_scc_algorithm   =     2
+        OpenFrag                =     0
+        SpinOpenFrag            =     1
+        PSCC                    = OFF
+        Pairs                   = 
+        SCFreport               = Light
+        WriteMOELevel           = 
+        WriteMOEFrag            = 
+        HOPGRD                  = NO
+        MCGRAD                  = NO
+        SortDimer               = YES
+        SortDimerStackSize      = 2048
+        MessageNodePack         = NO
+ 
+     ## READ NAMELIST "SCF": IOSTAT =    0
+
+        MaxSCFenergy            = 0.100E-07
+        MaxSCFdensity           = 0.100E-05
+        MaxSCFcyc               =   150
+        AlterMO                 = 0,0
+        MO1                     =     0
+        MO2                     =     0
+        VShift                  =     0.000
+        KShift                  =     0.000
+        LShift                  =     0.000
+        DAMP                    =     0.700
+        DIISM                   =     5
+        DIISTH                  = 0.100E-09
+        MaxDIISError            = 0.100E-05
+        DIISINIT                = 0.100E+00
+        MODLOC_LOC              = NONE
+        METHOD_LOC              = MOME
+        LPRINT_LOC              =     3
+        THRLOC_LOC              = 0.100E-07
+        LIMITR_LOC              =   300
+        BDA_LMO                 = OFF
+        IFCD                    = NO
+        THCDINT                 = 0.100E-02
+        THCDLD                  = 0.100E-07
+        NCDBLK                  =    50
+        DEBUG_CDAM              = NO
+        CDHF                    = NO
+        CDGRAD                  = NO
+        CDTYPE                  = FULL
+        CDGENV                  = EACH
+        UHFAlgorithm            = CONCURRENT      
+        SCFTYPE                 = DIIS
+        MOTruncationThreshold   = 0.100E-03
+        NDIIS                   =     5
+        C1DIISBeginErrorr       = 0.100E+00
+        C1DIISEndError          = 0.100E-09
+        C2DIISBeginError        = 0.100E+00
+        C2DIISEndError          = 0.100E-09
+        EDIISBeginError         = 0.100E+00
+        EDIISEndError           = 0.100E-09
+        DIISInvTol              = 0.100E-13
+        DIISTYPE                = C2_OLD  
+        EDIISRestart            = OFF     
+        USE_ODA                 = YES     
+        EDIISPDIPOuterMaxCyc    =    48
+        EDIISPDIPInnerMaxCyc    =    20
+        EDIISPDIPAlphaMaxCyc    =    48
+        EDIISPDIPInitY          = 0.100E+01
+        EDIISPDIPInitMu         = 0.100E+01
+        EDIISPDIPInitTau        = 0.100E-01
+        EDIISPDIPInitAlpha      = 0.100E+01
+        EDIISPDIPAlphaScale     = 0.500E+00
+        EDIISPDIPEps            = 0.100E-09
+        EDIISPDIPTolScale       = 0.100E+00
+ 
+     ## READ NAMELIST "BASIS" : IOSTAT =    0
+
+        BasisSet                = STO-3G
+        DiffuseOn               = NO
+        ReadBS                  = 
+ 
+     ## READ NAMELIST "OPTCNTRL" : IOSTAT =    0
+
+        Opt                     = OFF     
+        OptFrozenDomain         = FDPD
+        EnergyBeforeOpt         = OFF 
+        EnergyAfterOpt          = OFF 
+        OptMaxStep              = 0.300E+00
+        OptFrag                 = 
+        OptAtom                 = 
+        OptFixedAtom            = 
+        OptMethod               = BFGS        
+        MaxCyc                  =   100
+        GradType                = Analytical Gradient     
+        OptConvergence          = Default
+        MaxGrad                 = 0.100E-01
+        RmsGrad                 = 0.700E-02
+        MaxDisp                 = 0.200E-01
+        RmsDisp                 = 0.140E-01
+        OptNumericalDelta       = 0.100E-02
+        OptOutput               = 
+        OptInput                = 
+        OptBDA                  = type1
+        OptRestart              = OFF
+        OptFrozenDomainRestart  = OFF
+        OptHistory              = 
+        OptLineSearch           = cubic
+        OptDefrozenInterval     = 10000
+        OptRedundantIntraFrag   = 1.2500
+        OptRedundantInterFrag   = 1.2500
+        OptRedundantHbondAcceptor= N, O, F, P, S, Cl
+        OptRedundantAdditional  = 
+        OptRedundantExclusive   = 
+        OptRedundantManual      = 
+        OptRedundantMaxStepBond = 0.300E+00
+        OptRedundantMaxStepAngle= 0.300E+00
+        OptRedundantMaxStepDihedral=0.300E+00
+        OptRedundantReconstInterval=    0
+        Hopt                    = OFF
+        Sideopt                 = OFF
+        ResSeqOpt               = 
+        OptInitialSCC           = ON
+        OptBufferFrag           = 
+        Lbuffer                 = 0.200E+01
+        OptGDIIS                = OFF 
+        GDIISTYPE               = C1      
+        NGDIIS                  =     5
+        LPRINT_GDIIS            =     0
+ 
+     ## READ NAMELIST "MFMO" : IOSTAT =     0
+
+     ## READ NAMELIST "SCZV" : IOSTAT =    0
+
+        DimerResponseTerm       = NO 
+        Debug                   = NO 
+        SCZVMaxCycle            =        100
+        SCZVThreshold           = 0.100E-07
+        NFZV                    =          0
+        THPQRS                  = 0.100E-07
+        LPRINT                  =          0
+        ITCPHF                  = YES 
+        MAXITR                  =         40
+        THRRSD                  = 0.100E-06
+        NDIIS                   =          4
+        DNMSFT                  = 0.000E+00
+        IFWARN                  = NO  
+        IFZCLR                  = NO  
+ 
+     ## READ NAMELIST "XUFF" : IOSTAT =     0
+
+     ## READ NAMELIST "MP2" : IOSTAT =    0
+
+     ## READ NAMELIST "MP2DNS" : IOSTAT =    0
+
+     ## READ NAMELIST "MP2GRD" : IOSTAT =    0
+
+     ## READ NAMELIST "MP3" : IOSTAT =    0
+
+     ## READ NAMELIST "LMP2" : IOSTAT =    0
+
+     ## READ NAMELIST "LRD" : IOSTAT =    0
+
+        Disp                    = OFF     
+
+     ## READ NAMELIST "ANALYSIS" : IOSTAT =    0
+
+        PIEDA            = YES
+        PrintNeighbor    = No
+        PrintDimerESPair = No
+ 
+     ## READ NAMELIST "BSSE": IOSTAT =    0
+
+     ## READ NAMELIST "SOLVATION" : IOSTAT =    0
+
+     ## READ NAMELIST "PBEQ" : IOSTAT =    0
+
+     ## READ NAMELIST "POP" : IOSTAT =    0
+
+        NBOANL                  = ON
+        NBOTHLD                 = 0.100E-07
+        NBOTHRYD                = 0.100E-03
+        NBOIVT                  = VALENCY
+        NBOIVA                  = ISOLATED
+        ESPFIT                  = ON
+        ESPTYP                  = RESP
+        SAMPLE                  = MK
+        MKNLYR                  = 4
+        MKSCL0                  = 0.140E+01
+        MKSINC                  = 0.200E+00
+        MKDENS                  = 0.100E+01
+        BDACAP                  = ON
+        RSTRNT                  = ON
+        RSTFNC                  = HYPBOL
+        RSTWTA                  = 0.000E+00
+        RSTWTB                  = 0.100E+00
+        HYFREE                  = ON
+        MAXITR                  = 20
+        THICNV                  = 0.100E-04
+        STAGE2                  = ON
+        RSTWT1                  = 0.500E-03
+        RSTWT2                  = 0.100E-02
+        CHKSP3                  = OFF
+        SP3ELM                  = C
+        SP3FLC                  = 0.150E+00
+ 
+     ## READ NAMELIST "GRIDCNTRL" : IOSTAT =    0
+
+        GRID                    = NO
+ 
+     ## READ NAMELIST "MCP" : IOSTAT =    0
+
+     ## READ NAMELIST "CAFI" : IOSTAT =    0
+
+     ## READ NAMELIST "CCPT" : IOSTAT =    0
+
+  ==============================
+     ## CHECK AVAILABLE MEMORY
+  ==============================
+ 
+        Rank =    0 : Succeeded to allocate memory :  3000 MByte
+ 
+  ==========================================
+     ## MOLECULE AND FRAGMENT INFORMATION
+  ==========================================
+ 
+     ## READ MOLECULAR STRUCTURE FROM PDB-FILE
+
+            1   N     1        0.162000   -0.202000    0.000000           1
+            2   C     1        1.612000   -0.031000    0.000000           1
+            3   C     1        1.985000    1.432000    0.000000           1
+            4   O     1        1.137000    2.319000    0.000000           1
+            5   H     1       -0.293000    0.722000    0.000000           1
+            6   H     1       -0.122000   -0.724000   -0.841000           1
+            7   H     1        2.055000   -0.519000    0.888000           1
+            8   H     1        2.055000   -0.519000   -0.888000           1
+            9   N     1        3.277000    1.700000    0.000000           1
+           10   C     1        3.784000    3.070000    0.000000           1
+           11   C     1        3.412000    3.784000   -1.278000           1
+           12   O     1        3.055000    4.958000   -1.286000           1
+           13   H     1        3.938000    0.846000    0.000000           1
+           14   H     1        3.374000    3.628000    0.861000           1
+           15   H     1        4.883000    3.071000    0.110000           1
+           16   N     1        3.495000    3.070000   -2.385000           1
+           17   C     1        3.167000    3.629000   -3.693000           1
+           18   C     1        1.703000    3.991000   -3.775000           1
+           19   O     1        1.316000    5.014000   -4.331000           1
+           20   H     1        3.820000    2.047000   -2.265000           1
+           21   H     1        3.776000    4.531000   -3.886000           1
+           22   H     1        3.407000    2.903000   -4.490000           1
+           23   N     1        0.865000    3.140000   -3.213000           1
+           24   C     1       -0.578000    3.361000   -3.216000           1
+           25   C     1       -0.940000    4.587000   -2.412000           1
+           26   O     1       -1.808000    5.373000   -2.780000           1
+           27   H     1        1.310000    2.272000   -2.751000           1
+           28   H     1       -0.944000    3.484000   -4.251000           1
+           29   H     1       -1.100000    2.483000   -2.793000           1
+           30   N     1       -0.267000    4.764000   -1.291000           1
+           31   C     1       -0.510000    5.905000   -0.414000           1
+           32   C     1       -0.140000    7.201000   -1.097000           1
+           33   O     1       -0.823000    8.217000   -0.978000           1
+           34   H     1        0.475000    4.013000   -1.061000           1
+           35   H     1       -1.574000    5.941000   -0.119000           1
+           36   H     1        0.078000    5.805000    0.517000           1
+           37   O     1        1.008000    7.175000   -1.861000           1
+           38   H     1        1.154000    8.041000   -2.249000           1
+ 
+     ## Molecular formula
+
+        H    17
+        C    10
+        N     5
+        O     6
+ 
+     ## AUTOMATIC FRAGMENTATION
+
+  Fragmentation Type : +amino  
+  Seq. Frag. Residue S-S  N-term.  C-Term. Charge
+    1      1    GLY           T        F      0 Nonpolar            
+    2      2    GLY           F        F      0 Nonpolar            
+    3      3    GLY           F        F      0 Nonpolar            
+    4      4    GLY           F        F      0 Nonpolar            
+    5      5    GLY           F        F      0 Nonpolar            
+    6      5     OH           F        T      0                     
+
+  The system has no ion
+      CHARGE OF MOLECULE =     0
+
+  ## CHECK FRAGMENT
+     DONE
+
+        NUMBER OF FRAGMENTS =      5
+
+        Frag.   Elec.   ATOM
+            1      16       1     2     5     6     7     8 
+            2      30       3     4     9    10    13    14    15 
+            3      30      11    12    16    17    20    21    22 
+            4      30      18    19    23    24    27    28    29 
+            5      54      25    26    30    31    32    33    34    35    36    37
+                           38 
+ 
+        ALL ELECTRON =    160
+        ALL ATOM     =     38
+ 
+        Frag.   Bonded Atom  Proj.
+            2       2     3     3
+            3      10    11     3
+            4      17    18     3
+            5      24    25     3
+ 
+     ## READ NAMELIST "MDCNTRL" : IOSTAT =    0
+
+  ==================
+     ## BASIS SET
+  ==================
+ 
+        BASIS SET = STO-3G
+
+        NUMBER OF BASIS FUNCTIONS = 122
+
+     ## FRAGMENT INDEX
+
+        Frag.  Number of AOs
+            1      14
+            2      28
+            3      28
+            4      28
+            5      44
+
+ 
+ ****************************************************************
+ 
+           START FRAGMENT MOLECULAR ORBITAL CALCULATION          
+ 
+ ****************************************************************
+ 
+     ## FRAGMENT PAIR DISTANCE
+
+        Number of pairs in ESP non-approx. region = 0
+                           ESP-AOC approx. region = 10
+                           ESP-PTC approx. region = 0
+ 
+     ## CHECK MEMORY FOR DIMER CALCULATION ( HF AND MP2 )
+
+     ## FRAGMENT NUCLEAR REPULSION
+
+        NUCLEAR REPULSION ENERGY =          1889.4933472009
+
+     ## MONOMER ONE-ELECTRON INTEGRAL
+
+     ## SET MONOMER PROJECTION OPERATOR
+
+     ## SET PROJECTION OPERATOR: SP3    2
+
+     ## SET PROJECTION OPERATOR: SP3   10
+
+     ## SET PROJECTION OPERATOR: SP3   17
+
+     ## SET PROJECTION OPERATOR: SP3   24
+
+     ## MONOMER INITIAL MO
+
+  =================================================
+     ## MONOMER SELF CONSISTENT CHARGE PROCEDURE
+  =================================================
+ 
+ SCC Tv (Energy)  =    0.5E-06 hartree
+ SCF Tv (Energy)  =    0.1E-07 hartree
+ SCF Tv (Density) =    0.1E-05
+
+ Iteration   Electronic energy         delta E      NSCF   Threshold    theta
+ ----------------------------------------------------------------------------
+     1       -1710.2398977758     -1710.2398977758   22   0.0100000000  0.000
+     2       -1744.1681040276       -33.9282062518   10   0.0100000000  0.000
+     3       -1734.7877562877         9.3803477399   10   0.0100000000  0.000
+     4       -1736.9296415067        -2.1418852190   10   0.0100000000  0.037
+     5       -1736.2960048925         0.6336366141   10   0.0100000000  0.187
+     6       -1736.4274159205        -0.1314110280   10   0.0010000000  0.004
+     7       -1736.3686611955         0.0587547251   10   0.0010000000  0.093
+     8       -1736.3743014558        -0.0056402603   10   0.0001000000  0.030
+     9       -1736.3678637910         0.0064376648   10   0.0000100000  0.000
+    10       -1736.3672551281         0.0006086629   10   0.0000100000  0.000
+    11       -1736.3663777486         0.0008773794   12   0.0000000100  0.000
+    12       -1736.3659971860         0.0003805626   10   0.0000000100  0.000
+    13       -1736.3659469518         0.0000502342   10   0.0000000100  0.000
+    14       -1736.3659130679         0.0000338839   10   0.0000000100  0.000
+    15       -1736.3658967668         0.0000163011   10   0.0000000100  0.000
+    16       -1736.3658891658         0.0000076009   10   0.0000000100  0.000
+    17       -1736.3658855791         0.0000035867   10   0.0000000100  0.000
+    18       -1736.3658839330         0.0000016461   10   0.0000000100  0.000
+    19       -1736.3658831710         0.0000007620   10   0.0000000100  0.000
+    20       -1736.3658828206         0.0000003503   10   0.0000000100  0.000
+
+        SELF CONSISTENT CHARGE COMPLETED
+
+     ## TIME PROFILE OF MONOMER SCC
+
+           MONOMER SCC TOTAL =      12.56 sec.
+
+     ## MONOMER SCC ENERGY
+
+        Monomer electronic energy =         -1688.4464479476
+        Monomer total energy      =         -1036.5462765758
+ 
+  =======================
+     ## MONOMER ENERGY
+  =======================
+ 
+        Frag. No.  Monomer HF energy (E'(I))
+               1      -79.0445787441
+               2     -189.3725896993
+               3     -189.3632919644
+               4     -189.3625086375
+               5     -389.4033075305
+
+  =======================
+     ## MONOMER <S^2>
+  =======================
+ 
+        Frag. No.  Monomer HF <S^2>
+
+  =======================================
+     ## MONOMER ELECTRIC DIPOLE MOMENT
+  =======================================
+ 
+        HARTREE-FOCK ELECTRIC DIPOLE MOMENT @ debye
+
+         FRAG.             X             Y             Z           SUM
+        ---------------------------------------------------------------
+             1      0.785971      2.812967     -1.326046      3.207637
+             2      1.450489     -3.348173     -1.614646      3.990146
+             3     -0.524705     -3.573679      1.565234      3.936554
+             4      2.456669     -1.604684      2.801527      4.056943
+             5      3.686567     -4.789664     -0.248676      6.049256
+ 
+  ===============================
+     ## DIMER ES APPROXIMATION
+  ===============================
+ 
+        all dimer-es pair = 0
+
+  ===============================
+     ## DIMER SCF AND MP2
+  ===============================
+ 
+  -----------------------------------------------
+  * ifrag,jfrag,rmin =      2     1      0.0000
+  -----------------------------------------------
+ 
+     ## SET PROJECTION OPERATOR: SP3   10
+
+        ELECTRONS =    46 , NBO =     37 , NMO =     37
+
+        ## DIMER SCF
+
+        ## FINISH ALLOCATION : NPRINT=3
+
+ Iteration   Electronic energy         delta E         delta D         Emax         m   Method
+ ---------------------------------------------------------------------------------------------
+     1        -523.6217821862        -0.6624246792    1.0553308506    0.0162732978 1.00 ODA
+     2        -523.6282836449        -0.0065014587    0.0298019915    0.0087806323   1  DIIS
+     3        -523.6288590036        -0.0005753587    0.0143404697    0.0058865523   2  DIIS
+     4        -523.6290775357        -0.0002185321    0.0069210746    0.0002651658   3  DIIS
+     5        -523.6290801908        -0.0000026551    0.0005568550    0.0001061486   4  DIIS
+     6        -523.6290804331        -0.0000002423    0.0001914534    0.0000180536   5  DIIS
+     7        -523.6290804448        -0.0000000117    0.0000548127    0.0000058270   5  DIIS
+     8        -523.6290804460        -0.0000000012    0.0000188129    0.0000021709   5  DIIS
+     9        -523.6290804461        -0.0000000001    0.0000072980    0.0000007129   5  DIIS
+
+        DIMER SCF COMPLETED
+
+ 
+  -----------------------------------------------
+  * ifrag,jfrag,rmin =      3     1      6.4350
+  -----------------------------------------------
+ 
+     ## SET PROJECTION OPERATOR: SP3   10
+
+     ## SET PROJECTION OPERATOR: SP3    2
+
+     ## SET PROJECTION OPERATOR: SP3   17
+
+        ELECTRONS =    46 , NBO =     42 , NMO =     42
+
+        ## DIMER SCF
+
+        ## FINISH ALLOCATION : NPRINT=3
+
+ Iteration   Electronic energy         delta E         delta D         Emax         m   Method
+ ---------------------------------------------------------------------------------------------
+     1        -478.4018668374       -20.9643427549    1.0553402308    0.0006572843 1.00 ODA
+     2        -478.4018711453        -0.0000043079    0.0011138813    0.0004305342   1  DIIS
+     3        -478.4018723107        -0.0000011654    0.0005755761    0.0000980785   2  DIIS
+     4        -478.4018724545        -0.0000001438    0.0001138328    0.0000235167   3  DIIS
+     5        -478.4018724708        -0.0000000163    0.0000485744    0.0000106089   4  DIIS
+     6        -478.4018724738        -0.0000000030    0.0000210540    0.0000024483   5  DIIS
+     7        -478.4018724740        -0.0000000003    0.0000022724    0.0000007863   5  DIIS
+
+        DIMER SCF COMPLETED
+
+ 
+  -----------------------------------------------
+  * ifrag,jfrag,rmin =      4     1      6.4232
+  -----------------------------------------------
+ 
+     ## SET PROJECTION OPERATOR: SP3   17
+
+     ## SET PROJECTION OPERATOR: SP3    2
+
+     ## SET PROJECTION OPERATOR: SP3   24
+
+        ELECTRONS =    46 , NBO =     42 , NMO =     42
+
+        ## DIMER SCF
+
+        ## FINISH ALLOCATION : NPRINT=3
+
+ Iteration   Electronic energy         delta E         delta D         Emax         m   Method
+ ---------------------------------------------------------------------------------------------
+     1        -476.9752855165       -19.1954091305    1.0552809916    0.0005775544 1.00 ODA
+     2        -476.9752888827        -0.0000033662    0.0008935859    0.0002081034   1  DIIS
+     3        -476.9752894328        -0.0000005501    0.0004424656    0.0000846679   2  DIIS
+     4        -476.9752895374        -0.0000001046    0.0001131554    0.0000154928   3  DIIS
+     5        -476.9752895420        -0.0000000046    0.0000331782    0.0000051332   4  DIIS
+     6        -476.9752895427        -0.0000000007    0.0000161981    0.0000009793   5  DIIS
+
+        DIMER SCF COMPLETED
+
+ 
+  -----------------------------------------------
+  * ifrag,jfrag,rmin =      3     2      0.0000
+  -----------------------------------------------
+ 
+     ## SET PROJECTION OPERATOR: SP3    2
+
+     ## SET PROJECTION OPERATOR: SP3   17
+
+        ELECTRONS =    60 , NBO =     51 , NMO =     51
+
+        ## DIMER SCF
+
+        ## FINISH ALLOCATION : NPRINT=3
+
+ Iteration   Electronic energy         delta E         delta D         Emax         m   Method
+ ---------------------------------------------------------------------------------------------
+     1        -769.9047583403        -7.3509206735    1.0554241703    0.0155554663 1.00 ODA
+     2        -769.9116983286        -0.0069399882    0.0286164131    0.0091954572   1  DIIS
+     3        -769.9124127201        -0.0007143916    0.0176079344    0.0048110810   2  DIIS
+     4        -769.9126787482        -0.0002660281    0.0059762169    0.0003939137   3  DIIS
+     5        -769.9126839146        -0.0000051664    0.0008422973    0.0001037665   4  DIIS
+     6        -769.9126846014        -0.0000006867    0.0002021670    0.0000647803   5  DIIS
+     7        -769.9126847281        -0.0000001267    0.0001210865    0.0000382862   5  DIIS
+     8        -769.9126847704        -0.0000000423    0.0000804036    0.0000161611   5  DIIS
+     9        -769.9126847789        -0.0000000085    0.0000219785    0.0000045260   5  DIIS
+    10        -769.9126847793        -0.0000000004    0.0000051506    0.0000016206   5  DIIS
+    11        -769.9126847795        -0.0000000002    0.0000041158    0.0000005423   5  DIIS
+
+        DIMER SCF COMPLETED
+
+ 
+  -----------------------------------------------
+  * ifrag,jfrag,rmin =      4     3      0.0000
+  -----------------------------------------------
+ 
+     ## SET PROJECTION OPERATOR: SP3   10
+
+     ## SET PROJECTION OPERATOR: SP3   24
+
+        ELECTRONS =    60 , NBO =     51 , NMO =     51
+
+        ## DIMER SCF
+
+        ## FINISH ALLOCATION : NPRINT=3
+
+ Iteration   Electronic energy         delta E         delta D         Emax         m   Method
+ ---------------------------------------------------------------------------------------------
+     1        -768.3489554194        -7.2986291763    1.0553613008    0.0160522807 1.00 ODA
+     2        -768.3558551371        -0.0068997177    0.0291812168    0.0065332753   1  DIIS
+     3        -768.3565189661        -0.0006638291    0.0142089088    0.0044845622   2  DIIS
+     4        -768.3567702853        -0.0002513192    0.0060630520    0.0003768787   3  DIIS
+     5        -768.3567752632        -0.0000049779    0.0006602588    0.0001129107   4  DIIS
+     6        -768.3567759093        -0.0000006460    0.0002106177    0.0000621467   5  DIIS
+     7        -768.3567760263        -0.0000001171    0.0000927702    0.0000332159   5  DIIS
+     8        -768.3567760661        -0.0000000398    0.0000516940    0.0000136167   5  DIIS
+     9        -768.3567760747        -0.0000000085    0.0000216701    0.0000027829   5  DIIS
+    10        -768.3567760751        -0.0000000004    0.0000050177    0.0000013010   5  DIIS
+    11        -768.3567760753        -0.0000000002    0.0000028408    0.0000006662   5  DIIS
+
+        DIMER SCF COMPLETED
+
+ 
+  -----------------------------------------------
+  * ifrag,jfrag,rmin =      4     2      5.2097
+  -----------------------------------------------
+ 
+     ## SET PROJECTION OPERATOR: SP3   17
+
+     ## SET PROJECTION OPERATOR: SP3    2
+
+     ## SET PROJECTION OPERATOR: SP3   10
+
+     ## SET PROJECTION OPERATOR: SP3   24
+
+        ELECTRONS =    60 , NBO =     56 , NMO =     56
+
+        ## DIMER SCF
+
+        ## FINISH ALLOCATION : NPRINT=3
+
+ Iteration   Electronic energy         delta E         delta D         Emax         m   Method
+ ---------------------------------------------------------------------------------------------
+     1        -718.8969760206       -35.0740487241    1.0552834334    0.0012208053 1.00 ODA
+     2        -718.8970026474        -0.0000266268    0.0010182467    0.0003049466   1  DIIS
+     3        -718.8970044297        -0.0000017823    0.0006405692    0.0001660008   2  DIIS
+     4        -718.8970048691        -0.0000004394    0.0002286299    0.0000213477   3  DIIS
+     5        -718.8970048843        -0.0000000152    0.0000408440    0.0000085438   4  DIIS
+     6        -718.8970048875        -0.0000000032    0.0000177822    0.0000034264   5  DIIS
+     7        -718.8970048882        -0.0000000007    0.0000061346    0.0000012506   5  DIIS
+     8        -718.8970048879         0.0000000003    0.0000017976    0.0000003296   5  DIIS
+
+        DIMER SCF COMPLETED
+
+ 
+  -----------------------------------------------
+  * ifrag,jfrag,rmin =      5     1      6.6935
+  -----------------------------------------------
+ 
+     ## SET PROJECTION OPERATOR: SP3   24
+
+     ## SET PROJECTION OPERATOR: SP3    2
+
+        ELECTRONS =    70 , NBO =     58 , NMO =     58
+
+        ## DIMER SCF
+
+        ## FINISH ALLOCATION : NPRINT=3
+
+ Iteration   Electronic energy         delta E         delta D         Emax         m   Method
+ ---------------------------------------------------------------------------------------------
+     1        -883.1488857197        -2.3562610507    1.0554418676    0.0004517202 1.00 ODA
+     2        -883.1488887246        -0.0000030049    0.0008126811    0.0002187944   1  DIIS
+     3        -883.1488895712        -0.0000008466    0.0003077808    0.0000606252   2  DIIS
+     4        -883.1488896669        -0.0000000957    0.0001327902    0.0000176035   3  DIIS
+     5        -883.1488896706        -0.0000000037    0.0000305757    0.0000072126   4  DIIS
+     6        -883.1488896718        -0.0000000012    0.0000107575    0.0000025178   5  DIIS
+     7        -883.1488896720        -0.0000000002    0.0000079043    0.0000005486   5  DIIS
+
+        DIMER SCF COMPLETED
+
+ 
+  -----------------------------------------------
+  * ifrag,jfrag,rmin =      5     4      0.0000
+  -----------------------------------------------
+ 
+     ## SET PROJECTION OPERATOR: SP3   17
+
+        ELECTRONS =    84 , NBO =     67 , NMO =     67
+
+        ## DIMER SCF
+
+        ## FINISH ALLOCATION : NPRINT=3
+
+ Iteration   Electronic energy         delta E         delta D         Emax         m   Method
+ ---------------------------------------------------------------------------------------------
+     1       -1235.7189911238        -6.6776114868    1.0554453521    0.0143658793 1.00 ODA
+     2       -1235.7259553900        -0.0069642662    0.0277794822    0.0081687034   1  DIIS
+     3       -1235.7267010575        -0.0007456675    0.0128793915    0.0049224477   2  DIIS
+     4       -1235.7269736714        -0.0002726139    0.0059259934    0.0004488038   3  DIIS
+     5       -1235.7269790467        -0.0000053753    0.0007707018    0.0001598378   4  DIIS
+     6       -1235.7269800192        -0.0000009725    0.0002582333    0.0000715771   5  DIIS
+     7       -1235.7269801432        -0.0000001241    0.0001292572    0.0000254792   5  DIIS
+     8       -1235.7269801826        -0.0000000394    0.0000809412    0.0000151863   5  DIIS
+     9       -1235.7269801953        -0.0000000127    0.0000587411    0.0000034723   5  DIIS
+    10       -1235.7269801961        -0.0000000007    0.0000117367    0.0000023266   5  DIIS
+    11       -1235.7269801962        -0.0000000001    0.0000043599    0.0000010931   5  DIIS
+    12       -1235.7269801963        -0.0000000001    0.0000032669    0.0000003519   5  DIIS
+
+        DIMER SCF COMPLETED
+
+ 
+  -----------------------------------------------
+  * ifrag,jfrag,rmin =      5     3      5.2096
+  -----------------------------------------------
+ 
+     ## SET PROJECTION OPERATOR: SP3   24
+
+     ## SET PROJECTION OPERATOR: SP3   10
+
+     ## SET PROJECTION OPERATOR: SP3   17
+
+        ELECTRONS =    84 , NBO =     72 , NMO =     72
+
+        ## DIMER SCF
+
+        ## FINISH ALLOCATION : NPRINT=3
+
+ Iteration   Electronic energy         delta E         delta D         Emax         m   Method
+ ---------------------------------------------------------------------------------------------
+     1       -1180.1760701984       -33.2833670814    1.0554395954    0.0011499100 1.00 ODA
+     2       -1180.1760979996        -0.0000278012    0.0009467880    0.0004080404   1  DIIS
+     3       -1180.1761003668        -0.0000023672    0.0007574822    0.0001682597   2  DIIS
+     4       -1180.1761008964        -0.0000005296    0.0002073466    0.0000273862   3  DIIS
+     5       -1180.1761009224        -0.0000000261    0.0000634537    0.0000102458   4  DIIS
+     6       -1180.1761009268        -0.0000000043    0.0000222178    0.0000056603   5  DIIS
+     7       -1180.1761009279        -0.0000000012    0.0000099428    0.0000016688   5  DIIS
+     8       -1180.1761009280        -0.0000000001    0.0000056716    0.0000005166   5  DIIS
+
+        DIMER SCF COMPLETED
+
+ 
+  -----------------------------------------------
+  * ifrag,jfrag,rmin =      5     2      3.9790
+  -----------------------------------------------
+ 
+     ## SET PROJECTION OPERATOR: SP3   24
+
+     ## SET PROJECTION OPERATOR: SP3    2
+
+     ## SET PROJECTION OPERATOR: SP3   10
+
+        ELECTRONS =    84 , NBO =     72 , NMO =     72
+
+        ## DIMER SCF
+
+        ## FINISH ALLOCATION : NPRINT=3
+
+ Iteration   Electronic energy         delta E         delta D         Emax         m   Method
+ ---------------------------------------------------------------------------------------------
+     1       -1158.9323554148       -24.6266657518    1.0554401785    0.0034671601 1.00 ODA
+     2       -1158.9326093095        -0.0002538947    0.0019302507    0.0008456129   1  DIIS
+     3       -1158.9326270719        -0.0000177625    0.0006343401    0.0003865551   2  DIIS
+     4       -1158.9326281813        -0.0000011094    0.0004919272    0.0000544345   3  DIIS
+     5       -1158.9326283377        -0.0000001564    0.0002165129    0.0000197887   4  DIIS
+     6       -1158.9326283488        -0.0000000111    0.0000403375    0.0000158469   5  DIIS
+     7       -1158.9326283513        -0.0000000024    0.0000271855    0.0000034919   5  DIIS
+     8       -1158.9326283516        -0.0000000004    0.0000086393    0.0000006409   5  DIIS
+
+        DIMER SCF COMPLETED
+
+ 
+  =====================================
+     ## SUMMARY OF DIMER SCF AND MP2
+  =====================================
+ 
+     ## TIME PROFILE OF DIMER CALCULATION
+
+        DIMER CALCULATION TOTAL =      21.33 sec.
+ 
+     ## SCF CONVERGENCE OF DIMERS
+
+        Number of two-body SCF   = 10
+        Min number of SCF cycles =  6 / 150 (     4,    1 )
+        Max number of SCF cycles = 12 / 150 (     5,    4 )
+ 
+        All dimers were successfully converged.
+        Number of pair converged = 10, read = 0, skipped = 0
+
+     ## DIMER ENERGY
+
+        dimer-scf energy
+
+        Frag. No.  Dimer HF energy (E'(I,J))
+           2   1     -283.1849622087
+           3   1     -268.4013785234
+           3   2     -393.4984504914
+           4   1     -268.4057826305
+           4   2     -378.7305406422
+           4   3     -393.4838420990
+           5   1     -468.4448035485
+           5   2     -578.7841194033
+           5   3     -578.7554090520
+           5   4     -593.5187653992
+
+     ## DIMER <S^2>
+
+  ===================================================
+     ## Interfragment interaction energy analysis
+  ===================================================
+
+     ## Non-bonding interfragment interaction energy
+ 
+        Frag.  Non-bonding interaction energy
+                         / hartree           / kcal/mol             / kJ/mol
+            1         0.0070379064             4.416353            18.478021
+            2        -0.0054698370            -3.432375           -14.361055
+            3         0.0090317988             5.667539            23.712984
+            4         0.0034632518             2.173223             9.092766
+            5         0.0012544144             0.787157             3.293465
+
+     ## HF-IFIE
+
+           IJ-PAIR    DIST     DIMER-ES   HF-IFIE        HF-IFIE        HF-IFIE
+                      / A      APPROX.   / Hartree      / kcal/mol     / kJ/mol
+        --------------------------------------------------------------------------
+            2    1    0.000000   F      -14.761869   -9263.212867  -38757.282635
+            3    1    3.405247   F        0.002941       1.845569       7.721860
+            3    2    0.000000   F      -14.758140   -9260.872519  -38747.490619
+            4    1    3.399003   F        0.001343       0.842803       3.526288
+            4    2    2.756835   F        0.002120       1.330420       5.566478
+            4    3    0.000000   F      -14.753816   -9258.159390  -38736.138886
+            5    1    3.542065   F        0.002754       1.727981       7.229873
+            5    2    2.105612   F       -0.007590      -4.762795     -19.927533
+            5    3    2.756819   F        0.006091       3.821971      15.991125
+            5    4    0.000000   F      -14.753869   -9258.192363  -38736.276848
+ 
+     ## PIEDA
+
+           IJ-PAIR       ES             EX             CT+mix         DI             q(I=>J)  
+                         / kcal/mol     / kcal/mol     / kcal/mol     / kcal/mol     / e      
+        -----------------------------------------------------------------------------------------------------
+            3    1       1.835846       0.012511      -0.002788       0.000000       0.000026
+            4    1       0.852259       0.023905      -0.033361       0.000000       0.000029
+            4    2       1.267104       0.461018      -0.397702       0.000000       0.001864
+            5    1       1.749720       0.002155      -0.023893       0.000000      -0.000007
+            5    2      -4.494406       2.814048      -3.082437       0.000000       0.014454
+            5    3       3.758195       0.468776      -0.405001       0.000000       0.001845
+ 
+ =================================
+   ## Mulliken atomic population  
+ =================================
+
+          No. Atom   Atomic pop.  Net charge
+                         FMO2         FMO2  
+            1   N      7.397224    -0.397224
+            2   C      6.038224    -0.038224
+            3   C      5.697646     0.302354
+            4   O      8.310874    -0.310874
+            5   H      0.822331     0.177669
+            6   H      0.844717     0.155283
+            7   H      0.927801     0.072199
+            8   H      0.943481     0.056519
+            9   N      7.355555    -0.355555
+           10   C      6.017052    -0.017052
+           11   C      5.704799     0.295201
+           12   O      8.277340    -0.277340
+           13   H      0.808407     0.191593
+           14   H      0.898244     0.101756
+           15   H      0.910407     0.089593
+           16   N      7.360631    -0.360631
+           17   C      6.016193    -0.016193
+           18   C      5.695389     0.304611
+           19   O      8.285035    -0.285035
+           20   H      0.821163     0.178837
+           21   H      0.901001     0.098999
+           22   H      0.919899     0.080101
+           23   N      7.355868    -0.355868
+           24   C      6.014508    -0.014508
+           25   C      5.695451     0.304549
+           26   O      8.308760    -0.308760
+           27   H      0.826222     0.173778
+           28   H      0.907688     0.092312
+           29   H      0.923623     0.076377
+           30   N      7.356998    -0.356998
+           31   C      6.008611    -0.008611
+           32   C      5.683853     0.316147
+           33   O      8.273843    -0.273843
+           34   H      0.789120     0.210880
+           35   H      0.912466     0.087534
+           36   H      0.915617     0.084383
+           37   O      8.295468    -0.295468
+           38   H      0.778490     0.221510
+
+ ========================================================
+   ## NATURAL POPULATION ANALYSIS -- Ver.2.73(20131003)
+ ========================================================
+ 
+ 
+   ## NATURAL ATOMIC POPULATIONS
+ 
+ -----------------------------------------
+     Atom  Res Frag     Charge      Pop  
+                       FMO2-HF    FMO2-HF
+ -----------------------------------------
+     1 N     1    1  -0.392399   7.392399
+     2 C     1    1  -0.011759   6.011759
+     3 C     1    2   0.360476   5.639524
+     4 O     1    2  -0.342346   8.342346
+     5 H     1    1   0.172318   0.827682
+     6 H     1    1   0.152507   0.847493
+     7 H     1    1   0.047461   0.952539
+     8 H     1    1   0.034855   0.965145
+     9 N     2    2  -0.360552   7.360552
+    10 C     2    2   0.015361   5.984639
+    11 C     2    3   0.339143   5.660857
+    12 O     2    3  -0.305390   8.305390
+    13 H     2    2   0.200359   0.799641
+    14 H     2    2   0.072595   0.927405
+    15 H     2    2   0.064042   0.935958
+    16 N     3    3  -0.364798   7.364798
+    17 C     3    3   0.017374   5.982626
+    18 C     3    4   0.348875   5.651125
+    19 O     3    4  -0.313931   8.313931
+    20 H     3    3   0.187897   0.812103
+    21 H     3    3   0.070043   0.929957
+    22 H     3    3   0.055243   0.944757
+    23 N     4    4  -0.360321   7.360321
+    24 C     4    4   0.020871   5.979129
+    25 C     4    5   0.352752   5.647248
+    26 O     4    5  -0.339221   8.339221
+    27 H     4    4   0.182825   0.817175
+    28 H     4    4   0.063447   0.936553
+    29 H     4    4   0.051847   0.948153
+    30 N     5    5  -0.367268   7.367268
+    31 C     5    5   0.014214   5.985786
+    32 C     5    5   0.399012   5.600988
+    33 O     5    5  -0.308995   8.308995
+    34 H     5    5   0.218150   0.781850
+    35 H     5    5   0.059869   0.940131
+    36 H     5    5   0.060313   0.939687
+    37 O     6    5  -0.327391   8.327391
+    38 H     6    5   0.232519   0.767481
+ 
+ ============================================================
+   ## ELECTROSTATIC POTENTIAL FITTING -- ver.1.1 (20120905)
+ ============================================================
+ 
+   ## ESP-FITTING TYPE: RESP
+ 
+ ------------------------------
+     Atom  Res Frag     Charge
+                       FMO2-HF
+ ------------------------------
+     1 N     1    1  -0.840813
+     2 C     1    1  -0.007067
+     3 C     1    2   0.624572
+     4 O     1    2  -0.416961
+     5 H     1    1   0.312765
+     6 H     1    1   0.335686
+     7 H     1    1   0.060326
+     8 H     1    1   0.062857
+     9 N     2    2  -0.262203
+    10 C     2    2  -0.571420
+    11 C     2    3   0.610535
+    12 O     2    3  -0.434509
+    13 H     2    2   0.185947
+    14 H     2    2   0.162424
+    15 H     2    2   0.234085
+    16 N     3    3  -0.178114
+    17 C     3    3  -0.703490
+    18 C     3    4   0.705411
+    19 O     3    4  -0.436124
+    20 H     3    3   0.164537
+    21 H     3    3   0.212468
+    22 H     3    3   0.245612
+    23 N     4    4  -0.366679
+    24 C     4    4  -0.394518
+    25 C     4    5   0.530804
+    26 O     4    5  -0.416441
+    27 H     4    4   0.212587
+    28 H     4    4   0.200704
+    29 H     4    4   0.101170
+    30 N     5    5  -0.224515
+    31 C     5    5  -0.706552
+    32 C     5    5   0.773754
+    33 O     5    5  -0.428297
+    34 H     5    5   0.311514
+    35 H     5    5   0.224737
+    36 H     5    5   0.232434
+    37 O     6    5  -0.389151
+    38 H     6    5   0.271926
+ 
+  =========================
+     ## FMO TOTAL ENERGY
+  =========================
+ 
+        FMO2-HF
+        Nuclear repulsion =          1889.4933472009
+        Electronic energy =         -2985.0596593788
+        Total      energy =         -1095.5663121780
+ 
+  =====================
+     ## TIME PROFILE
+  =====================
+
+        Elapsed time: Monomer SCF     =            12.8 seconds
+        Elapsed time: Dimer ES        =             0.0 seconds
+        Elapsed time: Dimer SCF       =            21.7 seconds
+        Elapsed time: Trimer SCF      =             0.0 seconds
+        Elapsed time: Tetramer SCF    =             0.0 seconds
+        Elapsed time: FMO (Total)     =            34.5 seconds
+
+     ***  Write check point file (CPF) open1.0 rev23) ***
+
+          WriteGeom = gly5-HF-STO-3G-resp-ref.cpf
+          Write coordinate data: done
+
+## Time profile
+
+Number of cores (total)    =      1
+Number of cores (fragment) =      1
+
+ 
+Total time =            34.5 seconds
+
+ ## Memory allocation report (in bytes)
+ Rank                   =               0
+ Reserved memory / node =      3145728000
+ Max. allocated memory  =          988352
+ Non-deallocated memory =               0
+
+
+   ------------------
+     ABINIT-MP DONE
+   ------------------
+     2023/09/18  16:36:44
+

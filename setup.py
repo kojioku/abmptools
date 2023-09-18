@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from setuptools import setup, find_packages
 import subprocess
 import sys
@@ -16,7 +15,7 @@ if 'install' in argvs:
 
 setup(
     name='ABMPTools',
-    version='1.12.4',
+    version='1.13.0',
     description='setup tool for ABINIT-MP',
     long_description=readme,
     # install_requires=['numpy', 'pandas'],
@@ -26,4 +25,3 @@ setup(
     packages=find_packages(exclude=('tests', 'docs', 'sample')),
     package_data={'abmptools': ['f90/bin/*', '../*', '../tips/*']}
 )
-
