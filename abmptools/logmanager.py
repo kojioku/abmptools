@@ -39,20 +39,6 @@ class LOGManager():
         # natom = 0
         # nfrag = 0
         # atom_data = []
-        charge_label = ["MUL-HF", "MUL-MP2", "NPA-HF", "ESP-HF"]
-        DPM_label = ["DPM-HF-X", "DPM-HF-Y", "DPM-HF-Z"]
-        monomer_label = ["NR", "HF", "MP2",]
-        dimer_label = ["NR", "HF", "ES", "MP2", "PR-MP2", "SCS-MP2(Grimme)",
-                       "EX", "CT", "DQ"]
-
-        labels = {
-            'charge': charge_label,
-            'DPM': DPM_label,
-            'monomer': monomer_label,
-            'dimer': dimer_label,
-            }
-
-        self.labels = labels
 
         print('start read', filepath)
         # filepath の拡張子が .gz なら gzip で読み込む
@@ -64,7 +50,7 @@ class LOGManager():
         else:
             file = open(filepath, 'rt')
 
-        # condition
+        # get condition
         Method, ElecState, BasisSet, Laoc, Lptc, Ldimer, ReadGeom, fragmode,\
             is_npa, is_resp = self.getcondition(file)
 
@@ -77,6 +63,26 @@ class LOGManager():
             'ptc': Lptc,
             'readgeom': ReadGeom,
         }
+
+        # setup label
+        charge_label = ["MUL-HF", "MUL-MP2", "NPA-HF", "ESP-HF"]
+        DPM_label = ["DPM-HF-X", "DPM-HF-Y", "DPM-HF-Z"]
+        monomer_label = ["NR", "HF"]
+        if Method == "MP2":
+            monomer_label.append("MP2")
+        dimer_label = ["NR", "HF", "ES"]
+        if Method == "MP2":
+            dimer_label += ["MP2", "PR-MP2", "SCS-MP2(Grimme)"]
+        dimer_label += ["EX", "CT", "DQ"]
+
+        labels = {
+            'charge': charge_label,
+            'DPM': DPM_label,
+            'monomer': monomer_label,
+            'dimer': dimer_label,
+            }
+
+        self.labels = labels
 
         elems = self.readelemslog(file)
 
@@ -149,9 +155,16 @@ class LOGManager():
             atominfo[chg] = [0.0 for i in range(natom)]
 
         # pprint.pprint(vars(pdbobj))
-        print('atominfo\n', self.atominfo)
+        # print('atominfo\n', atominfo)
 
-        hf, mp2 = self.getmominfo(file, nf)
+        if Method == 'HF':
+            hf = self.getmominfo(file, nf, Method)
+        if Method == 'MP2':
+            hf, mp2 = self.getmominfo(file, nf, Method)
+        if Method == 'MP2D':
+            print('MP2D is not supported yet')
+            sys.exit()
+
         dpm_hf_x, dpm_hf_y, dpm_hf_z = self.getdipoleinfo(file, nf)
 
         print('dipole moment section')
@@ -170,20 +183,24 @@ class LOGManager():
 
         mominfo['NR'] = [0 for i in range(nf)]
         mominfo['HF'] = hf
-        mominfo['MP2'] = mp2
+        if Method == 'MP2':
+            mominfo['MP2'] = mp2
         mominfo['DPM-HF-X'] = dpm_hf_x
         mominfo['DPM-HF-Y'] = dpm_hf_y
         mominfo['DPM-HF-Z'] = dpm_hf_z
 
-        self.mominfo = mominfo
-        print('mominfo\n', self.mominfo)
+        # print('mominfo\n', self.mominfo)
 
         if Method == 'MP2':
             ifrags, jfrags, dists, hfs, mp2s, prs, grimmes, \
                 pifrags, pjfrags, ess, exs, cts, dis, dqs \
-                = self.read_mp2ifiepieda(file)
+                = self.readifiepieda(file, Method)
+        elif Method == 'HF':
+            ifrags, jfrags, dists, hfs, \
+                pifrags, pjfrags, ess, exs, cts, dis, dqs \
+                = self.readifiepieda(file, Method)
         else:
-            print("Methods other than MP2 are not supported.")
+            print("Methods other than MP2 or HF are not supported.")
             sys.exit()
 
         hartree = 627.5095
@@ -193,10 +210,11 @@ class LOGManager():
             "min-dist": dists,
             "NR": [0 for i in range(len(ifrags))],
             "HF": [x / hartree for x in hfs],
-            "MP2": [x / hartree for x in mp2s],
-            "PR-MP2": [x / hartree for x in prs],
-            "SCS-MP2(Grimme)": [x / hartree for x in grimmes],
         }
+        if Method == 'MP2':
+            ifieinfo["MP2"] = [x / hartree for x in mp2s]
+            ifieinfo["PR-MP2"] = [x / hartree for x in prs]
+            ifieinfo["SCS-MP2(Grimme)"] = [x / hartree for x in grimmes]
 
         piedainfo = {
             "fragi": pifrags,
@@ -212,10 +230,13 @@ class LOGManager():
 
         ifiedf = pd.DataFrame(ifieinfo)
         piedadf = pd.DataFrame(piedainfo)
+        print('ifiedf\n', ifiedf)
+        print('piedadf\n', piedadf)
+
+        # merge ifie and pieda
         ifpidf = pd.merge(ifiedf, piedadf, on=['fragi', 'fragj'], how='left') \
             .fillna(0.0)
         ifpidf = ifpidf[['fragi', 'fragj', 'min-dist'] + dimer_label]
-        # print(ifpidf)
 
         # get Mulliken
         mulalabs, mulelems, mulpops, mulchgs = \
@@ -235,7 +256,8 @@ class LOGManager():
                 self.getlogresp(file, natom)
             atominfo['ESP-HF'] = espchgs
 
-        total_electronic_energy, total_energy = self.gettotalenergy(file)
+        total_electronic_energy, total_energy = \
+            self.gettotalenergy(file, Method)
         static_data['total_electronic_energy'] = total_electronic_energy
         static_data['total_energy'] = total_energy
 
@@ -268,13 +290,19 @@ class LOGManager():
         self.labels = labels
         '''
 
+        return
+
     @staticmethod
-    def gettotalenergy(file):
+    def gettotalenergy(file, Method):
         flag = False
         eneflag = False
         count = 0
         gcount = 0
         data = []
+        if Method == 'MP2':
+            tgtline = 8
+        elif Method == 'HF':
+            tgtline = 4
         print('--- get totalenergy from log ---')
         while True:
             Items = file.readline().strip().split()
@@ -286,7 +314,7 @@ class LOGManager():
                 continue
             if flag:
                 count += 1
-                if flag and count == 8:
+                if flag and count == tgtline:
                     flag = False
                     eneflag = True
                     continue
@@ -298,8 +326,23 @@ class LOGManager():
                 continue
         return data[0], data[1]
 
+        '''
+         =========================
+            ## FMO TOTAL ENERGY
+         =========================
+
+               FMO2-HF
+               Nuclear repulsion =          1889.4933472009
+               Electronic energy =         -2985.0596593788
+               Total      energy =         -1095.5663121780
+
+               E(FMO2-MP2)       =            -1.0887272375
+               Electronic energy =         -2986.1483866163
+               Total      energy =         -1096.6550394155
+        '''
+
     @staticmethod
-    def getmominfo(file, nmom):
+    def getmominfo(file, nmom, Method):
         flag = False
         eneflag = False
         count = 0
@@ -311,7 +354,8 @@ class LOGManager():
             Items = file.readline().strip().split()
             if eneflag:
                 hf.append(float(Items[1]))
-                mp2.append(float(Items[2]))
+                if Method == 'MP2':
+                    mp2.append(float(Items[2]))
                 gcount += 1
                 if gcount == nmom:
                     break
@@ -328,7 +372,22 @@ class LOGManager():
             if Items[0:3] == ['##', 'MONOMER', 'ENERGY']:
                 flag = True
                 continue
-        return hf, mp2
+        if Method == 'MP2':
+            return hf, mp2
+        if Method == 'HF':
+            return hf
+        '''
+         =======================
+            ## MONOMER ENERGY
+         =======================
+
+               Frag. No.  Monomer HF energy (E'(I))  Monomer MP2 energy
+                      1      -79.0445787441             -0.0790837991
+                      2     -189.3725896993             -0.1822649539
+                      3     -189.3632919644             -0.1827496481
+                      4     -189.3625086375             -0.1828280415
+                      5     -389.4033075305             -0.3520136478
+        '''
 
     @staticmethod
     def getdipoleinfo(file, nmom):
@@ -453,7 +512,7 @@ class LOGManager():
             ReadGeom, fragmode, is_npa, is_resp
 
     @staticmethod
-    def read_mp2ifiepieda(file):
+    def readifiepieda(file, Method):
         ''' read ifie and pieda data from file
 
         read ifie and pieda data from file
@@ -465,16 +524,11 @@ class LOGManager():
             ifie (list): ifie data
             pieda (list): pieda data
         '''
-        # print('start getifiepieda')
 
         count = 0
         pcount = 0
         flag = False
         pflag = False
-        # bsseflag = False
-        # bssecount = 0
-        # bsse = []
-
         ifrags = []
         jfrags = []
         dists = []
@@ -499,7 +553,7 @@ class LOGManager():
                     break
             if len(Items) < 2:
                 continue
-            if Items[1] == 'MP2-IFIE':
+            if Items[1] == 'MP2-IFIE' or Items[1] == 'HF-IFIE':
                 flag = True
                 continue
             if Items[1] == 'PIEDA':
@@ -509,17 +563,36 @@ class LOGManager():
             if flag:
                 count += 1
             if flag and count >= 3:
-                # ifie.append(Items)
                 ifrags.append(int(Items[0]))
                 jfrags.append(int(Items[1]))
                 dists.append(float(Items[2]))
                 if float(Items[4]) < -2:
                     Items[4] = 0.0
                 hfs.append(float(Items[4]))
-                mp2s.append(float(Items[5]))
-                prs.append(float(Items[6]))
-                grimmes.append(float(Items[7]))
-            # after pieda or BSSE (break)
+                if Method == 'MP2':
+                    mp2s.append(float(Items[5]))
+                    prs.append(float(Items[6]))
+                    grimmes.append(float(Items[7]))
+
+            # for pieda
+            if pflag:
+                pcount += 1
+            if pflag and pcount >= 3:
+                # pieda.append(Items)
+                pifrags.append(int(Items[0]))
+                pjfrags.append(int(Items[1]))
+                ess.append(float(Items[2]))
+                exs.append(float(Items[3]))
+                cts.append(float(Items[4]))
+                dis.append(float(Items[5]))
+                dqs.append(float(Items[6]))
+
+        if Method == 'MP2':
+            return ifrags, jfrags, dists, hfs, mp2s, prs, grimmes, \
+                pifrags, pjfrags, ess, exs, cts, dis, dqs
+        elif Method == 'HF':
+            return ifrags, jfrags, dists, hfs, \
+                pifrags, pjfrags, ess, exs, cts, dis, dqs
 
             # for BSSE
             # if pflag and Items[:5] == ['##', 'BSSE', 'for','non-bonding','MP2-IFIE']:
@@ -535,28 +608,6 @@ class LOGManager():
             # if bsseflag and bssecount > 2:
             #     bsse.append(Items)
 
-            # for pieda
-            if pflag:
-                pcount += 1
-            if pflag and pcount >= 3:
-                # pieda.append(Items)
-                pifrags.append(int(Items[0]))
-                pjfrags.append(int(Items[1]))
-                ess.append(float(Items[2]))
-                exs.append(float(Items[3]))
-                cts.append(float(Items[4]))
-                dis.append(float(Items[5]))
-                dqs.append(float(Items[6]))
-
-#         for i in range(len(ifie)):
-#             if float(ifie[i][4]) < -2:
-#                 ifie[i][4] = 0.0
-        # print('bsse', bsse[0])
-        # file.close()
-
-        return ifrags, jfrags, dists, hfs, mp2s, prs, grimmes, \
-            pifrags, pjfrags, ess, exs, cts, dis, dqs
-        # print ifie
 
     @staticmethod
     def getfraginfo(file, fragmode):
@@ -796,18 +847,6 @@ class LOGManager():
            NUCLEAR REPULSION ENERGY =          1889.4933472009
 
 
-     =========================
-        ## FMO TOTAL ENERGY
-     =========================
-
-           FMO2-HF
-           Nuclear repulsion =          1889.4933472009
-           Electronic energy =         -2985.0596593788
-           Total      energy =         -1095.5663121780
-
-           E(FMO2-MP2)       =            -1.0887272375
-           Electronic energy =         -2986.1483866163
-           Total      energy =         -1096.6550394155
         '''
 
         while True:
