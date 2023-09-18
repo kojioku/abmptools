@@ -24,22 +24,6 @@ class LOGManager():
         return
 
         '''
-        atominfo = {
-            'alabels': [],  # 原子の番号(i10)
-            'elems': [],  # 元素記号(a2)
-            'elemtypes': [],  # 原子タイプ(a4)
-            'resnames': [],  # 残基名(a3)
-            'resids': [],  # 残基番号(i10)
-            'fragids': [],  # フラグメント番号(i10)
-            'xcoords': [],  # x座標(f20.10)
-            'ycoords': [],  # y座標(f20.10)
-            'zcoords': [],  # z座標(f20.10)
-            'chainids': [],  # Chain ID(a3)
-            'optflags': [],  # 構造最適化オプション(i1)
-            }
-        '''
-
-        '''
             charge_label = ["MUL-HF", "MUL-MP2", "NPA-HF", "NPA-MP2", "ESP-HF", "ESP-MP2"]
             DPM_label = ["DPM-HF-X", "DPM-HF-Y", "DPM-HF-Z", "DPM-MP2-X",
                          "DPM-MP2-Y", "DPM-MP2-Z"]
@@ -48,51 +32,6 @@ class LOGManager():
                            "MP3", "SCS-MP3(MP2.5)", "HF-BSSE", "MP2-BSSE",
                            "SCS-MP2-BSSE", "MP3-BSSE", "SCS-MP3-BSSE",
                            "SOLV-ES", "SOLV-NP", "EX", "CT", "DQ"]
-        '''
-
-        '''
-        labels = {
-            'charge': charge_label,
-            'DPM': DPM_label,
-            'monomer': monomer_label,
-            'dimer': dimer_label,
-            }
-        '''
-
-        '''
-        fraginfo = {
-            'natoms': fnatoms,
-            'baas': fbaas,
-            'connects': fconnects
-        }
-        '''
-
-        '''
-        'static_data': {'natom': 38,  #総原子数
-                        'ndimer': 10, # <- fraginfoから
-                        'nfrag': 5, #AUTOMATIC FRAGMENTATION もしくは NF <- fraginfoからとれる
-                        'ntetramer': '0',
-                        'ntrimer': '0',
-                        'nuclear_repulsion_energy': 1889.49334720085,
-                        'total_electronic_energy': -2986.14838661631,
-                        'total_energy': -1096.65503941546},
-
-            ## FRAGMENT NUCLEAR REPULSION
-
-               NUCLEAR REPULSION ENERGY =          1889.4933472009
-
-         =========================
-            ## FMO TOTAL ENERGY
-         =========================
-
-               FMO2-HF
-               Nuclear repulsion =          1889.4933472009
-               Electronic energy =         -2985.0596593788
-               Total      energy =         -1095.5663121780
-
-               E(FMO2-MP2)       =            -1.0887272375
-               Electronic energy =         -2986.1483866163
-               Total      energy =         -1096.6550394155
         '''
 
     def parse(self, filepath):
@@ -126,8 +65,8 @@ class LOGManager():
             file = open(filepath, 'rt')
 
         # condition
-        Method, ElecState, BasisSet, Laoc, Lptc, Ldimer, ReadGeom, fragmode \
-            = self.getcondition(file)
+        Method, ElecState, BasisSet, Laoc, Lptc, Ldimer, ReadGeom, fragmode,\
+            is_npa, is_resp = self.getcondition(file)
 
         condition = {
             'aoc': Laoc,
@@ -277,6 +216,24 @@ class LOGManager():
             .fillna(0.0)
         ifpidf = ifpidf[['fragi', 'fragj', 'min-dist'] + dimer_label]
         # print(ifpidf)
+
+        # get Mulliken
+        mulalabs, mulelems, mulpops, mulchgs = \
+            self.getlogmul(file, natom)
+        atominfo['MUL-HF'] = mulchgs
+        # print('Mulliken charges\n', atominfo['MUL-HF'])
+
+        # get NPA val
+        if is_npa:
+            npaalabs, npaelems, nparess, npafrags, npachgs, npapops = \
+                self.getlognpa(file, natom)
+            atominfo['NPA-HF'] = npachgs
+            # print('NPA charges\n', atominfo['NPA-HF'])
+        # get RESP val
+        if is_resp:
+            espalabs, espelems, espress, espfrags, espchgs = \
+                self.getlogresp(file, natom)
+            atominfo['ESP-HF'] = espchgs
 
         total_electronic_energy, total_energy = self.gettotalenergy(file)
         static_data['total_electronic_energy'] = total_electronic_energy
@@ -432,7 +389,8 @@ class LOGManager():
 
     @staticmethod
     def getcondition(file):
-
+        is_npa = False
+        is_resp = False
         while True:
             Items = file.readline().strip().split()
             if len(Items) <= 2:
@@ -462,6 +420,12 @@ class LOGManager():
             if Items[0:2] == ['Ldimer', '=']:
                 # print('Ldimer =', Items[2])
                 Ldimer = float(Items[2])
+            if Items[0:2] == ['NBOANL', '=']:
+                if Items[2] == 'ON':
+                    is_npa = True
+            if Items[0:2] == ['ESPTYP', '=']:
+                if Items[2] == 'RESP':
+                    is_resp = True
             if Items[0:3] == ['##', 'CHECK', 'AVAILABLE']:
                 print('End Read Condition')
                 break
@@ -485,68 +449,8 @@ class LOGManager():
               'ptc': 2.0},
             '''
 
-        return Method, ElecState, BasisSet, Laoc, Lptc, Ldimer, ReadGeom, fragmode
-
-#     @staticmethod
-#     def getpiedadf(self, pieda):
-#         # print('l669', pieda[1])
-#         pidf = pd.DataFrame(pieda, columns=self.pcolumn)
-#         pidf['I'] = pidf['I'].astype(int)
-#         pidf['J'] = pidf['J'].astype(int)
-#         pidf['ES'] = pidf['ES'].astype(float)
-#         pidf['EX'] = pidf['EX'].astype(float)
-#         pidf['CT-mix'] = pidf['CT-mix'].astype(float)
-#         if self.abinit_ver == 'rev16' or self.abinit_ver == 'rev17':
-#             pidf['Solv(ES)'] = pidf['Solv(ES)'].astype(float)
-#         pidf['DI(MP2)'] = pidf['DI(MP2)'].astype(float)
-#         pidf['q(I=>J)'] = pidf['q(I=>J)'].astype(float)
-#         return pidf
-#
-#     @staticmethod
-#     def getifiedf(self, ifie, solv=[]):
-#         '''get ifie data frame from ifie file
-#
-#         get ifie data frame from ifie file
-#
-#         Args:
-#             ifie (str): ifie file name
-#             solv (list): solvent name list
-#
-#         Returns:
-#             df (pandas.DataFrame): ifie data frame
-#         '''
-#
-#         df = pd.DataFrame(ifie, columns=self.icolumn)
-#         df['I'] = df['I'].astype(int)
-#         df['J'] = df['J'].astype(int)
-#         df['DIST'] = df['DIST'].astype(float)
-#         df['HF-IFIE'] = df['HF-IFIE'].astype(float) * 627.5095
-#
-#         if self.logMethod == 'MP2':
-#             df['MP2-IFIE'] = df['MP2-IFIE'].astype(float) * 627.5095
-#             df['PR-TYPE1'] = df['PR-TYPE1'].astype(float) * 627.5095
-#             df['GRIMME'] = df['GRIMME'].astype(float) * 627.5095
-#             df['JUNG'] = df['JUNG'].astype(float) * 627.5095
-#             df['HILL'] = df['HILL'].astype(float) * 627.5095
-#
-#         # print('solv', solv)
-#         if len(solv) != 0:
-#             solvdf = pd.DataFrame(solv, columns=['I', 'J', 'Solv(ES)'])
-#             solvdf['I'] = solvdf['I'].astype(int)
-#             solvdf['J'] = solvdf['J'].astype(int)
-#             solvdf['Solv(ES)'] = solvdf['Solv(ES)'].astype(float)
-#
-#             # print(df.head())
-#             # print(solvdf.head())
-#             df = pd.merge(df, solvdf, on=['I', 'J'], how='left')
-#         print(df.head())
-#         return df
-#
-#             df = self.getifiedf(ifie)
-#             self.ifdf = df
-#
-#             pidf = self.getpiedadf(pieda)
-#             self.pidf = pidf
+        return Method, ElecState, BasisSet, Laoc, Lptc, Ldimer, \
+            ReadGeom, fragmode, is_npa, is_resp
 
     @staticmethod
     def read_mp2ifiepieda(file):
@@ -587,10 +491,12 @@ class LOGManager():
         dqs = []
 
         # print text
-        print('--- get IFIE-PIEDA info from log ---')
+        print('--- get IFIE and PIEDA from log ---')
         while True:
             Items = file.readline().strip().split()
-
+            if (pflag or flag) and len(Items) != 0:
+                if Items[0] == '=================================':
+                    break
             if len(Items) < 2:
                 continue
             if Items[1] == 'MP2-IFIE':
@@ -602,7 +508,7 @@ class LOGManager():
                 continue
             if flag:
                 count += 1
-            if flag and count > 2:
+            if flag and count >= 3:
                 # ifie.append(Items)
                 ifrags.append(int(Items[0]))
                 jfrags.append(int(Items[1]))
@@ -613,13 +519,7 @@ class LOGManager():
                 mp2s.append(float(Items[5]))
                 prs.append(float(Items[6]))
                 grimmes.append(float(Items[7]))
-
-            if len(Items) < 2:
-                continue
             # after pieda or BSSE (break)
-            if Items[1] == 'Mulliken':
-                # flag = False
-                break
 
             # for BSSE
             # if pflag and Items[:5] == ['##', 'BSSE', 'for','non-bonding','MP2-IFIE']:
@@ -638,7 +538,7 @@ class LOGManager():
             # for pieda
             if pflag:
                 pcount += 1
-            if pflag and pcount > 2:
+            if pflag and pcount >= 3:
                 # pieda.append(Items)
                 pifrags.append(int(Items[0]))
                 pjfrags.append(int(Items[1]))
@@ -919,169 +819,143 @@ class LOGManager():
                 NR = float(Items[4])
                 return NR
 
-    def readlog(self, logname, fragmode):
-        # print('fragmode', fragmode)
-        if fragmode == 'manual':
-            text = open(logname, "r").readlines()
-            for i in range(len(text)):
-                itemList = text[i][:-1].split()
-                # print(itemList)
-                if len(itemList) < 2:
-                    continue
-                if itemList[:2]== ['NF', '=']:
-                   nf = int(itemList[2])
-                   break
-        if fragmode == 'auto':
-            f = open(logname, 'r')
-            readflag = False
-            autoreadflag = False
-            fragdata = []
-            fragdatas = []
-            elecs = []
-            seqnos = []
-            fragnos = []
-            residuestr = []
-            logreadGeom = []
-            pdbabs = ""
-
-            for line in f:
-                items = line[1:].split()
-                chains = line[0]
-                if len(items) == 0:
-                    continue
-
-                if items[0] == 'ReadGeom':
-                     logreadGeom = items[2]
-
-                if items[0] == 'AutoFrag':
-                    if items[2] == 'ON':
-                        self.fragmode = 'auto'
-                    else:
-                        self.fragmode = 'manual'
-
-                # read frag table
-                # if len(items) == 3:
-                    # print (items)
-                if items[0:3] == ['Frag.', 'Elec.', 'ATOM']:
-                    readflag = True
-                    # print('# readflag ON #')
-                    continue
-                if items[0:2] == ["ALL", "ELECTRON"]:
-                    fragdatas.append(fragdata)
-                    readflag = False
-                if items[0:2] == ["ALL", "ATOM"]:
-                    natom = int(items[3])
-                if readflag == True:
-                    if line[0:21] == "                     ":
-                        # print(line)
-                        fragdata = fragdata + items
-                    else:
-                        if len(fragdata) != 0:
-                            fragdatas.append(fragdata)
-                            elecs.append(int(elec))
-                        fragdata = []
-                        elec = items[1]
-                        fragdata = fragdata + items[2:]
-
-                if items [0:2] == ['START', 'FRAGMENT']:
-                    break
-
-                ## AUTOMATIC FRAGMENTATION
-                if items[0:3] == ['Seq.', 'Frag.', 'Residue']:
-                    autoreadflag = True
-                    continue
-
-                if autoreadflag == True and items[0:2] == ['The', 'system']:
-                    autoreadflag = False
-                    continue
-
-                if autoreadflag == True and items[0] == 'Ions':
-                    autoreadflag = False
-                    continue
-
-                if autoreadflag == True:
-                   # print(items)
-                   seqnos.append(items[0])
-                   fragnos.append(items[1])
-                   residuestr.append(items[2])
-
-            nf = len(fragdatas)
-            print('-------nf--------', nf)
-
-        return natom
-
-    def getlognatom(self, fname):
-        acount = 0
+    @staticmethod
+    def getlogresp(file, natom):
+        alabs = []
+        elems = []
+        chgs = []
+        ress = []
+        frags = []
         flag = False
-        f =open(fname, "r")
-        text = f.readlines()
-        for i in range(len(text)):
-            itemList = text[i].split()
-            if itemList[0:4] == ['##', 'READ', 'MOLECULAR', 'STRUCTURE']:
+        count = 0
+        gcount = 0
+
+        while True:
+            Items = file.readline().strip().split()
+            # FMO
+            if Items == ['##', 'ESP-FITTING', 'TYPE:', 'RESP']:
                 flag = True
                 continue
-            if flag:
-                if itemList[0:3] == ['##', 'Molecular', 'formula']:
+            if count == 5:
+                alabs.append(int(Items[0]))
+                elems.append(str(Items[1]))
+                ress.append(int(Items[2]))
+                frags.append(int(Items[3]))
+                chgs.append(float(Items[4]))
+                gcount += 1
+                if gcount == natom:
                     break
-                elif len(itemList) <= 1:
-                    continue
-                else:
-                    acount += 1
-        return acount
+                continue
+            if flag:
+                count += 1
+                continue
+        return alabs, elems, ress, frags, chgs
 
+        # MO
+        # if Items == ['TWO-STAGE', 'RESP', 'FITTING:', 'SECOND', 'STAGE']:
+        #     for j in range(int(natom)):
+        #         chgval = text[i+20+j].split()
+        #         chgs.append(float(chgval[2]))
 
-    def getlogchg(self, fname, natom):
+        '''
+        ============================================================
+          ## ELECTROSTATIC POTENTIAL FITTING -- ver.1.1 (20120905)
+        ============================================================
+
+          ## ESP-FITTING TYPE: RESP
+
+        ------------------------------
+            Atom  Res Frag     Charge
+                              FMO2-HF
+        ------------------------------
+            1 N     1    1  -0.840813
+            2 C     1    1  -0.007067
+            3 C     1    2   0.624572
+            4 O     1    2  -0.416961
+            5 H     1    1   0.312765
+            6 H     1    1   0.335686
+            7 H     1    1   0.060326
+        '''
+
+    @staticmethod
+    def getlogmul(file, natom):
+        print('get mulliken charge from log')
+        alabs = []
+        elems = []
         chgs = []
-        f =open(fname, "r")
-        text = f.readlines()
-        for i in range(len(text)):
-            itemList = text[i].split()
-            # MO
-            if itemList == ['TWO-STAGE', 'RESP', 'FITTING:', 'SECOND', 'STAGE']:
-                for j in range(int(natom)):
-                    chgval = text[i+20+j].split()
-                    chgs.append(float(chgval[2]))
+        pops = []
+        flag = False
+        count = 0
+        gcount = 0
 
+        while True:
+            Items = file.readline().strip().split()
             # FMO
-            if itemList == ['##', 'ESP-FITTING', 'TYPE:', 'RESP']:
-                for j in range(int(natom)):
-                    chgval = text[i+6+j].split()
-                    chgs.append(float(chgval[4]))
-        return chgs
+            if Items == ['##', 'Mulliken', 'atomic', 'population']:
+                flag = True
+                continue
+            if count == 4:
+                alabs.append(int(Items[0]))
+                elems.append(str(Items[1]))
+                pops.append(float(Items[2]))
+                chgs.append(float(Items[3]))
+                gcount += 1
+                if gcount == natom:
+                    break
+                continue
+            if flag:
+                count += 1
+                continue
+        return alabs, elems, pops, chgs
 
+        '''
+        =================================
+          ## Mulliken atomic population
+        =================================
 
-    def getlogchgall(self, fname, natom, chgtype):
+         No. Atom   Atomic pop.  Net charge
+                        FMO2         FMO2
+           1   N      7.397224    -0.397224
+           2   C      6.038224    -0.038224
+           3   C      5.697646     0.302354
+           4   O      8.310874    -0.310874
+           5   H      0.822331     0.177669
+        '''
+
+    @staticmethod
+    def getlognpa(file, natom):
+        print('get npa charges from log')
         alabs = []
         elems = []
         ress = []
         frags = []
         chgs = []
         pops = []
-        f =open(fname, "r")
-        text = f.readlines()
-        if chgtype == 'nbo':
-            for i in range(len(text)):
-                itemList = text[i].split()
-                # FMO
-                if itemList == ['##', 'NATURAL', 'ATOMIC', 'POPULATIONS']:
-                    for j in range(int(natom)):
-                        chgval = text[i+6+j].split()
-                        alabs.append(int(chgval[0]))
-                        elems.append(str(chgval[1]))
-                        ress.append(int(chgval[2]))
-                        frags.append(int(chgval[3]))
-                        chgs.append(float(chgval[4]))
-                        pops.append(float(chgval[5]))
-                    chgdf=pd.DataFrame({'AtomLabel':alabs,
-                                       'Elem': elems,
-                                       'Res': ress,
-                                       'Frag': frags,
-                                       'Charge': chgs,
-                                       'Pop': pops})
-        else:
-            print('Options except A are not supported yet.')
-            sys.exit()
-        return chgdf
+        flag = False
+        count = 0
+        gcount = 0
+
+        while True:
+            Items = file.readline().strip().split()
+            # FMO
+            if Items == ['##', 'NATURAL', 'ATOMIC', 'POPULATIONS']:
+                flag = True
+                continue
+            if count == 5:
+                alabs.append(int(Items[0]))
+                elems.append(str(Items[1]))
+                ress.append(int(Items[2]))
+                frags.append(int(Items[3]))
+                chgs.append(float(Items[4]))
+                pops.append(float(Items[5]))
+                gcount += 1
+                if gcount == natom:
+                    break
+                continue
+            if flag:
+                count += 1
+                continue
+        return alabs, elems, ress, frags, chgs, pops
 
         '''
          ========================================================
@@ -1102,4 +976,3 @@ class LOGManager():
              5 C     1    1  -0.669410   6.669410
              6 H     1    1   0.461111   0.538889
         '''
-
