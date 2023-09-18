@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.13.0] - 2023-9-18
+### Added
+- Logparser機能(LogManager)
+- Logからcpfを作成する機能(log2cpf)
+- log2cpfのサンプルを追加
+
 ## [1.12.4] - 2023-09-09
 ### Added
 - CPFparser機能(CPFManager)
