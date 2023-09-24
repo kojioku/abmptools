@@ -22,7 +22,7 @@ class CPFManager:
         # Initialize the data structures
         natom = 0
         nfrag = 0
-        # atom_data = []
+        tgtfrag = self.tgtfrag
 
         print('start read', filepath)
         # filepath の拡張子が .gz なら gzip で読み込む
@@ -38,11 +38,10 @@ class CPFManager:
         header, natom, nfrag, labels, cpfver = self.read_header(file)
 
         # Read atom data
-        tgtfrag = self.tgtfrag
         atominfo = self.read_atominfo(file, labels, natom, cpfver, tgtfrag)
 
         # Read fragment data
-        fraginfo = self.read_fraginfo(file, nfrag, atominfo, cpfver)
+        fraginfo = self.read_fraginfo(file, nfrag, atominfo, cpfver, tgtfrag)
 
         # Read fragment distance data
         diminfo, dimaccept = self.read_dimdist(file, nfrag, tgtfrag)
@@ -227,7 +226,7 @@ class CPFManager:
         '''
 
     @staticmethod
-    def read_fraginfo(file, cpfver, nfrag, tgtfrag, atominfo):
+    def read_fraginfo(file, nfrag, atominfo, cpfver, tgtfrag):
         '''
         16      30      30      30      54
          0       1       1       1       1
@@ -920,7 +919,6 @@ class CPFManager:
         '''
 
         return [int(e) for inner_list in nested_list for e in inner_list]
-
 
     @staticmethod
     def functor(f, lname):
