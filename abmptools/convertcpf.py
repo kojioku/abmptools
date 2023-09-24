@@ -47,7 +47,7 @@ if __name__ == "__main__":
     print(cpf.tgtfrag)
     cpf.parse(args.input)
     cpf.version = args.version
-    d_today = str(datetime.date.today())
+    d_today = str(datetime.datetime.today())
     if args.output is None:
         outname = os.path.basename(args.input).split('.')[0] + '-out.cpf'
     else:
