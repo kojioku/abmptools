@@ -23,19 +23,6 @@ class CPFManager:
         natom = 0
         nfrag = 0
         # atom_data = []
-        atominfo = {
-            'alabels': [],  # 原子の番号(i10)
-            'elems': [],  # 元素記号(a2)
-            'elemtypes': [],  # 原子タイプ(a4)
-            'resnames': [],  # 残基名(a3)
-            'resids': [],  # 残基番号(i10)
-            'fragids': [],  # フラグメント番号(i10)
-            'xcoords': [],  # x座標(f20.10)
-            'ycoords': [],  # y座標(f20.10)
-            'zcoords': [],  # z座標(f20.10)
-            'chainids': [],  # Chain ID(a3)
-            'optflags': [],  # 構造最適化オプション(i1)
-            }
 
         print('start read', filepath)
         # filepath の拡張子が .gz なら gzip で読み込む
@@ -47,7 +34,55 @@ class CPFManager:
         else:
             file = open(filepath, 'rt')
 
-        # Read the header
+        # Read header
+        header, natom, nfrag, labels, cpfver = self.read_header(file)
+
+        # Read atom data
+        tgtfrag = self.tgtfrag
+        atominfo = self.read_atominfo(file, labels, natom, cpfver, tgtfrag)
+
+        # Read fragment data
+        fraginfo = self.read_fraginfo(file, nfrag, atominfo, cpfver)
+
+        # Read fragment distance data
+        diminfo, dimaccept = self.read_dimdist(file, nfrag, tgtfrag)
+
+        # Read dipole data
+        mominfo = self.read_dipole(file, labels, nfrag, tgtfrag)
+
+        # Read condition data
+        condition = \
+            self.read_condition(file)
+
+        # Read static data
+        static_data = \
+            self.read_static(file, natom, nfrag, atominfo, tgtfrag)
+
+        # Read monomer data
+        mominfo = \
+            self.read_monomer(file, mominfo, labels, natom,
+                              tgtfrag, cpfver, nfrag)
+
+        # Read dimer data
+        diminfo, static_data = \
+            self.read_dimer(file, diminfo, labels, nfrag,
+                            cpfver, dimaccept, static_data, tgtfrag)
+
+        import pandas as pd
+        self.cpfver = cpfver
+        self.atominfo = pd.DataFrame(atominfo)
+        self.fraginfo = fraginfo
+        self.condition = condition
+        self.static_data = static_data
+        self.mominfo = pd.DataFrame(mominfo)
+        self.diminfo = pd.DataFrame(diminfo)
+        self.labels = labels
+
+        file.close()
+        return self
+
+    @staticmethod
+    def read_header(file):
         header = file.readline().strip()
         ''' \
         CPF Open1.0 rev23
@@ -90,9 +125,6 @@ class CPFManager:
                            "SCS-MP2-BSSE", "MP3-BSSE", "SCS-MP3-BSSE",
                            "SOLV-ES", "SOLV-NP", "EX", "CT", "DQ"]
 
-            # dimer_label = ["NR", "HF", "ES", "MP2", "PR-MP2",
-                           # "SOLV-ES", "SOLV-NP", "EX", "CT", "DQ"]
-
         if cpfver == 4.201:
             charge_label = ["MUL-HF", "MUL-MP2", "NPA-HF", "NPA-MP2", "ESP-HF", "ESP-MP2"]
             DPM_label = ["DPM-HF-X", "DPM-HF-Y", "DPM-HF-Z", "DPM-MP2-X",
@@ -110,7 +142,75 @@ class CPFManager:
             'dimer': dimer_label,
             }
 
+        return header, natom, nfrag, labels, cpfver
+
+    @staticmethod
+    def read_atominfo(file, labels, natom, cpfver, tgtfrag):
+
+        atominfo = {
+            'alabels': [],  # 原子の番号(i10)
+            'elems': [],  # 元素記号(a2)
+            'elemtypes': [],  # 原子タイプ(a4)
+            'resnames': [],  # 残基名(a3)
+            'resids': [],  # 残基番号(i10)
+            'fragids': [],  # フラグメント番号(i10)
+            'xcoords': [],  # x座標(f20.10)
+            'ycoords': [],  # y座標(f20.10)
+            'zcoords': [],  # z座標(f20.10)
+            'chainids': [],  # Chain ID(a3)
+            'optflags': [],  # 構造最適化オプション(i1)
+            }
+
+        # Initialize the data structures
+        for chg in labels['charge']:
+            atominfo[chg] = []
+
         # Read the atom data
+        print('atom section')
+        for _ in range(natom):
+            atom_data = file.readline().rstrip()
+            if cpfver == 23:
+                if tgtfrag != 0 and \
+                        int(atom_data[34:44].strip()) not in tgtfrag:
+                    continue
+                atominfo['alabels'].append(int(atom_data[0:10].strip()))
+                atominfo['elems'].append(atom_data[11:13].strip())
+                atominfo['elemtypes'].append(atom_data[14:18])
+                atominfo['resnames'].append(atom_data[19:22].strip())
+                atominfo['resids'].append(int(atom_data[23:33].strip()))
+                atominfo['fragids'].append(int(atom_data[34:44].strip()))
+                atominfo['xcoords'].append(float(atom_data[45:65].strip()))
+                atominfo['ycoords'].append(float(atom_data[65:85].strip()))
+                atominfo['zcoords'].append(float(atom_data[85:105].strip()))
+                atominfo['chainids'].append(atom_data[106:109].strip())
+                atominfo['optflags'].append(atom_data[110:111].strip())
+                for chg in labels['charge']:
+                    lstart = labels['charge'].index(chg)*20 + 111
+                    lend = lstart + 20
+                    atominfo[chg].append(float(atom_data[lstart:lend].strip()))
+
+            elif cpfver in [10, 4.201]:
+                if tgtfrag != 0 and \
+                        int(atom_data[23:27].strip()) not in tgtfrag:
+                    continue
+                atominfo['alabels'].append(int(atom_data[0:5].strip()))
+                atominfo['elems'].append(atom_data[6:8].strip())
+                atominfo['elemtypes'].append(atom_data[9:13])
+                atominfo['resnames'].append(atom_data[14:17].strip())
+                atominfo['resids'].append(int(atom_data[18:22].strip()))
+                atominfo['fragids'].append(int(atom_data[23:27].strip()))
+                atominfo['xcoords'].append(float(atom_data[28:40].strip()))
+                atominfo['ycoords'].append(float(atom_data[40:52].strip()))
+                atominfo['zcoords'].append(float(atom_data[52:64].strip()))
+                for chg in labels['charge']:
+                    lstart = labels['charge'].index(chg)*12 + 64
+                    lend = lstart + 12
+                    atominfo[chg].append(float(atom_data[lstart:lend].strip()))
+                atominfo['chainids'].append(atom_data[137:138].strip())
+                atominfo['optflags'].append("")
+
+        return atominfo
+
         ''' \
          1 N   N   GLY          1          1         0.1620000000\
             -0.2020000000        0.0000000000     1       -0.3972241421
@@ -126,55 +226,8 @@ class CPFManager:
                 }
         '''
 
-        # Initialize the data structures
-        for chg in charge_label:
-            atominfo[chg] = []
-
-        # Read the atom data
-        print('atom section')
-        for _ in range(natom):
-            atom_data = file.readline().rstrip()
-            if cpfver == 23:
-                if self.tgtfrag != 0 and \
-                        int(atom_data[34:44].strip()) not in self.tgtfrag:
-                    continue
-                atominfo['alabels'].append(int(atom_data[0:10].strip()))
-                atominfo['elems'].append(atom_data[11:13].strip())
-                atominfo['elemtypes'].append(atom_data[14:18])
-                atominfo['resnames'].append(atom_data[19:22].strip())
-                atominfo['resids'].append(int(atom_data[23:33].strip()))
-                atominfo['fragids'].append(int(atom_data[34:44].strip()))
-                atominfo['xcoords'].append(float(atom_data[45:65].strip()))
-                atominfo['ycoords'].append(float(atom_data[65:85].strip()))
-                atominfo['zcoords'].append(float(atom_data[85:105].strip()))
-                atominfo['chainids'].append(atom_data[106:109].strip())
-                atominfo['optflags'].append(atom_data[110:111].strip())
-                for chg in charge_label:
-                    lstart = charge_label.index(chg)*20 + 111
-                    lend = lstart + 20
-                    atominfo[chg].append(float(atom_data[lstart:lend].strip()))
-
-            elif cpfver in [10, 4.201]:
-                if self.tgtfrag != 0 and \
-                        int(atom_data[23:27].strip()) not in self.tgtfrag:
-                    continue
-                atominfo['alabels'].append(int(atom_data[0:5].strip()))
-                atominfo['elems'].append(atom_data[6:8].strip())
-                atominfo['elemtypes'].append(atom_data[9:13])
-                atominfo['resnames'].append(atom_data[14:17].strip())
-                atominfo['resids'].append(int(atom_data[18:22].strip()))
-                atominfo['fragids'].append(int(atom_data[23:27].strip()))
-                atominfo['xcoords'].append(float(atom_data[28:40].strip()))
-                atominfo['ycoords'].append(float(atom_data[40:52].strip()))
-                atominfo['zcoords'].append(float(atom_data[52:64].strip()))
-                for chg in charge_label:
-                    lstart = charge_label.index(chg)*12 + 64
-                    lend = lstart + 12
-                    atominfo[chg].append(float(atom_data[lstart:lend].strip()))
-                atominfo['chainids'].append(atom_data[137:138].strip())
-                atominfo['optflags'].append("")
-
-        # Read the fragment data
+    @staticmethod
+    def read_fraginfo(file, cpfver, nfrag, tgtfrag, atominfo):
         '''
         16      30      30      30      54
          0       1       1       1       1
@@ -193,10 +246,12 @@ class CPFManager:
 
         print('fragment section')
         fnatoms, fbaas, fconnects = CPFManager.readfragcpf(
-            file, nfrag, self.tgtfrag, set(atominfo['alabels']), cpfver)
-        if self.tgtfrag != 0:
-            fnatoms = copy.deepcopy(fnatoms[:len(self.tgtfrag)])
-            fbaas = copy.deepcopy(fbaas[:len(self.tgtfrag)])
+            file, nfrag, tgtfrag, atominfo['alabels'], cpfver)
+
+        # cut the fragment data if tgtfrag is specified
+        if tgtfrag != 0:
+            fnatoms = copy.deepcopy(fnatoms[:len(tgtfrag)])
+            fbaas = copy.deepcopy(fbaas[:len(tgtfrag)])
 
         # print(fconnects)
         fraginfo = {
@@ -205,7 +260,95 @@ class CPFManager:
             'connects': fconnects
         }
 
-        # Read the fragment distance data
+        return fraginfo
+
+    @staticmethod
+    def readfragcpf(file, nf, tgtfrag=0, alabels=None, cpfver=23):
+        '''Read the fragment data from the CPF file.
+
+        Args:
+            file (file): The CPF file to read from
+            nf (int): The number of fragments in the CPF file
+
+        Returns:
+            fnatoms (list): The number of atoms in each fragment
+            fbaas (list): The BAA of each fragment
+            fconnects (list): The connect (bda baa) atom IDs of each fragment
+
+        Note:
+            The CPF file format is described in the CPF manual.
+
+            fnatoms = [natom1, natom2, ...]
+            fbaas = [baa1, baa2, ...]
+            fconnects = [[atomid1, atomid2, ...], [atomid1, atomid2, ...], ...]
+        '''
+
+        # Initialize the data structures
+        flag = True
+        nline = 1  # line number
+        fnatoms = []  # fragment natom section
+        fbaas = []  # bda section
+        fconnects = []  # bda-baa atom section
+        typcount = 0   # type (0: fnatoms, 1: fbaas, 2: fconnects)
+        lcount = 0  # line count
+
+        if cpfver == 23 and nf > 10:
+            nline = math.ceil(nf/10)
+            # print('n_line', nline)
+        if cpfver in [4.201, 10] and nf > 16:
+            nline = math.ceil(nf/16)
+
+        count = 0
+        while True:
+            itemlist = file.readline().strip().split()
+            if len(itemlist) == 0:
+                continue
+            # fragment natom section
+            if flag is True and typcount == 0:
+                fnatoms.append(itemlist)
+                lcount += 1
+                if lcount == nline:
+                    typcount += 1
+                    lcount = 0
+                    fnatoms = CPFManager.flatten(fnatoms)
+                    # print(fnatoms)
+                    continue
+
+            # bda section
+            if flag is True and typcount == 1:
+                fbaas.append(itemlist)
+                lcount += 1
+                if lcount == nline:
+                    typcount += 1
+                    lcount = 0
+                    fbaas = CPFManager.flatten(fbaas)
+                    # print(fbaas)
+                    continue
+
+            # bda-baa atom section
+            if flag is True and typcount == 2:
+                count += 1
+                if count == sum(fbaas):
+                    if tgtfrag != 0:
+                        if int(itemlist[0]) not in alabels or int(itemlist[1]) not in alabels:
+                            break
+                    fconnects.append(itemlist)
+                    fconnects = CPFManager.functor(int, fconnects)
+                    break
+                if tgtfrag != 0:
+                    # print(alabels)
+                    if int(itemlist[0]) not in alabels or int(itemlist[1]) not in alabels:
+                        # print(itemlist, 'skip!!!!')
+                        continue
+                fconnects.append(itemlist)
+                fconnects = CPFManager.functor(int, fconnects)
+
+                # datas.append(itemlist)
+
+        return fnatoms, fbaas, fconnects
+
+    @staticmethod
+    def read_dimdist(file, nfrag, tgtfrag):
         '''
             2           1  0.000000000000000E+000
             3           1   6.43498504089706
@@ -234,15 +377,41 @@ class CPFManager:
         dimaccept = []
         for _ in range(nfrag*(nfrag-1)//2):
             dim_data = file.readline().strip().split()
-            if self.tgtfrag != 0:
-                if int(dim_data[0]) not in self.tgtfrag or int(dim_data[1]) not in self.tgtfrag:
+            if tgtfrag != 0:
+                if int(dim_data[0]) not in tgtfrag or int(dim_data[1]) not in tgtfrag:
                     continue
             diminfo['fragi'].append(int(dim_data[0]))
             diminfo['fragj'].append(int(dim_data[1]))
             diminfo['min-dist'].append(float(dim_data[2]))
             dimaccept.append(_)
 
+        return diminfo, dimaccept
+
+    @staticmethod
+    def read_dipole(file, labels, nfrag, tgtfrag):
         # read the dipole data
+
+        print('dipole moment section')
+        mominfo = {
+            'fragi': []
+            }
+
+        # Initialize the data structures
+        for dpm in labels['DPM']:
+            mominfo[dpm] = []
+
+        for _ in range(nfrag):
+            dipole_data = file.readline().strip().split()
+            if tgtfrag != 0:
+                if (_+1) not in tgtfrag:
+                    continue
+            count = 0
+            for dpm in labels['DPM']:
+                mominfo[dpm].append(float(dipole_data[count]))
+                count += 1
+
+        return mominfo
+
         '''
         0.785970969662152E+00    0.281296712643063E+01   -0.132604581524068E+01
         0.145048892092187E+01   -0.334817286212412E+01   -0.161464626780787E+01
@@ -255,25 +424,8 @@ class CPFManager:
             }
         '''
 
-        print('dipole moment section')
-        mominfo = {
-            'fragi': []
-            }
-
-        # Initialize the data structures
-        for dpm in DPM_label:
-            mominfo[dpm] = []
-
-        for _ in range(nfrag):
-            dipole_data = file.readline().strip().split()
-            if self.tgtfrag != 0:
-                if (_+1) not in self.tgtfrag:
-                    continue
-            count = 0
-            for dpm in DPM_label:
-                mominfo[dpm].append(float(dipole_data[count]))
-                count += 1
-
+    @staticmethod
+    def read_condition(file):
         '''
         STO-3G
         S1
@@ -305,20 +457,25 @@ class CPFManager:
         condition['ptc'] = float(data_approxy[1])
         condition['ldimer'] = float(data_approxy[2])
 
+        return condition
+
+    @staticmethod
+    def read_static(file, natom, nfrag, atominfo, tgtfrag):
         static_data = {}
         static_data['nuclear_repulsion_energy'] = float(file.readline().strip())
         static_data['total_electronic_energy'] = float(file.readline().strip())
         static_data['total_energy'] = float(file.readline().strip())
-        if self.tgtfrag != 0:
+        if tgtfrag != 0:
             static_data['natom'] = len(atominfo['alabels'])
-            static_data['nfrag'] = len(self.tgtfrag)
-
+            static_data['nfrag'] = len(tgtfrag)
         else:
             static_data['natom'] = natom
             static_data['nfrag'] = nfrag
 
-        # Read the nuclear repulsion energy,
-        # total electronic energy, and total energy
+        return static_data
+
+    @staticmethod
+    def read_monomer(file, mominfo, labels, natom, tgtfrag, cpfver, nfrag):
         '''
          5
          1   0.321733218676314E+02  -0.111217900611777E+03
@@ -330,7 +487,7 @@ class CPFManager:
 
         print('monomer section')
         # Initialize the data structures
-        for mom in monomer_label:
+        for mom in labels['monomer']:
             mominfo[mom] = []
 
         if cpfver == 23:
@@ -339,12 +496,12 @@ class CPFManager:
             #     nmonomer = static_data['nfrag']
             for _ in range(nmonomer):
                 monomer_data = file.readline().strip().split()
-                if self.tgtfrag != 0:
-                    if _ not in self.tgtfrag:
+                if tgtfrag != 0:
+                    if _ not in tgtfrag:
                         continue
                 count = 1
                 mominfo['fragi'].append(int(monomer_data[0]))
-                for mom in monomer_label:
+                for mom in labels['monomer']:
                     mominfo[mom].append(float(monomer_data[count]))
                     count += 1
 
@@ -352,18 +509,54 @@ class CPFManager:
             nmonomer = nfrag
             for _ in range(nmonomer):
                 monomer_data = file.readline().strip().split()
-                if self.tgtfrag != 0:
-                    if (_+1) not in self.tgtfrag:
+                if tgtfrag != 0:
+                    if (_+1) not in tgtfrag:
                         continue
                 count = 0
                 icount = 1
                 mominfo['fragi'].append(icount)
                 icount += 1
-                for mom in monomer_label:
+                for mom in labels['monomer']:
                     mominfo[mom].append(float(monomer_data[count]))
                     count += 1
         # print(mominfo)
+        return mominfo
 
+    @staticmethod
+    def read_dimer(file, diminfo, labels, nfrag,
+                   cpfver, dimaccept, static_data, tgtfrag):
+
+        print('dimer section')
+        # Initialize the data structures
+        for dim in labels['dimer']:
+            diminfo[dim] = []
+
+        if cpfver == 23:
+            ndimer = int(file.readline().strip())
+        else:
+            ndimer = nfrag*(nfrag-1)//2
+        static_data['ndimer'] = ndimer
+
+        dimaccept_set = set(dimaccept)
+        for _ in range(ndimer):
+            if cpfver == 23:
+                count = 2
+            else:
+                count = 0
+            dimer_data = file.readline().strip().split()
+            if tgtfrag != 0:
+                if _ not in dimaccept_set:
+                    continue
+            for dim in labels['dimer']:
+                diminfo[dim].append(float(dimer_data[count]))
+                count += 1
+        static_data['ntrimer'] = "0"
+        static_data['ntetramer'] = "0"
+
+        if tgtfrag != 0:
+            static_data['ndimer'] = len(dimaccept)
+
+        return diminfo, static_data
         '''
         10
          2         1
@@ -406,49 +599,6 @@ class CPFManager:
         }
         END(a3)
         '''
-
-        print('dimer section')
-        # Initialize the data structures
-        for dim in dimer_label:
-            diminfo[dim] = []
-
-        if cpfver == 23:
-            ndimer = int(file.readline().strip())
-        else:
-            ndimer = nfrag*(nfrag-1)//2
-        static_data['ndimer'] = ndimer
-
-        dimaccept_set = set(dimaccept)
-        for _ in range(ndimer):
-            if cpfver == 23:
-                count = 2
-            else:
-                count = 0
-            dimer_data = file.readline().strip().split()
-            if self.tgtfrag != 0:
-                if _ not in dimaccept_set:
-                    continue
-            for dim in dimer_label:
-                diminfo[dim].append(float(dimer_data[count]))
-                count += 1
-        static_data['ntrimer'] = "0"
-        static_data['ntetramer'] = "0"
-
-        if self.tgtfrag != 0:
-            static_data['ndimer'] = len(dimaccept)
-
-        import pandas as pd
-        self.cpfver = cpfver
-        self.atominfo = pd.DataFrame(atominfo)
-        self.fraginfo = fraginfo
-        self.condition = condition
-        self.static_data = static_data
-        self.mominfo = pd.DataFrame(mominfo)
-        self.diminfo = pd.DataFrame(diminfo)
-        self.labels = labels
-
-        file.close()
-        return self
 
     def write(self, header, filename, cpfver=23):
         '''Write the CPF file.
@@ -771,90 +921,6 @@ class CPFManager:
 
         return [int(e) for inner_list in nested_list for e in inner_list]
 
-    @staticmethod
-    def readfragcpf(file, nf, tgtfrag=0, alabels=None, cpfver=23):
-        '''Read the fragment data from the CPF file.
-
-        Args:
-            file (file): The CPF file to read from
-            nf (int): The number of fragments in the CPF file
-
-        Returns:
-            fnatoms (list): The number of atoms in each fragment
-            fbaas (list): The BAA of each fragment
-            fconnects (list): The connect (bda baa) atom IDs of each fragment
-
-        Note:
-            The CPF file format is described in the CPF manual.
-
-            fnatoms = [natom1, natom2, ...]
-            fbaas = [baa1, baa2, ...]
-            fconnects = [[atomid1, atomid2, ...], [atomid1, atomid2, ...], ...]
-        '''
-
-        # Initialize the data structures
-        flag = True
-        nline = 1  # line number
-        fnatoms = []  # fragment natom section
-        fbaas = []  # bda section
-        fconnects = []  # bda-baa atom section
-        typcount = 0   # type (0: fnatoms, 1: fbaas, 2: fconnects)
-        lcount = 0  # line count
-
-        if cpfver == 23 and nf > 10:
-            nline = math.ceil(nf/10)
-            # print('n_line', nline)
-        if cpfver in [4.201, 10] and nf > 16:
-            nline = math.ceil(nf/16)
-
-        count = 0
-        while True:
-            itemlist = file.readline().strip().split()
-            if len(itemlist) == 0:
-                continue
-            # fragment natom section
-            if flag is True and typcount == 0:
-                fnatoms.append(itemlist)
-                lcount += 1
-                if lcount == nline:
-                    typcount += 1
-                    lcount = 0
-                    fnatoms = CPFManager.flatten(fnatoms)
-                    # print(fnatoms)
-                    continue
-
-            # bda section
-            if flag is True and typcount == 1:
-                fbaas.append(itemlist)
-                lcount += 1
-                if lcount == nline:
-                    typcount += 1
-                    lcount = 0
-                    fbaas = CPFManager.flatten(fbaas)
-                    # print(fbaas)
-                    continue
-
-            # bda-baa atom section
-            if flag is True and typcount == 2:
-                count += 1
-                if count == sum(fbaas):
-                    if tgtfrag != 0:
-                        if int(itemlist[0]) not in alabels or int(itemlist[1]) not in alabels:
-                            break
-                    fconnects.append(itemlist)
-                    fconnects = CPFManager.functor(int, fconnects)
-                    break
-                if tgtfrag != 0:
-                    # print(alabels)
-                    if int(itemlist[0]) not in alabels or int(itemlist[1]) not in alabels:
-                        # print(itemlist, 'skip!!!!')
-                        continue
-                fconnects.append(itemlist)
-                fconnects = CPFManager.functor(int, fconnects)
-
-                # datas.append(itemlist)
-
-        return fnatoms, fbaas, fconnects
 
     @staticmethod
     def functor(f, lname):
