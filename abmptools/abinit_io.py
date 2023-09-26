@@ -1004,8 +1004,8 @@ MD='OFF'
             ## SOLUTE TOTAL ENERGY
 
                                        SCF / Hartree   MP2 corr. / Hartree       Total / Hartree
-               FMO2 in vacuo           -236.52210938           -0.80641280         -237.32852218
-                    in solvent         -236.52238631           -0.80642693         -237.32881324
+               FMO2 in vacuo           -236.52210938*          -0.80641280         -237.32852218
+                    in solvent         -236.52238631           -0.80642693*        -237.32881324
                     difference           -0.00027693           -0.00001413           -0.00029106
                   ( ES correction        -0.00028778 )
 
@@ -1013,9 +1013,9 @@ MD='OFF'
              ## SOLVATION FREE ENERGY
 
                                        FMO2 / Hartree       FMO2 / kcal/mol
-                Electrostatic             -0.04769392          -29.92838623
-                Nonpolar                   0.00548501            3.44189687
-                Total                     -0.04220891          -26.48648936
+                Electrostatic             -0.04769392          -29.92838623*
+                Nonpolar                   0.00548501            3.44189687*
+                Total                     -0.04220891          -26.48648936*
             '''
 
 
