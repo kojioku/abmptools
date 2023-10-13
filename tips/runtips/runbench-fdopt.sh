@@ -63,7 +63,7 @@ find $1 -type f -name $2 | while read -r file; do
     cd "$dir" || exit
 
     # bash runmpi_bindsv1.sh を実行します。
-    bash runmpi_bindsv1.sh *ajf
+    bash $2 *ajf
 
     # 元のディレクトリに戻ります。
     cd - || exit
