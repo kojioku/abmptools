@@ -18,7 +18,7 @@ lang='BaseCPU/2023'
 fhead=${1%.*}
 totalproc=`echo "$node * $proc_per_node" | bc`
 OMP_NUM_THREADS=`echo "76 / $proc_per_node" | bc`
-OMP_STACKSIZE='5G'
+OMP_STACKSIZE='256M'
 
 # ----user input end ---- #
 
@@ -46,7 +46,7 @@ echo """ #!/bin/bash
 #PBS -v MKINP=${MKINP}
 #PBS -v FILE_NAME=${FILE_NAME}
 #PBS -v OUT_NAME=${FILE_NAME}${NUM_CORE}
-ulimit –s unlimited
+ulimit -s unlimited
  
 module load ${lang}
  

@@ -1,27 +1,27 @@
 #!/bin/bash
-if [ $# -ne 1 ]; then
+if [ $# -ne 2 ]; then
     echo "引数が足りません"
     exit 1
 fi
 
 pdborig=$1
 pdb=${pdborig##*/}
+ajforig=$2
+ajf=${ajforig##*/}
 maindir=`pwd`
 # mpi
 # i: node
 function mpi(){
 for i in 1 2 4 6 8 10
 do
-    mkdir -p "mpi/node$i"
+    mkdir -p "optmpi/node$i"
     # j: np
     for j in 1 2 4
     do
-        tgtdir="mpi/node$i/np$j"
-        mkdir -p $tgtdir
+        tgtdir="optmpi/node$i/np$j"
+        mkdir -p $tgtdir/PDB
         # generate ajf
-        python -m abmptools.generateajf -np $j --method HF --memory 2500 -cmm -i $pdb
-        # copy ajf
-        mv ${pdb%.*}*.ajf $tgtdir
+        sed -e "s/NP=1/NP=$j/g" $ajforig > $tgtdir/$ajf
         # change node and copy sh
         sed -e "s/node=4/node=$i/g" ./ref/runmpi_bindsv1.sh > $tgtdir/runmpi_bindsv1.sh
         # copy pdb
@@ -30,22 +30,21 @@ do
 done
 }
 
+
 function smp(){
 # for i in 1 2 4 6 8 10
 for i in 1
 do
-    mkdir -p "smp/node$i"
-    # j: ompnt 
+    mkdir -p "optsmp/node$i"
+    # j: ompnt
     for j in 1 2 4
     do
-        tgtdir="smp/node$i/ompnt$j"
-        mkdir -p $tgtdir
+        tgtdir="optsmp/node$i/ompnt$j"
+        mkdir -p $tgtdir/PDB
         # generate ajf
         mem=$((2000*$j))
         ompnum_t=$((76/$j))
-        python -m abmptools.generateajf -np 1 --method HF --memory $mem -cmm -i $pdb
-        # copy ajf
-        mv ${pdb%.*}*.ajf $tgtdir
+        sed -e "s/Memory=2500/Memory=$mem/g" $ajforig > $tgtdir/$ajf
         # change node and copy sh
         sed -e "s/node=4/node=$i/g" ./ref/runsmp_bindsv1.sh | sed -e "s/proc_per_node=19/proc_per_node=$ompnum_t/g" > $tgtdir/runsmp_bindsv1.sh
         # copy pdb
@@ -73,9 +72,8 @@ done
 
 mpi
 # smp
-sub mpi runmpi_bindsv1.sh
-# sub smp runsmp_bindsv1.sh
-
+sub optmpi runmpi_bindsv1.sh
+# sub optsmp runsmp_bindsv1.sh
 
 
 
