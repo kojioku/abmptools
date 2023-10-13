@@ -32,7 +32,7 @@ done
 
 function smp(){
 # for i in 1 2 4 6 8 10
-for i in 1
+for i in 2
 do
     mkdir -p "smp/node$i"
     # j: ompnt 
@@ -64,17 +64,18 @@ find $1 -type f -name $2 | while read -r file; do
     cd "$dir" || exit
 
     # bash runmpi_bindsv1.sh を実行します。
-    bash runmpi_bindsv1.sh *ajf
+    bash $2 *ajf
 
     # 元のディレクトリに戻ります。
     cd - || exit
 done
 }
 
-mpi
-# smp
-sub mpi runmpi_bindsv1.sh
-# sub smp runsmp_bindsv1.sh
+# mpi
+# sub mpi runmpi_bindsv1.sh
+
+smp
+sub smp runsmp_bindsv1.sh
 
 
 
