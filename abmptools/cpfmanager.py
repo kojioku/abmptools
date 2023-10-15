@@ -2,6 +2,7 @@ import math
 import copy
 import os
 import gzip
+import sys
 
 
 class CPFManager:
@@ -125,6 +126,7 @@ class CPFManager:
         ''' \
         CPF Open1.0 rev23
         CPF Open1.0 rev10
+        CPF Ver.7.0 (MIZUHO 4.0)
         CPF Ver.4.201
         '''
         # Read the number of atoms and fragments
@@ -141,10 +143,15 @@ class CPFManager:
 
         if header[0:17] == 'CPF Open1.0 rev23':
             cpfver = 23
-        if header[0:17] == 'CPF Open1.0 rev10':
+        elif header[0:17] == 'CPF Open1.0 rev10':
             cpfver = 10
-        if header[0:13] == 'CPF Ver.4.201':
+        elif header[0:24] == 'CPF Ver.7.0 (MIZUHO 4.0)':
+            cpfver = 7.001
+        elif header[0:13] == 'CPF Ver.4.201':
             cpfver = 4.201
+        else:
+            print('Unknown CPF version.')
+            sys.exit()
 
         print('cpfver', cpfver)
         if cpfver == 23:
@@ -152,22 +159,25 @@ class CPFManager:
             DPM_label = file.readline().strip().split()
             monomer_label = file.readline().strip().split()
             dimer_label = file.readline().strip().split()
-
-        if cpfver == 10:
+        else:
             charge_label = ["MUL-HF", "MUL-MP2", "NPA-HF", "NPA-MP2", "ESP-HF", "ESP-MP2"]
             DPM_label = ["DPM-HF-X", "DPM-HF-Y", "DPM-HF-Z", "DPM-MP2-X",
                          "DPM-MP2-Y", "DPM-MP2-Z"]
             monomer_label = ["NR", "HF", "MP2", "MP3"]
+
+        if cpfver == 10:
             dimer_label = ["NR", "HF", "ES", "MP2", "PR-MP2", "SCS-MP2(Grimme)",
                            "MP3", "SCS-MP3(MP2.5)", "HF-BSSE", "MP2-BSSE",
                            "SCS-MP2-BSSE", "MP3-BSSE", "SCS-MP3-BSSE",
                            "SOLV-ES", "SOLV-NP", "EX", "CT", "DQ"]
 
+        if cpfver == 7.001:
+            dimer_label = ["NR", "HF", "ES", "MP2", "SCS-MP2(Grimme)",
+                           "MP3", "SCS-MP3(MP2.5)", "HF-BSSE", "MP2-BSSE",
+                           "SCS-MP2-BSSE", "MP3-BSSE", "SCS-MP3-BSSE",
+                           "SOLV-ES", "SOLV-NP", "EX", "CT", "DQ"]
+
         if cpfver == 4.201:
-            charge_label = ["MUL-HF", "MUL-MP2", "NPA-HF", "NPA-MP2", "ESP-HF", "ESP-MP2"]
-            DPM_label = ["DPM-HF-X", "DPM-HF-Y", "DPM-HF-Z", "DPM-MP2-X",
-                         "DPM-MP2-Y", "DPM-MP2-Z"]
-            monomer_label = ["NR", "HF", "MP2", "MP3"]
             dimer_label = ["NR", "HF", "ES", "MP2", "SCS-MP2(Grimme)",
                            "MP3", "SCS-MP3(MP2.5)", "HF-BSSE", "MP2-BSSE",
                            "SCS-MP2-BSSE", "MP3-BSSE", "SCS-MP3-BSSE",
@@ -227,7 +237,7 @@ class CPFManager:
                     lend = lstart + 20
                     atominfo[chg].append(float(atom_data[lstart:lend].strip()))
 
-            elif cpfver in [10, 4.201]:
+            elif cpfver in [10, 7.001, 4.201]:
                 if tgtfrag != 0 and \
                         int(atom_data[23:27].strip()) not in tgtfrag:
                     continue
@@ -333,7 +343,7 @@ class CPFManager:
         if cpfver == 23 and nf > 10:
             nline = math.ceil(nf/10)
             # print('n_line', nline)
-        if cpfver in [4.201, 10] and nf > 16:
+        if cpfver in [4.201, 7.001, 10] and nf > 16:
             nline = math.ceil(nf/16)
 
         count = 0
