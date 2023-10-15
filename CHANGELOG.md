@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.13.1] - 2023-10-15
+### Added
+- CPFmanager "CPF ver7.0 (MIZUHO)" 版への対応を追加
+
+## [1.13.1] - 2023-9-27
+### Added
+- DIFIE 出力機能の並列処理機能 (-np)
+- DIFIE のサンプル追加
+
 ## [1.13.0] - 2023-9-18
 ### Added
 - Logparser機能(LogManager)
