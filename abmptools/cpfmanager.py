@@ -17,6 +17,7 @@ class CPFManager:
         self.labels = {}
         self.tgtfrag = 0
         self.is_gz = False
+        self.is_difie = False
         return
 
     def parse(self, filepath):
@@ -98,7 +99,7 @@ class CPFManager:
             self.labels, self.mominfo, self.static_data)
         # dimer section
         diststr, dimstr = self.set_dimer(
-            self.diminfo, self.labels, self.static_data)
+            self.diminfo, self.labels, self.static_data, self.is_difie)
 
         trmstr = "{:>10}".format(self.static_data['ntrimer']) + '\n'
         tetrstr = "{:>10}".format(self.static_data['ntetramer']) + '\n'
@@ -793,12 +794,16 @@ class CPFManager:
         '''
 
     @staticmethod
-    def set_dimer(diminfo, labels, static_data):
+    def set_dimer(diminfo, labels, static_data, is_difie):
         formats = {
             'fragi': "{:>10}",  # フラグメント番号(i10)
             'fragj': "{:>10}",  # フラグメント番号(i10)
             'min-dist': "{:24.15e}",  # 最小距離(24.15e)
         }
+
+        if is_difie:
+            formats['M-min-dist'] = "{:24.15e}"  # 平均最小距離(24.15e)
+            formats['S-min-dist'] = "{:24.15e}"  # 平均最小距離(24.15e)
 
         diminfo = copy.deepcopy(diminfo)
         for dimlabel in labels['dimer']:
@@ -809,11 +814,20 @@ class CPFManager:
             diminfo[col] = diminfo[col].apply(lambda x: fmt.format(x))
 
         diststr = ''
-        for i in range(static_data['ndimer']):
-            diststr += str(diminfo['fragi'][i]) + str(diminfo['fragj'][i]) \
-                + str(diminfo['min-dist'][i]) + '\n'
+        # standard ifie case
+        if not is_difie:
+            for i in range(static_data['ndimer']):
+                diststr += str(diminfo['fragi'][i]) + str(diminfo['fragj'][i]) \
+                    + str(diminfo['min-dist'][i]) + '\n'
 
-        # dpmlist に含まれるカラムのみを選択
+        # difie case
+        else:
+            for i in range(static_data['ndimer']):
+                diststr += str(diminfo['fragi'][i]) + str(diminfo['fragj'][i]) \
+                    + str(diminfo['min-dist'][i]) + str(diminfo['M-min-dist'][i]) \
+                    + str(diminfo['S-min-dist'][i]) + '\n'
+
+        # dimer に含まれるカラムのみを選択
         selected_columns = [col for col in diminfo.columns if col in labels['dimer']]
         selected_columns.insert(0, 'fragj')
         selected_columns.insert(0, 'fragi')
