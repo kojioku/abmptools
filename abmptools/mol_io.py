@@ -27,7 +27,7 @@ class mol_io():
         return molname
 
     def read_xyz(self, filename):
-        lines = [l.rstrip() for l in open(filename, "U")]
+        lines = [l.rstrip() for l in open(filename)]
         atom = []
         coord = []
         for l in range(2, len(lines)):
