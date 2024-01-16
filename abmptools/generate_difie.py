@@ -128,7 +128,20 @@ def getavestddf(cpfs, staticdistdf, staticatomdf):
     # print('chglabels\n', chglabels)
     # print('avestd_atomdf\n', avestd_atomdf.head())
 
+    # merge static and averaged data
     avestd_atomdf = pd.merge(staticatomdf, avestd_atomdf, on='alabels', how='inner')
+
+    # calc diminfo
+    # Total = NR + HR + MP2 for all_dimdfs
+    if 'MP2' in all_dimdfs.columns:
+        all_dimdfs['Total'] = all_dimdfs['NR'] + all_dimdfs['HF'] + all_dimdfs['MP2']
+    else:
+        all_dimdfs['Total'] = all_dimdfs['NR'] + all_dimdfs['HF']
+
+    # insert Total column to the first
+    total_df = all_dimdfs['Total']
+    all_dimdfs.drop(labels=['Total'], axis=1, inplace=True)
+    all_dimdfs.insert(0, 'Total', total_df)
 
     # calculate average and stdev of diminfo
     average_dimdf = all_dimdfs.groupby(['fragi', 'fragj']).mean().reset_index()
