@@ -546,9 +546,10 @@ class CPFManager:
             for _ in range(nmonomer):
                 monomer_data = file.readline().strip().split()
                 if tgtfrag != 0:
-                    if _ not in tgtfrag:
+                    if (_ + 1) not in tgtfrag:
                         continue
                 count = 1
+                # print(monomer_data)
                 mominfo['fragi'].append(int(monomer_data[0]))
                 for mom in labels['monomer']:
                     mominfo[mom].append(float(monomer_data[count]))
@@ -556,15 +557,16 @@ class CPFManager:
 
         else:
             nmonomer = nfrag
+            icount = 1
             for _ in range(nmonomer):
                 monomer_data = file.readline().strip().split()
                 if tgtfrag != 0:
                     if (_+1) not in tgtfrag:
                         continue
-                count = 0
-                icount = 1
                 mominfo['fragi'].append(icount)
                 icount += 1
+
+                count = 0
                 for mom in labels['monomer']:
                     mominfo[mom].append(float(monomer_data[count]))
                     count += 1
@@ -773,6 +775,7 @@ class CPFManager:
 
         momstr = "{:>10}".format(static_data['nfrag']) + '\n'
         for index, row in mominfo[selected_columns].iterrows():
+            # print ('index', index, 'row', row)
             momstr += ''.join(row.astype(str).tolist()) + '\n'
 
         return dpmstr, momstr
