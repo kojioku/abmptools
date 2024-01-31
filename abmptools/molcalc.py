@@ -204,7 +204,7 @@ class molcalc():
                     posMol[i][j][0], posMol[i][j][1], posMol[i][j][2], file=f)
         f.close()
 
-        # subprocess.call(["obabel", "-ixyz", out_file, "-opdb", "-O",
+        # subprocess.call(["obabel", "-ixyz", out_file, "-opdb -O",
                          # path + "/" + str(iname) + ".pdb"])
 
     def exportplus1pos(self, path, pos, name, atom, molindex):
@@ -235,7 +235,7 @@ class molcalc():
         f.close()
 
         subprocess.call(["obabel", "-ixyz", out_file,
-            "-opdb", "-O", out_head + ".pdb"])
+            "-opdb -O", out_head + ".pdb"])
 
     def getvolume(self, pos):
         aaa = 0
@@ -282,7 +282,7 @@ class molcalc():
         f.close()
 
         subprocess.call(["obabel", "-ixyz", out_file,
-                         "-opdb", "-O", out_head + ".pdb"])
+                         "-opdb -O", out_head + ".pdb"])
 
     def exportdata(self, path, oname, data):
         if os.path.exists(path) is False:
@@ -874,7 +874,7 @@ class molcalc():
 
 
     def babelxyzpdb(self, head):
-        cmd = "obabel -ixyz " + head + ".xyz -opdb", "-O" + head + ".pdb"
+        cmd = "obabel -ixyz " + head + ".xyz -opdb -O " + head + ".pdb"
         subprocess.call(cmd.split(" "))
 
 
