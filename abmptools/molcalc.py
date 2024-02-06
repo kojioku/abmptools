@@ -96,11 +96,22 @@ class molcalc():
                  data.append(aaa)
             return data
 
-    def getvolume(self, pos):
-        aaa=0
-        data=[]
+    def getmolradius(self, pos):
+        aaa = 0
+        data = []
         for i in range(len(pos)):
-            aaa = math.sqrt(pow(pos[i][0],2) + pow(pos[i][1],2) + pow(pos[i][2],2))
+            aaa = math.sqrt(pow(pos[i][0], 2) + pow(pos[i][1], 2)
+                            + pow(pos[i][2], 2))
+            data.append(aaa)
+        #print max(data)
+        return max(data)
+
+    def getvolume(self, pos):
+        aaa = 0
+        data = []
+        for i in range(len(pos)):
+            aaa = math.sqrt(pow(pos[i][0], 2) + pow(pos[i][1], 2)
+                            + pow(pos[i][2], 2))
             data.append(aaa)
         #print max(data)
         return max(data)
@@ -236,16 +247,6 @@ class molcalc():
 
         subprocess.call(["babel", "-ixyz", out_file,
                          "-opdb", out_head + ".pdb"])
-
-    def getvolume(self, pos):
-        aaa = 0
-        data = []
-        for i in range(len(pos)):
-            aaa = math.sqrt(pow(pos[i][0], 2) + pow(pos[i][1], 2) +
-                            pow(pos[i][2], 2))
-            data.append(aaa)
-        # print max(data)
-        return max(data)
 
     def getatomisite(self, isitelist, typenameMol):
         # get the position of a molecule
