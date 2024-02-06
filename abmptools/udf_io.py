@@ -10,12 +10,13 @@ import copy
 import molcalc as molc
 try:
     from UDFManager import *
-except:
+except ImportError:
     pass
 try:
     import numpy as np
-except:
+except ImportError:
     pass
+
 
 class udf_io(molc.molcalc):
     def __init__(self):
@@ -24,43 +25,43 @@ class udf_io(molc.molcalc):
     def getposatom(self, uobj, indexatom):
         # UDF operation
         # get the position of a molecule
-            i = indexatom
-            list = uobj.get("Structure.Position.mol[].atom[]", [i])
-            position = np.array(list)
+        i = indexatom
+        list = uobj.get("Structure.Position.mol[].atom[]", [i])
+        position = np.array(list)
 
-            return position
+        return position
 
     def getposmolrec(self, uobj, indexMol, record):
         # UDF operation
         # get the position of a molecule
-            uobj.jump(record)
-            i = indexMol
-            aaa = uobj.get("Structure.Position.mol[" + str(i) + "].atom[]")
-            position = np.array(aaa)
+        uobj.jump(record)
+        i = indexMol
+        aaa = uobj.get("Structure.Position.mol[" + str(i) + "].atom[]")
+        position = np.array(aaa)
 
-            return position
+        return position
 
     def getposmol(self, uobj, indexMol):
         # UDF operation
         # get the position of a molecule
-            i = indexMol
-            list = uobj.get("Structure.Position.mol[" + str(i) + "].atom[]")
-            position = np.array(list)
+        i = indexMol
+        list = uobj.get("Structure.Position.mol[" + str(i) + "].atom[]")
+        position = np.array(list)
 
-            return position
+        return position
 
     def getnameAtom(self, uobj, indexMol):
-            # get atom name
-            i = indexMol
-            atom = uobj.get("Set_of_Molecules.molecule[].atom[].Atom_Name", [i])
-            return atom
+        # get atom name
+        i = indexMol
+        atom = uobj.get("Set_of_Molecules.molecule[].atom[].Atom_Name", [i])
+        return atom
 
     def getAtomtypename(self, uobj, indexMol):
-            # get atom name
-            i = indexMol
-            atomtype = uobj.get(
-                    "Set_of_Molecules.molecule[].atom[].Atom_Type_Name", [i])
-            return atomtype
+        # get atom name
+        i = indexMol
+        atomtype = uobj.get(
+                "Set_of_Molecules.molecule[].atom[].Atom_Type_Name", [i])
+        return atomtype
 
     def putPositionsMol(self, uobj, indexMol, position):
         # ## put the position of the molecule to UDF
@@ -112,7 +113,6 @@ class udf_io(molc.molcalc):
         # subprocess.call(["babel", "-ixyz", out_file, "-opdb",
         #                  path + "/pdb/mdout_orig.pdb"])
         self.exportpdb(uobj, Rec, out_file, mollist)
-
 
     def Exporttgtmolpos(self, path, oname_i, Rec, mollist, uobj):
 
@@ -212,7 +212,6 @@ class udf_io(molc.molcalc):
 
         print("END", file=f)
         f.close()
-
 
     def Exportspecificpos(self, path, iname, Rec, mollist, uobj, centermol):
 
@@ -324,7 +323,6 @@ class udf_io(molc.molcalc):
         cell = uobj.get("Structure.Unit_Cell.Cell_Size")
         return cell
 
-
     def getmolatomnum(self, uobj, totalMol):
         atmnumlist = []
         for i in range(totalMol):
@@ -340,10 +338,10 @@ class udf_io(molc.molcalc):
     def getinteractionsitetable(self, uobj, indexatom):
         # UDF operation
         # get the position of a molecule
-            name = uobj.get("Molecular_Attributes.Interaction_Site_Type[].Name")
-            site = uobj.get("Molecular_Attributes.Interaction_Site_Type[].Range")
+        name = uobj.get("Molecular_Attributes.Interaction_Site_Type[].Name")
+        site = uobj.get("Molecular_Attributes.Interaction_Site_Type[].Range")
 
-            return [name, site]
+        return [name, site]
 
     def calcMMinteraction(self, index, posMol, typenameMol, molnamelist,
                           clist, clu_num, fname, uobj):
@@ -387,9 +385,9 @@ class udf_io(molc.molcalc):
                         pos2 = poslist[mol2id][l]
                         q1 = chglist[mol1id][k]
                         q2 = chglist[mol2id][l]
-                        SIparam = getsigmaepsilon(atomname1, atomname2, uobj)
-                        LJ = calcLJPairInteraction(pos1, pos2, SIparam)
-                        coulomb = calcCoulombInteraction(pos1, pos2, q1, q2, 1.0)
+                        SIparam = self.getsigmaepsilon(atomname1, atomname2, uobj)
+                        LJ = self.calcLJPairInteraction(pos1, pos2, SIparam)
+                        coulomb = self.calcCoulombInteraction(pos1, pos2, q1, q2, 1.0)
                         LJsum += LJ
                         coulombsum += coulomb
                 ielist.append([LJsum, coulombsum])
@@ -416,7 +414,7 @@ class udf_io(molc.molcalc):
     def getcontactstructure(self, rec, uobj, totalMol, inmol, path,  molname):
         uobj.jump(rec)
         cell = uobj.get("Structure.Unit_Cell.Cell_Size")
-        print("totalmol:",totalMol, "rec", rec)
+        print("totalmol:", totalMol, "rec", rec)
 
         posMol_orig = []
         typenameMol_orig = []
@@ -466,7 +464,9 @@ class udf_io(molc.molcalc):
         print("typenamemol len", len(typenameMol))
         # print posMol
 
-        posfrag_mols, typenamefrag_mols, sitefrag_mols, fragids, infrag = self.getfraginfomb(molname, posMol, typenameMol, site, len(posMol_orig))
+        posfrag_mols, typenamefrag_mols, sitefrag_mols, fragids, infrag = \
+            self.getfraginfomb(molname, posMol, typenameMol,
+                               site, len(posMol_orig))
         infrag = infrag * inmol
         print("infrag:", infrag)
 
@@ -496,10 +496,10 @@ class udf_io(molc.molcalc):
         # for i in range(len(movemol)):
         #    exportxyz(path[0] + "/" + path[1],movemol[i],i)
 
-        # --get mol volume--
-        vol = []
+        # --get mol radius --
+        radius = []
         for i in range(len(posMol)):
-            vol.append(self.getvolume(originmol[i]))
+            radius.append(self.getmolradius(originmol[i]))
 
         # --get com dist--
         distlist = []
@@ -511,17 +511,19 @@ class udf_io(molc.molcalc):
 
         # inmol: mol num need for check contact
         # this area can be parrallel tuning
+        # compare com dist and radius
         neighborMol = []
         for i in range(inmol):
             k = 0
             for j in range(i+1, len(posMol)):
-                if distlist[i][k] < (vol[i] + vol[j])*2:
+                if distlist[i][k] < (radius[i] + radius[j]) * 2:
                     neighborMol.append([i, j])
                 k += 1
 
         # get contact list
         clistall = self.getcontactlist(inmol, posMol, site, neighborMol)
-        clistfrag = self.getcontactfrag(clistall, posfrag_mols, sitefrag_mols, fragids, infrag)
+        clistfrag = self.getcontactfrag(clistall, posfrag_mols,
+                                        sitefrag_mols, fragids, infrag)
 
         index = self.getindex(clistall)
         frag_index = self.getindex(clistfrag)
@@ -536,7 +538,7 @@ class udf_io(molc.molcalc):
         # oname = "mdout_orig" + str(rec) + ".xyz"
         # Exportpos(path[0] + "/" + path[1],totalRec-1,totalMol,uobj,oname)
 
-        # --export  pos for abinit --
+        # --export pos for abinit --
         opath = path[0] + "/" + path[1] + "/pdb"
         if self.mixflag is True or self.clusterflag is True:
             # contact
@@ -547,7 +549,8 @@ class udf_io(molc.molcalc):
         self.Exportardpos(opath, oname, index, posMol, typenameMol)
 
         index_renum, clistall = self.getrenumindex(index, clistall)
-        fragindex_renum, clistall = self.getrenumfrag(frag_index, clistfrag, fragids)
+        fragindex_renum, clistall = \
+            self.getrenumfrag(frag_index, clistfrag, fragids)
 
         # --export clistall--
         opath = path[0] + "/" + path[1] + "/contactfrag"
@@ -560,18 +563,6 @@ class udf_io(molc.molcalc):
         # molnamelist: name list for each molecules
         self.make_abinputmb(molname, molnamelist, oname, path)
 
-    def putnvtnewfile(self, uobj, Rec, iname, addname):
-        head, ext = os.path.splitext(str(iname))
-        oname = head + addname + ".udf"
-        uobj.jump(Rec)
-        uobj.write(oname, record=-1, define=1)
-        uobj.write(oname, currentRecord, append)
-
-        newudf= UDFManager(oname)
-        newudf.put("NVT_Nose_Hoover",
-                 "Simulation_Conditions.Solver.Dynamics.Dynamics_Algorithm")
-        newudf.write()
-
     def getsigmaepsilon(self, atom1, atom2, uobj):
         # size=uobj.size("Interactions.Pair_Interaction[]")
         aaa = uobj.get("Interactions.Pair_Interaction[]")
@@ -582,5 +573,3 @@ class udf_io(molc.molcalc):
                 break
         return list[6]
         # list[6]: [sigma(/2^(1/6)), epsilon(sqrt(e1 * e2))]
-
-
