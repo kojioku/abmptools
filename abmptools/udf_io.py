@@ -411,17 +411,19 @@ class udf_io(molc.molcalc):
 
         return molnamelist
 
-    def getcontactstructure(self, rec, uobj, totalMol, inmol, path,  molname):
+    def getcontactstructure(self, rec, uobj, totalMol, inmol, path, molname):
         uobj.jump(rec)
         cell = uobj.get("Structure.Unit_Cell.Cell_Size")
         print("totalmol:", totalMol, "rec", rec)
 
         posMol_orig = []
         typenameMol_orig = []
+        elemMol_orig = []
 
         for i in range(totalMol):
             posMol_orig.append(self.getposmol(uobj, i))
             typenameMol_orig.append(self.getAtomtypename(uobj, i))
+            elemMol_orig.append(self.getnameAtom(uobj, i))
 
         vec = [[0, 0, 0]]
         for i in (-1, 0, 1):
@@ -437,12 +439,14 @@ class udf_io(molc.molcalc):
 
         posMol = []
         typenameMol = []
+        elemMol = []
         # print posMol_orig[0]
         for i in range(len(vec)):
             for j in range(totalMol):
                 posMol.append(self.moveMolTrans(
                     posMol_orig[j], vec[i] * float(cell[0])))
                 typenameMol.append(typenameMol_orig[j])
+                elemMol.append(elemMol_orig[j])
 
         # --definition--
         # posMol: molecular position list (27cell)
@@ -546,7 +550,7 @@ class udf_io(molc.molcalc):
         else:
             # plus 1 layer
             oname = "mdout"
-        self.Exportardpos(opath, oname, index, posMol, typenameMol)
+        self.Exportardpos(opath, oname, index, posMol, elemMol)
 
         index_renum, clistall = self.getrenumindex(index, clistall)
         fragindex_renum, clistall = \
