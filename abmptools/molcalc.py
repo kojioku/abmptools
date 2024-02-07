@@ -191,7 +191,8 @@ class molcalc():
 
             # print molindex
         # # Export position of mol
-        out_file = path + "/" + str(iname) + ".xyz"
+        out_head = path + "/" + str(iname)
+        out_file = out_head + ".xyz"
         # print out_file
 
         numlist = []
@@ -215,8 +216,8 @@ class molcalc():
                     posMol[i][j][0], posMol[i][j][1], posMol[i][j][2], file=f)
         f.close()
 
-        # subprocess.call(["obabel", "-ixyz", out_file, "-opdb -O",
-                         # path + "/" + str(iname) + ".pdb"])
+        cmd = "obabel -ixyz " + out_head + ".xyz -opdb -O " + out_head + ".pdb"
+        subprocess.call(cmd.split(" "))
 
     def exportplus1pos(self, path, pos, name, atom, molindex):
         # # Export position of mol
@@ -245,8 +246,8 @@ class molcalc():
                     pos[i][j][0], pos[i][j][1], pos[i][j][2], file=f)
         f.close()
 
-        subprocess.call(["obabel", "-ixyz", out_file,
-            "-opdb -O", out_head + ".pdb"])
+        cmd = "obabel -ixyz " + out_head + ".xyz -opdb -O " + out_head + ".pdb"
+        subprocess.call(cmd.split(" "))
 
     def getatomisite(self, isitelist, typenameMol):
         # get the position of a molecule
@@ -282,8 +283,9 @@ class molcalc():
                 pos[i][0], pos[i][1], pos[i][2], file=f)
         f.close()
 
-        subprocess.call(["obabel", "-ixyz", out_file,
-                         "-opdb -O", out_head + ".pdb"])
+        # convert to pdb
+        cmd = "obabel -ixyz " + out_head + ".xyz -opdb -O " + out_head + ".pdb"
+        subprocess.call(cmd.split(" "))
 
     def exportdata(self, path, oname, data):
         if os.path.exists(path) is False:
@@ -873,11 +875,9 @@ class molcalc():
 
         return rotated
 
-
     def babelxyzpdb(self, head):
         cmd = "obabel -ixyz " + head + ".xyz -opdb -O " + head + ".pdb"
         subprocess.call(cmd.split(" "))
-
 
     def writexyzpoly(self, head, natomsum, atoms, pos, dums, seq, cnct_count, cncted_count):
         # print atoms
