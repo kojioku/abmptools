@@ -772,7 +772,7 @@ MD='OFF'
 
         return [ifie, pbterm]
 
-    def getTE(self, target_dir, molname, mode,  fzcflag):
+    def getTE(self, target_dir, molname, mode, fzcflag):
         elistname = target_dir + "/energylist_" + self.solvtype
         if mode == "batch":
             energies = []
@@ -921,18 +921,17 @@ MD='OFF'
             # sys.exit()
 
 
-
     def getfmopbenergy(self, target):
         try:
             f = open(target, "r")
-        except:
-            print ("can't open " + target)
-            return 0,0,0,0,0
-        if self.abinit_ver in ['rev11', 'rev15', 'mizuho']:
             text = f.readlines()
             f.close()
+        except:
+            print("can't open " + target)
+            return 0, 0, 0, 0, 0
+        if self.abinit_ver in ['rev11', 'rev15', 'mizuho']:
             index = 0
-            pbdone =False
+            pbdone = False
             for i in range(len(text)):
                 itemList = text[i][:-1].split()
                 if len(itemList) == 0:
