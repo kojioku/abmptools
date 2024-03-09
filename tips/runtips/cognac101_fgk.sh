@@ -8,10 +8,10 @@
 # ---user input --- #
 node=1
 proc_per_node=1
-jobtime="00:10:00"  # "hour:minutes:seconds"
-BINARY_NAME=/vol0003/hp190133/data/programs/OCTA84-fgk/ENGINES/bin/A64FX/cognac101
+jobtime="10:00:00"  # "hour:minutes:seconds"
+BINARY_NAME='/path/to/cognac101'
 rscgrp='small'
-group='hp190133'
+group='hpxxxxxx'
 # ----user input end ---- #
 
 fhead=${1%.*}
@@ -37,14 +37,17 @@ echo """#!/bin/bash
 #PJM --mpi \"proc=$totalproc,max-proc-per-node=$proc_per_node\"
 #PJM -L \"elapse=$jobtime\"
 #PJM -g \"${group}\"
+#PJM -x PJM_LLIO_GFSCACHE=/vol0002:/vol0003:/vol0004:/vol0005:/vol0006
 #PJM -j
 
 export OMP_NUM_THREADS=${OMP_NUM_THREADS}
 export OMP_STACKSIZE=${OMP_STACKSIZE}
 
-export OCTA84_HOME=/vol0003/hp190133/data/programs/OCTA84
+export OCTA84_HOME=${OCTA84_HOME}
 export PATH=\$OCTA84_HOME/GOURMET:\$PATH
-. /vol0003/hp190133/data/programs/OCTA84/GOURMET/gourmetterm -
+. ${OCTA84_HOME}/GOURMET/gourmetterm -
+
+# export UDF_DEF_PATH="/path/to/OCTA84/ENGINES/udf"
 
 #------- Program execution -------#
 $BINARY_NAME -I ${IN_NAME} -O ${OUT_NAME} -n $OMP_NUM_THREADS
