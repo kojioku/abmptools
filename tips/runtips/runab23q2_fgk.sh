@@ -9,7 +9,7 @@
 node=1
 proc_per_node=2
 jobtime="10:00:00"  # "hour:minutes:seconds"
-ABINIT_DIR=/data/hp190133/programs/ABINIT-MP/binds/ver1rev23q2/lang-tcsds-1.2.31
+ABINIT_DIR=/path/to/abinit_dir
 BINARY_NAME=abinitmp_smp
 rscgrp='small'
 group='hp190133'

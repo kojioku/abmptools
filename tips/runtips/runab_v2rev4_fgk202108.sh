@@ -9,7 +9,7 @@
 node=192
 proc_per_node=1
 jobtime="04:00:00"  # "hour:minutes:seconds"
-ABINIT_DIR=/data/hp210026/ABINIT-MP-VER2-REV4-FUGAKU/no-fint
+ABINIT_DIR=/path/to/abinit_dir
 BINARY_NAME=abinitmp_smp
 rscgrp='small'
 group='hp210026'
