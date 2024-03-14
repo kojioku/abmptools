@@ -15,7 +15,7 @@ if 'install' in argvs:
 
 setup(
     name='ABMPTools',
-    version='1.13.4',
+    version='1.13.5',
     description='setup tool for ABINIT-MP',
     long_description=readme,
     # install_requires=['numpy', 'pandas'],

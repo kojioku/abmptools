@@ -872,7 +872,6 @@ MD='OFF'
         hf = 0
         try:
             f = open(target, "r")
-
             text = f.readlines()
             f.close()
             for i in range(len(text)):
@@ -958,8 +957,6 @@ MD='OFF'
                 return 0, 0, 0, 0, 0
 
         if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
-            text = f.readlines()
-            f.close()
             index = 0
             pbdone =False
             getflag = False
