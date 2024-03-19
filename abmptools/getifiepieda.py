@@ -31,34 +31,36 @@ def get_args():
                 add_help=True,
                 )
 
-    # add args
     parser.add_argument('-f', '--frag',
-                        help='tgt fragid info',
+                        help="Target fragment List (space-separated numbers). Use '-' to specify a range. Example: 1 2 3-5 7",
                         nargs='*'
                         )
 
     parser.add_argument('-m', '--mol',
-                        help='tgt molid info')
+                        help="Target molid info. (space-separated numbers). Use'-' to specify a range. Example: 1 2 3-5 7)")
 
     parser.add_argument('-mn', '--molname',
-                        help='tgtmolname')
+                        help='Target molname (only 1 residue name). Example: WAT')
 
     parser.add_argument('-fi', '--fraginmol',
-                        help='tgtmolid, tgt1_localfrag, tgt2molname, tgt2_localfrag',
+                        help='get ifie of specific fragments in molecule. 4 arguments (target_molid, tgt1_localfrag, tgt2molname, tgt2_localfrag)',
                         nargs=4,)
 
     parser.add_argument('-ff', '--ffmatrix',
-                        help='generate ffmatrix',
+                        help="Generate frag-frag IFIE matrix. Use '-' to specify a range. Example: 1-200 1-200",
                         nargs=2
                         )
 
     parser.add_argument('-mul', '--multi',
-                        help='use solvation',
+                        help='Read multiple data (Commonly FMO data of MD trajectory). \
+                        \n Case1 range range. Example: 1-100 101-200 \
+                        \n Case2 fragid and distance: --multi 20 --molname WAT \
+                        \n Case3 fragid and distance: --multi 20 -d 8.0 \n -t is essential. (start end interval)',
                         nargs='*'
                         )
 
     parser.add_argument('-z', '-zp', '--zp',
-                        help='zeropadding',
+                        help='zeropadding for read multiple data (-t)',
                         default = 0,
                         type=int
                         )
