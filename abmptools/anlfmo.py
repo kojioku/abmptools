@@ -1531,10 +1531,10 @@ class anlfmo(pdio.pdb_io):
         flag = False
         momflag = False
         dimflag = False
-        # print text
-        for i in range(len(text)):
+        for line in file:
             # itemList = text[i][:-1].split()
-            itemList = file.readline().strip().split()
+            # itemList = file.readline().strip().split()
+            itemList = line.strip().split()
 
             # print itemList
             if len(itemList) < 2:
@@ -1614,11 +1614,9 @@ class anlfmo(pdio.pdb_io):
                     ifie[i][5] = 0.0
                     ifie[i][6] = 0.0
 
-        print('bsse', bsse[0])
-
         file.close()
         return ifie, pieda, momene, dimene, bsse
-        # print ifie
+
 
     def read_pbifiepieda(self, fname):
         ifie = []
@@ -1959,7 +1957,6 @@ class anlfmo(pdio.pdb_io):
 
         # print(ifdf_filter)
         return ifdf_filter, ifdfsum
-
 
     def read_ifpif90(self, tgtlog):
         '''read ifpif90.so and call readifiepieda_
@@ -2322,19 +2319,23 @@ class anlfmo(pdio.pdb_io):
         if self.logMethod == 'HF':
             self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE']
         elif self.logMethod == 'MP3':
-            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'USER-MP2', 'MP3-IFIE','USER-MP3', 'PADE[2/1]' ]
+            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
+                            'USER-MP2', 'MP3-IFIE', 'USER-MP3', 'PADE[2/1]' ]
         elif self.logMethod == 'CCPT':
-            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'GRIMME-MP2', 'MP3-IFIE','GRIMME-MP3', 'MP4-IFIE' ]
+            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
+                            'GRIMME-MP2', 'MP3-IFIE', 'GRIMME-MP3', 'MP4-IFIE' ]
         self.getpbflag(self.tgtlogs)
 
         # self.logMethod = 'MP2'
-        if self.matrixtype != 'frags-frags' and (self.logMethod == 'MP3' or self.logMethod == 'CCPT'):
+        if self.matrixtype != 'frags-frags' \
+                and (self.logMethod == 'MP3' or self.logMethod == 'CCPT'):
             print('Error: ' + self.logMethod + ' mode for this mode is unsupported yet.')
             sys.exit()
 
         # pb python-based capture only in this version.
         if self.pbflag:
-            ifie, pieda, momene, dimene, bsse = self.read_ifiepieda(self.tgtlogs)
+            ifie, pieda, momene, dimene, bsse = \
+                self.read_ifiepieda(self.tgtlogs)
             df = self.getifiedf(ifie)
             self.ifdf = df
 

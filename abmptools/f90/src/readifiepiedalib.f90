@@ -18,7 +18,7 @@ character*3 :: method = 'Non'
 
 !! Main
 ! read(*,'(A)') inname
-! write(*,'(A)') trim(adjustl(inname))
+write(*,'(A)') trim(adjustl(inname))
 
 ! initialize
 ifpair=0
@@ -43,6 +43,7 @@ di(:) = 0.0
 erest(:) = 0.0
 qval(:) = 0.0
 disp=.false.
+
 ! Read File
 open(17,file=trim(adjustl(inname)), status='old')
 
@@ -114,7 +115,7 @@ if (trim(adjustl(head))=="## PIEDA") then   !この下にIFIE情報
     end do
   goto 120
 else if(trim(adjustl(head))=="## Mulliken") then
-    write(*, '(a)') 'log dont have pieda data: end'
+    write(*, '(a)') 'log do not have pieda data: end'
     goto 998
 else
     goto 998
