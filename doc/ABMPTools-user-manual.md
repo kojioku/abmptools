@@ -45,70 +45,70 @@ log ファイルから各種IFIE情報を取得するモジュール
 
 
 #### オプション一覧
-  -f [FRAG ...], (--frag)
-    基準とするフラグメントidを指定。(int) 単体でも可。
-  -m MOL, (--mol)
-    基準とする分子ID 。フラグメントと分子の対応は、フラグメント間距離から自動認識される
-  -d DIST, (--dist)
-    基準フラグメントや分子からの距離。基準は -fや-mなどで事前に指定。
-  -mn MOLNAME, (--molname)
-    PDBに入力された分子名(非タンパク)
-  -fi FRAGINMOL FRAGINMOL FRAGINMOL FRAGINMOL, (--fraginmol)
-    分子ID, 分子内の対象フラグメントid, 分子名, 分子2内の対象フラグメントID
-  -ff FFMATRIX FFMATRIX, (--ffmatrix)
-    fragmentマトリックスを出力するモード。 引数1は範囲1 範囲2, 範囲はハイフン区切り
-  -mul [MULTI ...], (--multi)
-    多サンプルのIFIEを出力するモード
-  -z ZP, (-zp, --zp)
-    連番指定の際のzeropadding数
-  -tf TFMATRIX TFMATRIX, (--tfmatrix)
-    時間-フラグメントのmatrix出力
-  -t TIME TIME TIME, (--time)
-    連番指定の際の時間(ファイル番号)指定(start end interval)
-  -np PYNP, (--pynp)
-    並列数
-  -ex [EXCLUDE ...], (--exclude)
-    出力対象にしないフラグメント
-  -i INPUT, (--input)
-    インプットファイル名
-  -ix INPUTX, (--inputx) 
-    連番用複数 Input log name (e.g., file-xxx-bbb.log)
-  -dimeres, (--dimeres) 
-    Dimer-ES範囲内の情報のみを取得
-  -nof90, (--nof90so)
-    Fortranライブラリを使用しないフラグ
-  -nores, (--noresinfo)
-    残基名情報を出力結果に記載しない（処理時間短縮)
-  -dimene DIMENE DIMENE, (--dimene)
-    指定したダイマーのダイマーエネルギーを出力
-  -momene MOMENE, (--momene)
-    指定したモノマーのモノマーエネルギーを出力
-  -imd, (--is_momdim)
-    モノマー, ダイマーエネルギーの出力フラグ
+  -f [FRAG ...], (--frag)  
+    基準とするフラグメントidを指定。(int) 単体でも可。  
+  -m MOL, (--mol)  
+    基準とする分子ID 。フラグメントと分子の対応は、フラグメント間距離から自動認識される  
+  -d DIST, (--dist)  
+    基準フラグメントや分子からの距離。基準は -fや-mなどで事前に指定。  
+  -mn MOLNAME, (--molname)  
+    PDBに入力された分子名(非タンパク)  
+  -fi FRAGINMOL FRAGINMOL FRAGINMOL FRAGINMOL, (--fraginmol)  
+    分子ID, 分子内の対象フラグメントid, 分子名, 分子2内の対象フラグメントID  
+  -ff FFMATRIX FFMATRIX, (--ffmatrix)  
+    fragmentマトリックスを出力するモード。 引数1は範囲1 範囲2, 範囲はハイフン区切り  
+  -mul [MULTI ...], (--multi)  
+    多サンプルのIFIEを出力するモード  
+  -z ZP, (-zp, --zp)  
+    連番指定の際のzeropadding数  
+  -tf TFMATRIX TFMATRIX, (--tfmatrix)  
+    時間-フラグメントのmatrix出力  
+  -t TIME TIME TIME, (--time)  
+    連番指定の際の時間(ファイル番号)指定(start end interval)  
+  -np PYNP, (--pynp)  
+    並列数  
+  -ex [EXCLUDE ...], (--exclude)  
+    出力対象にしないフラグメント  
+  -i INPUT, (--input)  
+    インプットファイル名  
+  -ix INPUTX, (--inputx)   
+    連番用複数 Input log name (e.g., file-xxx-bbb.log)  
+  -dimeres, (--dimeres)   
+    Dimer-ES範囲内の情報のみを取得  
+  -nof90, (--nof90so)  
+    Fortranライブラリを使用しないフラグ  
+  -nores, (--noresinfo)  
+    残基名情報を出力結果に記載しない（処理時間短縮)  
+  -dimene DIMENE DIMENE, (--dimene)  
+    指定したダイマーのダイマーエネルギーを出力  
+  -momene MOMENE, (--momene)  
+    指定したモノマーのモノマーエネルギーを出力  
+  -imd, (--is_momdim)  
+    モノマー, ダイマーエネルギーの出力フラグ  
 
 #### 複数フラグメント間のIFIEマトリックス情報取得(ffmatrix)
-- 概要
-  指定した残基のi,jマトリックスを出力可能です。
-  タンパク質界面や、解析対象のフラグメントが1つでない場合に有効です。
-- 入力
-  `python -m abmptools.getifiepieda --ffmatrix i1-i2 j1-j2 ログファイル名`
-  logとajf, pdbを同じフォルダに配置して実施
-  --ffmatrix 範囲選択 
-  引数が2つ必要で、それぞれ単体での指定のほか、範囲指定が可能です。
+- 概要  
+  指定した残基のi,jマトリックスを出力可能です。  
+  タンパク質界面や、解析対象のフラグメントが1つでない場合に有効です。  
+- 入力  
+  `python -m abmptools.getifiepieda --ffmatrix i1-i2 j1-j2 ログファイル名`  
+  logとajf, pdbを同じフォルダに配置して実施  
+  --ffmatrix 範囲選択   
+  引数が2つ必要で、それぞれ単体での指定のほか、範囲指定が可能です。  
+  
+    1. 一括の範囲指定（ハイフン)  
+        例えば --ffmatrix 1-100 101-200 で、1～100, 101～200の間のIFIEや最近接距離情報が出力できます。  
+  
+    2. 任意の残基指定(カンマ）  
+        カンマ区切りで個別に指定することも可能です。  
+        例えば、　--ffmatrix 1,4,5 7,10,11　であれば、　1,4,5と7,10,11 の総当たりのデータを出力できます。  
+  
+  -i ログファイル名  
 
-    1. 一括の範囲指定（ハイフン)
-        例えば --ffmatrix 1-100 101-200 で、1～100, 101～200の間のIFIEや最近接距離情報が出力できます。
-
-    2. 任意の残基指定(カンマ）
-        カンマ区切りで個別に指定することも可能です。
-        例えば、　--ffmatrix 1,4,5 7,10,11　であれば、　1,4,5と7,10,11 の総当たりのデータを出力できます。
-
-  -i ログファイル名
-
-- 出力
-    1ファイルにPIEDA情報を全て出せないので、別々のファイルが出力されます。
-    Distance-ffmatrix.csvが距離情報のマトリックスで、
-    その他PIEDAの各成分やMP2まで含めたIFIEなどがそれぞれファイルごとに出力されています。
+- 出力  
+    1ファイルにPIEDA情報を全て出せないので、別々のファイルが出力されます。  
+    Distance-ffmatrix.csvが距離情報のマトリックスで、  
+    その他PIEDAの各成分やMP2まで含めたIFIEなどがそれぞれファイルごとに出力されています。  
     - CT-ffmatrix.csv　CT項
     - Distance-ffmatrix.csv　距離
     - ES-ffmatrix.csv　ES項
@@ -120,7 +120,7 @@ log ファイルから各種IFIE情報を取得するモジュール
     - PRMP2total-ffmatrix.csv HF + PRMP2Total
 
 
-- 出力例
+- 出力例  
 |SER1(1)|GLY2(2)|PHE3(3)|ARG4(4)|LYS5(5)|MET6(6)|ALA7(7)|PHE8(8)|PRO9(9)|SER10(10)|
 |SER1(1)|0.0000|0.0000|-0.6369|33.3948|17.3142|-0.2083|0.8635|-1.4288|0.5616|0.3865|
 |GLY2(2)|0.0000|0.0000|0.0000|-0.1801|0.2554|0.1650|-0.1017|0.0314|0.0596|-0.0364|
@@ -134,13 +134,12 @@ log ファイルから各種IFIE情報を取得するモジュール
 |SER10(10)|0.3865|-0.0364|-0.0082|0.6150|0.2761|0.0157|0.4255|-3.6327|0.0000|0.0000|
 
 
-
-- (参考) PPIの議論での利用イメージ
-
-界面の残基を選定-> 近距離で接している相手残基と水を選定 -> IFIEを見る
-という手続きかと思いますので、
-- 事前に構造解析で対象の残基群を特定いただくか、
-- ffmatrixモードを使用されるのであれば以下で完了できる
+- (参考) PPIの議論での利用イメージ  
+  
+界面の残基を選定-> 近距離で接している相手残基と水を選定 -> IFIEを見る  
+という手続きかと思いますので、  
+- 事前に構造解析で対象の残基群を特定いただくか、  
+- ffmatrixモードを使用されるのであれば以下で完了できる  
 
 1. タンパク1　タンパク2間の距離マトリックス出力 → PPI界面残基のID選出
 2. タンパク1 PPI界面残基と水の距離マトリックス算出 -> タンパク1 PPI界面付近の水ID選出
@@ -148,21 +147,21 @@ log ファイルから各種IFIE情報を取得するモジュール
 4. 1-3ででてきた残基番号で OR をとりIFIEマトリックス出力 
 
 -  サンプル
-sample/getifiepieda/ffmatrix に配置
-run.shで実行可能です。
+sample/getifiepieda/ffmatrix に配置  
+run.shで実行可能です。  
 
 
 #### フラグメント群間IFIE (fragids)
-あるフラグメント群(i1-i2, j1-j2)間のIFIEを取得
+あるフラグメント群(i1-i2, j1-j2)間のIFIEを取得  
 
 - 入力
 `python -m abmptools.getifiepieda --frag i1-i2 j1-j2 -i xxx.log`
---frag 基準フラグメント(i1-i2) 相手フラグメント(j1-j2)。 単体も可。範囲指定は-。
--i 入力ログファイル名
+--frag 基準フラグメント(i1-i2) 相手フラグメント(j1-j2)。 単体も可。範囲指定は-。  
+-i 入力ログファイル名  
 
 - 出力
-log-fragi-fragj1-j2-ifie.csv
-i1-i2に対するj1-j2 のIFIEがiの各フラグメントごとに1ファイルで出力
+log-fragi-fragj1-j2-ifie.csv  
+i1-i2に対するj1-j2 のIFIEがiの各フラグメントごとに1ファイルで出力  
 
 | |I|J|DIST|DIMER-ES|HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -173,8 +172,8 @@ i1-i2に対するj1-j2 のIFIEがiの各フラグメントごとに1ファイル
 |4|02J307(307)|LYS5(5)|21.19564|1|-0.2660640|0.0|0.0|0.0|0.0|0.0|||||
 |5|02J307(307)|MET6(6)|26.868553|1|-0.002510|0.0|0.0|0.0|0.0|0.0|||||
 
-log-fragi1-i2-fragj1-j2n-1sum-ifie.csv
-i1-i2に対するj1-j2 のN:1 IFIEをまとめて出力
+log-fragi1-i2-fragj1-j2n-1sum-ifie.csv  
+i1-i2に対するj1-j2 のN:1 IFIEをまとめて出力  
 | |I|J|HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|
 |-|-|-|-------|--------|--------|------|----|----|--|--|------|-------|---|---|
 |0|02J307(307)-010312(311)|SER1(1)|-0.033885|0.0|0.0|0.0|0.0|0.0|0.0|0.0|0.0|0.0|0.0|
@@ -184,7 +183,6 @@ i1-i2に対するj1-j2 のN:1 IFIEをまとめて出力
 |4|02J307(307)-010312(311)|LYS5(5)|-0.299949|0.0|0.0|0.0|0.0|0.0|0.0|0.0|0.0|0.0|0.0|
 |5|02J307(307)-010312(311)|MET6(6)|0.0075301|0.0|0.0|0.0|0.0|0.0|0.0|0.0|0.0|0.0|0.0|
 
-- サンプル
 
 #### 基準フラグメント-指定距離間IFIE(frag_dist)
 指定フラグメント(i)を基準に、指定した距離(r)内のフラグメントとのIFIEを出力
