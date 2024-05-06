@@ -18,7 +18,7 @@ character*3 :: method = 'Non'
 
 !! Main
 ! read(*,'(A)') inname
-write(*,'(A)') trim(adjustl(inname))
+!write(*,'(A)') trim(adjustl(inname))
 
 ! initialize
 ifpair=0
