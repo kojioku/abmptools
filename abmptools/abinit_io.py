@@ -506,10 +506,10 @@ GRID='NO'
 &MCP
 /
 
-$CIS
+&CIS
 /
 
-$CISGRD
+&CISGRD
 /
 
 &CAFI
