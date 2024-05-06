@@ -45,46 +45,47 @@ log ファイルから各種IFIE情報を取得するモジュール
 
 
 #### オプション一覧
-  - -f [FRAG ...], (--frag)
-    -   基準とするフラグメントidを指定。(int) 単体でも可。
-  - -m MOL, (--mol)
-    -   基準とする分子ID 。フラグメントと分子の対応は、フラグメント間距離から自動認識される
-  - -d DIST, (--dist)
-    -   基準フラグメントや分子からの距離。基準は -fや-mなどで事前に指定。
-  - -mn MOLNAME, (--molname)
-    -   PDBに入力された分子名(非タンパク)
-  - -fi FRAGINMOL FRAGINMOL FRAGINMOL FRAGINMOL, (--fraginmol)
-    -   分子ID, 分子内の対象フラグメントid, 分子名, 分子2内の対象フラグメントID
-  - -ff FFMATRIX FFMATRIX, (--ffmatrix)
-    -   fragmentマトリックスを出力するモード。 引数1は範囲1 範囲2, 範囲はハイフン区切り
-  - -mul [MULTI ...], (--multi)
-    -   多サンプルのIFIEを出力するモード
-  - -z ZP, (-zp, --zp)
-    -   連番指定の際のzeropadding数
-  - -tf TFMATRIX TFMATRIX, (--tfmatrix)
-    -   時間-フラグメントのmatrix出力
-  - -t TIME TIME TIME, (--time)
-    -   連番指定の際の時間(ファイル番号)指定(start end interval)
-  - -np PYNP, (--pynp)
-    -   並列数
-  - -ex [EXCLUDE ...], (--exclude)
-    -   出力対象にしないフラグメント
-  - -i INPUT, (--input)
-    -   インプットファイル名
-  - -ix INPUTX, (--inputx)
-    -   連番用複数 Input log name (e.g., file-xxx-bbb.log)
-  - -dimeres, (--dimeres)
-    -   Dimer-ES範囲内の情報のみを取得
-  - -nof90, (--nof90so)
-    -   Fortranライブラリを使用しないフラグ
-  - -nores, (--noresinfo)
-    -   残基名情報を出力結果に記載しない（処理時間短縮)
-  - -dimene DIMENE DIMENE, (--dimene)
-    -   指定したダイマーのダイマーエネルギーを出力
-  - -momene MOMENE, (--momene)
-    -   指定したモノマーのモノマーエネルギーを出力
-  - -imd, (--is_momdim)
-    -   モノマー, ダイマーエネルギーの出力フラグ
+
+    -f [FRAG ...], (--frag)
+        基準とするフラグメントidを指定。(int) 単体でも可。
+    -m MOL, (--mol)
+        基準とする分子ID 。フラグメントと分子の対応は、フラグメント間距離から自動認識される
+    -d DIST, (--dist)
+        基準フラグメントや分子からの距離。基準は -fや-mなどで事前に指定。
+    -mn MOLNAME, (--molname)
+        PDBに入力された分子名(非タンパク)
+    -fi FRAGINMOL FRAGINMOL FRAGINMOL FRAGINMOL, (--fraginmol)
+        分子ID, 分子内の対象フラグメントid, 分子名, 分子2内の対象フラグメントID
+    -ff FFMATRIX FFMATRIX, (--ffmatrix)
+        fragmentマトリックスを出力するモード。 引数1は範囲1 範囲2, 範囲はハイフン区切り
+    -mul [MULTI ...], (--multi)
+        多サンプルのIFIEを出力するモード
+    -z ZP, (-zp, --zp)
+        連番指定の際のzeropadding数
+    -tf TFMATRIX TFMATRIX, (--tfmatrix)
+        時間-フラグメントのmatrix出力
+    -t TIME TIME TIME, (--time)
+        連番指定の際の時間(ファイル番号)指定(start end interval)
+    -np PYNP, (--pynp)
+        並列数
+    -ex [EXCLUDE ...], (--exclude)
+        出力対象にしないフラグメント
+    -i INPUT, (--input)
+        インプットファイル名
+    -ix INPUTX, (--inputx)
+        連番用複数 Input log name (e.g., file-xxx-bbb.log)
+    -dimeres, (--dimeres)
+        Dimer-ES範囲内の情報のみを取得
+    -nof90, (--nof90so)
+        Fortranライブラリを使用しないフラグ
+    -nores, (--noresinfo)
+        残基名情報を出力結果に記載しない（処理時間短縮)
+    -dimene DIMENE DIMENE, (--dimene)
+        指定したダイマーのダイマーエネルギーを出力
+    -momene MOMENE, (--momene)
+        指定したモノマーのモノマーエネルギーを出力
+    -imd, (--is_momdim)
+        モノマー, ダイマーエネルギーの出力フラグ
 
 #### 複数フラグメント間のIFIEマトリックス情報取得(ffmatrix)
 - 概要
@@ -209,17 +210,18 @@ sample/getifiepieda/frag_dist
 
 
 #### 基準分子-指定距離間IFIE(mol-dist)
-分子 i からの距離r以内にあるフラグメントの相互作用を出力
-- 入力
-`python -m getifiepieda --mol i(int) -d r(float) -i xxx.log`
---mol 基準分子(i)
--d 距離(r)
--i 入力ログファイル
+    分子 i からの距離r以内にあるフラグメントの相互作用を出力
+    - 入力
+    `python -m getifiepieda --mol i(int) -d r(float) -i xxx.log`
+    --mol 基準分子(i)
+    -d 距離(r)
+    -i 入力ログファイル
 
-- 出力
-xxx_ifie-fragmol-molidi-idistr.csv
+    - 出力
+    xxx_ifie-fragmol-molidi-idistr.csv
 
 ||I|J|DIST|DIMER-ES|HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|
+|-|-|-|----|--------|-------|--------|--------|------|----|----|--|--|------|-------|-------|
 |0|NA4(17)|CD71(1)|17.064399|1|-13.371600|0.000000|0.000000|0.000000|0.000000|0.000000|-13.371664|0.000000|0.000000|0.000000|0.000000|
 |1|NA4(17)|CD71(2)|13.493569|1|-1.123870|0.000000|0.000000|0.000000|0.000000|0.000000|-1.123905|0.000000|0.000000|0.000000|0.000000|
 |2|NA4(17)|CD71(3)|9.684535|1|-1.576931|0.000000|0.000000|0.000000|0.000000|0.000000|-1.576847|0.000000|0.000000|0.000000|0.000000|
@@ -229,7 +231,8 @@ xxx_ifie-fragmol-molidi-idistr.csv
 
 xxx_ifiemol-mol-molidi-idistr.csv
 
-|I|J|HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|PR_TYPE1|
+||I|J|HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|PR_TYPE1|
+|-|-|-------|--------|--------|------|----|----|--|--|------|-------|-------|--------|-|
 |0|[17]|"[1| 2| 3| 4| 5| 6| 7| 8| 9| 10| 11| 12| 13| 14]"|-262.205481|-5.166286||-4.545679|-4.234434|-3.359686|-259.276920|3.665087|-6.592884|-5.166375|0.187805|-4.881397|
 |1|[18]|"[1| 2| 3| 4| 5| 6| 7| 8| 9| 10| 11| 12| 13| 14]"|-249.266235|24.695010||26.160244|26.892548|7.053207|-242.924904|0.485723|-6.827464|24.694368|0.174430|24.529975|
 |2|[22]|"[1| 2| 3| 4| 5| 6| 7| 8| 9| 10| 11| 12| 13| 14]"|-15.416654|-2.046936||-1.573794|-1.337223|-1.791540|-20.037975|7.003602|-2.381964|-2.046723|0.022800|-1.986068|
@@ -239,21 +242,22 @@ xxx_ifiemol-mol-molidi-idistr.csv
 
 xxx_ifiesummol-mol-molidi-idistr.csv
 
-||HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|
+| |HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|
+|-|-|----|--------|-------|--------|--------|------|----|----|--|--|
 |0|-1111.631862|-309.681596|-299.146339|-241.282431|-207.073122|-264.691674|-1527.736941|746.607169|-330.500542|-309.686615|1.024979|
 
 
 #### 指定フラグメント種間のIFIE (fraginmol)
-分子iのj番目のフラグメントと、分子名STRのk番目のフラグメント間の相互作用
-`python -m abmptools.getifiepieda --fraginmol i j WAT k -i xxx.log`
+- 分子iのj番目のフラグメントと、分子名STRのk番目のフラグメント間の相互作用
+- `python -m abmptools.getifiepieda --fraginmol i j WAT k -i xxx.log`
 
 
 #### 多サンプル: 基準フラグメントから指定距離以内の時系列相互作用(multi-fragid-dist)
 - 入力
-`python -m abmptools.getifiepieda --multi 10 -d 8.0 -t 100 3100 1000 -i '["aaa", "-bbb.log"]' --exclude 102 -np 4`
---multi 対象フラグメント(int)
--d 距離(r)
--t 開始番号　終了番号 間隔
+    `python -m abmptools.getifiepieda --multi 10 -d 8.0 -t 100 3100 1000 -i '["aaa", "-bbb.log"]' --exclude 102 -np 4`
+    --multi 対象フラグメント(int)
+    -d 距離(r)
+    -t 開始番号　終了番号 間隔
 
 - 出力
 
@@ -276,11 +280,10 @@ frag i と分子AのIFIEの時系列変化
 
 
 #### multi_fragids-tfmatrix
-
-`--tfmatrix i-j k-l
--t 開始時間 終了時間 間隔
--exclude 省く残基
--np 読み込みの並列数`
+    `--tfmatrix i-j k-l
+    -t 開始時間 終了時間 間隔
+    -exclude 省く残基
+    -np 読み込みの並列数`
 
 fragment i-j, k-l 間の時系列の相互作用の出力
 
@@ -324,50 +327,49 @@ e.g.) `python ~/fmodpd/abmptools/ajfserial.py -i 1eo8-ff14sb-xxxps-renamed-HF-ST
 e.g.) `python ~/fmodpd/abmptools/generateajf.py -c 1eo8-ff14sb-xxxps-renamed.pdb -cmm -mem 6000 -np 1 -lc NA 1 -rs Na 0.0 -basis STO-3G --method HF`
 
 
-'''
-usage: python generateajf.py -i xxx.pdb
+    usage: python generateajf.py -i xxx.pdb
 
-generate ABNITMP input file (ajf)
+    generate ABNITMP input file (ajf)
 
-options:
-  -h, --help            show this help message and exit
-  -i INCOORD, --incoord INCOORD
-                        coordinate file (pdb)
-  -pb, --solvation      parameter file
-  -th THICNV, --thicnv THICNV
-                        threshold
-  -arad ATMRAD, --atmrad ATMRAD
-                        atmrad
-  -ajfv AJFVERSION, --ajfversion AJFVERSION
-                        ajf version
-  -np NPRO, --npro NPRO
-                        ajf version
-  -nopieda, --nopieda   pieda
-  -cmm, --cmm           cmm
-  -nocpf, --nocpf       cpfflag
-  -cpfv CPFVER, --cpfver CPFVER
-                        cpf version
-  -basis BASISSET, --basisset BASISSET
-                        basis
-  -m METHOD, --method METHOD
-                        method
-  -ml, --mldat          mldat flag
-  -mll MLLIMIT, --mllimit MLLIMIT
-                        mldat fraglimit
-  -disp, --disp         flag disp
-  -dg, --dgemm          dgemm
-  -rp, --resp           resp
-  -nonbo, --nonbo       nonbo
-  -mem MEMORY, --memory MEMORY
-                        memory
-  -lc LIGANDCHARGE LIGANDCHARGE, --ligandcharge LIGANDCHARGE LIGANDCHARGE
-                        ligand charge
-  -rs RSOLV RSOLV, --rsolv RSOLV RSOLV
-                        rsolv
-  -ma MANUAL, --manual MANUAL
-                        manual table
-  -bsse, --bsse         bsse
-'''
+    options:
+      -h, --help            show this help message and exit
+      -i INCOORD, --incoord INCOORD
+                            coordinate file (pdb)
+      -pb, --solvation      parameter file
+      -th THICNV, --thicnv THICNV
+                            threshold
+      -arad ATMRAD, --atmrad ATMRAD
+                            atmrad
+      -ajfv AJFVERSION, --ajfversion AJFVERSION
+                            ajf version
+      -np NPRO, --npro NPRO
+                            ajf version
+      -nopieda, --nopieda   pieda
+      -cmm, --cmm           cmm
+      -nocpf, --nocpf       cpfflag
+      -cpfv CPFVER, --cpfver CPFVER
+                            cpf version
+      -basis BASISSET, --basisset BASISSET
+                            basis
+      -m METHOD, --method METHOD
+                            method
+      -ml, --mldat          mldat flag
+      -mll MLLIMIT, --mllimit MLLIMIT
+                            mldat fraglimit
+      -disp, --disp         flag disp
+      -dg, --dgemm          dgemm
+      -rp, --resp           resp
+      -nonbo, --nonbo       nonbo
+      -mem MEMORY, --memory MEMORY
+                            memory
+      -lc LIGANDCHARGE LIGANDCHARGE, --ligandcharge LIGANDCHARGE LIGANDCHARGE
+                            ligand charge
+      -rs RSOLV RSOLV, --rsolv RSOLV RSOLV
+                            rsolv
+      -ma MANUAL, --manual MANUAL
+                            manual table
+      -bsse, --bsse         bsse
+
 
 ### pdbmodify
 PDBの情報を編集するモジュール
@@ -376,93 +378,90 @@ PDBの情報を編集するモジュール
 e.g.) `python ~/fmodpd/abmptools/pdbmodify.py -mode rename -str ' NA' 'NA ' 'CYX' 'CYS' ' CL' 'CL ' -i \*pdb`
 e.g.) `python $abmptdir/pdbmodify.py -mode resnum -aresname -reatm -i cyc.pdb.1`
 
-usage: e.g.)
-                python pdbmodify.py -addc 307 312 C -i *.pdb
-                python pdbmodify.py -move -p 10 10 10 -aresname -reid -reatm -addc 307 312 C -i *pdb
-                python pdbmodify.py -move -mol 3 --into -reres -reatm -addc 307 312 C -i *pdb
-                python pdbmodify.py -mode rename -str 001 MRT 002 CD7 003 NA 004 WAT -i *pdb
+    usage: e.g.)
+                    python pdbmodify.py -addc 307 312 C -i *.pdb
+                    python pdbmodify.py -move -p 10 10 10 -aresname -reid -reatm -addc 307 312 C -i *pdb
+                    python pdbmodify.py -move -mol 3 --into -reres -reatm -addc 307 312 C -i *pdb
+                    python pdbmodify.py -mode rename -str 001 MRT 002 CD7 003 NA 004 WAT -i *pdb
 
-description
+    description
 
-options:
-  -h, --help            show this help message and exit
-  -i [INPUT ...], --input [INPUT ...]
-                        input pdb info
-  -move, --move         move
-  -p POS POS POS, --pos POS POS POS
-                        move position
-  -addc ADDCHAIN ADDCHAIN ADDCHAIN, --addchain ADDCHAIN ADDCHAIN ADDCHAIN
-                        add chain
-  -mol MOL, --mol MOL   move mol
-  -into, --into         move
-  -aresname, --assignresname
-                        assignresname
-  -reid, --refreshresid
-                        refreshresid
-  -reatm, --refreshatmtype
-                        refreshatmtype
-  -mode MODE, --mode MODE
-                        [rfile], [resnum], [rename]
-  -str [STRING ...], --string [STRING ...]
-                        rename data
-  -s SORT SORT, --sort SORT SORT
-                        sort
+    options:
+      -h, --help            show this help message and exit
+      -i [INPUT ...], --input [INPUT ...]
+                            input pdb info
+      -move, --move         move
+      -p POS POS POS, --pos POS POS POS
+                            move position
+      -addc ADDCHAIN ADDCHAIN ADDCHAIN, --addchain ADDCHAIN ADDCHAIN ADDCHAIN
+                            add chain
+      -mol MOL, --mol MOL   move mol
+      -into, --into         move
+      -aresname, --assignresname
+                            assignresname
+      -reid, --refreshresid
+                            refreshresid
+      -reatm, --refreshatmtype
+                            refreshatmtype
+      -mode MODE, --mode MODE
+                            [rfile], [resnum], [rename]
+      -str [STRING ...], --string [STRING ...]
+                            rename data
+      -s SORT SORT, --sort SORT SORT
+                            sort
 
-end
+    end
 
 ### addsolvfrag
-雛形ajfのフラグメント情報に、読み込んだPDBの追加溶媒情報を追加して、新たにajfを作成するモジュール
+    雛形ajfのフラグメント情報に、読み込んだPDBの追加溶媒情報を追加して、新たにajfを作成するモジュール
+    手動分割で溶媒の数が異なっている複数構造の調整の際に使用
 
-手動分割で溶媒の数が異なっている複数構造の調整の際に使用
 
-usage: e.g.)
-                python addsolvfrag.py -temp 6lu7-covneu-nowat-hinagata0514.ajf -solv HOH WAT NA -i *.pdb
-
-description
-
-options:
-  -h, --help            show this help message and exit
-  -i [INCOORD ...], --incoord [INCOORD ...]
-                        input frag info
-  -temp TEMPLATE, --template TEMPLATE
-                        template file
-  -solv [SOLVMOL ...], --solvmol [SOLVMOL ...]
-                        output config file
-  -pb, --solvation      parameter file
-  -th THICNV, --thicnv THICNV
-                        threshold
-  -arad ATMRAD, --atmrad ATMRAD
-                        atmrad
-  -ajfv AJFVERSION, --ajfversion AJFVERSION
-                        ajf version
-  -np NPRO, --npro NPRO
-                        ajf version
-  -nopieda, --nopieda   pieda
-  -cmm, --cmm           cmm
-  -nocpf, --nocpf       cpfflag
-  -cpfv CPFVER, --cpfver CPFVER
-                        cpf version
-  -basis BASISSET, --basisset BASISSET
-                        basis
-  -m METHOD, --method METHOD
-                        method
-  -ml, --mldat          mldat flag
-  -mll MLLIMIT, --mllimit MLLIMIT
-                        mldat fraglimit
-  -disp, --disp         flag disp
-  -dg, --dgemm          dgemm
-  -rp, --resp           resp
-  -nonbo, --nonbo       nonbo
-  -mem MEMORY, --memory MEMORY
-                        memory
-  -lc LIGANDCHARGE LIGANDCHARGE, --ligandcharge LIGANDCHARGE LIGANDCHARGE
-                        ligand charge
-  -rs RSOLV RSOLV, --rsolv RSOLV RSOLV
-                        rsolv
-  -ma, --manual         manual table
-  -bsse, --bsse         bsse
-
-end
+    usage: e.g.)
+                    python addsolvfrag.py -temp 6lu7-covneu-nowat-hinagata0514.ajf -solv HOH WAT NA -i *.pdb
+    description
+    options:
+      -h, --help            show this help message and exit
+      -i [INCOORD ...], --incoord [INCOORD ...]
+                            input frag info
+      -temp TEMPLATE, --template TEMPLATE
+                            template file
+      -solv [SOLVMOL ...], --solvmol [SOLVMOL ...]
+                            output config file
+      -pb, --solvation      parameter file
+      -th THICNV, --thicnv THICNV
+                            threshold
+      -arad ATMRAD, --atmrad ATMRAD
+                            atmrad
+      -ajfv AJFVERSION, --ajfversion AJFVERSION
+                            ajf version
+      -np NPRO, --npro NPRO
+                            ajf version
+      -nopieda, --nopieda   pieda
+      -cmm, --cmm           cmm
+      -nocpf, --nocpf       cpfflag
+      -cpfv CPFVER, --cpfver CPFVER
+                            cpf version
+      -basis BASISSET, --basisset BASISSET
+                            basis
+      -m METHOD, --method METHOD
+                            method
+      -ml, --mldat          mldat flag
+      -mll MLLIMIT, --mllimit MLLIMIT
+                            mldat fraglimit
+      -disp, --disp         flag disp
+      -dg, --dgemm          dgemm
+      -rp, --resp           resp
+      -nonbo, --nonbo       nonbo
+      -mem MEMORY, --memory MEMORY
+                            memory
+      -lc LIGANDCHARGE LIGANDCHARGE, --ligandcharge LIGANDCHARGE LIGANDCHARGE
+                            ligand charge
+      -rs RSOLV RSOLV, --rsolv RSOLV RSOLV
+                            rsolv
+      -ma, --manual         manual table
+      -bsse, --bsse         bsse
+    end
 
 
 ### cpfmanager
@@ -472,55 +471,55 @@ end
 ### 動的IFIE (Dynamical IFIE) 生成 generatedifie
 
 #### 概要
-指定した複数のcpfから、”平均、標準偏差をひとまとめにしたcpfファイル”を生成
-3D座標は指定した1構造を代表して表示
-最新のBiostation Viewerで読み込み可能 (テスト中)
+- 指定した複数のcpfから、”平均、標準偏差をひとまとめにしたcpfファイル”を生成
+- 3D座標は指定した1構造を代表して表示
+- 最新のBiostation Viewerで読み込み可能 (テスト中)
 
 #### インストール
-abmptoolsのgenerate_difie機能として公開
-git clone https://github.com/kojioku/abmptools.git
-cd abmptools/
-python setup.py install --user
+    abmptoolsのgenerate_difie機能として公開
+    git clone https://github.com/kojioku/abmptools.git
+    cd abmptools/
+    python setup.py install --user
 
 #### サンプルデータ
-abmptools/sample内に2例(TrpCage, CS4)  run.shで実行
-cd sample/
-cd generate_difie/
-cd TrpCage/
-bash run.sh
+    abmptools/sample内に2例(TrpCage, CS4)  run.shで実行
+    cd sample/
+    cd generate_difie/
+    cd TrpCage/
+    bash run.sh
 
 
 #### 実行
-python -m abmptools.generate_difie  オプション
+    python -m abmptools.generate_difie  オプション
 
-—------------------
-入力オプション
--i 入力cpf名  ※指定必須 (file-xxx-bbb.cpfの形、数字部分をxxxで表記）
--t 開始番号 終了番号　読込間隔 　※指定必須
--z ゼロ埋めの桁数 ※デフォルト: "1" (ゼロ埋めなし)
--s 代表構造の番号: 平均cpfの表示構造番号の指定　※デフォルト: 最初の構造(＝開始番号)
--f 対象フラグメントの指定:  周囲の水は入れ替わるため、タンパクとリガンド残基番号を手動指定　※デフォルト:  削除なし　半角ハイフンで範囲指定, 1-のみ可能
--v 出力バージョンの指定：現状はrev23のみ ※デフォルト"23"
--np 並列数
+    - 入力オプション
+        -i 入力cpf名  ※指定必須 (file-xxx-bbb.cpfの形、数字部分をxxxで表記）
+        -t 開始番号 終了番号　読込間隔 　※指定必須
+        -z ゼロ埋めの桁数 ※デフォルト: "1" (ゼロ埋めなし)
+        -s 代表構造の番号: 平均cpfの表示構造番号の指定　※デフォルト: 最初の構造(＝開始番号)
+        -f 対象フラグメントの指定:  周囲の水は入れ替わるため、タンパクとリガンド残基番号を手動指定　※デフォルト:  削除なし　半角ハイフンで範囲指定, 1-のみ可能
+        -v 出力バージョンの指定：現状はrev23のみ ※デフォルト"23"
+        -np 並列数
 
- 出力
-- DIFIEcpf本体 ("入力名-DIFIE.cpf")
-—----------------------
+    - 出力
+        - DIFIEcpf本体 ("入力名-DIFIE.cpf")
+
 
 ### 実行例
-`python -m abmptools.generate_difie -i egfr-HYZ_pr_xxx_fmo_mask-renamed-MP2-6-31Gd-nbo.cpf.gz -t 2 6 1 -z 1 -s 0 -f 1-323 -v 23 -np 5`
-`python -m abmptools.generate_difie -i TrpCage-xxx.cpf -t 1 5 1 -z 1 -s 0 -f 1-20 -v 23 -np 5`
-`python -m abmptools.generate_difie -i CS4_ligX_md1_xxxns_mod_mp2_631gd.cpf.gz -t 12 20 2 -z 1 -s 0 -f 1-299 -v 23 -np 5`
+    `python -m abmptools.generate_difie -i egfr-HYZ_pr_xxx_fmo_mask-renamed-MP2-6-31Gd-nbo.cpf.gz -t 2 6 1 -z 1 -s 0 -f 1-323 -v 23 -np 5`
+    `python -m abmptools.generate_difie -i TrpCage-xxx.cpf -t 1 5 1 -z 1 -s 0 -f 1-20 -v 23 -np 5`
+    `python -m abmptools.generate_difie -i CS4_ligX_md1_xxxns_mod_mp2_631gd.cpf.gz -t 12 20 2 -z 1 -s 0 -f 1-299 -v 23 -np 5`
+
 
 ### 出力書式
-M- (Mean), S- (STD)の接頭文字でヘッダー出力
+    M- (Mean), S- (STD)の接頭文字でヘッダー出力
+    
+    CPF Open1.0 rev23 DIFIE (Generated by ABMPTools 2024-01-16 23:48:59.894215)
+           304        20
+    M-MUL-HF M-MUL-MP2 M-NPA-HF M-NPA-MP2 M-ESP-HF M-ESP-MP2 S-MUL-HF S-MUL-MP2 S-NPA-HF S-NPA-MP2 S-ESP-HF S-ESP-MP2
+    DPM-HF-X DPM-HF-Y DPM-HF-Z DPM-MP2-X DPM-MP2-Y DPM-MP2-Z
+    NR HF MP2 MP3
+    M-Total M-NR M-HF M-ES M-MP2 M-SCS-MP2(Grimme) M-MP3 M-SCS-MP3(MP2.5) M-HF-BSSE M-MP2-BSSE M-SCS-MP2-BSSE M-MP3-BSSE M-SCS-MP3-BSSE M-EX M-CT M-DQ S-Total S-NR S-HF S-ES S-MP2 S-SCS-MP2(Grimme) S-MP3 S-SCS
+    -MP3(MP2.5) S-HF-BSSE S-MP2-BSSE S-SCS-MP2-BSSE S-MP3-BSSE S-SCS-MP3-BSSE S-EX S-CT S-DQ
 
-CPF Open1.0 rev23 DIFIE (Generated by ABMPTools 2024-01-16 23:48:59.894215)
-       304        20
-M-MUL-HF M-MUL-MP2 M-NPA-HF M-NPA-MP2 M-ESP-HF M-ESP-MP2 S-MUL-HF S-MUL-MP2 S-NPA-HF S-NPA-MP2 S-ESP-HF S-ESP-MP2
-DPM-HF-X DPM-HF-Y DPM-HF-Z DPM-MP2-X DPM-MP2-Y DPM-MP2-Z
-NR HF MP2 MP3
-M-Total M-NR M-HF M-ES M-MP2 M-SCS-MP2(Grimme) M-MP3 M-SCS-MP3(MP2.5) M-HF-BSSE M-MP2-BSSE M-SCS-MP2-BSSE M-MP3-BSSE M-SCS-MP3-BSSE M-EX M-CT M-DQ S-Total S-NR S-HF S-ES S-MP2 S-SCS-MP2(Grimme) S-MP3 S-SCS
--MP3(MP2.5) S-HF-BSSE S-MP2-BSSE S-SCS-MP2-BSSE S-MP3-BSSE S-SCS-MP3-BSSE S-EX S-CT S-DQ
-
-[!DIFIE](img/difie.png)
+![DIFIE](img/difie.png)
