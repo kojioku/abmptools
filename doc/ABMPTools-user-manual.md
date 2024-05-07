@@ -260,23 +260,60 @@ xxx_ifiesummol-mol-molidi-idistr.csv
     -t 開始番号　終了番号 間隔
 
 - 出力
+    - fragi-distr-ifiedt.csv 対象のフラグメント単体ペアのIFIE (時刻ごと)
 
+|-|I|J|DIST|DIMER-ES|HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|TIMES|
+|-|-|-|----|--------|-------|--------|--------|------|----|----|--|--|------|-------|-------|-----|
+|0|PJE311(310)|LEU27(27)|3.661634|0|0.125502|-0.171938|-0.166918|-0.125502|-0.102284|-0.163780|0.187172|0.004672|-0.066598|-0.171789|0.000221|100|
+|1|PJE311(310)|HIS41(41)|2.839272|0|1.250626|-1.506650|-1.433859|-1.254392|-1.127635|-1.125125|0.472950|1.778051|-1.000187|-1.506963|0.006989|100|
+|2|PJE311(310)|PHE140(140)|2.675780|0|-0.088479|-2.649345|-2.532001|-2.158005|-1.912022|-2.073919|-1.104702|2.332716|-1.316674|-2.649320|-0.012656|100|
+|3|PJE311(310)|LEU141(141)|2.057548|0|-8.572408|-3.326428|-3.231674|-2.605420|-2.245229|-2.815008|-11.569676|5.224549|-2.227418|-3.326582|0.023936|100|
+|4|PJE311(310)|ASN142(142)|2.491730|0|3.468245|-5.085337|-4.885162|-4.090107|-3.592492|-4.086342|1.724414|3.380922|-1.637174|-5.085337|0.013705|100|
+|5|PJE311(310)|GLY143(143)|3.065182|0|0.512048|-0.560366|-0.542168|-0.436119|-0.374623|-0.478790|0.224691|0.051412|0.235970|-0.560092|0.000268|100|
+|6|PJE311(310)|SER144(144)|2.572440|0|0.332580|-2.026856|-1.941514|-1.658508|-1.474647|-1.571284|0.859822|0.611152|-1.138180|-2.026809|0.005500|100|
+|7|PJE311(310)|CYS145(145)|0.000000|0|0.000000|0.000000|0.000000|0.000000|0.000000|0.000000||||||100|
+|8|PJE311(310)|GLY146(146)|3.515848|0|1.091239|-0.495733|-0.473142|-0.402861|-0.356425|-0.390938|0.954076|0.027657|0.109643|-0.496003|0.001026|100|
+|9|PJE311(310)|HIS163(163)|2.103530|0|-9.427076|-4.167918|-3.992843|-3.307603|-2.877131|-3.440635|-12.660462|5.725049|-2.491843|-4.168072|-0.025862|100|
+|10|PJE311(310)|HIS164(164)|3.957990|0|-1.525476|-0.472515|-0.449297|-0.378388|-0.330698|-0.384036|-1.165180|-0.000111|-0.359885|-0.472670|0.001293|100|
 
-#### selectmolids
-分子 i-j からの距離r以内の相互作用
+    - fragi-distr-ifiesum.csv 対象のフラグメント単体ペアのIFIE (時刻ごとの合計)
 
-
+|-|HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|DimerEnergy(2-1)|HF-BSSE|MP2-BSSE|MonomerEnergy(1)|
+|-|-------|--------|--------|------|----|----|--|--|------|-------|-------|----------------|-------|--------|---------------|
+|100|-51.020917|-42.938594|-41.391783|-34.376227|-30.094102|-34.829916|-79.133890|59.399802|-31.287967|-42.939307|0.086640||0.000000|0.000000|
+|1100|-45.781212|-40.052050|-38.429938|-32.244577|-28.342095|-32.117192|-57.886142|38.425953|-26.321731|-40.050398|0.030896||0.000000|0.000000|
+|2100|-35.330669|-41.331542|-39.777829|-32.725249|-28.423044|-34.262647|-73.418502|75.503551|-37.416453|-41.331105|0.039566||0.000000|0.000000|
+|3100|-51.484019|-32.736544|-31.472740|-26.209818|-22.944258|-26.556203|-61.744878|34.014306|-23.752203|-32.737827|0.052560||0.000000|0.000000|
 
 #### multi-fragid-fragid
-frag i とjのIFIEの時系列変化
+frag i とj(単体指定)のIFIEの時系列変化
 
-    python -m abmptools.getifiepieda --multi 1-100 101-200 -t 100 3100 1000 -i '["6lu7orig_md040j8_163neu", -hopt-ps-mod_forabmp_192n-2p-24t.log"]' --exclude 102 -np 4
-    python -m abmptools.getifiepieda --multi 1-100 101-200 -t 100 3100 1000 -ix 6lu7orig_md040j8_163neuxxx-hopt-ps-mod_forabmp_192n-2p-24t.log --exclude 102 -np 4
+    python -m abmptools.getifiepieda --multi 1 101 -t 100 3100 1000 -i '["1l2y-", "-hopt-ps-mod_forabmp_192n-2p-24t.log"]' --exclude 102 -np 4
+    python -m abmptools.getifiepieda --multi 1 101 -t 100 3100 1000 -ix 1l2y-xxx-hopt-ps-mod_forabmp_192n-2p-24t.log --exclude 102 -np 4
 
-    python -m abmptools.getifiepieda --multi 20 --molname WAT -d 8.0 -t 100 3100 1000 -i '["6lu7orig_md040j8_163neu", "-hopt-ps-mod_forabmp_192n-2p-24t.log"]' --exclude 102 -np 4
+|-|I|J|DIST|DIMER-ES|HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|
+|-|-|-|----|--------|-------|--------|--------|------|----|----|--|--|------|-------|-------|
+|100|PJE311(310)|HIS41(41)|2.839272|0|1.250626|-1.506650|-1.433859|-1.254392|-1.127635|-1.125125|0.472950|1.778051|-1.000187|-1.506963|0.006989|
+|1100|PJE311(310)|HIS41(41)|2.872523|0|0.801330|-1.345380|-1.282629|-1.108809|-0.990838|-1.027233|0.434798|1.292914|-0.926495|-1.345674|0.005414|
+|2100|PJE311(310)|HIS41(41)|3.541479|0|-0.078439|-1.024096|-0.973267|-0.834588|-0.739834|-0.800075|0.241795|0.289265|-0.609326|-1.023895|0.004512|
+|3100|PJE311(310)|HIS41(41)|3.020180|0|1.555596|-1.914532|-1.783382|-1.585717|-1.421309|-1.445154|0.997147|2.091160|-1.532707|-1.914223|0.010777|
+|4100|PJE311(310)|HIS41(41)|3.286906|0|-0.886671|-1.080571|-1.024723|-0.870356|-0.764934|-0.865963|-0.678428|0.419987|-0.628261|-1.080443|0.004824|
+|5100|PJE311(310)|HIS41(41)|2.743530|0|2.285390|-2.110942|-2.067016|-1.737574|-1.551204|-1.615210|0.618316|3.574962|-1.907958|-2.110877|0.009481|
+
 
 #### multi-fragid-molname
 frag i と分子AのIFIEの時系列変化
+
+    python -m abmptools.getifiepieda --multi 20 --molname WAT -d 8.0 -t 100 3100 1000 -i '["6lu7orig_md040j8_163neu", "-hopt-ps-mod_forabmp_192n-2p-24t.log"]' --exclude 102 -np 4
+
+|-|HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|
+|-|-------|--------|--------|------|----|----|--|--|------|-------|-------|
+|1700|-60.841441|-35.270428|-34.260137|-27.705173|-23.923173|-29.686848|-130.209592|102.751008|-33.378411|-35.270256|0.123733
+|2200|-84.277039|-31.714959|-30.613680|-25.431706|-22.287256|-25.647569|-114.673609|56.683863|-26.290034|-31.716089|0.099634
+|2700|-105.633070|-29.253239|-28.389158|-22.798676|-19.573277|-24.987429|-170.539890|98.662858|-33.756243|-29.253696|0.138081
+|3200|-116.114989|-28.104269|-27.287252|-22.173676|-19.210576|-23.452541|-162.763167|75.261902|-28.611254|-28.103367|0.086623
+|3700|-120.810643|-23.484544|-22.793656|-18.474508|-15.969490|-19.717604|-159.616780|64.032750|-25.227879|-23.485234|0.110387
+|4200|-139.041677|-30.624347|-29.770934|-23.596868|-20.088462|-26.703668|-206.489264|107.279775|-39.835033|-30.622384|0.109662
 
 
 #### multi_fragids-tfmatrix
@@ -285,7 +322,13 @@ frag i と分子AのIFIEの時系列変化
     -exclude 省く残基
     -np 読み込みの並列数`
 
-fragment i-j, k-l 間の時系列の相互作用の出力
+- 出力
+    - fragment iとk-l 間の時系列の相互作用の出力(i-jごとに1ファイル)
+
+|SER1(1)|GLY2(2)|PHE3(3)|ARG4(4)|LYS5(5)|MET6(6)|ALA7(7)|PHE8(8)|PRO9(9)|
+|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|100|-0.033885|0.001882|0.000627|-0.080321|-0.299949|0.007530|0.008785|-0.060240|0.026982|
+|1100|-0.249748|0.004392|0.026982|-0.333835|-0.655119|0.065260|0.010040|-0.082203|0.060240|
 
 
 ### pdb2fmo
@@ -299,19 +342,19 @@ fragment i-j, k-l 間の時系列の相互作用の出力
 ### ajf2config
 - フラグメント情報を読み込んで、pythonの辞書型に保存するモジュール
 - 各種フラグメント作成で使用
-- usage: `python ajf2config.py -i xxx.ajf yyy.ajf`
+- usage: `python -m abmptools.ajf2config -i xxx.ajf yyy.ajf`
 
 ### ajfserial
 - 雛形ajfから連番を作成する
-- e.g.) `python ~/fmodpd/abmptools/ajfserial.py -i 1eo8-ff14sb-xxxps-renamed-HF-STO-3G-nbo.ajf -t 100000 200000 5000 -str xxx`
+- e.g.) `python -m abmptools.ajfserial -i 1eo8-ff14sb-xxxps-renamed-HF-STO-3G-nbo.ajf -t 100000 200000 5000 -str xxx`
 
 ### generateajf
 - 指定したオプションのajfファイルを作成する
 
-e.g.) `python ~/fmodpd/abmptools/generateajf.py -c 1eo8-ff14sb-xxxps-renamed.pdb -cmm -mem 6000 -np 1 -lc NA 1 -rs Na 0.0 -basis STO-3G --method HF`
+e.g.) `python -m abmptools.generateajf -c 1eo8-ff14sb-xxxps-renamed.pdb -cmm -mem 6000 -np 1 -lc NA 1 -rs Na 0.0 -basis STO-3G --method HF`
 
 
-    usage: python generateajf.py -i xxx.pdb
+    usage: python -m abmptools.generateajf -i xxx.pdb
 
     generate ABNITMP input file (ajf)
 
@@ -359,14 +402,14 @@ e.g.) `python ~/fmodpd/abmptools/generateajf.py -c 1eo8-ff14sb-xxxps-renamed.pdb
 PDBの情報を編集するモジュール
 残基名の変更、残基番号、原子名のつけなおし、など
 
-e.g.) `python ~/fmodpd/abmptools/pdbmodify.py -mode rename -str ' NA' 'NA ' 'CYX' 'CYS' ' CL' 'CL ' -i \*pdb`
-e.g.) `python $abmptdir/pdbmodify.py -mode resnum -aresname -reatm -i cyc.pdb.1`
+e.g.) `python -m abmptools.pdbmodify -mode rename -str ' NA' 'NA ' 'CYX' 'CYS' ' CL' 'CL ' -i \*pdb`
+e.g.) `python -m abmptools.pdbmodify -mode resnum -aresname -reatm -i cyc.pdb.1`
 
     usage: e.g.)
-                    python pdbmodify.py -addc 307 312 C -i *.pdb
-                    python pdbmodify.py -move -p 10 10 10 -aresname -reid -reatm -addc 307 312 C -i *pdb
-                    python pdbmodify.py -move -mol 3 --into -reres -reatm -addc 307 312 C -i *pdb
-                    python pdbmodify.py -mode rename -str 001 MRT 002 CD7 003 NA 004 WAT -i *pdb
+                    python -m abmptools.pdbmodify -addc 307 312 C -i *.pdb
+                    python -m abmptools.pdbmodify -move -p 10 10 10 -aresname -reid -reatm -addc 307 312 C -i *pdb
+                    python -m abmptools.pdbmodify -move -mol 3 --into -reres -reatm -addc 307 312 C -i *pdb
+                    python -m abmptools.pdbmodify -mode rename -str 001 MRT 002 CD7 003 NA 004 WAT -i *pdb
 
     description
 
@@ -402,7 +445,7 @@ e.g.) `python $abmptdir/pdbmodify.py -mode resnum -aresname -reatm -i cyc.pdb.1`
 
 
     usage: e.g.)
-                    python addsolvfrag.py -temp 6lu7-covneu-nowat-hinagata0514.ajf -solv HOH WAT NA -i *.pdb
+                    python -m abmptools.addsolvfrag -temp xxx-temp.ajf -solv HOH WAT NA -i *.pdb
     description
     options:
       -h, --help            show this help message and exit
