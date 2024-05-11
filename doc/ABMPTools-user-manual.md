@@ -157,13 +157,13 @@ run.shで実行可能です。
 あるフラグメント群(i1-i2, j1-j2)間のIFIEを取得
 
 - 入力
-`python -m abmptools.getifiepieda --frag i1-i2 j1-j2 -i xxx.log`
---frag 基準フラグメント(i1-i2) 相手フラグメント(j1-j2)。 単体も可。範囲指定は-。
--i 入力ログファイル名
+    `python -m abmptools.getifiepieda --frag i1-i2 j1-j2 -i xxx.log`
+    - --frag 基準フラグメント(i1-i2) 相手フラグメント(j1-j2)。 単体も可。範囲指定は-。
+    - -i 入力ログファイル名
 
 - 出力
-log-fragi-fragj1-j2-ifie.csv
-i1-i2に対するj1-j2 のIFIEがiの各フラグメントごとに1ファイルで出力
+    - log-fragi-fragj1-j2-ifie.csv
+        - i1-i2に対するj1-j2 のIFIEがiの各フラグメントごとに1ファイルで出力
 
 | |I|J|DIST|DIMER-ES|HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -174,8 +174,8 @@ i1-i2に対するj1-j2 のIFIEがiの各フラグメントごとに1ファイル
 |4|02J307(307)|LYS5(5)|21.19564|1|-0.2660640|0.0|0.0|0.0|0.0|0.0|||||
 |5|02J307(307)|MET6(6)|26.868553|1|-0.002510|0.0|0.0|0.0|0.0|0.0|||||
 
-log-fragi1-i2-fragj1-j2n-1sum-ifie.csv
-i1-i2に対するj1-j2 のN:1 IFIEをまとめて出力
+    - log-fragi1-i2-fragj1-j2n-1sum-ifie.csv
+        - i1-i2に対するj1-j2 のN:1 IFIEをまとめて出力
 
 |   |I|J|HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|
 |---|---|---|-------|--------|--------|------|----|----|--|--|------|-------|---|
@@ -190,14 +190,14 @@ i1-i2に対するj1-j2 のN:1 IFIEをまとめて出力
 #### 基準フラグメント-指定距離間IFIE(frag_dist)
 指定フラグメント(i)を基準に、指定した距離(r)内のフラグメントとのIFIEを出力
 - 入力
-`python -m abmptools.getifiepieda --frag i(int) -d r(float) -i xxx.log`
+    `python -m abmptools.getifiepieda --frag i(int) -d r(float) -i xxx.log`
 
 - 出力
-frag i から指定距離rに含まれるフラグメントとのIFIEを1ファイルで出力
-log-i-ifie_distr.csv
+    - frag i から指定距離rに含まれるフラグメントとのIFIEを1ファイルで出力
+    - log-i-ifie_distr.csv
 
 - サンプル
-sample/getifiepieda/frag_dist
+    - sample/getifiepieda/frag_dist
 
 | |I|J|DIST|DIMER-ES|HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|
 |-|-|-|----|--------|-------|--------|--------|------|----|----|--|--|------|-------|-------|
@@ -210,15 +210,15 @@ sample/getifiepieda/frag_dist
 
 
 #### 基準分子-指定距離間IFIE(mol-dist)
-    分子 i からの距離r以内にあるフラグメントの相互作用を出力
-    - 入力
+分子 i からの距離r以内にあるフラグメントの相互作用を出力
+- 入力
     `python -m getifiepieda --mol i(int) -d r(float) -i xxx.log`
-    --mol 基準分子(i)  'i1-i2' の形で、複数分子i1-i2に対して一括で出力することも可能
-    -d 距離(r)
-    -i 入力ログファイル
+    - --mol 基準分子(i)  'i1-i2' の形で、複数分子i1-i2に対して一括で出力することも可能
+    - -d 距離(r)
+    - -i 入力ログファイル
 
-    - 出力
-    xxx_ifie-fragmol-molidi-idistr.csv
+- 出力
+- xxx_ifie-fragmol-molidi-idistr.csv
 
 ||I|J|DIST|DIMER-ES|HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|
 |-|-|-|----|--------|-------|--------|--------|------|----|----|--|--|------|-------|-------|
@@ -229,7 +229,7 @@ sample/getifiepieda/frag_dist
 |4|NA4(17)|CD71(5)|4.620488|0|-3.423064|-1.019075|-0.963855|-0.884161|-0.816390|-0.687750|-2.011678|-0.003013|-1.408399|-1.018930|0.026662|
 |5|NA4(17)|CD71(6)|7.365636|1|2.518823|0.000000|0.000000|0.000000|0.000000|0.000000|2.518628|0.000000|0.000000|0.000000|0.000000|
 
-xxx_ifiemol-mol-molidi-idistr.csv
+- xxx_ifiemol-mol-molidi-idistr.csv
 
 ||I|J|HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|PR_TYPE1|
 |-|-|-------|--------|--------|------|----|----|--|--|------|-------|-------|--------|-|
@@ -240,7 +240,7 @@ xxx_ifiemol-mol-molidi-idistr.csv
 |4|[27]|"[1,2,3,4,5,6,7,8,9,10,11,12,13,14]"|-12.932971|-2.766689||-2.151103|-1.842995|-2.373869|-22.762547|13.364711|-3.535093|-2.766748|0.025231|-2.690761|
 
 
-xxx_ifiesummol-mol-molidi-idistr.csv
+- xxx_ifiesummol-mol-molidi-idistr.csv
 
 | |HF-IFIE|MP2-IFIE|PR-TYPE1|GRIMME|JUNG|HILL|ES|EX|CT-mix|DI(MP2)|q(I=>J)|
 |-|-|----|--------|-------|--------|--------|------|----|----|--|--|
@@ -257,9 +257,9 @@ xxx_ifiesummol-mol-molidi-idistr.csv
 #### 多サンプル: 基準フラグメントから指定距離以内の時系列相互作用(multi-fragid-dist)
 - 入力
     `python -m abmptools.getifiepieda --multi 10 -d 8.0 -t 100 3100 1000 -i '["aaa", "-bbb.log"]' --exclude 102 -np 4`
-    --multi 対象フラグメント(int)
-    -d 距離(r)
-    -t 開始番号　終了番号 間隔
+    - --multi 対象フラグメント(int)
+    - -d 距離(r)
+    - -t 開始番号　終了番号 間隔
 
 - 出力
     - fragi-distr-ifiedt.csv 対象のフラグメント単体ペアのIFIE (時刻ごと)
