@@ -789,10 +789,17 @@ class anlfmo(pdio.pdb_io):
         ctdf = pd.DataFrame(index=self.tgt2frag)
         count = 0
 
-        if mydf == None:
-            df = self.pidf
-        else:
-            df = mydf
+        try:
+            if mydf is None:
+                df = self.pidf
+            else:
+                df = mydf
+        except ValueError:
+            if mydf.empty:
+                df = self.pidf
+            else:
+                df = mydf
+
         for f1 in self.tgt1frag:
             wodimesapr_id = []
             tgtdf1 = df[(df['I'] == f1)].rename(columns={'I':'J', 'J':'I'})
@@ -877,10 +884,17 @@ class anlfmo(pdio.pdb_io):
         distdf = pd.DataFrame(index=self.tgt2frag)
         solvesdf = pd.DataFrame(index=self.tgt2frag)
 
-        if mydf == None:
-            df = self.ifdf
-        else:
-            df = mydf
+        try:
+            if mydf is None:
+                df = self.ifdf
+            else:
+                df = mydf
+        except ValueError:
+            if mydf.empty:
+                df = self.ifdf
+            else:
+                df = mydf
+
         count = 0
 
         if self.logMethod in ['MP2', 'HF+D']:
@@ -1366,8 +1380,8 @@ class anlfmo(pdio.pdb_io):
         ifdf_frag_mols = []
         for contactmolfrag in contactmolfrags:
             ifie_frag_mol = df[(df['I'].isin(contactmolfrag) & df['J'].isin(molfrags)) | (df['J'].isin(contactmolfrag) & df['I'].isin(molfrags))]
-            # ifdf_frag_mols.append(ifie_frag_mol)
-            ifdf_frag_mols = pd.concat([ifdf_frag_mols, ifie_frag_mol])
+            ifdf_frag_mols.append(ifie_frag_mol)
+            # ifdf_frag_mols = pd.concat([ifdf_frag_mols, ifie_frag_mol])
 
         #pieda
         for i in range(len(ifdf_frag_mols)):
@@ -1412,7 +1426,7 @@ class anlfmo(pdio.pdb_io):
         ifdf_mol_mol['J'] = [molfrags for i in range(len(HF_IFIE_sums))]
         ifdf_mol_mol['HF-IFIE'] = HF_IFIE_sums
         ifdf_mol_mol['MP2-IFIE'] = MP2_IFIE_sums
-        ifdf_mol_mol['PR_TYPE1'] = PR_TYPE1_sums
+        ifdf_mol_mol['PR-TYPE1'] = PR_TYPE1_sums
         ifdf_mol_mol['GRIMME'] = GRIMME_sums
         ifdf_mol_mol['JUNG'] = JUNG_sums
         ifdf_mol_mol['HILL'] = HILL_sums
@@ -1562,7 +1576,7 @@ class anlfmo(pdio.pdb_io):
                 # print('DIMER Energy', itemList)
                 dimene.append(itemList)
 
-            if momflag:
+            if momflag and (self.anlmode != 'mol' and self.anlmode != 'fraginmol'):
                 # print(itemList)
                 momcount += 1
                 if momcount == 1 + int(self.tgt1frag[0]):
@@ -1614,7 +1628,7 @@ class anlfmo(pdio.pdb_io):
 
         if not flag and not pflag and not bsseflag:
             print("can't read ifie", fname.split("/")[-1])
-            return [], [], [], []
+            return [], [], [], [], []
 
         for i in range(len(ifie)):
             if float(ifie[i][4]) < -2:
@@ -1951,7 +1965,6 @@ class anlfmo(pdio.pdb_io):
             dimene_tgt = None
             dimlabel = 'DimerEnergy(' + str(self.dimfrag1) + '-' + str(self.dimfrag2) + ')'
 
-
         ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum, momene_tgt, dimene_tgt, HF_BSSE_sum, MP2_BSSE_sum], index=self.ifdfsumcolumn + [momlabel, dimlabel] + ['HF-BSSE', 'MP2-BSSE'], name=self.tgttimes[i])
         # print(ifdfsum)
 
@@ -2052,7 +2065,7 @@ class anlfmo(pdio.pdb_io):
 
         # MP3 case
         if self.logMethod == 'MP3':
-            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'USER-MP2', 'MP3-IFIE','USER-MP3', 'PADE[2/1]' ]
+            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'USER-MP2', 'MP3-IFIE','USER-MP3', 'PADE[2/1]']
 
             ifdf = pd.DataFrame(columns=self.icolumn)
             ifdf['I'] = copy.deepcopy(ifi[:ifpair[0]])
@@ -2345,7 +2358,7 @@ class anlfmo(pdio.pdb_io):
             self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE']
         elif self.logMethod == 'MP3':
             self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
-                            'USER-MP2', 'MP3-IFIE', 'USER-MP3', 'PADE[2/1]' ]
+                            'USER-MP2', 'MP3-IFIE', 'USER-MP3', 'PADE[2/1]']
         elif self.logMethod == 'CCPT':
             self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
                             'GRIMME-MP2', 'MP3-IFIE', 'GRIMME-MP3', 'MP4-IFIE']
@@ -2397,7 +2410,6 @@ class anlfmo(pdio.pdb_io):
             self.pidf = pidf
 
         return
-
 
     def readifiewrap(self, item1=None, item2=None, item3=None):
         '''read ifie and pieda
@@ -2862,7 +2874,11 @@ class anlfmo(pdio.pdb_io):
                 print('centermolfrag:', tgt1_glofrag)
                 print('tgt2molname', tgt2molname)
                 tgtdf = df[df['I'] == tgt1_glofrag]
-                tgtdf = tgtdf.append(df[df['J'] == tgt1_glofrag])
+                # tgtdf = tgtdf.append(df[df['J'] == tgt1_glofrag])
+
+                filtered_df = df[df['J'] == tgt1_glofrag]
+                tgtdf = pd.concat([tgtdf, filtered_df])
+
                 tgtdf = tgtdf[tgtdf['DIST'] < self.dist]
                 tgtdf = tgtdf[tgtdf['DIST'] != 0.0]
 
@@ -2872,7 +2888,8 @@ class anlfmo(pdio.pdb_io):
 
                 # PIEDA
                 ifdf_filter = pd.merge(tgtdf_filter, self.pidf, on=['I', 'J'], how='left')
-                ifdf_filters = ifdf_filters.append(ifdf_filter)
+                ifdf_filters = pd.concat([ifdf_filters, ifdf_filter])
+
 
                 # print(ifdf_filter)
                 HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, \
@@ -2883,7 +2900,8 @@ class anlfmo(pdio.pdb_io):
                                      GRIMME_sum, JUNG_sum, HILL_sum, ES_sum,
                                      EX_sum, CT_sum, DI_sum, q_sum],
                                     index=self.ifdfsumcolumn, name='mol' + str(tgtmol+1))
-                ifdfsums = ifdfsums.append(ifdfsum)
+                # ifdfsums = ifdfsums.append(ifdfsum)
+                ifdfsums = pd.concat([ifdfsums, ifdfsum])
 
             # self.tgt1_glofrag = tgt1_glofrags
             # self.tgt2_glofrags = tgt2_glofrags

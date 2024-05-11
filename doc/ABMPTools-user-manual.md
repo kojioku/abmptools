@@ -213,7 +213,7 @@ sample/getifiepieda/frag_dist
     分子 i からの距離r以内にあるフラグメントの相互作用を出力
     - 入力
     `python -m getifiepieda --mol i(int) -d r(float) -i xxx.log`
-    --mol 基準分子(i)
+    --mol 基準分子(i)  'i1-i2' の形で、複数分子i1-i2に対して一括で出力することも可能
     -d 距離(r)
     -i 入力ログファイル
 
@@ -250,6 +250,8 @@ xxx_ifiesummol-mol-molidi-idistr.csv
 #### 指定フラグメント種間のIFIE (fraginmol)
 - 分子iのj番目のフラグメントと、分子名STRのk番目のフラグメント間の相互作用
 - `python -m abmptools.getifiepieda --fraginmol i j WAT k -i xxx.log`
+- 'ii-i2' の形で、複数分子i1-i2に対して一括で出力することも可能
+
 
 
 #### 多サンプル: 基準フラグメントから指定距離以内の時系列相互作用(multi-fragid-dist)
