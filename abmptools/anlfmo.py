@@ -194,7 +194,7 @@ class anlfmo(pdio.pdb_io):
         for idx in idxs:
             tgtdf = df[df['I'] == idx]
             # tgtdf = tgtdf.append(df[df['J'] == idx])
-            tgtdf = pd.concat([tgtdf, df[df['J'] == idx]], ignore_index=True)
+            tgtdf = pd.concat([tgtdf, df[df['J'] == idx]])
             tgtdf_zero = tgtdf[tgtdf['DIST'] == 0.]
             # print(tgtdf_zero)
             neighbor_i = [index for index, row in tgtdf_zero.groupby("I")]
@@ -798,7 +798,7 @@ class anlfmo(pdio.pdb_io):
             tgtdf1 = df[(df['I'] == f1)].rename(columns={'I':'J', 'J':'I'})
             tgtdf2 = df[(df['J'] == f1)]
             # tgtdf = tgtdf1.append(tgtdf2)
-            tgtdf = pd.concat([tgtdf1, tgtdf2], ignore_index=True)
+            tgtdf = pd.concat([tgtdf1, tgtdf2])
             # print(tgtdf)
 
             tgtfrags = copy.deepcopy(self.tgt2frag)
@@ -894,7 +894,7 @@ class anlfmo(pdio.pdb_io):
                 tgtdf1 = df[(df['I'] == f1)].rename(columns={'I':'J', 'J':'I'})
                 tgtdf2 = df[(df['J'] == f1)]
                 # tgtdf = tgtdf1._append(tgtdf2)
-                tgtdf = pd.concat([tgtdf1, tgtdf2], ignore_index=True)
+                tgtdf = pd.concat([tgtdf1, tgtdf2])
                 # print(tgtdf)
 
                 tgtfrags = copy.deepcopy(self.tgt2frag)
@@ -912,9 +912,7 @@ class anlfmo(pdio.pdb_io):
                         [0 for i in range(len(tgtdf_filter.columns)-2)],
                         index=tgtdf_filter.columns).T
                     # tgtdf_filter = tgtdf_filter.append(adddf).sort_values('I')
-                    tgtdf_filter = pd.concat(
-                        [tgtdf_filter, adddf],
-                        ignore_index=True).sort_values('I')
+                    tgtdf_filter = pd.concat([tgtdf_filter, adddf]).sort_values('I')
                 print(tgtdf_filter.head())
 
                 hfifie = 0
@@ -1167,7 +1165,7 @@ class anlfmo(pdio.pdb_io):
         fragids = []
         tgtdf1 = df[(df['I'] == f1)].rename(columns={'I':'J', 'J':'I'})
         tgtdf2 = df[(df['J'] == f1)]
-        tgtdf = tgtdf1.append(tgtdf2)
+        tgtdf = pd.concat([tgtdf1, tgtdf2])
 
         tgtfrags = copy.deepcopy(tgt2frag)
         try:
@@ -1180,7 +1178,8 @@ class anlfmo(pdio.pdb_io):
         if f1 in tgt2frag:
             # print ([i for i in range(len(tgtdf_filter.columns))])
             adddf = pd.DataFrame([f1, f1]+ [0 for j in range(len(tgtdf_filter.columns)-2)], index=tgtdf_filter.columns).T
-            tgtdf_filter = tgtdf_filter.append(adddf).sort_values('I')
+            # tgtdf_filter = tgtdf_filter.append(adddf).sort_values('I')
+            tgtdf_filter = pd.concat([tgtdf_filter, adddf]).sort_values('I')
         # print(tgtdf_filter.head())
 
         hfifie = 0
@@ -1231,7 +1230,8 @@ class anlfmo(pdio.pdb_io):
 
         tgtdf1 = df[(df['I'] == f1)].rename(columns={'I':'J', 'J':'I'})
         tgtdf2 = df[(df['J'] == f1)]
-        tgtdf = tgtdf1.append(tgtdf2)
+        # tgtdf = tgtdf1.append(tgtdf2)
+        tgtdf = pd.concat([tgtdf1, tgtdf2])
             # print(tgtdf)
 
         tgtfrags = copy.deepcopy(tgt2frag)
@@ -1366,7 +1366,8 @@ class anlfmo(pdio.pdb_io):
         ifdf_frag_mols = []
         for contactmolfrag in contactmolfrags:
             ifie_frag_mol = df[(df['I'].isin(contactmolfrag) & df['J'].isin(molfrags)) | (df['J'].isin(contactmolfrag) & df['I'].isin(molfrags))]
-            ifdf_frag_mols.append(ifie_frag_mol)
+            # ifdf_frag_mols.append(ifie_frag_mol)
+            ifdf_frag_mols = pd.concat([ifdf_frag_mols, ifie_frag_mol])
 
         #pieda
         for i in range(len(ifdf_frag_mols)):
@@ -1404,7 +1405,7 @@ class anlfmo(pdio.pdb_io):
             DI_sums.append(DI_sum)
             q_sums.append(q_sum)
 
-        ifdf_mol_mol = pd.DataFrame(columns=self.ifdfsumcolumn)
+        ifdf_mol_mol = pd.DataFrame(columns=self.ifdfsumcolumn).astype(float)
         # self.ifdfsumcolumn = ['HF-IFIE', 'MP2-IFIE', 'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'q(I=>J)']
 
         ifdf_mol_mol['I'] = contactmolfrags
@@ -2273,20 +2274,20 @@ class anlfmo(pdio.pdb_io):
                 self.ifdf_filters = pd.DataFrame()
                 for dfs in ifpidfs:
                     # self.ifdf_filters = self.ifdf_filters.append(dfs)
-                    self.ifdf_filters = pd.concat([self.ifdf_filters, dfs], ignore_index=True)
+                    self.ifdf_filters = pd.concat([self.ifdf_filters, dfs])
 
         if self.tgt2type in ['dist', 'dimer-es']:
             self.ifdf_filters = pd.DataFrame()
-            self.ifdfsum = pd.DataFrame(columns=self.ifdfsumcolumn)
+            self.ifdfsum = pd.DataFrame(columns=self.ifdfsumcolumn).astype(float)
 
             for dfs in ifpidfs:
-                # for j in dfs:
-                #   print('aaaaa', j)
                 self.ifdf_filters = pd.concat([self.ifdf_filters,
-                                               dfs[0]], ignore_index=True)
+                                               dfs[0]])
                 sumdf = dfs[1].to_frame().T
-                self.ifdfsum = pd.concat([self.ifdfsum, sumdf],
-                                         ignore_index=True)
+                sumdf = sumdf.dropna(axis=1, how='all')  # drop nacolum
+                self.ifdfsum = pd.concat([self.ifdfsum, sumdf])
+
+            print(self.ifdfsum)
 
         if self.tgt2type in ['molname']:
             self.ifdf_filters = []
@@ -2297,17 +2298,17 @@ class anlfmo(pdio.pdb_io):
             # i:time, j:frag
             for j in range(nfrag):
                 ifdf_filter = pd.DataFrame()
-                ifdfsum = pd.DataFrame(columns=self.ifdfsumcolumn)
+                ifdfsum = pd.DataFrame(columns=self.ifdfsumcolumn).astype(float)
                 for i in range(len(ifpidfs)):
                     # ifdf_filter = ifdf_filter.append(ifpidfs[i][0][j])
                     # ifdfsum = ifdfsum.append(ifpidfs[i][1][j])
 
                     ifdf_filter = pd.concat(
-                        [ifdf_filter, ifpidfs[i][0][j]],
-                        ignore_index=True)
+                        [ifdf_filter, ifpidfs[i][0][j]])
 
                     sumdf = ifpidfs[1][1][j].to_frame().T
-                    ifdfsum = pd.concat([ifdfsum, sumdf], ignore_index=True)
+                    sumdf = sumdf.dropna(axis=1, how='all')
+                    ifdfsum = pd.concat([ifdfsum, sumdf])
 
                 self.ifdf_filters.append(ifdf_filter)
                 self.ifdfsum.append(ifdfsum)
@@ -2347,7 +2348,7 @@ class anlfmo(pdio.pdb_io):
                             'USER-MP2', 'MP3-IFIE', 'USER-MP3', 'PADE[2/1]' ]
         elif self.logMethod == 'CCPT':
             self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
-                            'GRIMME-MP2', 'MP3-IFIE', 'GRIMME-MP3', 'MP4-IFIE' ]
+                            'GRIMME-MP2', 'MP3-IFIE', 'GRIMME-MP3', 'MP4-IFIE']
         self.getpbflag(self.tgtlogs)
 
         # self.logMethod = 'MP2'
@@ -2773,13 +2774,13 @@ class anlfmo(pdio.pdb_io):
             # IFIE and pieda
             ifdf_frag_mols = pd.DataFrame()
             ifdfmol_mols = pd.DataFrame(columns=['I', 'J'] + self.ifdfsumcolumn)
-            ifdfmolsums = pd.DataFrame(columns=self.ifdfsumcolumn)
+            ifdfmolsums = pd.DataFrame(columns=self.ifdfsumcolumn).astype(float)
 
             for i in range(len(self.tgtmolfrags)):
                 contactmolfrags, ifdf_frag_mol, ifdfmol_mol, ifdfmolsum = \
                     self.getifiesummol(df, tgtmolfrags[i], self.tgtmolid[i])
 
-                ifdf_frag_mol = pd.concat(ifdf_frag_mol, ignore_index=True)
+                ifdf_frag_mol = pd.concat(ifdf_frag_mol)
 
                 # self.contactmolfrags = contactmolfrags
                 print('ifdf_frag_mol', ifdf_frag_mol)  # list
@@ -2795,17 +2796,15 @@ class anlfmo(pdio.pdb_io):
                 # ifdfmolsums = ifdfmolsums.append(ifdfmolsum)
 
                  # ifdf_frag_molsにifdf_frag_molを結合
-                ifdf_frag_mols = pd.concat([ifdf_frag_mols, ifdf_frag_mol],
-                                           ignore_index=True)
+                ifdf_frag_mols = pd.concat([ifdf_frag_mols, ifdf_frag_mol])
                 print('ifdf_frag_mols', type(ifdf_frag_mols))
 
                 # ifdfmol_molsにifdfmol_molを結合
-                ifdfmol_mols = pd.concat([ifdfmol_mols, ifdfmol_mol],
-                                         ignore_index=True)
+                ifdfmol_mols = pd.concat([ifdfmol_mols, ifdfmol_mol])
                 # ifdfmolsumsにifdfmolsumを結合
                 ifdfmolsum = ifdfmolsum.to_frame().T
-                ifdfmolsums = pd.concat([ifdfmolsums, ifdfmolsum],
-                                        ignore_index=True)
+                ifdfmolsum = ifdfmolsum.dropna(axis=1, how='all')
+                ifdfmolsums = pd.concat([ifdfmolsums, ifdfmolsum])
 
             self.ifdf_frag_mols = ifdf_frag_mols
             print('ifdf_frag_mols', ifdf_frag_mols)
@@ -2817,7 +2816,7 @@ class anlfmo(pdio.pdb_io):
         # fraginmol mode
         if self.anlmode == 'fraginmol':
             ifdf_filters = pd.DataFrame()
-            ifdfsums = pd.DataFrame(columns=self.ifdfsumcolumn)
+            ifdfsums = pd.DataFrame(columns=self.ifdfsumcolumn).astype(float)
 
             df = self.ifdf
             tgt1_lofrag = self.tgt1_lofrag
