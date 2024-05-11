@@ -43,54 +43,22 @@ Overview
 - numpy
 - pandas
 - (Optional) OCTA UDFManager
+- (Optional) gfortran
 
 ## Usage
-
- `python -m abmptools.addsolvfrag`
- `python -m abmptools.generateajf`
- `python -m abmptools.getifiepieda`
- `python -m abmptools.pdb2fmo`
- `python -m abmptools.pdbmodify`
- `python -m abmptools.pdbread`
- `python -m abmptools.setupserialpdb`
- `python -m abmptools.udf2fmo`
-
+[Documentをご参照ください](doc/ABMPTools-user-manual.md)
 
 ## Install
 `python setup.py install`
 
+<!--
 ## Contribution
-
 ## Licence
+-->
 
 ## Author
-
 [Koji Okuwaki](koujioku81@gmail.com)
 
 ## example
-sampleディレクトリに各種サンプルを配置
-各ディレクトリrun.shで実行可能です。
-
-addsolvfrag.py
-ajf2config.py
-ajfserial.py
-anlfmo.py
-convertcpf.py
-cpfmanager.py
-generate_difie.py
-generateajf.py
-getcharge.py
-getifiepieda.py
-log2cpf.py
-logmanager.py
-mol_io.py
-molcalc.py
-pdb2fmo.py
-pdb_io.py
-pdbmodify.py
-readcif.py
-setfmo.py
-udf2fmo.py
-udf_io.py
-udfcreate.py
-udfrm_io.py
+- sampleディレクトリに各種サンプルを配置
+- 各ディレクトリ内run.shで実行可能
