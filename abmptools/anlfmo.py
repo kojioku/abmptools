@@ -2272,7 +2272,8 @@ class anlfmo(pdio.pdb_io):
             else:
                 self.ifdf_filters = pd.DataFrame()
                 for dfs in ifpidfs:
-                    self.ifdf_filters = self.ifdf_filters.append(dfs)
+                    # self.ifdf_filters = self.ifdf_filters.append(dfs)
+                    self.ifdf_filters = pd.concat([self.ifdf_filters, dfs], ignore_index=True)
 
         if self.tgt2type in ['dist', 'dimer-es']:
             self.ifdf_filters = pd.DataFrame()
@@ -2280,9 +2281,12 @@ class anlfmo(pdio.pdb_io):
 
             for dfs in ifpidfs:
                 # for j in dfs:
-                    # print('aaaaa', j)
-                self.ifdf_filters = self.ifdf_filters.append(dfs[0])
-                self.ifdfsum = self.ifdfsum.append(dfs[1])
+                #   print('aaaaa', j)
+                self.ifdf_filters = pd.concat([self.ifdf_filters,
+                                               dfs[0]], ignore_index=True)
+                sumdf = dfs[1].to_frame().T
+                self.ifdfsum = pd.concat([self.ifdfsum, sumdf],
+                                         ignore_index=True)
 
         if self.tgt2type in ['molname']:
             self.ifdf_filters = []
@@ -2295,11 +2299,23 @@ class anlfmo(pdio.pdb_io):
                 ifdf_filter = pd.DataFrame()
                 ifdfsum = pd.DataFrame(columns=self.ifdfsumcolumn)
                 for i in range(len(ifpidfs)):
-                    ifdf_filter = ifdf_filter.append(ifpidfs[i][0][j])
-                    ifdfsum = ifdfsum.append(ifpidfs[i][1][j])
+                    # ifdf_filter = ifdf_filter.append(ifpidfs[i][0][j])
+                    # ifdfsum = ifdfsum.append(ifpidfs[i][1][j])
+
+                    ifdf_filter = pd.concat(
+                        [ifdf_filter, ifpidfs[i][0][j]],
+                        ignore_index=True)
+
+                    sumdf = ifpidfs[1][1][j].to_frame().T
+                    ifdfsum = pd.concat([ifdfsum, sumdf], ignore_index=True)
 
                 self.ifdf_filters.append(ifdf_filter)
                 self.ifdfsum.append(ifdfsum)
+
+#                self.ifdf_filters = pd.concat([self.ifdf_filters,
+#                                               ifdf_filter], ignore_index=True)
+#                self.ifdfsum = pd.concat([self.ifdfsum, ifdfsum],
+#                                         ignore_index=True)
 
             # print(self.ifdf_filters)
             # print(self.ifdfsum)
