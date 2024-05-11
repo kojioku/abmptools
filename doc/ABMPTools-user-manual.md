@@ -333,24 +333,8 @@ frag i と分子AのIFIEの時系列変化
 |1100|-0.249748|0.004392|0.026982|-0.333835|-0.655119|0.065260|0.010040|-0.082203|0.060240|
 
 
-### pdb2fmo
-- pdbにフラグメント情報を割り当てて、FMO実行可能なajf, pdbセットを作成するモジュール
-- 中分子分散体やポリマーのpdb構造に、フラグメントを割り当てる際に主に使用。
-- 1分子ずつのフラグメント情報を事前に準備する必要有
-
-### udf2fmo
-- udfにフラグメント情報を割り当てて、FMO実行可能なajfを作成するモジュール
-
-### ajf2config
-- フラグメント情報を読み込んで、pythonの辞書型に保存するモジュール
-- 各種フラグメント作成で使用
-- usage: `python -m abmptools.ajf2config -i xxx.ajf yyy.ajf`
-
-### ajfserial
-- 雛形ajfから連番を作成する
-- e.g.) `python -m abmptools.ajfserial -i 1eo8-ff14sb-xxxps-renamed-HF-STO-3G-nbo.ajf -t 100000 200000 5000 -str xxx`
-
 ### generateajf
+#### 概要
 - 指定したオプションのajfファイルを作成する
 
 e.g.) `python -m abmptools.generateajf -c 1eo8-ff14sb-xxxps-renamed.pdb -cmm -mem 6000 -np 1 -lc NA 1 -rs Na 0.0 -basis STO-3G --method HF`
@@ -399,6 +383,163 @@ e.g.) `python -m abmptools.generateajf -c 1eo8-ff14sb-xxxps-renamed.pdb -cmm -me
                             manual table
       -bsse, --bsse         bsse
 
+#### サンプル
+- sample/generateajf
+- run.sh にて実行可
+
+
+### cpfmanager
+#### 概要
+- cpfをpythonコマンドラインで読み込み情報を抽出するモジュール
+
+#### 実行
+    python
+    # 環境ロード
+    import abmptools
+    cpf = abmptools.CPFManager()
+
+    # ファイル読み込み
+    cpf.parse("xxxin.cpf")
+
+    # 主なクラス変数
+    cpfver バージョン
+    atominfo 原子の情報
+    fraginfo フラグメント情報
+    condition 計算条件
+    static_data 簡易統計所法
+    mominfo モノマー結果
+    diminfo ダイマー結果
+    labels cpfラベル情報
+
+    >>> print(cpf.atominfo)
+        alabels elems elemtypes resnames  resids  fragids  xcoords  ycoords  zcoords chainids optflags    MUL-HF
+    0         1     N       N        GLY       1        1    0.162   -0.202    0.000                 1 -0.397224
+    1         2     C       CA       GLY       1        1    1.612   -0.031    0.000                 1 -0.038224
+    2         3     C       C        GLY       1        2    1.985    1.432    0.000                 1  0.302354
+    3         4     O       O        GLY       1        2    1.137    2.319    0.000                 1 -0.310874
+    4         5     H      1H        GLY       1        1   -0.293    0.722    0.000                 1  0.177669
+    5         6     H      2H        GLY       1        1   -0.122   -0.724   -0.841                 1  0.155283
+    6         7     H      1HA       GLY       1        1    2.055   -0.519    0.888                 1  0.072199
+    7         8     H      2HA       GLY       1        1    2.055   -0.519   -0.888                 1  0.056519
+    8         9     N       N        GLY       2        2    3.277    1.700    0.000                 1 -0.355555
+    9        10     C       CA       GLY       2        2    3.784    3.070    0.000                 1 -0.017052
+    10       11     C       C        GLY       2        3    3.412    3.784   -1.278                 1  0.295201
+    11       12     O       O        GLY       2        3    3.055    4.958   -1.286                 1 -0.277340
+
+    >>> print(cpf.static_data)
+    {'nuclear_repulsion_energy': 1889.49334720085, 'total_electronic_energy': -2985.05965937836, 'total_energy': -1095.56631217751, 'natom': 38, 'nfrag': 5, 'ndimer': 10, 'ntrimer': '0', 'ntetramer': '0'}
+
+    >>> print(cpf.labels)
+    {'charge': ['MUL-HF'], 'DPM': ['DPM-HF-X', 'DPM-HF-Y', 'DPM-HF-Z'], 'monomer': ['NR', 'HF'], 'dimer': ['NR', 'HF', 'ES', 'EX', 'CT', 'DQ']}
+
+    >>> print(cpf.mominfo)
+       fragi  DPM-HF-X  DPM-HF-Y  DPM-HF-Z          NR          HF
+    0      1  0.785971  2.812967 -1.326046   32.173322 -111.217901
+    1      2  1.450489 -3.348173 -1.614646  105.581624 -294.954214
+    2      3 -0.524705 -3.573679  1.565234  105.580761 -294.944053
+    3      4  2.456669 -1.604684  2.801527  105.592376 -294.954885
+    4      5  3.686567 -4.789664 -0.248676  302.972089 -692.375396
+
+    >>> print(cpf.diminfo)
+       fragi  fragj  min-dist          NR          HF         ES        EX        CT         DQ
+    0      1      2  0.000000   89.835821 -104.597691 -14.464324 -0.170246 -0.127299  10.081019
+    1      1      3  6.434985   48.115142  -48.112201   0.002926  0.000020 -0.000004   0.000026
+    2      2      3  0.000000  151.596219 -166.354359 -14.460761 -0.171096 -0.126284  10.021917
+    3      1      4  6.423184   47.234065  -47.232722   0.001358  0.000038 -0.000053   0.000029
+    4      2      4  5.209663  103.751130 -103.749010   0.002019  0.000735 -0.000634   0.001864
+    5      3      4  0.000000  151.609836 -166.363653 -14.456629 -0.170776 -0.126411  10.018572
+    6      1      5  6.693533   69.358996  -69.356242   0.002788  0.000003 -0.000038  -0.000007
+    7      2      5  3.979030  159.493576 -159.501166  -0.007162  0.004484 -0.004912   0.014454
+    8      3      5  5.209633  181.521410 -181.515319   0.005989  0.000747 -0.000645   0.001845
+    9      4      5  0.000000  235.076980 -249.830849 -14.456895 -0.171821 -0.125153  10.010322
+
+    # 変数情報出力
+    >>> print(vars(cpf))
+    >>> print(dirs(cpf))
+
+    # ファイル書き込み
+    cpf.write('Title', 'xxxout.cpf')
+
+
+### log2cpf
+#### 概要
+- logからcpfを生成するモジュール
+- HFとMP2のみ対応
+
+#### 実行
+    python -m abmptools.log2cpf -i 入力log名 -o cpf名(任意)
+
+#### サンプル
+    sample/log2cpf内にサンプルデータあり
+    bash run.sh で実行
+
+
+### 動的IFIE (Dynamical IFIE) 生成 generatedifie
+#### 概要
+- 指定した複数のcpfから、”平均、標準偏差をひとまとめにしたcpfファイル”を生成
+- 3D座標は指定した1構造を代表して表示
+- 最新のBiostation Viewerで読み込み可能 (テスト中)
+
+#### サンプルデータ
+    abmptools/sample内に2例(TrpCage, CS4)  run.shで実行
+    cd sample/
+    cd generate_difie/
+    cd TrpCage/
+    bash run.sh
+
+#### 実行
+    python -m abmptools.generate_difie  オプション
+
+    - 入力オプション
+        -i 入力cpf名  ※指定必須 (file-xxx-bbb.cpfの形、数字部分をxxxで表記）
+        -t 開始番号 終了番号　読込間隔 　※指定必須
+        -z ゼロ埋めの桁数 ※デフォルト: "1" (ゼロ埋めなし)
+        -s 代表構造の番号: 平均cpfの表示構造番号の指定　※デフォルト: 最初の構造(＝開始番号)
+        -f 対象フラグメントの指定:  周囲の水は入れ替わるため、タンパクとリガンド残基番号を手動指定　※デフォルト:  削除なし　半角ハイフンで範囲指定, 1-のみ可能
+        -v 出力バージョンの指定：現状はrev23のみ ※デフォルト"23"
+        -np 並列数
+
+    - 出力
+        - DIFIEcpf本体 ("入力名-DIFIE.cpf")
+
+
+### 実行例
+    `python -m abmptools.generate_difie -i egfr-HYZ_pr_xxx_fmo_mask-renamed-MP2-6-31Gd-nbo.cpf.gz -t 2 6 1 -z 1 -s 0 -f 1-323 -v 23 -np 5`
+    `python -m abmptools.generate_difie -i TrpCage-xxx.cpf -t 1 5 1 -z 1 -s 0 -f 1-20 -v 23 -np 5`
+    `python -m abmptools.generate_difie -i CS4_ligX_md1_xxxns_mod_mp2_631gd.cpf.gz -t 12 20 2 -z 1 -s 0 -f 1-299 -v 23 -np 5`
+
+
+### 出力書式
+    M- (Mean), S- (STD)の接頭文字でヘッダー出力
+    
+    CPF Open1.0 rev23 DIFIE (Generated by ABMPTools 2024-01-16 23:48:59.894215)
+           304        20
+    M-MUL-HF M-MUL-MP2 M-NPA-HF M-NPA-MP2 M-ESP-HF M-ESP-MP2 S-MUL-HF S-MUL-MP2 S-NPA-HF S-NPA-MP2 S-ESP-HF S-ESP-MP2
+    DPM-HF-X DPM-HF-Y DPM-HF-Z DPM-MP2-X DPM-MP2-Y DPM-MP2-Z
+    NR HF MP2 MP3
+    M-Total M-NR M-HF M-ES M-MP2 M-SCS-MP2(Grimme) M-MP3 M-SCS-MP3(MP2.5) M-HF-BSSE M-MP2-BSSE M-SCS-MP2-BSSE M-MP3-BSSE M-SCS-MP3-BSSE M-EX M-CT M-DQ S-Total S-NR S-HF S-ES S-MP2 S-SCS-MP2(Grimme) S-MP3 S-SCS
+    -MP3(MP2.5) S-HF-BSSE S-MP2-BSSE S-SCS-MP2-BSSE S-MP3-BSSE S-SCS-MP3-BSSE S-EX S-CT S-DQ
+
+![DIFIE](img/difie.png)
+
+
+### pdb2fmo
+- pdbにフラグメント情報を割り当てて、FMO実行可能なajf, pdbセットを作成するモジュール
+- 中分子分散体やポリマーのpdb構造に、フラグメントを割り当てる際に主に使用。
+- 1分子ずつのフラグメント情報を事前に準備する必要有
+
+### udf2fmo
+- udfにフラグメント情報を割り当てて、FMO実行可能なajfを作成するモジュール
+
+### ajf2config
+- フラグメント情報を読み込んで、pythonの辞書型に保存するモジュール
+- 各種フラグメント作成で使用
+- usage: `python -m abmptools.ajf2config -i xxx.ajf yyy.ajf`
+
+### ajfserial
+- 雛形ajfから連番を作成する
+- e.g.) `python -m abmptools.ajfserial -i 1eo8-ff14sb-xxxps-renamed-HF-STO-3G-nbo.ajf -t 100000 200000 5000 -str xxx`
+
 
 ### pdbmodify
 PDBの情報を編集するモジュール
@@ -440,6 +581,7 @@ e.g.) `python -m abmptools.pdbmodify -mode resnum -aresname -reatm -i cyc.pdb.1`
                             sort
 
     end
+
 
 ### addsolvfrag
     雛形ajfのフラグメント情報に、読み込んだPDBの追加溶媒情報を追加して、新たにajfを作成するモジュール
@@ -491,64 +633,3 @@ e.g.) `python -m abmptools.pdbmodify -mode resnum -aresname -reatm -i cyc.pdb.1`
       -ma, --manual         manual table
       -bsse, --bsse         bsse
     end
-
-
-### cpfmanager
-
-### log2cpf
-
-### 動的IFIE (Dynamical IFIE) 生成 generatedifie
-
-#### 概要
-- 指定した複数のcpfから、”平均、標準偏差をひとまとめにしたcpfファイル”を生成
-- 3D座標は指定した1構造を代表して表示
-- 最新のBiostation Viewerで読み込み可能 (テスト中)
-
-#### インストール
-    abmptoolsのgenerate_difie機能として公開
-    git clone https://github.com/kojioku/abmptools.git
-    cd abmptools/
-    python setup.py install --user
-
-#### サンプルデータ
-    abmptools/sample内に2例(TrpCage, CS4)  run.shで実行
-    cd sample/
-    cd generate_difie/
-    cd TrpCage/
-    bash run.sh
-
-
-#### 実行
-    python -m abmptools.generate_difie  オプション
-
-    - 入力オプション
-        -i 入力cpf名  ※指定必須 (file-xxx-bbb.cpfの形、数字部分をxxxで表記）
-        -t 開始番号 終了番号　読込間隔 　※指定必須
-        -z ゼロ埋めの桁数 ※デフォルト: "1" (ゼロ埋めなし)
-        -s 代表構造の番号: 平均cpfの表示構造番号の指定　※デフォルト: 最初の構造(＝開始番号)
-        -f 対象フラグメントの指定:  周囲の水は入れ替わるため、タンパクとリガンド残基番号を手動指定　※デフォルト:  削除なし　半角ハイフンで範囲指定, 1-のみ可能
-        -v 出力バージョンの指定：現状はrev23のみ ※デフォルト"23"
-        -np 並列数
-
-    - 出力
-        - DIFIEcpf本体 ("入力名-DIFIE.cpf")
-
-
-### 実行例
-    `python -m abmptools.generate_difie -i egfr-HYZ_pr_xxx_fmo_mask-renamed-MP2-6-31Gd-nbo.cpf.gz -t 2 6 1 -z 1 -s 0 -f 1-323 -v 23 -np 5`
-    `python -m abmptools.generate_difie -i TrpCage-xxx.cpf -t 1 5 1 -z 1 -s 0 -f 1-20 -v 23 -np 5`
-    `python -m abmptools.generate_difie -i CS4_ligX_md1_xxxns_mod_mp2_631gd.cpf.gz -t 12 20 2 -z 1 -s 0 -f 1-299 -v 23 -np 5`
-
-
-### 出力書式
-    M- (Mean), S- (STD)の接頭文字でヘッダー出力
-    
-    CPF Open1.0 rev23 DIFIE (Generated by ABMPTools 2024-01-16 23:48:59.894215)
-           304        20
-    M-MUL-HF M-MUL-MP2 M-NPA-HF M-NPA-MP2 M-ESP-HF M-ESP-MP2 S-MUL-HF S-MUL-MP2 S-NPA-HF S-NPA-MP2 S-ESP-HF S-ESP-MP2
-    DPM-HF-X DPM-HF-Y DPM-HF-Z DPM-MP2-X DPM-MP2-Y DPM-MP2-Z
-    NR HF MP2 MP3
-    M-Total M-NR M-HF M-ES M-MP2 M-SCS-MP2(Grimme) M-MP3 M-SCS-MP3(MP2.5) M-HF-BSSE M-MP2-BSSE M-SCS-MP2-BSSE M-MP3-BSSE M-SCS-MP3-BSSE M-EX M-CT M-DQ S-Total S-NR S-HF S-ES S-MP2 S-SCS-MP2(Grimme) S-MP3 S-SCS
-    -MP3(MP2.5) S-HF-BSSE S-MP2-BSSE S-SCS-MP2-BSSE S-MP3-BSSE S-SCS-MP3-BSSE S-EX S-CT S-DQ
-
-![DIFIE](img/difie.png)
