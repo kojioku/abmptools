@@ -2,7 +2,7 @@
 
 ## [1.14.0] - 2024-5-12
 ### Fixed
-- [Manualの加筆](docs/ABMPTools-user-manual.md)
+- [Manualの加筆](doc/ABMPTools-user-manual.md)
 - getifiepieda Pandas2系に対応するように修正(append)
 - ABINIT-MP Ver.2 Rev.8 対応の一部不具合修正(&CIS等)
 
