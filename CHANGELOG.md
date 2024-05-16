@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14.1] - 2024-5-17
+### Added
+- cpf2ifielistモジュール(cpfを読み込んで, 整形されたIFIEリストを出力する機能)を追加
+### Fixed
+- cpfmanager: CPF Ver.10において、bda-baa 原子が5桁を超えた際の読み込みエラーを修正
+
 ## [1.14.0] - 2024-5-12
 ### Fixed
 - [Manualの加筆](doc/ABMPTools-user-manual.md)
