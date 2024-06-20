@@ -209,12 +209,12 @@ class LOGManager():
             "fragj": jfrags,
             "min-dist": dists,
             "NR": [0 for i in range(len(ifrags))],
-            "HF": [x / hartree for x in hfs],
+            "HF": [x for x in hfs],
         }
         if Method == 'MP2':
-            ifieinfo["MP2"] = [x / hartree for x in mp2s]
-            ifieinfo["PR-MP2"] = [x / hartree for x in prs]
-            ifieinfo["SCS-MP2(Grimme)"] = [x / hartree for x in grimmes]
+            ifieinfo["MP2"] = [x for x in mp2s]
+            ifieinfo["PR-MP2"] = [x for x in prs]
+            ifieinfo["SCS-MP2(Grimme)"] = [x for x in grimmes]
 
         piedainfo = {
             "fragi": pifrags,

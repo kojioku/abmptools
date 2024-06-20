@@ -839,9 +839,11 @@ class CPFManager:
         diststr = ''
         # standard ifie case
         if not is_difie:
+            print(static_data['ndimer'])
             for i in range(static_data['ndimer']):
                 diststr += str(diminfo['fragi'][i]) + str(diminfo['fragj'][i]) \
                     + str(diminfo['min-dist'][i]) + '\n'
+                # print(diststr)
 
         # difie case
         else:
