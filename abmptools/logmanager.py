@@ -204,10 +204,11 @@ class LOGManager():
             sys.exit()
 
         hartree = 627.5095
+        bohr = 0.529177
         ifieinfo = {
             "fragi": ifrags,
             "fragj": jfrags,
-            "min-dist": dists,
+            "min-dist": [x / bohr for x in dists],
             "NR": [0 for i in range(len(ifrags))],
             "HF": [x for x in hfs],
         }
