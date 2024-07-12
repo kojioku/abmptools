@@ -674,6 +674,8 @@ MD='OFF'
         bsseflag = False
         bssecount = 0
         bsse = []
+        readflag = False
+        # print("start!!!", fname)
         try:
             f = open(fname, "r")
             text = f.readlines()
@@ -690,10 +692,12 @@ MD='OFF'
                 continue
             if itemList[1] == 'MP2-IFIE':
                 flag = True
+                readflag = True
                 # head.append(itemList)
                 continue
-            if itemList[1] == 'PIEDA':
+            if itemList[1] in ['PIEDA']:
                 pflag = True
+                flag = False
                 continue
             # after pieda or BSSE (break)
             if itemList[1] == 'Mulliken':
@@ -716,7 +720,7 @@ MD='OFF'
             if flag is True and count > 2:
                 ifie.append(itemList)
 
-        if flag is False:
+        if readflag is False:
             try:
                 print("can't read ifie", fname.split("/")[1])
             except:
@@ -730,11 +734,12 @@ MD='OFF'
                 ifie[i][6] = 0.0
 
         if bsseflag is True:
+            # print(bsse)
             for i in range(len(ifie)):
                 if not (float(ifie[i][4]) < -2 or float(ifie[i][5]) < -2):
-                    ifie[i][4] += bsse[i][4]
-                    ifie[i][5] += bsse[i][4]
-                    ifie[i][6] += bsse[i][4]
+                    ifie[i][4] = float(ifie[i][4]) + float(bsse[i][4])
+                    ifie[i][5] = float(ifie[i][5]) + float(bsse[i][5])
+                    ifie[i][6] = float(ifie[i][6]) + float(bsse[i][6])
 
         # print ifie
         return ifie
