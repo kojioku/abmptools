@@ -670,6 +670,10 @@ MD='OFF'
     def read_ifie(self, fname):
         ifie = []
         count = 0
+        pflag = False
+        bsseflag = False
+        bssecount = 0
+        bsse = []
         try:
             f = open(fname, "r")
             text = f.readlines()
@@ -688,9 +692,25 @@ MD='OFF'
                 flag = True
                 # head.append(itemList)
                 continue
-            if itemList[1] == 'Mulliken' or itemList[1] =='PIEDA' or itemList[1] =='NATURAL':
-                # flag = False
+            if itemList[1] == 'PIEDA':
+                pflag = True
+                continue
+            # after pieda or BSSE (break)
+            if itemList[1] == 'Mulliken':
                 break
+            # for BSSE
+            if pflag is True and itemList[:5] == ['##','BSSE', 'for','non-bonding','MP2-IFIE']:
+                pflag = False
+                # print('pieda end! next is BSSE')
+                continue
+            if itemList[:4] == ['##','BSSE', 'for', 'MP2-IFIE']:
+                bsseflag = True
+                # print('BSSE start!')
+                continue
+            if bsseflag is True:
+                bssecount += 1
+            if bsseflag is True and bssecount > 2:
+                bsse.append(itemList)
             if flag is True:
                 count += 1
             if flag is True and count > 2:
@@ -708,8 +728,19 @@ MD='OFF'
                 ifie[i][4] = 0.0
                 ifie[i][5] = 0.0
                 ifie[i][6] = 0.0
+
+        if bsseflag is True:
+            for i in range(len(ifie)):
+                if not (float(ifie[i][4]) < -2 or float(ifie[i][5]) < -2):
+                    ifie[i][4] += bsse[i][4]
+                    ifie[i][5] += bsse[i][4]
+                    ifie[i][6] += bsse[i][4]
+
         # print ifie
         return ifie
+
+
+
 
     def read_ifiepb(self, fname):
         ifie = []
