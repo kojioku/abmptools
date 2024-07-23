@@ -411,19 +411,61 @@ class udf_io(molc.molcalc):
 
         return molnamelist
 
-    def getcontactstructure(self, rec, uobj, totalMol, inmol, path, molname):
-        uobj.jump(rec)
-        cell = uobj.get("Structure.Unit_Cell.Cell_Size")
-        print("totalmol:", totalMol, "rec", rec)
+    def getcontactstructure(self, rec, uobj, totalMol, inmol, path, molname,
+                            lammpsflag=False, masses=None,
+                            atom_molecule_map=None, tgtfile=None,
+                            molecule_list=None):
+        if lammpsflag is False:
+            uobj.jump(rec)
+            cell = uobj.get("Structure.Unit_Cell.Cell_Size")
+            print("totalmol:", totalMol, "rec", rec)
 
-        posMol_orig = []
-        typenameMol_orig = []
-        elemMol_orig = []
+            posMol_orig = []
+            typenameMol_orig = []
+            elemMol_orig = []
 
-        for i in range(totalMol):
-            posMol_orig.append(self.getposmol(uobj, i))
-            typenameMol_orig.append(self.getAtomtypename(uobj, i))
-            elemMol_orig.append(self.getnameAtom(uobj, i))
+            for i in range(totalMol):
+                posMol_orig.append(self.getposmol(uobj, i))
+                typenameMol_orig.append(self.getAtomtypename(uobj, i))
+                elemMol_orig.append(self.getnameAtom(uobj, i))
+
+        if lammpsflag is True:
+            print("LAMMPS mode")
+            # require
+            # posMol_orig
+            # typenameMol_orig
+            # elemMol_orig
+            # cell
+            # Example usage for trajectory file
+            print(tgtfile)
+            trajectory_file_path = tgtfile
+            timesteps, box_bounds = \
+                self.parse_lammps_trajectory(trajectory_file_path)
+
+            for timestep, atom_data in timesteps.items():
+                atom_data.sort(key=lambda x: x[0])  # 追加: 原子IDでソート
+                real_coords = self.scale_to_real_coords(
+                    atom_data, box_bounds, atom_molecule_map)
+                molecule_real_coords = \
+                    self.group_real_coords_by_molecule(real_coords)
+                posMol_orig = list(molecule_real_coords.values())
+                print(f"Molecule real coordinates for timestep {timestep}:")
+                # print(posMol_orig)
+
+                molecule_radii = self.get_radii_for_molecules(real_coords, masses)
+                radii_list = list(molecule_radii.values())
+                print(f"Molecule radii for timestep {timestep}:")
+                # print(radii_list)
+
+                # cell
+                print('cell:', box_bounds)
+                # elemMol_orig
+                elemMol_orig = molecule_list
+                # typenameMol_orig
+                typenameMol_orig = radii_list
+
+            cell = [box_bounds[1]-box_bounds[0], box_bounds[3]-box_bounds[2],
+                    box_bounds[5]-box_bounds[4]]
 
         vec = [[0, 0, 0]]
         for i in (-1, 0, 1):
@@ -454,13 +496,20 @@ class udf_io(molc.molcalc):
         # typenameMol: Molecular typename list (27cell)
 
         # ---get contact_mol---
-        isitelist = self.getinteractionsitetable(uobj, 1)
-        # print isitelist
 
-        site = []
-        # print typenameMol[neighborMol[0][0]]
-        for i in range(len(posMol)):
-            site.append(self.getatomisite(isitelist, typenameMol[i]))
+        if lammpsflag is False:
+            isitelist = self.getinteractionsitetable(uobj, 1)
+            # print isitelist
+
+            site = []
+            # print typenameMol[neighborMol[0][0]]
+            for i in range(len(posMol)):
+                site.append(self.getatomisite(isitelist, typenameMol[i]))
+        else:
+            site = copy.deepcopy(typenameMol)
+
+        # print('site\n',site)
+        # sys.exit()
 
         # print "vec",vec
         print("pos27molnum", len(posMol), end=' ')
@@ -526,12 +575,14 @@ class udf_io(molc.molcalc):
 
         # get contact list
         clistall = self.getcontactlist(inmol, posMol, site, neighborMol)
+        # print("clistall", clistall)
         clistfrag = self.getcontactfrag(clistall, posfrag_mols,
                                         sitefrag_mols, fragids, infrag)
 
         index = self.getindex(clistall)
         frag_index = self.getindex(clistfrag)
         molnamelist = self.getnamelist(index, uobj, totalMol)
+        # print("molnamelist", molnamelist)
 
         # --export contact pos--
     #    for i in range(inmol):
