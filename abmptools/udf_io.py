@@ -448,17 +448,23 @@ class udf_io(molc.molcalc):
                     atom_data, box_bounds, atom_molecule_map)
                 molecule_real_coords = \
                     self.group_real_coords_by_molecule(real_coords)
+
+                for molecule_tag in molecule_real_coords:
+                    molecule_real_coords[molecule_tag] = \
+                        self.shift_molecule_to_primary_cell(
+                        molecule_real_coords[molecule_tag],
+                        box_bounds)  # 分子全体を本セル内にシフト
                 posMol_orig = list(molecule_real_coords.values())
-                print(f"Molecule real coordinates for timestep {timestep}:")
+                # print(f"Molecule real coordinates for timestep {timestep}:")
                 # print(posMol_orig)
+                # print(len(posMol_orig))
 
                 molecule_radii = self.get_radii_for_molecules(real_coords, masses)
                 radii_list = list(molecule_radii.values())
-                print(f"Molecule radii for timestep {timestep}:")
+                # print(f"Molecule radii for timestep {timestep}:")
                 # print(radii_list)
 
                 # cell
-                print('cell:', box_bounds)
                 # elemMol_orig
                 elemMol_orig = molecule_list
                 # typenameMol_orig

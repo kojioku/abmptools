@@ -1097,3 +1097,27 @@ class molcalc():
             molecule_radii[molecule_tag].append(atomic_radius)
         return molecule_radii
 
+    @staticmethod
+    def wrap_to_primary_cell(coord, box_bounds):
+        xlo, xhi, ylo, yhi, zlo, zhi = box_bounds
+        lx = xhi - xlo
+        ly = yhi - ylo
+        lz = zhi - zlo
+        x, y, z = coord
+        x = xlo + (x - xlo) % lx
+        y = ylo + (y - ylo) % ly
+        z = zlo + (z - zlo) % lz
+        return [x, y, z]
+
+    @staticmethod
+    def shift_molecule_to_primary_cell(coords, box_bounds):
+        xlo, xhi, ylo, yhi, zlo, zhi = box_bounds
+        cx = sum(x for x, y, z in coords) / len(coords)
+        cy = sum(y for x, y, z in coords) / len(coords)
+        cz = sum(z for x, y, z in coords) / len(coords)
+        cx, cy, cz = molcalc.wrap_to_primary_cell([cx, cy, cz], box_bounds)
+        dx = cx - sum(x for x, y, z in coords) / len(coords)
+        dy = cy - sum(y for x, y, z in coords) / len(coords)
+        dz = cz - sum(z for x, y, z in coords) / len(coords)
+        shifted_coords = [[x + dx, y + dy, z + dz] for x, y, z in coords]
+        return shifted_coords
