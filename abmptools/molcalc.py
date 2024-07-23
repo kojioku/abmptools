@@ -375,6 +375,7 @@ class molcalc():
                     r2 = s2[k]
                     p2 = posMol[neighborMol[i][1]][k]
                     dist = self.getdist(p1, p2)
+                    # print(dist, r1, r2)
                     if dist < (r1 + r2)/1.5:
                         contactlist.append([neighborMol[i][0], neighborMol[i][1]])
                         flag = True
@@ -932,4 +933,167 @@ class molcalc():
         pos2_dihed_rot = self.dihed_rotate(pos2_dum1_rot, pos1, l1, l2)
 
         return pos2_dihed_rot + pos2_orig[l1]
+
+    @staticmethod
+    def parse_lammps_data(file_path):
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+
+        masses = {}
+        atoms = []
+        atom_molecule_map = {}
+
+        masses_section = False
+        atoms_section = False
+
+        for line in lines:
+            if re.match(r"^\s*$", line):
+                continue  # Skip empty lines
+            if "Masses" in line:
+                masses_section = True
+                atoms_section = False
+                continue
+            elif "Atoms" in line:
+                masses_section = False
+                atoms_section = True
+                continue
+            elif "Bonds" in line:
+                masses_section = False
+                atoms_section = False
+
+            if masses_section:
+                if re.match(r"^\s*\d+\s+\d+\.\d+", line):
+                    parts = line.split()
+                    atom_type = int(parts[0])
+                    mass = float(parts[1])
+                    masses[atom_type] = mass
+            elif atoms_section:
+                if re.match(r"^\s*\d+\s+\d+\s+\d+\s+[-+]?\d*\.?\d+([eE][-+]?\d+)?\s+[-+]?\d*\.?\d+([eE][-+]?\d+)?\s+[-+]?\d*\.?\d+([eE][-+]?\d+)?", line):
+                    parts = line.split()
+                    atom_id = int(parts[0])
+                    molecule_tag = int(parts[1])
+                    atom_type = int(parts[2])
+                    x = float(parts[3])
+                    y = float(parts[4])
+                    z = float(parts[5])
+                    extra_data = [float(part) for part in parts[6:]]
+                    atom_molecule_map[atom_id] = molecule_tag
+                    atoms.append([atom_id, molecule_tag, atom_type, x, y, z] + extra_data)
+
+        return masses, atoms, atom_molecule_map
+
+    @staticmethod
+    def get_element_name(mass):
+        # Define a mapping from rounded mass to element name
+        element_mapping = {
+            12: 'C',  # Carbon
+            14: 'N',  # Nitrogen
+            16: 'O',  # Oxygen
+            1: 'H',   # Hydrogen
+            19: 'F'   # Fluorine
+        }
+        rounded_mass = round(mass)
+        return element_mapping.get(rounded_mass, 'Unknown')
+
+    @staticmethod
+    def get_atomic_radius(element):
+        # Define a mapping from element name to atomic radius (in pm)
+        radius_mapping = {
+            'C': 1.926,   # Carbon
+            'N': 1.830,   # Nitrogen
+            'O': 1.750,   # Oxygen
+            'H': 1.443,   # Hydrogen
+            'F': 1.682    # Fluorine
+        }
+        return 2.0 * radius_mapping.get(element, 0)
+
+    @staticmethod
+    def group_atoms_by_molecule(atoms, masses):
+        molecules = {}
+        for atom in atoms:
+            atom_id, molecule_tag, atom_type, x, y, z = atom[:6]
+            if molecule_tag not in molecules:
+                molecules[molecule_tag] = []
+            element_name = molcalc.get_element_name(masses[atom_type])
+            molecules[molecule_tag].append(element_name)
+        return molecules
+
+    @staticmethod
+    def parse_lammps_trajectory(file_path):
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+
+        timesteps = {}
+        current_timestep = None
+        atom_section = False
+        atom_data = []
+
+        for i, line in enumerate(lines):
+            if line.startswith("ITEM: TIMESTEP"):
+                if current_timestep is not None and atom_data:
+                    timesteps[current_timestep] = atom_data
+                    atom_data = []
+                current_timestep = int(lines[i + 1].strip())
+            elif line.startswith("ITEM: NUMBER OF ATOMS"):
+                num_atoms = int(lines[i + 1].strip())
+            elif line.startswith("ITEM: BOX BOUNDS"):
+                xlo, xhi = map(float, lines[i + 1].strip().split())
+                ylo, yhi = map(float, lines[i + 2].strip().split())
+                zlo, zhi = map(float, lines[i + 3].strip().split())
+                box_bounds = (xlo, xhi, ylo, yhi, zlo, zhi)
+            elif line.startswith("ITEM: ATOMS"):
+                atom_section = True
+                continue
+            elif atom_section:
+                if len(atom_data) < num_atoms:
+                    parts = line.strip().split()
+                    atom_id = int(parts[0])
+                    atom_type = int(parts[1])
+                    xs = float(parts[2])
+                    ys = float(parts[3])
+                    zs = float(parts[4])
+                    ix = int(parts[5])
+                    iy = int(parts[6])
+                    iz = int(parts[7])
+                    atom_data.append([atom_id, atom_type, xs, ys, zs, ix, iy, iz])
+                if len(atom_data) == num_atoms:
+                    atom_section = False
+                    timesteps[current_timestep] = atom_data
+
+        return timesteps, box_bounds
+
+    @staticmethod
+    def scale_to_real_coords(scaled_coords, box_bounds, atom_molecule_map):
+        xlo, xhi, ylo, yhi, zlo, zhi = box_bounds
+        real_coords = []
+        for coord in scaled_coords:
+            atom_id, atom_type, xs, ys, zs, ix, iy, iz = coord
+            x = xs * (xhi - xlo) + xlo + ix * (xhi - xlo)
+            y = ys * (yhi - ylo) + ylo + iy * (yhi - ylo)
+            z = zs * (zhi - zlo) + zlo + iz * (zhi - zlo)
+            molecule_tag = atom_molecule_map[atom_id]
+            real_coords.append([atom_id, molecule_tag, atom_type, x, y, z])
+        return real_coords
+
+    @staticmethod
+    def group_real_coords_by_molecule(real_coords):
+        molecule_coords = {}
+        for coord in real_coords:
+            atom_id, molecule_tag, atom_type, x, y, z = coord
+            if molecule_tag not in molecule_coords:
+                molecule_coords[molecule_tag] = []
+            molecule_coords[molecule_tag].append([x, y, z])
+        return molecule_coords
+
+    @staticmethod
+    def get_radii_for_molecules(real_coords, masses):
+        molecule_radii = {}
+        for coord in real_coords:
+            atom_id, molecule_tag, atom_type, x, y, z = coord
+            if molecule_tag not in molecule_radii:
+                molecule_radii[molecule_tag] = []
+            element_name = molcalc.get_element_name(masses[atom_type])
+            atomic_radius = molcalc.get_atomic_radius(element_name)
+            molecule_radii[molecule_tag].append(atomic_radius)
+        return molecule_radii
 
