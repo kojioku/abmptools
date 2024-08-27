@@ -541,7 +541,7 @@ e.g.) `python -m abmptools.generateajf -c 1eo8-ff14sb-xxxps-renamed.pdb -cmm -me
     condition and static data section
     monomer section
     dimer section
-    hoge.cpf is created.
+    hoge-out.cpf is created.
 
 
 ### 動的IFIE (Dynamical IFIE) 生成 generatedifie
