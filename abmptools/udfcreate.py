@@ -52,6 +52,8 @@ class udfcreate():
         self.totalstep = param_udf['totalstep']
         self.outstep = param_udf['outstep']
         self.tempes = param_udf['temperature']
+        self.octahome = param_udf['octahome']
+        self.cognacpath = param_udf['cognacpath']
 
     def getconnectdata(self, fname):
         data=[]

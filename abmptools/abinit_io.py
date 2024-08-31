@@ -216,7 +216,7 @@ LMOTYP='ANO' """
         else:
             use_FMO = 'ON'
 
-        if self.submit_system in ['K', 'OFP']:
+        if self.submit_system in ['K', 'OFP', 'Fugaku']:
             np = '1'
         else:
             np = str(int(self.npro/self.para_job))
