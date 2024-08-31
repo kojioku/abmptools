@@ -54,6 +54,17 @@ class udfcreate():
         self.tempes = param_udf['temperature']
         self.octahome = param_udf['octahome']
         self.cognacpath = param_udf['cognacpath']
+        try:
+            self.mdlocalnp = param_udf['mdlocalnp']
+        except KeyError:
+            self.mdlocalnp = 24
+
+        try:
+            self.mdnp = param_udf['mdnp']
+        except KeyError:
+            self.mdnp = 48
+
+
 
     def getconnectdata(self, fname):
         data=[]
