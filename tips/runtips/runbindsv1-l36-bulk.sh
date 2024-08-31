@@ -6,23 +6,23 @@
 # whole: 330racks -> 384nodes * 330rack -> 126720 nodes -> 6082560 cores
 
 # ---user input --- #
-inname='gly5-MP2-6-31Gd-xxx.ajf'
+inname=$1
 replacestr='xxx'
-node=2
+node=16
 proc_per_node=2
 ndigit=1 # zero padding
-jobtime="00:20:00"  # "hour:minutes:seconds"
-ABINIT_DIR='/path/to/abinit_dir'
+jobtime="05:00:00"  # "hour:minutes:seconds"
+ABINIT_DIR='/vol0003/hp190133/data/programs/ABINIT-MP/open/rev23bindv1-20230712/lang-tcsds-1.2.39'
 BINARY_NAME='abinitmp_smp'
 rscgrp='small'
 group='hp190133'
-lang='lang/tcsds-1.2.36'
+lang='lang/tcsds-1.2.39'
 # ----user input end ---- #
 
 totalproc=`echo "$node * $proc_per_node" | bc`
 OMP_NUM_THREADS=`echo "48 / $proc_per_node" | bc`
 
-OMP_STACKSIZE='256M'
+OMP_STACKSIZE='8G'
 
 # innameのreplacestr以降を削除
 FHead=`echo $inname | sed -e "s/${replacestr}.*//"`
