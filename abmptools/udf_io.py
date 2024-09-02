@@ -279,6 +279,30 @@ class udf_io(molc.molcalc):
                 self.putPositionsMol(uobj, Molnum, posMol)
         print("move_done.")
 
+    def moveintocell_mol(self, uobj, totalRec, startmol, endmol):
+        # # Move into cell
+        for k in range(totalRec):
+            uobj.jump(k)
+            cell = uobj.get("Structure.Unit_Cell.Cell_Size")
+            for i in range(startmol, endmol):
+                Molnum = i
+                transVec = np.array([0., 0., 0.])  # x,y,z
+                posMol = self.getposmol(uobj, Molnum)
+                centerOfMol = self.getCenter(posMol)
+                for j in range(3):
+                    if centerOfMol[j] > cell[j]:
+                        while centerOfMol[j] > cell[j]:
+                            centerOfMol[j] = centerOfMol[j] - cell[j]
+                            transVec[j] = transVec[j] - cell[j]
+                    elif centerOfMol[j] < 0:
+                        while centerOfMol[j] < 0:
+                            centerOfMol[j] = centerOfMol[j] + cell[j]
+                            transVec[j] = transVec[j] + cell[j]
+
+                posMol = self.moveMolTrans(posMol, transVec)
+                self.putPositionsMol(uobj, Molnum, posMol)
+        print("move_done.")
+
     def putnvtnewfile(self, uobj, Rec, iname, addname):
         head, ext = os.path.splitext(str(iname))
         oname = head + addname + ".udf"
@@ -411,7 +435,7 @@ class udf_io(molc.molcalc):
 
         return molnamelist
 
-    def getcontactstructure(self, rec, uobj, totalMol, inmol, path, molname,
+    def getcontactstructure(self, rec, uobj, totalMol, seg1_clunum, path, molname,
                             lammpsflag=False, masses=None,
                             atom_molecule_map=None, tgtfile=None,
                             molecule_list=None):
@@ -525,9 +549,10 @@ class udf_io(molc.molcalc):
 
         posfrag_mols, typenamefrag_mols, sitefrag_mols, fragids, infrag = \
             self.getfraginfomb(molname, posMol, typenameMol,
-                               site, len(posMol_orig))
-        infrag = infrag * inmol
-        print("infrag:", infrag)
+                               site, len(posMol_orig), seg1_clunum)
+        infrag = infrag * seg1_clunum
+        print("seg1_frag:", infrag)
+        # sys.exit()
 
         # centerOfMol: com of each molecules
         centerOfMol = []
@@ -544,7 +569,7 @@ class udf_io(molc.molcalc):
 
         # --move check--
         aaa = self.moveMolTrans(posMol[0], -centerOfMol[0])
-        print(len(aaa))
+        # print(len(aaa))
         print("center", self.getCenter(aaa))
 
         # --move all mol to origin--
@@ -562,17 +587,17 @@ class udf_io(molc.molcalc):
 
         # --get com dist--
         distlist = []
-        for i in range(inmol):
+        for i in range(seg1_clunum):
             dist = []
             for j in range(i+1, len(posMol)):
                 dist.append(self.getdist(centerOfMol[i], centerOfMol[j]))
             distlist.append(dist)
 
-        # inmol: mol num need for check contact
+        # seg1_clunum: mol num need for check contact
         # this area can be parrallel tuning
         # compare com dist and radius
         neighborMol = []
-        for i in range(inmol):
+        for i in range(seg1_clunum):
             k = 0
             for j in range(i+1, len(posMol)):
                 if distlist[i][k] < (radius[i] + radius[j]) * 2:
@@ -580,10 +605,12 @@ class udf_io(molc.molcalc):
                 k += 1
 
         # get contact list
-        clistall = self.getcontactlist(inmol, posMol, site, neighborMol)
-        # print("clistall", clistall)
+        clistall = self.getcontactlist(seg1_clunum, posMol, site, neighborMol)
+        print("clistall", clistall)
         clistfrag = self.getcontactfrag(clistall, posfrag_mols,
                                         sitefrag_mols, fragids, infrag)
+        print("clistfrag", clistfrag)
+        # sys.exit()
 
         index = self.getindex(clistall)
         frag_index = self.getindex(clistfrag)
@@ -591,7 +618,7 @@ class udf_io(molc.molcalc):
         # print("molnamelist", molnamelist)
 
         # --export contact pos--
-    #    for i in range(inmol):
+    #    for i in range(seg1_clunum):
     #        opath = path[0] + "/" + path[1] + "/contact"
     #        Exportardpos(opath, rec, clistall[i], posMol,typenameMol)
 
@@ -618,7 +645,7 @@ class udf_io(molc.molcalc):
         self.exportdata(opath, oname, clistall)
 
         # calc MM interacion
-        # self.calcMMinteraction(index,posMol,typenameMol,molnamelist,clistall,inmol,molname,uobj)
+        # self.calcMMinteraction(index,posMol,typenameMol,molnamelist,clistall,seg1_clunum,molname,uobj)
 
         # bind structure
         # molnamelist: name list for each molecules
