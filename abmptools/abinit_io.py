@@ -36,6 +36,7 @@ class abinit_io(mi.mol_io):
         # submit param
         self.npro = 4
         self.memory = "1800"
+        self.memorymp2 = "0"
         self.queue = None
         self.solv_flag = False
         self.abinitmp_path = 'abinitmp'
@@ -350,7 +351,7 @@ MOD4TH='GEMM'"""
         ajf_body += """
 NP_MP2_IJ=1
 NP_MP2_S=0
-MemoryMP2=0
+MemoryMP2=""" + str(self.memorymp2) + """
 IFSCS='YES'
 IFPRNM='YES'
 OSSCAL=1.0
@@ -575,7 +576,7 @@ MD='OFF'
 
         return frag
 
-    def getifie(self, target_dir, frag):
+    def getifie(self, target_dir, frag, skipbsse=False):
         ielist = []
         if self.pbflag is False:
             # print "**** 1.get ifie running*****"
@@ -583,7 +584,7 @@ MD='OFF'
                 target = target_dir + '/%05d' % i + ".out"
             #    if i % 1000 == 0:
             #        print target + " end"
-                energy = self.read_ifie(target)
+                energy = self.read_ifie(target, skipbsse)
                 ifiesum = self.getifiesum(energy, frag)
                 ielist.append(ifiesum)
             # print energies
@@ -667,7 +668,7 @@ MD='OFF'
                         pb_np += float(energy[i][5])
         return [pb_es * 627.5095, pb_np * 627.5095]
 
-    def read_ifie(self, fname):
+    def read_ifie(self, fname, skipbsse=False):
         ifie = []
         count = 0
         pflag = False
@@ -708,6 +709,8 @@ MD='OFF'
                 # print('pieda end! next is BSSE')
                 continue
             if itemList[:4] == ['##','BSSE', 'for', 'MP2-IFIE']:
+                if skipbsse is True:
+                    break
                 bsseflag = True
                 # print('BSSE start!')
                 continue
@@ -914,8 +917,10 @@ MD='OFF'
                 itemList = text[i][:-1].split()
                 if itemList == ['##', 'FMO', 'TOTAL', 'ENERGY']:
                     hf = text[i + 6].split()
-                    mp2 = text[i + 8].split()
-
+                    if self.PR_flag is True:
+                        mp2 = text[i + 13].split()
+                    else:
+                        mp2 = text[i + 8].split()
                     return [eval(hf[3]), eval(mp2[2])]
         except:
             print("Warning: can't get result:", target)
@@ -945,7 +950,10 @@ MD='OFF'
                     hfflag = True
             if itemList == ['##', 'MP2', 'ENERGY']:
                 # print itemList
-                mp2 = text[i + 2].split()
+                if self.PR_flag is True:
+                    mp2 = text[i + 7].split()
+                else:
+                    mp2 = text[i + 2].split()
                 break
 
         try:
