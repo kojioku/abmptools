@@ -313,6 +313,18 @@ class udf_io(molc.molcalc):
                  "Simulation_Conditions.Solver.Dynamics.Dynamics_Algorithm")
         uobj.write()
 
+    def putnvtnewfilemb(self, uobj, Rec, iname, addname):
+        head, ext = os.path.splitext(str(iname))
+        oname = head + addname + ".udf"
+        uobj.jump(Rec)
+        uobj.write(oname, record=-1, define=1)
+        uobj.write(oname, currentRecord, append)
+        uobj.put(self.nvtstep, "Simulation_Conditions.Simulation_Length.Total_Step")
+        uobj.put(self.nvtoutstep, "Simulation_Conditions.Simulation_Length.Output_Step")
+        uobj.put(self.nvtalgo,
+                 "Simulation_Conditions.Solver.Dynamics.Dynamics_Algorithm")
+        uobj.write()
+
     def getudfinfowrap(self, uobj):
         totalMol, totalRec = self.gettotalmol_rec(uobj)
         totalAtm = self.gettotalAtm(uobj)
