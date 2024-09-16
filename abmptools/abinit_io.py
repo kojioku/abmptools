@@ -1460,6 +1460,7 @@ MD='OFF'
                     'nummol_seg': [1],
                     'repeat': [1],
                     'pair_file': [],
+                    'partial_charge': [],
                     'multi_xyz': 'none'}
 
         for i in range(len(seg_data)):

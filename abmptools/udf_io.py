@@ -307,23 +307,37 @@ class udf_io(molc.molcalc):
         head, ext = os.path.splitext(str(iname))
         oname = head + addname + ".udf"
         uobj.jump(Rec)
-        uobj.write(oname, record=-1, define=1)
-        uobj.write(oname, currentRecord, append)
         uobj.put("NVT_Nose_Hoover",
                  "Simulation_Conditions.Solver.Dynamics.Dynamics_Algorithm")
-        uobj.write()
+        uobj.write(oname, record=-1, define=1)
+        uobj.write(oname, currentRecord, append)
 
     def putnvtnewfilemb(self, uobj, Rec, iname, addname):
         head, ext = os.path.splitext(str(iname))
+        print("totalstep:", self.nvtstep)
+        print("outstep:", self.nvtoutstep)
+        print("Algorithm:", self.nvtalgo[0])
         oname = head + addname + ".udf"
-        uobj.jump(Rec)
-        uobj.write(oname, record=-1, define=1)
-        uobj.write(oname, currentRecord, append)
-        uobj.put(self.nvtstep, "Simulation_Conditions.Simulation_Length.Total_Step")
-        uobj.put(self.nvtoutstep, "Simulation_Conditions.Simulation_Length.Output_Step")
-        uobj.put(self.nvtalgo,
+
+        uobj.jump(-1)   # jump to common record
+        uobj.put(self.nvtstep, "Simulation_Conditions.Dynamics_Conditions.Time.Total_Steps")
+        uobj.put(self.nvtoutstep, "Simulation_Conditions.Dynamics_Conditions.Time.Output_Interval_Steps")
+        uobj.put(self.nvtalgo[0],
                  "Simulation_Conditions.Solver.Dynamics.Dynamics_Algorithm")
-        uobj.write()
+        uobj.put("Restart", "Initial_Structure.Generate_Method.Method")
+        uobj.put(-1, 'Initial_Structure.Generate_Method.Restart.Record')
+        uobj.put(1, 'Initial_Structure.Generate_Method.Restart.Restore_Cell')
+        uobj.put(1, 'Initial_Structure.Generate_Method.Restart.Restore_Velocity')
+
+        '''
+        record = allRecord(0)/currentRecord(1)/initialRecord(-1)
+        mode = overwrite(0)/append(1)：
+        define=0/1
+        '''
+
+        uobj.jump(Rec)   # jump to target record
+        uobj.write(oname, record=-1, define=1)   # save common record
+        uobj.write(oname, currentRecord, append) # save target record
 
     def getudfinfowrap(self, uobj):
         totalMol, totalRec = self.gettotalmol_rec(uobj)

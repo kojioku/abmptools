@@ -147,9 +147,9 @@ class molcalc():
         return chg
 
     def getmolnum(self, dirname, fname, nummol_seg, repeats):
-        molnum=[]
+        molnum = []
 
-        f =open(dirname + "/" + "molnum.dat","r")
+        f = open(dirname + "/" + "molnum.dat", "r")
         text = f.readlines()
         for i in range(len(text)):
             itemList = text[i][:-1].split()
@@ -162,7 +162,7 @@ class molcalc():
 
             molnum.append(mol0)
             molnum.append(mol1)
-            print ("molnum;",molnum)
+            print("molnum;", molnum)
         return molnum
 
     def getmolmass(self, ffname, atom_list):
