@@ -52,11 +52,32 @@ class udfcreate():
         try:
             self.nvtalgo = param_udf['nvtalgo']
         except KeyError:
-            self.nvtalgo = param_udf['NVT_Nose_Hoover']
+            self.nvtalgo = ['NVT_Nose_Hoover']
 
-        self.cellsize = param_udf['cellsize']
-        self.totalstep = param_udf['totalstep']
-        self.outstep = param_udf['outstep']
+        try:
+            self.packmode = param_udf['packmode']
+        except KeyError:
+            self.packmode = 'density'
+
+        try:
+            self.density = param_udf['density']
+        except KeyError:
+            self.density = 0.5
+
+        try:
+            self.cellsize = param_udf['cellsize']
+        except KeyError:
+            self.cellsize = [30, 30, 30]
+
+        try:
+            self.totalstep = param_udf['totalstep']
+        except KeyError:
+            self.totalstep = 5000
+
+        try:
+            self.outstep = param_udf['outstep']
+        except KeyError:
+            self.outstep = 50
 
         try:
             self.nvtstep = param_udf['nvtstep']

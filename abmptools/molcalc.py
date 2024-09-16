@@ -42,54 +42,54 @@ class molcalc():
         dist = np.linalg.norm(np.array(p1) - np.array(p2))
         return dist
 
-    def getpos(self, pos,molnum,cell):
-    #    vol=getvolume(pos)
-    #    vol = vol * 1.2
-        poslist=[[],[]]
-        #print vol
-        vec=[]
-        raw=math.ceil(math.pow(sum(molnum),(1.0/3.0)))
-        dist=cell[0]/raw
+    def getpos(self, pos, molnum, cell):
+        # vol = getvolume(pos)
+        # vol = vol * 1.2
+        poslist = [[], []]
+        # print vol
+        vec = []
+        raw = math.ceil(math.pow(sum(molnum), (1.0/3.0)))
+        dist = cell[0]/raw
 
-        #print "raw",raw,"dist",dist
-        #get center pos of each pos for put
-        count=0
+        # print "raw",raw,"dist",dist
+        # get center pos of each pos for put
+        count = 0
         flag = False
         centerflag = False
-        raw=int(raw)
+        raw = int(raw)
         for i in range(raw):
             for j in range(raw):
-                for k  in range(raw):
-                    if centerflag == True:
-                        centcount=count
-                    x=i*dist
-                    y=j*dist
-                    z=k*dist
-                    vec.append([x,y,z])
-                    count=count+1
-                    if count==sum(molnum):
+                for k in range(raw):
+                    if centerflag is True:
+                        centcount = count
+                    x = i*dist
+                    y = j*dist
+                    z = k*dist
+                    vec.append([x, y, z])
+                    count = count + 1
+                    if count == sum(molnum):
                         flag = True
                         break
                 if flag == True:
                     break
-            if flag ==True:
+            if flag == True:
                 break
 
-        #print "pos",pos
+        # print "pos",pos
         count = 0
         for i in range(2):
             for j in range(molnum[i]):
-                tpos=self.gettranspos(pos[i],vec[count])
+                tpos = self.gettranspos(pos[i], vec[count])
                 poslist[i].append(tpos)
                 count += 1
-        #print len(poslist[1][2])
-        #for i in range(len(pos[0])):
-        #    poslist[0][0][i] = [pos[0][i][0] + cell[0]/2 ,pos[0][i][1] + cell[0]/2 ,pos[0][i][2] + cell[0]/2]
+        # print len(poslist[1][2])
+        # for i in range(len(pos[0])):
+        # poslist[0][0][i] = [pos[0][i][0] + cell[0]/2 ,pos[0][i][1] + cell[0]/2 ,pos[0][i][2] + cell[0]/2]
 
-        #print poslist
+        # print poslist
         return poslist
 
-    def gettranspos(self, pos,vec):
+    def gettranspos(self, pos, vec):
             data=[]
             for i in range(len(pos)):
                  aaa=[pos[i][0] + vec[0] , pos[i][1] + vec[1] , pos[i][2] + vec[2] ]
@@ -103,7 +103,7 @@ class molcalc():
             aaa = math.sqrt(pow(pos[i][0], 2) + pow(pos[i][1], 2)
                             + pow(pos[i][2], 2))
             data.append(aaa)
-        #print max(data)
+        # print max(data)
         return max(data)
 
     def getvolume(self, pos):
@@ -113,20 +113,20 @@ class molcalc():
             aaa = math.sqrt(pow(pos[i][0], 2) + pow(pos[i][1], 2)
                             + pow(pos[i][2], 2))
             data.append(aaa)
-        #print max(data)
+        # print max(data)
         return max(data)
 
-    def getchg(self, fname,natom,molchg):
-        chg=[]
+    def getchg(self, fname, natom, molchg):
+        chg = []
     #    print fname,natom,molname
-        f =open(fname, "r")
+        f = open(fname, "r")
         text = f.readlines()
         for i in range(len(text)):
             itemList = text[i].split()
             if itemList == ['TWO-STAGE', 'RESP', 'FITTING:', 'SECOND', 'STAGE']:
                 chg = []
                 for j in range(int(natom)):
-                    aaa=text[i+20+j].split()
+                    aaa = text[i+20+j].split()
                     chg.append(float(aaa[2]) * 18.2208933832)
 
             # if fmo
@@ -154,43 +154,67 @@ class molcalc():
         for i in range(len(text)):
             itemList = text[i][:-1].split()
             if fname[0] == fname[1]:
-                mol0=int(math.ceil(int(itemList[0])/float(repeats[0])))
-                mol1=int(math.ceil(int(itemList[1])/float(repeats[0])))
+                mol0 = int(math.ceil(int(itemList[0])/float(repeats[0])))
+                mol1 = int(math.ceil(int(itemList[1])/float(repeats[0])))
             else:
-                mol0=int(math.ceil(1*nummol_seg[0]/float(repeats[0])))
-                mol1=int(math.ceil(int(itemList[1])*2/float(repeats[0])))
+                mol0 = int(math.ceil(1*nummol_seg[0]/float(repeats[0])))
+                mol1 = int(math.ceil(int(itemList[1])*2/float(repeats[0])))
 
             molnum.append(mol0)
             molnum.append(mol1)
             print ("molnum;",molnum)
         return molnum
 
-    def getmolmass(self, ffname,atom_list):
-        data =[]
+    def getmolmass(self, ffname, atom_list):
+        data = []
         for i in range(len(ffname)):
             for j in range(len(atom_list)):
                 if ffname[i][1] == atom_list[j][0]:
-                    data.append(atom_list[j][1])
-        #print data
+                    data.append(atom_list[j][1])  # mass[amu, g/mol]
+        # print(data)
         return data
 
-    def gettotalmass(self, mass,molnum):
-        data=0
-        print ("molnum",molnum)
+    def gettotalmass(self, mass, molnum):
+        data = 0
+        print ("molnum", molnum)
         for i in range(len(mass)):
-            data += sum(mass[i])*molnum[i]
-        #print "mass=",data
+            data += sum(mass[i]) * molnum[i]
+        # print "mass=",data
         return data
 
-    def Exportardpos(self, path, iname,  molindex, posMol, nameAtom):
+    def calccellsize(self, totalmass, density):
+        '''
+        Args:
+            totalmass: total mass [amu(g/mol)]
+            density: density [g/cm^3]
+        Returns:
+            cellsize: cell size
+        '''
+
+        # 定数
+        amu_to_grams = 1.66053906660e-24  # 1 amu = 1.66054e-24 g
+        cm_to_angstrom = 1e8  # 1 cm = 1e8 Å
+
+        # 総分子量 [amu] をグラムに変換
+        mass_in_grams = totalmass * amu_to_grams
+
+        # 体積 [cm^3] を求める
+        volume_in_cm3 = mass_in_grams / density
+
+        # セルの体積から立方体のセルサイズ [Å] を求める
+        cellsize_in_angstrom = math.pow(volume_in_cm3, 1/3.0) * cm_to_angstrom
+
+        return cellsize_in_angstrom
+
+    def Exportardpos(self, path, iname, molindex, posMol, nameAtom):
         # export molindex mol data from whole posMol
 
         if os.path.exists(path) is False:
             print(path)
             subprocess.call(["mkdir", path])
 
-            # print molindex
-        # # Export position of mol
+        # print molindex
+        # Export position of mol
         out_head = path + "/" + str(iname)
         out_file = out_head + ".xyz"
         # print out_file
