@@ -115,65 +115,64 @@ class udfcreate():
 
 
     def getconnectdata(self, fname):
-        data=[]
-        atomdata=[]
+        data = []
+        # atomdata = []
         for line in open(fname, 'r'):
-                itemList = line[:-1].split()
-                #print itemList[0]
-                if itemList[0]=="CONECT" and len(itemList)>=4:
-                    #print (len(itemList))
-                    data.append(itemList)
-                #if itemList[0] in ["HETATM","ATOM"]:
-                   #atomdata.append([itemList[1],itemList[-1]])
+            itemList = line[:-1].split()
+            # print itemList[0]
+            if itemList[0] == "CONECT" and len(itemList) >= 4:
+                # print (len(itemList))
+                data.append(itemList)
+            # if itemList[0] in ["HETATM","ATOM"]:
+                # atomdata.append([itemList[1],itemList[-1]])
         for i in range(len(data)):
-            for j in range(1,len(data[i])):
-                data[i][j] = int(data[i][j]) -1
-        #print "connect data", data
+            for j in range(1, len(data[i])):
+                data[i][j] = int(data[i][j]) - 1
+        # print "connect data", data
         return data
 
     def getbatdata(self, data):
-        #get bond info
-        #print "connectdata",data
-        bond=[]
+        # get bond info
+        # print "connectdata",data
+        bond = []
         for i in range(len(data)):
-            #print (i)
-            for j in range(2,len(data[i])):
-                #print j,len(i)
-                #print "bond:",data[i][1] + "-" + data[i][j]
-                bond.append([data[i][1],data[i][j]])
-        #print "bond",bond
+            # print (i)
+            for j in range(2, len(data[i])):
+                # print j,len(i)
+                # print "bond:",data[i][1] + "-" + data[i][j]
+                bond.append([data[i][1], data[i][j]])
+        # print "bond",bond
 
-        #get angle info
-        angle=[]
+        # get angle info
+        angle = []
         for i in range(len(data)):
-            for j in range(2,len(data[i])):
-                for k in range(j+1,len(data[i])):
-                    #print "angle:",data[i][j],data[i][1],data[i][k]
-                    angle.append([data[i][j],data[i][1],data[i][k]])
-        #print "angle",angle
+            for j in range(2, len(data[i])):
+                for k in range(j+1, len(data[i])):
+                    # print "angle:",data[i][j],data[i][1],data[i][k]
+                    angle.append([data[i][j], data[i][1], data[i][k]])
+        # print "angle",angle
 
-
-        torsion=[]
+        torsion = []
         for i in range(len(data)-1):
             flag = False
             for j in range(i + 1, len(data)):
-                for k in range (2,len(data[i])):
+                for k in range (2, len(data[i])):
                     if data[i][k] in data[j]:
                         flag = True
             if flag == True:
 
                 for j in range(2, len(data[i])):
-                    for k in range (2,len(data[i+1])):
+                    for k in range(2, len(data[i+1])):
                         if data[i][j] in data[i+1] or data[i+1][k] in data[i]:
-                            #print "(Duplication:",data[i][j],"-",data[i][1],"-",data[i+1][1],"-",data[i+1][k],")"
+                            # print "(Duplication:",data[i][j],"-",data[i][1],
+                            # "-",data[i+1][1],"-",data[i+1][k],")"
                             continue
                         else:
-                            #print "torsion:",data[i][j],"-",data[i][1],"-",data[i+1][1],"-",data[i+1][k]
-                            torsion.append([data[i][j],data[i][1],data[i+1][1],data[i+1][k]])
-
+                            # print "torsion:",data[i][j],"-",data[i][1],"-",data[i+1][1],"-",data[i+1][k]
+                            torsion.append([data[i][j], data[i][1], \
+                                            data[i+1][1], data[i+1][k]])
         # print ("torsionmap",torsion)
         return bond, angle, torsion
-
 
     def getffname(self, atom, xyzfile, fffile):
         # xyzfile="monomer/pdb/" + molname + ".xyz"
