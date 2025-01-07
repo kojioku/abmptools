@@ -49,7 +49,7 @@ Overview
 [Documentをご参照ください](doc/ABMPTools-user-manual.md)
 
 ## Install
-`python setup.py install`
+`pip install --user .`
 
 <!--
 ## Contribution
