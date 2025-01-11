@@ -62,7 +62,7 @@ class abinit_io(mi.mol_io):
         self.nbo = True
         self.resp = True
         self.ligchg = None
-        self.rsolv= None
+        self.rsolv = None
         self.mldatfrag = False
         self.mldatname = None
         self.mllimit = None
