@@ -676,7 +676,6 @@ MD='OFF'
         bssecount = 0
         bsse = []
         readflag = False
-        # print("start!!!", fname)
         try:
             f = open(fname, "r")
             text = f.readlines()

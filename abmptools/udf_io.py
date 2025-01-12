@@ -465,6 +465,11 @@ class udf_io(molc.molcalc):
                             lammpsflag=False, masses=None,
                             atom_molecule_map=None, tgtfile=None,
                             molecule_list=None):
+        '''
+        seg1_clunum(for center mode): number of molecules in the first cluster
+        seg1_clunum(for whole mode):  number of moleclues in the system
+        '''
+
         if lammpsflag is False:
             uobj.jump(rec)
             cell = uobj.get("Structure.Unit_Cell.Cell_Size")
