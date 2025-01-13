@@ -383,6 +383,15 @@ class molcalc():
         return energy
 
     def getcontactlist(self, inmol, posMol, site, neighborMol):
+        '''
+        check contact between molecules
+        Args:
+            inmol: number of molecules
+            posMol: position of molecules
+            site: site of molecules (atomtype)
+            neighborMol: neighbor molecules (use com)
+        '''
+
         contactlist = []
         #print neighborMol
         print(len(site))
@@ -528,12 +537,23 @@ class molcalc():
         return index
 
     def getcontactfrag(self, clist, posMol, site, fragids, infrag):
-    # clist i:mol j: contact to clist[i][0]
-    # posfrag_mols i:molid j:fragid k:atomid l:x,y,z(3)
-    # site i:molid j:fragid k:atomid
+        '''
+        check contact between fragments
+        Args:
+            clist: contact molecule list
+            posMol: position of molecules
+            site: site of molecules (atomtype)
+            fragids: fragment id
+            infrag: number of fragments
+        '''
+        # clist i:mol j: contact to clist[i][0]
+        # posfrag_mols i:molid j:fragid k:atomid l:x,y,z(3)
+        # site i:molid j:fragid k:atomid
+
+        # search contact atoms
         contactlists = []
         for i in range(len(clist)):
-            for j in range(1,len(clist[i])):
+            for j in range(1, len(clist[i])):
                 flag = False
                 s1 = site[clist[i][0]]
                 s2 = site[clist[i][j]]
@@ -544,12 +564,12 @@ class molcalc():
                         flag = False
                         # print "m =", m
                         # print "1"
-                        for l in range(len(s1[k])): # k: fragid l:atomid
-                            if flag == True:
+                        for l in range(len(s1[k])):  # k: fragid l:atomid
+                            if flag is True:
                                 break
                             r1 = s1[k][l]
                             p1 = posMol[clist[i][0]][k][l]
-                            for n in range(len(s2[m])): # m; fragid n:atomid
+                            for n in range(len(s2[m])):  # m; fragid n:atomid
                                 r2 = s2[m][n]
                                 p2 = posMol[clist[i][j]][m][n]
                                 dist = self.getdist(p1, p2)
@@ -561,8 +581,8 @@ class molcalc():
                                     # print "break"
                                     flag = True
                                     break
-        #return contactlist
 
+        # search contact atoms -> convert to fragid pair
         contactfrag = []
         for alist in contactlists:
             # print alist
@@ -570,9 +590,9 @@ class molcalc():
             contactfrag.append([fragids[alist[0]][alist[1]], fragids[alist[2]][alist[3]]])
         # print("contactfrag", contactfrag)
 
-        # --arrange contact list per mol--
+        # arrange contact fragments list per fragment in seg1
         clistall = []
-        for i in range(1,infrag+1):
+        for i in range(1, infrag+1):
             clistmol = []
             for j in contactfrag:
                 flag = False
