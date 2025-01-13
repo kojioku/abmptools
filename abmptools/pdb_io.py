@@ -50,8 +50,8 @@ class pdb_io(fab.abinit_io):
     def readpdb(self, fname):
 
         print('--- get pdbinfo ---')
-        print('infile:',  fname)
-        lines = open(fname,'r').readlines()
+        print('infile:', fname)
+        lines = open(fname, 'r').readlines()
         molnames = []
         poss = []
         atypenames = []
@@ -275,12 +275,12 @@ class pdb_io(fab.abinit_io):
             atmtypeRes = self.getpermol2(totalRes, anummols, atypenames)
             headRes = self.getpermol2(totalRes, anummols, heads)
             labRes = self.getpermol2(totalRes, anummols, labs)
-            chainRes  = self.getpermol2(totalRes, anummols, chains)
-            resnumRes  = self.getpermol2(totalRes, anummols, resnums)
-            codeRes  = self.getpermol2(totalRes, anummols, codes)
-            occRes  = self.getpermol2(totalRes, anummols, occs)
-            tempRes  = self.getpermol2(totalRes, anummols, temps)
-            amarkRes  = self.getpermol2(totalRes, anummols, amarks)
+            chainRes = self.getpermol2(totalRes, anummols, chains)
+            resnumRes = self.getpermol2(totalRes, anummols, resnums)
+            codeRes = self.getpermol2(totalRes, anummols, codes)
+            occRes = self.getpermol2(totalRes, anummols, occs)
+            tempRes = self.getpermol2(totalRes, anummols, temps)
+            amarkRes = self.getpermol2(totalRes, anummols, amarks)
             chargeRes = self.getpermol2(totalRes, anummols, charges)
 
             if self.assignresname == True:
@@ -313,7 +313,7 @@ class pdb_io(fab.abinit_io):
                             flags.append(flag)
                             # print(flags)
 
-                            if flag == False:
+                            if flag is False:
                                 molidnames.append('{:0>3}'.format(str(k + 1)))
                                 break
 
@@ -348,7 +348,6 @@ class pdb_io(fab.abinit_io):
         return
         # return totalRes, atmtypeRes, resnames, gatmlabRes, posRes, headRes, labRes, chainRes ,resnumRes ,codeRes ,occRes ,tempRes ,amarkRes ,chargeRes
 
-
     def getpermol(self, totalRes, molnums, resnames, datas):
         datamols = []
         count = 0
@@ -356,7 +355,6 @@ class pdb_io(fab.abinit_io):
             datamol = []
             for j in range(molnums[resnames[i]]):
                 datamol.append(datas[count])
-
                 count += 1
             datamols.append(datamol)
         return datamols
@@ -374,8 +372,15 @@ class pdb_io(fab.abinit_io):
             # print(datamols)
         return datamols
 
-
 #        aobj.exportardpdbfull(opath + '/' + self.readgeom, index, posMol, atomnameMol, self.resnames, heads, labs, chains, resnums, codes, occs, temps, amarks, charges)
+
+    def devidepdb(self, iname, oname, index):
+        ''' devide pdb file to each molecule '''
+        #q 引数を残基番号にして、「その残基を除いた構造」と「その残基のみの構造」をpdbで出力したい
+
+
+
+
 
     def exportardpdbfull(self, out_file, mollist):
 
@@ -412,7 +417,7 @@ class pdb_io(fab.abinit_io):
         for i in mollist:
             posMol = self.posRes[i]
             reslab += 1
-            if reslab >=10000:
+            if reslab >= 10000:
                 reslab -= 10000
 
             for j in range(len(posMol)):
@@ -420,7 +425,7 @@ class pdb_io(fab.abinit_io):
                 if tatomlab >= 100000:
                     tatomlab -= 100000
 
-                if self.refreshatmtype == False:
+                if self.refreshatmtype is False:
                     atomname = self.atmtypeRes[i][j]
                     if atomname.strip() == 'HS':
                         atomname = 'H  '
