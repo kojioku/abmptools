@@ -668,10 +668,19 @@ MD='OFF'
                         pb_np += float(energy[i][5])
         return [pb_es * 627.5095, pb_np * 627.5095]
 
-    def read_ifie(self, fname, skipbsse=False):
+
+    def read_ifie(self, fname, skipbsse=False, debug=False):
+        '''
+        read ifie from abinitmp output file
+        Args:
+            fname: file name
+            skipbsse: skip bsse term
+        Returns:
+            ifie: ifie list
+        '''
+
         ifie = []
         count = 0
-        pflag = False
         bsseflag = False
         bssecount = 0
         bsse = []
@@ -680,7 +689,7 @@ MD='OFF'
             f = open(fname, "r")
             text = f.readlines()
             f.close()
-        except:
+        except IOError:
             print("can't open", fname)
             return ifie
         flag = False
@@ -694,20 +703,22 @@ MD='OFF'
                 flag = True
                 readflag = True
                 # head.append(itemList)
+                # print('READ IFIE start!')
                 continue
             if itemList[1] in ['PIEDA']:
-                pflag = True
                 flag = False
                 continue
             # after pieda or BSSE (break)
             if itemList[1] == 'Mulliken':
                 break
             # for BSSE
-            if pflag is True and itemList[:5] == ['##','BSSE', 'for','non-bonding','MP2-IFIE']:
-                pflag = False
+            if itemList[:5] == ['##', 'BSSE', 'for', 'non-bonding', 'MP2-IFIE']:
+                if skipbsse is True:
+                    break
+                flag = False
                 # print('pieda end! next is BSSE')
                 continue
-            if itemList[:4] == ['##','BSSE', 'for', 'MP2-IFIE']:
+            if itemList[:4] == ['##', 'BSSE', 'for', 'MP2-IFIE']:
                 if skipbsse is True:
                     break
                 bsseflag = True
@@ -721,14 +732,17 @@ MD='OFF'
                 count += 1
             if flag is True and count > 2:
                 ifie.append(itemList)
-
+                if debug:
+                    print(itemList)
         if readflag is False:
             try:
                 print("can't read ifie", fname.split("/")[1])
             except:
                 pass
 
-        # print('ifie', ifie)
+        if debug:
+            print('ifie', ifie)
+
         for i in range(len(ifie)):
             if float(ifie[i][4]) < -2 or float(ifie[i][5]) < -2:
                 ifie[i][4] = 0.0
@@ -745,9 +759,6 @@ MD='OFF'
 
         # print ifie
         return ifie
-
-
-
 
     def read_ifiepb(self, fname):
         ifie = []
@@ -777,7 +788,7 @@ MD='OFF'
                 # head.append(itemList)
                 continue
             if flag:
-                if itemList[1] == 'Mulliken' or itemList[1] =='PIEDA' or itemList[1] =='NATURAL':
+                if itemList[1] == 'Mulliken' or itemList[1] == 'PIEDA' or itemList[1] == 'NATURAL':
                     flag = False
                 # break
             if flag is True:
