@@ -1030,10 +1030,12 @@ MD='OFF'
                     if itemList[0] == 'difference':
                         # print('diff')
                         dif = itemList
-                    if itemList[0] == 'Electrostatic':
+                    if itemList[0] == 'Electrostatic' or \
+                            itemList[0:3] == ["ES", "term", "(FMO2-MP2)"]:
                         # print('ES')
                         dges = itemList
-                    if itemList[0] == 'Nonpolar':
+                    if itemList[0] == 'Nonpolar' or \
+                            itemList[0:2] == ["NP", "term"]:
                         # print('NP')
                         dgnp = itemList
                     if itemList[0] == 'Total':
@@ -1045,7 +1047,7 @@ MD='OFF'
             # egas, cor(insolv), dgtotal, dges, dgnp
             # print(eg[3], esol[3], dg[2], dges[2], dgnp[2])
             try:
-                return eg[3], esol[3], dg[2], dges[2], dgnp[2]
+                return eg[3], esol[3], dg[-1], dges[-1], dgnp[-1]
             except:
                 print("Warning: can't get result:", target)
                 return 0, 0, 0, 0, 0
