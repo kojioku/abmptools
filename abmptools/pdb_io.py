@@ -137,22 +137,15 @@ class pdb_io(fab.abinit_io):
             #     atypenames.append(line[12:15])
                 atomcount += 1
 
+
+                num = line[6:12]
                 try:
-                    num=int(line[6:12])
-                except:
-                    head=line[0:6]
-                    num=line[6:11]
-                    atypename=line[12:16]
-                    lab=line[16]
-                    res=line[17:20].strip()
-                    chain=line[21]
-                    resnum=line[22:26]
-                    code=line[26]
-                    pos=[float(line[30:38].strip()), float(line[38:46].strip()), float(line[46:54].strip())]
-                    occ=line[54:60]
-                    temp=line[60:66]
-                    amark=line[76:78]
-                    charge=line[78:80]
+                    # ここでnumが数値として扱えるように、必要なら int() で変換する
+                    num_int = int(num)
+                except (ValueError, TypeError) as e:
+                    # numが整数に変換できなかった場合の処理
+                    print("numの変換に失敗しました:", e)
+                    num_int = 0  # もしくは、適切なデフォルト値を設定する
 
                 if num < 100000:
                     head=line[0:6]
