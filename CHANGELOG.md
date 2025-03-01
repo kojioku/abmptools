@@ -1,6 +1,34 @@
 # Changelog
 
-## [1.13.1] - 2023-10-15
+## [1.14.1] - 2024-5-17
+### Added
+- cpf2ifielistモジュール(cpfを読み込んで, 整形されたIFIEリストを出力する機能)を追加
+### Fixed
+- cpfmanager: CPF Ver.10において、bda-baa 原子が5桁を超えた際の読み込みエラーを修正
+
+## [1.14.0] - 2024-5-12
+### Fixed
+- [Manualの加筆](doc/ABMPTools-user-manual.md)
+- getifiepieda Pandas2系に対応するように修正(append)
+- ABINIT-MP Ver.2 Rev.8 対応の一部不具合修正(&CIS等)
+
+## [1.13.5] - 2024-3-14
+### Fixed
+- 13.4のエラー対応時の二重読み込みエラーの修正
+
+## [1.13.4] - 2024-2-16
+### Fixed
+- FMOPB 特定のエラー終了時の読み込みエラー対応
+
+## [1.13.3] - 2024-2-7
+### Changed
+- DIFIE (DIFIE) 出力仕様変更に伴う出力変更
+
+### Fixed
+- UDF関連一部修正
+- Openbabel対応一部修正
+
+## [1.13.2] - 2023-10-15
 ### Added
 - CPFmanager "CPF ver7.0 (MIZUHO)" 版への対応を追加
 

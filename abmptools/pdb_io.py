@@ -50,8 +50,8 @@ class pdb_io(fab.abinit_io):
     def readpdb(self, fname):
 
         print('--- get pdbinfo ---')
-        print('infile:',  fname)
-        lines = open(fname,'r').readlines()
+        print('infile:', fname)
+        lines = open(fname, 'r').readlines()
         molnames = []
         poss = []
         atypenames = []
@@ -137,22 +137,15 @@ class pdb_io(fab.abinit_io):
             #     atypenames.append(line[12:15])
                 atomcount += 1
 
+
+                num = line[6:12]
                 try:
-                    num=int(line[6:12])
-                except:
-                    head=line[0:6]
-                    num=line[6:11]
-                    atypename=line[12:16]
-                    lab=line[16]
-                    res=line[17:20].strip()
-                    chain=line[21]
-                    resnum=line[22:26]
-                    code=line[26]
-                    pos=[float(line[30:38].strip()), float(line[38:46].strip()), float(line[46:54].strip())]
-                    occ=line[54:60]
-                    temp=line[60:66]
-                    amark=line[76:78]
-                    charge=line[78:80]
+                    # ここでnumが数値として扱えるように、必要なら int() で変換する
+                    num_int = int(num)
+                except (ValueError, TypeError) as e:
+                    # numが整数に変換できなかった場合の処理
+                    print("numの変換に失敗しました:", e)
+                    num_int = 0  # もしくは、適切なデフォルト値を設定する
 
                 if num < 100000:
                     head=line[0:6]
@@ -275,12 +268,12 @@ class pdb_io(fab.abinit_io):
             atmtypeRes = self.getpermol2(totalRes, anummols, atypenames)
             headRes = self.getpermol2(totalRes, anummols, heads)
             labRes = self.getpermol2(totalRes, anummols, labs)
-            chainRes  = self.getpermol2(totalRes, anummols, chains)
-            resnumRes  = self.getpermol2(totalRes, anummols, resnums)
-            codeRes  = self.getpermol2(totalRes, anummols, codes)
-            occRes  = self.getpermol2(totalRes, anummols, occs)
-            tempRes  = self.getpermol2(totalRes, anummols, temps)
-            amarkRes  = self.getpermol2(totalRes, anummols, amarks)
+            chainRes = self.getpermol2(totalRes, anummols, chains)
+            resnumRes = self.getpermol2(totalRes, anummols, resnums)
+            codeRes = self.getpermol2(totalRes, anummols, codes)
+            occRes = self.getpermol2(totalRes, anummols, occs)
+            tempRes = self.getpermol2(totalRes, anummols, temps)
+            amarkRes = self.getpermol2(totalRes, anummols, amarks)
             chargeRes = self.getpermol2(totalRes, anummols, charges)
 
             if self.assignresname == True:
@@ -313,7 +306,7 @@ class pdb_io(fab.abinit_io):
                             flags.append(flag)
                             # print(flags)
 
-                            if flag == False:
+                            if flag is False:
                                 molidnames.append('{:0>3}'.format(str(k + 1)))
                                 break
 
@@ -348,7 +341,6 @@ class pdb_io(fab.abinit_io):
         return
         # return totalRes, atmtypeRes, resnames, gatmlabRes, posRes, headRes, labRes, chainRes ,resnumRes ,codeRes ,occRes ,tempRes ,amarkRes ,chargeRes
 
-
     def getpermol(self, totalRes, molnums, resnames, datas):
         datamols = []
         count = 0
@@ -356,7 +348,6 @@ class pdb_io(fab.abinit_io):
             datamol = []
             for j in range(molnums[resnames[i]]):
                 datamol.append(datas[count])
-
                 count += 1
             datamols.append(datamol)
         return datamols
@@ -374,8 +365,15 @@ class pdb_io(fab.abinit_io):
             # print(datamols)
         return datamols
 
-
 #        aobj.exportardpdbfull(opath + '/' + self.readgeom, index, posMol, atomnameMol, self.resnames, heads, labs, chains, resnums, codes, occs, temps, amarks, charges)
+
+    def devidepdb(self, iname, oname, index):
+        ''' devide pdb file to each molecule '''
+        #q 引数を残基番号にして、「その残基を除いた構造」と「その残基のみの構造」をpdbで出力したい
+
+
+
+
 
     def exportardpdbfull(self, out_file, mollist):
 
@@ -412,7 +410,7 @@ class pdb_io(fab.abinit_io):
         for i in mollist:
             posMol = self.posRes[i]
             reslab += 1
-            if reslab >=10000:
+            if reslab >= 10000:
                 reslab -= 10000
 
             for j in range(len(posMol)):
@@ -420,7 +418,7 @@ class pdb_io(fab.abinit_io):
                 if tatomlab >= 100000:
                     tatomlab -= 100000
 
-                if self.refreshatmtype == False:
+                if self.refreshatmtype is False:
                     atomname = self.atmtypeRes[i][j]
                     if atomname.strip() == 'HS':
                         atomname = 'H  '

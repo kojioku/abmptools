@@ -144,7 +144,6 @@ def get_args():
     print('process =', args.pynp)
     print('excludefrag =', args.exclude)
 
-
     return args
 
 

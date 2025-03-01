@@ -36,6 +36,7 @@ class abinit_io(mi.mol_io):
         # submit param
         self.npro = 4
         self.memory = "1800"
+        self.memorymp2 = "0"
         self.queue = None
         self.solv_flag = False
         self.abinitmp_path = 'abinitmp'
@@ -61,7 +62,7 @@ class abinit_io(mi.mol_io):
         self.nbo = True
         self.resp = True
         self.ligchg = None
-        self.rsolv= None
+        self.rsolv = None
         self.mldatfrag = False
         self.mldatname = None
         self.mllimit = None
@@ -216,7 +217,7 @@ LMOTYP='ANO' """
         else:
             use_FMO = 'ON'
 
-        if self.submit_system in ['K', 'OFP']:
+        if self.submit_system in ['K', 'OFP', 'Fugaku']:
             np = '1'
         else:
             np = str(int(self.npro/self.para_job))
@@ -350,7 +351,7 @@ MOD4TH='GEMM'"""
         ajf_body += """
 NP_MP2_IJ=1
 NP_MP2_S=0
-MemoryMP2=0
+MemoryMP2=""" + str(self.memorymp2) + """
 IFSCS='YES'
 IFPRNM='YES'
 OSSCAL=1.0
@@ -506,10 +507,10 @@ GRID='NO'
 &MCP
 /
 
-$CIS
+&CIS
 /
 
-$CISGRD
+&CISGRD
 /
 
 &CAFI
@@ -575,7 +576,7 @@ MD='OFF'
 
         return frag
 
-    def getifie(self, target_dir, frag):
+    def getifie(self, target_dir, frag, skipbsse=False):
         ielist = []
         if self.pbflag is False:
             # print "**** 1.get ifie running*****"
@@ -583,7 +584,7 @@ MD='OFF'
                 target = target_dir + '/%05d' % i + ".out"
             #    if i % 1000 == 0:
             #        print target + " end"
-                energy = self.read_ifie(target)
+                energy = self.read_ifie(target, skipbsse)
                 ifiesum = self.getifiesum(energy, frag)
                 ielist.append(ifiesum)
             # print energies
@@ -667,14 +668,28 @@ MD='OFF'
                         pb_np += float(energy[i][5])
         return [pb_es * 627.5095, pb_np * 627.5095]
 
-    def read_ifie(self, fname):
+
+    def read_ifie(self, fname, skipbsse=False, debug=False):
+        '''
+        read ifie from abinitmp output file
+        Args:
+            fname: file name
+            skipbsse: skip bsse term
+        Returns:
+            ifie: ifie list
+        '''
+
         ifie = []
         count = 0
+        bsseflag = False
+        bssecount = 0
+        bsse = []
+        readflag = False
         try:
             f = open(fname, "r")
             text = f.readlines()
             f.close()
-        except:
+        except IOError:
             print("can't open", fname)
             return ifie
         flag = False
@@ -686,28 +701,62 @@ MD='OFF'
                 continue
             if itemList[1] == 'MP2-IFIE':
                 flag = True
+                readflag = True
                 # head.append(itemList)
+                # print('READ IFIE start!')
                 continue
-            if itemList[1] == 'Mulliken' or itemList[1] =='PIEDA' or itemList[1] =='NATURAL':
-                # flag = False
+            if itemList[1] in ['PIEDA']:
+                flag = False
+                continue
+            # after pieda or BSSE (break)
+            if itemList[1] == 'Mulliken':
                 break
+            # for BSSE
+            if itemList[:5] == ['##', 'BSSE', 'for', 'non-bonding', 'MP2-IFIE']:
+                if skipbsse is True:
+                    break
+                flag = False
+                # print('pieda end! next is BSSE')
+                continue
+            if itemList[:4] == ['##', 'BSSE', 'for', 'MP2-IFIE']:
+                if skipbsse is True:
+                    break
+                bsseflag = True
+                # print('BSSE start!')
+                continue
+            if bsseflag is True:
+                bssecount += 1
+            if bsseflag is True and bssecount > 2:
+                bsse.append(itemList)
             if flag is True:
                 count += 1
             if flag is True and count > 2:
                 ifie.append(itemList)
-
-        if flag is False:
+                if debug:
+                    print(itemList)
+        if readflag is False:
             try:
                 print("can't read ifie", fname.split("/")[1])
             except:
                 pass
 
-        # print('ifie', ifie)
+        if debug:
+            print('ifie', ifie)
+
         for i in range(len(ifie)):
             if float(ifie[i][4]) < -2 or float(ifie[i][5]) < -2:
                 ifie[i][4] = 0.0
                 ifie[i][5] = 0.0
                 ifie[i][6] = 0.0
+
+        if bsseflag is True:
+            # print(bsse)
+            for i in range(len(ifie)):
+                if not (float(ifie[i][4]) < -2 or float(ifie[i][5]) < -2):
+                    ifie[i][4] = float(ifie[i][4]) + float(bsse[i][4])
+                    ifie[i][5] = float(ifie[i][5]) + float(bsse[i][5])
+                    ifie[i][6] = float(ifie[i][6]) + float(bsse[i][6])
+
         # print ifie
         return ifie
 
@@ -739,7 +788,7 @@ MD='OFF'
                 # head.append(itemList)
                 continue
             if flag:
-                if itemList[1] == 'Mulliken' or itemList[1] =='PIEDA' or itemList[1] =='NATURAL':
+                if itemList[1] == 'Mulliken' or itemList[1] == 'PIEDA' or itemList[1] == 'NATURAL':
                     flag = False
                 # break
             if flag is True:
@@ -772,7 +821,7 @@ MD='OFF'
 
         return [ifie, pbterm]
 
-    def getTE(self, target_dir, molname, mode,  fzcflag):
+    def getTE(self, target_dir, molname, mode, fzcflag):
         elistname = target_dir + "/energylist_" + self.solvtype
         if mode == "batch":
             energies = []
@@ -872,15 +921,16 @@ MD='OFF'
         hf = 0
         try:
             f = open(target, "r")
-
             text = f.readlines()
             f.close()
             for i in range(len(text)):
                 itemList = text[i][:-1].split()
                 if itemList == ['##', 'FMO', 'TOTAL', 'ENERGY']:
                     hf = text[i + 6].split()
-                    mp2 = text[i + 8].split()
-
+                    if self.PR_flag is True:
+                        mp2 = text[i + 13].split()
+                    else:
+                        mp2 = text[i + 8].split()
                     return [eval(hf[3]), eval(mp2[2])]
         except:
             print("Warning: can't get result:", target)
@@ -910,7 +960,10 @@ MD='OFF'
                     hfflag = True
             if itemList == ['##', 'MP2', 'ENERGY']:
                 # print itemList
-                mp2 = text[i + 2].split()
+                if self.PR_flag is True:
+                    mp2 = text[i + 7].split()
+                else:
+                    mp2 = text[i + 2].split()
                 break
 
         try:
@@ -921,18 +974,17 @@ MD='OFF'
             # sys.exit()
 
 
-
     def getfmopbenergy(self, target):
         try:
             f = open(target, "r")
-        except:
-            print ("can't open " + target)
-            return 0,0,0,0,0
-        if self.abinit_ver in ['rev11', 'rev15', 'mizuho']:
             text = f.readlines()
             f.close()
+        except:
+            print("can't open " + target)
+            return 0, 0, 0, 0, 0
+        if self.abinit_ver in ['rev11', 'rev15', 'mizuho']:
             index = 0
-            pbdone =False
+            pbdone = False
             for i in range(len(text)):
                 itemList = text[i][:-1].split()
                 if len(itemList) == 0:
@@ -959,8 +1011,6 @@ MD='OFF'
                 return 0, 0, 0, 0, 0
 
         if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
-            text = f.readlines()
-            f.close()
             index = 0
             pbdone =False
             getflag = False
@@ -980,10 +1030,12 @@ MD='OFF'
                     if itemList[0] == 'difference':
                         # print('diff')
                         dif = itemList
-                    if itemList[0] == 'Electrostatic':
+                    if itemList[0] == 'Electrostatic' or \
+                            itemList[0:3] == ["ES", "term", "(FMO2-MP2)"]:
                         # print('ES')
                         dges = itemList
-                    if itemList[0] == 'Nonpolar':
+                    if itemList[0] == 'Nonpolar' or \
+                            itemList[0:2] == ["NP", "term"]:
                         # print('NP')
                         dgnp = itemList
                     if itemList[0] == 'Total':
@@ -995,7 +1047,7 @@ MD='OFF'
             # egas, cor(insolv), dgtotal, dges, dgnp
             # print(eg[3], esol[3], dg[2], dges[2], dgnp[2])
             try:
-                return eg[3], esol[3], dg[2], dges[2], dgnp[2]
+                return eg[3], esol[3], dg[-1], dges[-1], dgnp[-1]
             except:
                 print("Warning: can't get result:", target)
                 return 0, 0, 0, 0, 0
@@ -1420,6 +1472,7 @@ MD='OFF'
                     'nummol_seg': [1],
                     'repeat': [1],
                     'pair_file': [],
+                    'partial_charge': [],
                     'multi_xyz': 'none'}
 
         for i in range(len(seg_data)):
