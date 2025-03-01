@@ -144,7 +144,7 @@ class udfcreate():
 #             subprocess.call(cmd.split(" "),stderr=out)
 #             out.close()
 #             time.sleep(5)
-# 
+#
 #         ffname=[]
 #         i=0
 #         for line in open(fffile, 'r'):
@@ -225,32 +225,51 @@ class udfcreate():
         return fff
 
 
-    def getljparam(self, ffname,atom_list):
-        data=[]
-        for i in range(len(ffname)):
-            for j in range(len(ffname[i])):
-                for k in range(len(atom_list)):
-                    #print ffname[i][1], atom_list[j][0]
-                    if ffname[i][j][1] == atom_list[k][0]:
-                        data.append(atom_list[k])
-    #    print "data",data
+#     def getljparam(self, ffname,atom_list):
+#         data=[]
+#         for i in range(len(ffname)):
+#             for j in range(len(ffname[i])):
+#                 for k in range(len(atom_list)):
+#                     #print ffname[i][1], atom_list[j][0]
+#                     if ffname[i][j][1] == atom_list[k][0]:
+#                         data.append(atom_list[k])
+#     #    print "data",data
+#
+#         dellist=[]
+#     #    print len(data)
+#         for i in range(len(data)-1):
+#             for j in range(i+1,len(data)):
+#                 if data[i][0] == data[j][0]:
+#                     dellist.append(i)
+#                     break
+#
+#     #    print "dellist",dellist
+#         for i in range(len(dellist)):
+#     #        print dellist[-(i+1)]
+#             data.pop(dellist[-(i+1)])
+#     #    print data
+#     #    print ffname
+#     #    print atom_list
+#         return data
 
-        dellist=[]
-    #    print len(data)
-        for i in range(len(data)-1):
-            for j in range(i+1,len(data)):
-                if data[i][0] == data[j][0]:
-                    dellist.append(i)
-                    break
+    def getljparam(self, ffname, atom_list):
+        # 1. atom_listについて、キー（atom[0]）毎に最後の要素を記録
+        last_atom = {atom[0]: atom for atom in atom_list}
 
-    #    print "dellist",dellist
-        for i in range(len(dellist)):
-    #        print dellist[-(i+1)]
-            data.pop(dellist[-(i+1)])
-    #    print data
-    #    print ffname
-    #    print atom_list
-        return data
+        # 2. ffnameの各要素（ネストしたリスト）から、比較に使うキー（ffname[i][j][1]）を抽出（atom_listに存在するもの）
+        keys = [item[1] for sub in ffname for item in sub if item[1] in last_atom]
+
+        # 3. flattened_keysに対して、逆順走査で各キーの「最後の出現順」を保持する
+        seen = set()
+        unique_keys = []
+        for key in reversed(keys):
+            if key not in seen:
+                seen.add(key)
+                unique_keys.append(key)
+        unique_keys.reverse()  # 元の順序に戻す
+
+        # 4. 各キーに対して、atom_list側で記録しておいた最後の要素を結果として返す
+        return [last_atom[key] for key in unique_keys]
 
 
     def getbondffparam(self, bondffid,ff_list,bond,bondff):
@@ -855,70 +874,134 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
         return initialstructure
 
 
-    def getbondparampair(self, data):
-    #    print "data",data
-        fff=[]
-        iddata=[]
-        for i in range(len(data)):
-            for j in range(len(data[i])):
-                fff.append(data[i][j])
+#     def getbondparampair(self, data):
+#     #    print "data",data
+#         fff=[]
+#         iddata=[]
+#         for i in range(len(data)):
+#             for j in range(len(data[i])):
+#                 fff.append(data[i][j])
+#
+#     #    print fff
+#         for i in range(len(fff)):
+#             flag=0
+#             for k in range(i+1,len(fff)):
+#                 if fff[i][0] == fff[k][0] and fff[i][1] == fff[k][1]:
+#                     flag=1
+#                 if fff[i][0] == fff[k][1] and fff[i][1] == fff[k][0]:
+#                     flag=1
+#             if flag==0:
+#                 iddata.append(fff[i])
+#     #    print "bondparampair",iddata
+#         return iddata
 
-    #    print fff
-        for i in range(len(fff)):
-            flag=0
-            for k in range(i+1,len(fff)):
-                if fff[i][0] == fff[k][0] and fff[i][1] == fff[k][1]:
-                    flag=1
-                if fff[i][0] == fff[k][1] and fff[i][1] == fff[k][0]:
-                    flag=1
-            if flag==0:
-                iddata.append(fff[i])
-    #    print "bondparampair",iddata
+
+    def getbondparampair(self, data):
+        # data をフラットなリストに変換
+        fff = [item for sub in data for item in sub]
+
+        # 各要素のキーごとに、リスト内で最後に現れるインデックスを記録
+        last_index = {}
+        for idx, item in enumerate(fff):
+            key = tuple(sorted((item[0], item[1])))
+            last_index[key] = idx
+
+        # 各要素がグループ内で最後の出現なら結果リストに追加
+        iddata = []
+        for idx, item in enumerate(fff):
+            key = tuple(sorted((item[0], item[1])))
+            if idx == last_index[key]:
+                iddata.append(item)
+
         return iddata
+
+
+#    def getangleparampair(self, data):
+#    #    print "data",data
+#        fff=[]
+#        iddata=[]
+#        for i in range(len(data)):
+#            for j in range(len(data[i])):
+#                fff.append(data[i][j])
+#
+#        for i in range(len(fff)):
+#            flag=0
+#            for k in range(i+1,len(fff)):
+#                if fff[i][1] == fff[k][1]:
+#                    if fff[i][0] == fff[k][0] and fff[i][2] == fff[k][2]:
+#                        flag=1
+#                    if fff[i][0] == fff[k][2] and fff[i][2] == fff[k][0]:
+#                        flag=1
+#            if flag==0:
+#                iddata.append(fff[i])
+#
+#    #    print "angleparampair",iddata
+#        return iddata
 
     def getangleparampair(self, data):
-    #    print "data",data
-        fff=[]
-        iddata=[]
-        for i in range(len(data)):
-            for j in range(len(data[i])):
-                fff.append(data[i][j])
+        # data をフラットなリストに変換
+        fff = [item for sub in data for item in sub]
 
-        for i in range(len(fff)):
-            flag=0
-            for k in range(i+1,len(fff)):
-                if fff[i][1] == fff[k][1]:
-                    if fff[i][0] == fff[k][0] and fff[i][2] == fff[k][2]:
-                        flag=1
-                    if fff[i][0] == fff[k][2] and fff[i][2] == fff[k][0]:
-                        flag=1
-            if flag==0:
-                iddata.append(fff[i])
+        # 各要素のキーごとに最後に出現するインデックスを記録
+        last_index = {}
+        for idx, item in enumerate(fff):
+            key = (item[1], tuple(sorted((item[0], item[2]))))
+            last_index[key] = idx
 
-    #    print "angleparampair",iddata
+        # 各要素がグループ内で最後の出現なら結果リストに追加
+        iddata = []
+        for idx, item in enumerate(fff):
+            key = (item[1], tuple(sorted((item[0], item[2]))))
+            if idx == last_index[key]:
+                iddata.append(item)
+
         return iddata
 
+
+    #def gettorsionparampair(self, data):
+    ##    print "data",data
+    #    fff=[]
+    #    iddata=[]
+    #    for i in range(len(data)):
+    #        for j in range(len(data[i])):
+    #            fff.append(data[i][j])
+
+    #    for i in range(len(fff)):
+    #        flag=0
+    #        for k in range(i+1,len(fff)):
+    #            if fff[i][1] == fff[k][1] and fff[i][2] == fff[k][2]:
+    #                if fff[i][0] == fff[k][0] and fff[i][3] == fff[k][3]:
+    #                    flag=1
+    #            if fff[i][1] == fff[k][2] and fff[i][2] == fff[k][1]:
+    #                if fff[i][0] == fff[k][3] and fff[i][3] == fff[k][0]:
+    #                    flag=1
+    #        if flag==0:
+    #            iddata.append(fff[i])
+
+    ##    print "torsionparampair",iddata
+    #    return iddata
+
+
     def gettorsionparampair(self, data):
-    #    print "data",data
-        fff=[]
-        iddata=[]
-        for i in range(len(data)):
-            for j in range(len(data[i])):
-                fff.append(data[i][j])
+        # data をフラットなリストに変換
+        fff = [item for sub in data for item in sub]
 
-        for i in range(len(fff)):
-            flag=0
-            for k in range(i+1,len(fff)):
-                if fff[i][1] == fff[k][1] and fff[i][2] == fff[k][2]:
-                    if fff[i][0] == fff[k][0] and fff[i][3] == fff[k][3]:
-                        flag=1
-                if fff[i][1] == fff[k][2] and fff[i][2] == fff[k][1]:
-                    if fff[i][0] == fff[k][3] and fff[i][3] == fff[k][0]:
-                        flag=1
-            if flag==0:
-                iddata.append(fff[i])
+        # 各要素のキー（正規化キー）ごとに最後に出現するインデックスを記録
+        last_index = {}
+        for idx, item in enumerate(fff):
+            # 正規化キー: (a, b, c, d) と (d, c, b, a) のうち辞書順で小さい方
+            key = min((item[0], item[1], item[2], item[3]),
+                      (item[3], item[2], item[1], item[0]))
+            last_index[key] = idx
 
-    #    print "torsionparampair",iddata
+        # 各要素がグループ内で最後の出現なら結果リストに追加
+        iddata = []
+        for idx, item in enumerate(fff):
+            key = min((item[0], item[1], item[2], item[3]),
+                      (item[3], item[2], item[1], item[0]))
+            if idx == last_index[key]:
+                iddata.append(item)
+
         return iddata
 
 
