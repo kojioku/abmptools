@@ -132,6 +132,8 @@ class LOGManager():
             'nuclear_repulsion_energy': NR,
         }
 
+        print('static_data\n', static_data)
+
         nums, heads, molnames, atypenames, labs, chains, \
             resnums, codes, xcoords, ycoords, zcoords, occs, temps, \
             amarks, charges, totalatom \
@@ -204,17 +206,63 @@ class LOGManager():
             sys.exit()
 
         hartree = 627.5095
+        bohr = 0.529177
+
+        def extend_list(lst, indices, fill_value=0):
+            extended_lst = lst[:]
+            for _ in indices:
+                extended_lst.append(fill_value)
+            return extended_lst
+
+        # ifragsの長さがndimerに満たない場合、要素を追加
+        ndimer = static_data['ndimer']
+        if len(ifrags) < ndimer:
+            print('Warning: ifrags is shorter than ndimer. Add missing pairs automatically.')
+            # ifragsとjfragsを正しい長さにする
+            expected_ifrags = [i for i in range(2, nf + 1) for _ in range(i - 1)]
+            expected_jfrags = [j for i in range(2, nf + 1) for j in range(1, i)]
+
+            # debug write
+            # print('expected_ifrags', expected_ifrags)
+            # print('expected_jfrags', expected_jfrags)
+            # sys.exit()
+
+            current_pairs = set(zip(ifrags, jfrags))
+            expected_pairs = set(zip(expected_ifrags, expected_jfrags))
+            missing_pairs = expected_pairs - current_pairs
+
+            ifrags.extend([i for i, j in missing_pairs])
+            jfrags.extend([j for i, j in missing_pairs])
+
+            dists = extend_list(dists, missing_pairs)
+            hfs = extend_list(hfs, missing_pairs)
+            mp2s = extend_list(mp2s, missing_pairs)
+            prs = extend_list(prs, missing_pairs)
+            grimmes = extend_list(grimmes, missing_pairs)
+
         ifieinfo = {
             "fragi": ifrags,
             "fragj": jfrags,
-            "min-dist": dists,
+            "min-dist": [x / bohr for x in dists],
             "NR": [0 for i in range(len(ifrags))],
-            "HF": [x / hartree for x in hfs],
+            "HF": [x for x in hfs],
         }
         if Method == 'MP2':
-            ifieinfo["MP2"] = [x / hartree for x in mp2s]
-            ifieinfo["PR-MP2"] = [x / hartree for x in prs]
-            ifieinfo["SCS-MP2(Grimme)"] = [x / hartree for x in grimmes]
+            ifieinfo["MP2"] = [x for x in mp2s]
+            ifieinfo["PR-MP2"] = [x for x in prs]
+            ifieinfo["SCS-MP2(Grimme)"] = [x for x in grimmes]
+
+#         ifieinfo = {
+#             "fragi": ifrags,
+#             "fragj": jfrags,
+#             "min-dist": [x / bohr for x in dists],
+#             "NR": [0 for i in range(len(ifrags))],
+#             "HF": [x for x in hfs],
+#         }
+#         if Method == 'MP2':
+#             ifieinfo["MP2"] = [x for x in mp2s]
+#             ifieinfo["PR-MP2"] = [x for x in prs]
+#             ifieinfo["SCS-MP2(Grimme)"] = [x for x in grimmes]
 
         piedainfo = {
             "fragi": pifrags,
@@ -637,96 +685,95 @@ class LOGManager():
             5      24    25     3
         '''
 
-        if fragmode == 'auto':
-            readflag = False
-            autoreadflag = False
-            baaflag = True
-            fragdata = []
-            fragdatas = []
-            elecs = []
-            seqnos = []
-            fragnos = []
-            residuestr = []
-            baareadstart = False
-            baafrags = []
-            fconnects = []
-            fprojs = []
-            elec = 0
+        readflag = False
+        autoreadflag = False
+        baaflag = True
+        fragdata = []
+        fragdatas = []
+        elecs = []
+        seqnos = []
+        fragnos = []
+        residuestr = []
+        baareadstart = False
+        baafrags = []
+        fconnects = []
+        fprojs = []
+        elec = 0
 
-            while True:
-                line = file.readline()
-                items = line.strip().split()
+        while True:
+            line = file.readline()
+            items = line.strip().split()
 
-                # chains = line[0]
-                if len(items) == 0:
-                    continue
+            # chains = line[0]
+            if len(items) == 0:
+                continue
 
-                if items[0:3] == ['Frag.', 'Elec.', 'ATOM']:
-                    readflag = True
-                    continue
+            if items[0:3] == ['Frag.', 'Elec.', 'ATOM']:
+                readflag = True
+                continue
 
-                if items[0:2] == ["ALL", "ELECTRON"]:
-                    fragdatas.append(list(map(int, fragdata)))
-                    readflag = False
-                    baaflag = True
+            if items[0:2] == ["ALL", "ELECTRON"]:
+                fragdatas.append(list(map(int, fragdata)))
+                readflag = False
+                baaflag = True
 
-                if baaflag is True and items[0:2] == ["Frag.", "Bonded"]:
-                    baareadstart = True
-                    continue
+            if baaflag is True and items[0:2] == ["Frag.", "Bonded"]:
+                baareadstart = True
+                continue
 
-                if baareadstart:
-                    if items[0:2] == ["##", "READ"]:
-                        break
-                    baafrags.append(int(items[0]))
-                    fconnects.append(list(map(int, items[1:3])))
-                    fprojs.append(int(items[3]))
+            if baareadstart:
+                if items[0:2] == ["##", "READ"]:
+                    break
+                baafrags.append(int(items[0]))
+                fconnects.append(list(map(int, items[1:3])))
+                fprojs.append(int(items[3]))
 
-                if items[0:2] == ["ALL", "ATOM"]:
-                    natom = int(items[3])
+            if items[0:2] == ["ALL", "ATOM"]:
+                natom = int(items[3])
 
-                if readflag:
-                    if line[0:21] == "                     ":
-                        fragdata = fragdata + items
-                    else:
-                        if len(fragdata) != 0:
-                            fragdatas.append(list(map(int, fragdata)))
-                            elecs.append(int(elec))
-                        fragdata = []
-                        elec = items[1]
-                        fragdata = fragdata + items[2:]
+            if readflag:
+                if line[0:21] == "                     ":
+                    fragdata = fragdata + items
+                else:
+                    if len(fragdata) != 0:
+                        fragdatas.append(list(map(int, fragdata)))
+                        elecs.append(int(elec))
+                    fragdata = []
+                    elec = items[1]
+                    fragdata = fragdata + items[2:]
 
-                # if items [0:2] == ['START', 'FRAGMENT']:
-                #     break
+            # if items [0:2] == ['START', 'FRAGMENT']:
+            #     break
 
-                # AUTOMATIC FRAGMENTATION
-                if items[0:3] == ['Seq.', 'Frag.', 'Residue']:
-                    autoreadflag = True
-                    continue
+            # AUTOMATIC FRAGMENTATION
+            if items[0:3] == ['Seq.', 'Frag.', 'Residue']:
+                autoreadflag = True
+                continue
 
-                if autoreadflag and items[0:2] == ['The', 'system']:
-                    autoreadflag = False
-                    continue
+            if autoreadflag and items[0:2] == ['The', 'system']:
+                autoreadflag = False
+                continue
 
-                if autoreadflag and items[0] == 'Ions':
-                    autoreadflag = False
-                    continue
+            if autoreadflag and items[0] == 'Ions':
+                autoreadflag = False
+                continue
 
-                if autoreadflag:
-                    # print(items)
-                    seqnos.append(items[0])
-                    fragnos.append(items[1])
-                    residuestr.append(items[2])
+            if autoreadflag:
+                # print(items)
+                seqnos.append(items[0])
+                fragnos.append(items[1])
+                residuestr.append(items[2])
 
-            nf = len(fragdatas)
-            fbaas = [0] * nf
-            fnatoms = []
-            # get natoms
-            for fdata in fragdatas:
-                fnatoms.append(len(fdata))
+        nf = len(fragdatas)
+        fbaas = [0] * nf
+        fnatoms = []
+        # get natoms
+        for fdata in fragdatas:
+            fnatoms.append(len(fdata))
 
-            # get fbaas
-            for baafrag in baafrags:
-                fbaas[baafrag - 1] += 1
+        # get fbaas
+        for baafrag in baafrags:
+            fbaas[baafrag - 1] += 1
         return nf, fnatoms, fbaas, fconnects, fragdatas, natom
 
     @staticmethod

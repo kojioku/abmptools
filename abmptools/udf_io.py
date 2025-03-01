@@ -10,12 +10,13 @@ import copy
 import molcalc as molc
 try:
     from UDFManager import *
-except:
+except ImportError:
     pass
 try:
     import numpy as np
-except:
+except ImportError:
     pass
+
 
 class udf_io(molc.molcalc):
     def __init__(self):
@@ -24,43 +25,43 @@ class udf_io(molc.molcalc):
     def getposatom(self, uobj, indexatom):
         # UDF operation
         # get the position of a molecule
-            i = indexatom
-            list = uobj.get("Structure.Position.mol[].atom[]", [i])
-            position = np.array(list)
+        i = indexatom
+        list = uobj.get("Structure.Position.mol[].atom[]", [i])
+        position = np.array(list)
 
-            return position
+        return position
 
     def getposmolrec(self, uobj, indexMol, record):
         # UDF operation
         # get the position of a molecule
-            uobj.jump(record)
-            i = indexMol
-            aaa = uobj.get("Structure.Position.mol[" + str(i) + "].atom[]")
-            position = np.array(aaa)
+        uobj.jump(record)
+        i = indexMol
+        aaa = uobj.get("Structure.Position.mol[" + str(i) + "].atom[]")
+        position = np.array(aaa)
 
-            return position
+        return position
 
     def getposmol(self, uobj, indexMol):
         # UDF operation
         # get the position of a molecule
-            i = indexMol
-            list = uobj.get("Structure.Position.mol[" + str(i) + "].atom[]")
-            position = np.array(list)
+        i = indexMol
+        list = uobj.get("Structure.Position.mol[" + str(i) + "].atom[]")
+        position = np.array(list)
 
-            return position
+        return position
 
     def getnameAtom(self, uobj, indexMol):
-            # get atom name
-            i = indexMol
-            atom = uobj.get("Set_of_Molecules.molecule[].atom[].Atom_Name", [i])
-            return atom
+        # get atom name
+        i = indexMol
+        atom = uobj.get("Set_of_Molecules.molecule[].atom[].Atom_Name", [i])
+        return atom
 
     def getAtomtypename(self, uobj, indexMol):
-            # get atom name
-            i = indexMol
-            atomtype = uobj.get(
-                    "Set_of_Molecules.molecule[].atom[].Atom_Type_Name", [i])
-            return atomtype
+        # get atom name
+        i = indexMol
+        atomtype = uobj.get(
+                "Set_of_Molecules.molecule[].atom[].Atom_Type_Name", [i])
+        return atomtype
 
     def putPositionsMol(self, uobj, indexMol, position):
         # ## put the position of the molecule to UDF
@@ -112,7 +113,6 @@ class udf_io(molc.molcalc):
         # subprocess.call(["babel", "-ixyz", out_file, "-opdb",
         #                  path + "/pdb/mdout_orig.pdb"])
         self.exportpdb(uobj, Rec, out_file, mollist)
-
 
     def Exporttgtmolpos(self, path, oname_i, Rec, mollist, uobj):
 
@@ -213,7 +213,6 @@ class udf_io(molc.molcalc):
         print("END", file=f)
         f.close()
 
-
     def Exportspecificpos(self, path, iname, Rec, mollist, uobj, centermol):
 
         if os.path.exists(path) is False:
@@ -280,15 +279,65 @@ class udf_io(molc.molcalc):
                 self.putPositionsMol(uobj, Molnum, posMol)
         print("move_done.")
 
+    def moveintocell_mol(self, uobj, totalRec, startmol, endmol):
+        # # Move into cell
+        for k in range(totalRec):
+            uobj.jump(k)
+            cell = uobj.get("Structure.Unit_Cell.Cell_Size")
+            for i in range(startmol, endmol):
+                Molnum = i
+                transVec = np.array([0., 0., 0.])  # x,y,z
+                posMol = self.getposmol(uobj, Molnum)
+                centerOfMol = self.getCenter(posMol)
+                for j in range(3):
+                    if centerOfMol[j] > cell[j]:
+                        while centerOfMol[j] > cell[j]:
+                            centerOfMol[j] = centerOfMol[j] - cell[j]
+                            transVec[j] = transVec[j] - cell[j]
+                    elif centerOfMol[j] < 0:
+                        while centerOfMol[j] < 0:
+                            centerOfMol[j] = centerOfMol[j] + cell[j]
+                            transVec[j] = transVec[j] + cell[j]
+
+                posMol = self.moveMolTrans(posMol, transVec)
+                self.putPositionsMol(uobj, Molnum, posMol)
+        print("move_done.")
+
     def putnvtnewfile(self, uobj, Rec, iname, addname):
         head, ext = os.path.splitext(str(iname))
         oname = head + addname + ".udf"
         uobj.jump(Rec)
-        uobj.write(oname, record=-1, define=1)
-        uobj.write(oname, currentRecord, append)
         uobj.put("NVT_Nose_Hoover",
                  "Simulation_Conditions.Solver.Dynamics.Dynamics_Algorithm")
-        uobj.write()
+        uobj.write(oname, record=-1, define=1)
+        uobj.write(oname, currentRecord, append)
+
+    def putnvtnewfilemb(self, uobj, Rec, iname, addname):
+        head, ext = os.path.splitext(str(iname))
+        print("totalstep:", self.nvtstep)
+        print("outstep:", self.nvtoutstep)
+        print("Algorithm:", self.nvtalgo[0])
+        oname = head + addname + ".udf"
+
+        uobj.jump(-1)   # jump to common record
+        uobj.put(self.nvtstep, "Simulation_Conditions.Dynamics_Conditions.Time.Total_Steps")
+        uobj.put(self.nvtoutstep, "Simulation_Conditions.Dynamics_Conditions.Time.Output_Interval_Steps")
+        uobj.put(self.nvtalgo[0],
+                 "Simulation_Conditions.Solver.Dynamics.Dynamics_Algorithm")
+        uobj.put("Restart", "Initial_Structure.Generate_Method.Method")
+        uobj.put(-1, 'Initial_Structure.Generate_Method.Restart.Record')
+        uobj.put(1, 'Initial_Structure.Generate_Method.Restart.Restore_Cell')
+        uobj.put(1, 'Initial_Structure.Generate_Method.Restart.Restore_Velocity')
+
+        '''
+        record = allRecord(0)/currentRecord(1)/initialRecord(-1)
+        mode = overwrite(0)/append(1)：
+        define=0/1
+        '''
+
+        uobj.jump(Rec)   # jump to target record
+        uobj.write(oname, record=-1, define=1)   # save common record
+        uobj.write(oname, currentRecord, append) # save target record
 
     def getudfinfowrap(self, uobj):
         totalMol, totalRec = self.gettotalmol_rec(uobj)
@@ -324,7 +373,6 @@ class udf_io(molc.molcalc):
         cell = uobj.get("Structure.Unit_Cell.Cell_Size")
         return cell
 
-
     def getmolatomnum(self, uobj, totalMol):
         atmnumlist = []
         for i in range(totalMol):
@@ -340,10 +388,10 @@ class udf_io(molc.molcalc):
     def getinteractionsitetable(self, uobj, indexatom):
         # UDF operation
         # get the position of a molecule
-            name = uobj.get("Molecular_Attributes.Interaction_Site_Type[].Name")
-            site = uobj.get("Molecular_Attributes.Interaction_Site_Type[].Range")
+        name = uobj.get("Molecular_Attributes.Interaction_Site_Type[].Name")
+        site = uobj.get("Molecular_Attributes.Interaction_Site_Type[].Range")
 
-            return [name, site]
+        return [name, site]
 
     def calcMMinteraction(self, index, posMol, typenameMol, molnamelist,
                           clist, clu_num, fname, uobj):
@@ -387,9 +435,9 @@ class udf_io(molc.molcalc):
                         pos2 = poslist[mol2id][l]
                         q1 = chglist[mol1id][k]
                         q2 = chglist[mol2id][l]
-                        SIparam = getsigmaepsilon(atomname1, atomname2, uobj)
-                        LJ = calcLJPairInteraction(pos1, pos2, SIparam)
-                        coulomb = calcCoulombInteraction(pos1, pos2, q1, q2, 1.0)
+                        SIparam = self.getsigmaepsilon(atomname1, atomname2, uobj)
+                        LJ = self.calcLJPairInteraction(pos1, pos2, SIparam)
+                        coulomb = self.calcCoulombInteraction(pos1, pos2, q1, q2, 1.0)
                         LJsum += LJ
                         coulombsum += coulomb
                 ielist.append([LJsum, coulombsum])
@@ -413,17 +461,72 @@ class udf_io(molc.molcalc):
 
         return molnamelist
 
-    def getcontactstructure(self, rec, uobj, totalMol, inmol, path,  molname):
-        uobj.jump(rec)
-        cell = uobj.get("Structure.Unit_Cell.Cell_Size")
-        print("totalmol:",totalMol, "rec", rec)
+    def getcontactstructure(self, rec, uobj, totalMol, seg1_clunum, path, molname,
+                            lammpsflag=False, masses=None,
+                            atom_molecule_map=None, tgtfile=None,
+                            molecule_list=None):
+        '''
+        seg1_clunum(for center mode): number of molecules in the first cluster
+        seg1_clunum(for whole mode):  number of moleclues in the system
+        '''
 
-        posMol_orig = []
-        typenameMol_orig = []
+        if lammpsflag is False:
+            uobj.jump(rec)
+            cell = uobj.get("Structure.Unit_Cell.Cell_Size")
+            print("totalmol:", totalMol, "rec", rec)
 
-        for i in range(totalMol):
-            posMol_orig.append(self.getposmol(uobj, i))
-            typenameMol_orig.append(self.getAtomtypename(uobj, i))
+            posMol_orig = []
+            typenameMol_orig = []
+            elemMol_orig = []
+
+            for i in range(totalMol):
+                posMol_orig.append(self.getposmol(uobj, i))
+                typenameMol_orig.append(self.getAtomtypename(uobj, i))
+                elemMol_orig.append(self.getnameAtom(uobj, i))
+
+        if lammpsflag is True:
+            print("LAMMPS mode")
+            # require
+            # posMol_orig
+            # typenameMol_orig
+            # elemMol_orig
+            # cell
+            # Example usage for trajectory file
+            print(tgtfile)
+            trajectory_file_path = tgtfile
+            timesteps, box_bounds = \
+                self.parse_lammps_trajectory(trajectory_file_path)
+
+            for timestep, atom_data in timesteps.items():
+                atom_data.sort(key=lambda x: x[0])  # 追加: 原子IDでソート
+                real_coords = self.scale_to_real_coords(
+                    atom_data, box_bounds, atom_molecule_map)
+                molecule_real_coords = \
+                    self.group_real_coords_by_molecule(real_coords)
+
+                for molecule_tag in molecule_real_coords:
+                    molecule_real_coords[molecule_tag] = \
+                        self.shift_molecule_to_primary_cell(
+                        molecule_real_coords[molecule_tag],
+                        box_bounds)  # 分子全体を本セル内にシフト
+                posMol_orig = list(molecule_real_coords.values())
+                # print(f"Molecule real coordinates for timestep {timestep}:")
+                # print(posMol_orig)
+                # print(len(posMol_orig))
+
+                molecule_radii = self.get_radii_for_molecules(real_coords, masses)
+                radii_list = list(molecule_radii.values())
+                # print(f"Molecule radii for timestep {timestep}:")
+                # print(radii_list)
+
+                # cell
+                # elemMol_orig
+                elemMol_orig = molecule_list
+                # typenameMol_orig
+                typenameMol_orig = radii_list
+
+            cell = [box_bounds[1]-box_bounds[0], box_bounds[3]-box_bounds[2],
+                    box_bounds[5]-box_bounds[4]]
 
         vec = [[0, 0, 0]]
         for i in (-1, 0, 1):
@@ -439,12 +542,14 @@ class udf_io(molc.molcalc):
 
         posMol = []
         typenameMol = []
+        elemMol = []
         # print posMol_orig[0]
         for i in range(len(vec)):
             for j in range(totalMol):
                 posMol.append(self.moveMolTrans(
                     posMol_orig[j], vec[i] * float(cell[0])))
                 typenameMol.append(typenameMol_orig[j])
+                elemMol.append(elemMol_orig[j])
 
         # --definition--
         # posMol: molecular position list (27cell)
@@ -452,13 +557,20 @@ class udf_io(molc.molcalc):
         # typenameMol: Molecular typename list (27cell)
 
         # ---get contact_mol---
-        isitelist = self.getinteractionsitetable(uobj, 1)
-        # print isitelist
 
-        site = []
-        # print typenameMol[neighborMol[0][0]]
-        for i in range(len(posMol)):
-            site.append(self.getatomisite(isitelist, typenameMol[i]))
+        if lammpsflag is False:
+            isitelist = self.getinteractionsitetable(uobj, 1)
+            # print isitelist
+
+            site = []
+            # print typenameMol[neighborMol[0][0]]
+            for i in range(len(posMol)):
+                site.append(self.getatomisite(isitelist, typenameMol[i]))
+        else:
+            site = copy.deepcopy(typenameMol)
+
+        # print('site\n',site)
+        # sys.exit()
 
         # print "vec",vec
         print("pos27molnum", len(posMol), end=' ')
@@ -466,9 +578,12 @@ class udf_io(molc.molcalc):
         print("typenamemol len", len(typenameMol))
         # print posMol
 
-        posfrag_mols, typenamefrag_mols, sitefrag_mols, fragids, infrag = self.getfraginfomb(molname, posMol, typenameMol, site, len(posMol_orig))
-        infrag = infrag * inmol
-        print("infrag:", infrag)
+        posfrag_mols, typenamefrag_mols, sitefrag_mols, fragids, infrag = \
+            self.getfraginfomb(molname, posMol, typenameMol,
+                               site, len(posMol_orig), seg1_clunum)
+        infrag = infrag * seg1_clunum
+        print("seg1_frag:", infrag)
+        # sys.exit()
 
         # centerOfMol: com of each molecules
         centerOfMol = []
@@ -485,7 +600,7 @@ class udf_io(molc.molcalc):
 
         # --move check--
         aaa = self.moveMolTrans(posMol[0], -centerOfMol[0])
-        print(len(aaa))
+        # print(len(aaa))
         print("center", self.getCenter(aaa))
 
         # --move all mol to origin--
@@ -496,39 +611,45 @@ class udf_io(molc.molcalc):
         # for i in range(len(movemol)):
         #    exportxyz(path[0] + "/" + path[1],movemol[i],i)
 
-        # --get mol volume--
-        vol = []
+        # --get mol radius --
+        radius = []
         for i in range(len(posMol)):
-            vol.append(self.getvolume(originmol[i]))
+            radius.append(self.getmolradius(originmol[i]))
 
         # --get com dist--
         distlist = []
-        for i in range(inmol):
+        for i in range(seg1_clunum):
             dist = []
             for j in range(i+1, len(posMol)):
                 dist.append(self.getdist(centerOfMol[i], centerOfMol[j]))
             distlist.append(dist)
 
-        # inmol: mol num need for check contact
+        # seg1_clunum: mol num need for check contact
         # this area can be parrallel tuning
+        # compare com dist and radius
         neighborMol = []
-        for i in range(inmol):
+        for i in range(seg1_clunum):
             k = 0
             for j in range(i+1, len(posMol)):
-                if distlist[i][k] < (vol[i] + vol[j])*2:
+                if distlist[i][k] < (radius[i] + radius[j]) * 2:
                     neighborMol.append([i, j])
                 k += 1
 
         # get contact list
-        clistall = self.getcontactlist(inmol, posMol, site, neighborMol)
-        clistfrag = self.getcontactfrag(clistall, posfrag_mols, sitefrag_mols, fragids, infrag)
+        clistall = self.getcontactlist(seg1_clunum, posMol, site, neighborMol)
+        print("clistall", clistall)
+        clistfrag = self.getcontactfrag(clistall, posfrag_mols,
+                                        sitefrag_mols, fragids, infrag)
+        print("clistfrag", clistfrag)
+        # sys.exit()
 
         index = self.getindex(clistall)
         frag_index = self.getindex(clistfrag)
         molnamelist = self.getnamelist(index, uobj, totalMol)
+        # print("molnamelist", molnamelist)
 
         # --export contact pos--
-    #    for i in range(inmol):
+    #    for i in range(seg1_clunum):
     #        opath = path[0] + "/" + path[1] + "/contact"
     #        Exportardpos(opath, rec, clistall[i], posMol,typenameMol)
 
@@ -536,7 +657,7 @@ class udf_io(molc.molcalc):
         # oname = "mdout_orig" + str(rec) + ".xyz"
         # Exportpos(path[0] + "/" + path[1],totalRec-1,totalMol,uobj,oname)
 
-        # --export  pos for abinit --
+        # --export pos for abinit --
         opath = path[0] + "/" + path[1] + "/pdb"
         if self.mixflag is True or self.clusterflag is True:
             # contact
@@ -544,33 +665,22 @@ class udf_io(molc.molcalc):
         else:
             # plus 1 layer
             oname = "mdout"
-        self.Exportardpos(opath, oname, index, posMol, typenameMol)
+        self.Exportardpos(opath, oname, index, posMol, elemMol)
 
         index_renum, clistall = self.getrenumindex(index, clistall)
-        fragindex_renum, clistall = self.getrenumfrag(frag_index, clistfrag, fragids)
+        fragindex_renum, clistall = \
+            self.getrenumfrag(frag_index, clistfrag, fragids)
 
         # --export clistall--
         opath = path[0] + "/" + path[1] + "/contactfrag"
         self.exportdata(opath, oname, clistall)
 
         # calc MM interacion
-        # self.calcMMinteraction(index,posMol,typenameMol,molnamelist,clistall,inmol,molname,uobj)
+        # self.calcMMinteraction(index,posMol,typenameMol,molnamelist,clistall,seg1_clunum,molname,uobj)
 
         # bind structure
         # molnamelist: name list for each molecules
         self.make_abinputmb(molname, molnamelist, oname, path)
-
-    def putnvtnewfile(self, uobj, Rec, iname, addname):
-        head, ext = os.path.splitext(str(iname))
-        oname = head + addname + ".udf"
-        uobj.jump(Rec)
-        uobj.write(oname, record=-1, define=1)
-        uobj.write(oname, currentRecord, append)
-
-        newudf= UDFManager(oname)
-        newudf.put("NVT_Nose_Hoover",
-                 "Simulation_Conditions.Solver.Dynamics.Dynamics_Algorithm")
-        newudf.write()
 
     def getsigmaepsilon(self, atom1, atom2, uobj):
         # size=uobj.size("Interactions.Pair_Interaction[]")
@@ -582,5 +692,3 @@ class udf_io(molc.molcalc):
                 break
         return list[6]
         # list[6]: [sigma(/2^(1/6)), epsilon(sqrt(e1 * e2))]
-
-

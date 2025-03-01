@@ -377,9 +377,29 @@ class CPFManager:
             # bda-baa atom section
             if flag is True and typcount == 2:
                 count += 1
+
+                def split_integer(itemlist):
+                    # itemlistが整数であることを確認
+                    if len(itemlist) == 1:
+                        if 100000000 <= int(itemlist[0]) <= 999999999:
+                            # print('length = 9')
+                            length = 4
+                        if 1000000000 <= int(itemlist[0]) <= 9999999999:
+                            # print('length = 10')
+                            length = 5
+                        itemlist_str = str(itemlist[0])
+                        first_part = int(itemlist_str[:length])  # 最初の4桁
+                        second_part = int(itemlist_str[length:])  # 残りの5桁
+                        return [first_part, second_part]
+                    else:
+                        return itemlist
+
+                itemlist = split_integer(itemlist)
+                # print(itemlist)
                 if count == sum(fbaas):
                     if tgtfrag != 0:
                         if int(itemlist[0]) not in alabels or int(itemlist[1]) not in alabels:
+                            print('break!')
                             break
                     fconnects.append(itemlist)
                     fconnects = CPFManager.functor(int, fconnects)
@@ -819,9 +839,11 @@ class CPFManager:
         diststr = ''
         # standard ifie case
         if not is_difie:
+            print(static_data['ndimer'])
             for i in range(static_data['ndimer']):
                 diststr += str(diminfo['fragi'][i]) + str(diminfo['fragj'][i]) \
                     + str(diminfo['min-dist'][i]) + '\n'
+                # print(diststr)
 
         # difie case
         else:

@@ -48,71 +48,131 @@ class udfcreate():
     def setudfparam(self, param_udf):
         # -- read for paramdata --
         self.algo = param_udf['algo']
-        self.cellsize = param_udf['cellsize']
-        self.totalstep = param_udf['totalstep']
-        self.outstep = param_udf['outstep']
+
+        try:
+            self.nvtalgo = param_udf['nvtalgo']
+        except KeyError:
+            self.nvtalgo = ['NVT_Nose_Hoover']
+
+        try:
+            self.packmode = param_udf['packmode']
+        except KeyError:
+            self.packmode = 'density'
+
+        try:
+            self.density = param_udf['density']
+        except KeyError:
+            self.density = 0.5
+
+        try:
+            self.cellsize = param_udf['cellsize']
+        except KeyError:
+            self.cellsize = [30, 30, 30]
+
+        try:
+            self.totalstep = param_udf['totalstep']
+        except KeyError:
+            self.totalstep = 5000
+
+        try:
+            self.outstep = param_udf['outstep']
+        except KeyError:
+            self.outstep = 50
+
+        try:
+            self.nvtstep = param_udf['nvtstep']
+        except KeyError:
+            self.nvtstep = 1000
+
+        try:
+            self.nvtoutstep = param_udf['nvtoutstep']
+        except KeyError:
+            self.nvtoutstep = 10
+
+        try:
+            self.timestep = param_udf['timestep']
+        except KeyError:
+            self.timestep = 0.001 # 1fs
+
+        try:
+            self.pressure = param_udf['pressure']
+        except KeyError:
+            self.pressure = 1.0 # 1atm
+
         self.tempes = param_udf['temperature']
+        self.octahome = param_udf['octahome']
+        self.cognacpath = param_udf['cognacpath']
+        try:
+            self.mdlocalnp = param_udf['mdlocalnp']
+        except KeyError:
+            self.mdlocalnp = 24
+
+        try:
+            self.mdnp = param_udf['mdnp']
+        except KeyError:
+            self.mdnp = 48
+
+
 
     def getconnectdata(self, fname):
-        data=[]
-        atomdata=[]
+        data = []
+        # atomdata = []
         for line in open(fname, 'r'):
-                itemList = line[:-1].split()
-                #print itemList[0]
-                if itemList[0]=="CONECT" and len(itemList)>=4:
-                    #print (len(itemList))
-                    data.append(itemList)
-                #if itemList[0] in ["HETATM","ATOM"]:
-                   #atomdata.append([itemList[1],itemList[-1]])
+            itemList = line[:-1].split()
+            # print itemList[0]
+            if itemList[0] == "CONECT" and len(itemList) >= 4:
+                # print (len(itemList))
+                data.append(itemList)
+            # if itemList[0] in ["HETATM","ATOM"]:
+                # atomdata.append([itemList[1],itemList[-1]])
         for i in range(len(data)):
-            for j in range(1,len(data[i])):
-                data[i][j] = int(data[i][j]) -1
-        #print "connect data", data
+            for j in range(1, len(data[i])):
+                data[i][j] = int(data[i][j]) - 1
+        # print "connect data", data
         return data
 
     def getbatdata(self, data):
-        #get bond info
-        #print "connectdata",data
-        bond=[]
+        # get bond info
+        # print "connectdata",data
+        bond = []
         for i in range(len(data)):
-            #print (i)
-            for j in range(2,len(data[i])):
-                #print j,len(i)
-                #print "bond:",data[i][1] + "-" + data[i][j]
-                bond.append([data[i][1],data[i][j]])
-        #print "bond",bond
+            # print (i)
+            for j in range(2, len(data[i])):
+                # print j,len(i)
+                # print "bond:",data[i][1] + "-" + data[i][j]
+                bond.append([data[i][1], data[i][j]])
+        # print "bond",bond
 
-        #get angle info
-        angle=[]
+        # get angle info
+        angle = []
         for i in range(len(data)):
-            for j in range(2,len(data[i])):
-                for k in range(j+1,len(data[i])):
-                    #print "angle:",data[i][j],data[i][1],data[i][k]
-                    angle.append([data[i][j],data[i][1],data[i][k]])
-        #print "angle",angle
+            for j in range(2, len(data[i])):
+                for k in range(j+1, len(data[i])):
+                    # print "angle:",data[i][j],data[i][1],data[i][k]
+                    angle.append([data[i][j], data[i][1], data[i][k]])
+        # print "angle",angle
 
-
-        torsion=[]
+        torsion = []
         for i in range(len(data)-1):
             flag = False
             for j in range(i + 1, len(data)):
-                for k in range (2,len(data[i])):
+                for k in range (2, len(data[i])):
                     if data[i][k] in data[j]:
                         flag = True
             if flag == True:
 
                 for j in range(2, len(data[i])):
-                    for k in range (2,len(data[i+1])):
+                    for k in range(2, len(data[i+1])):
                         if data[i][j] in data[i+1] or data[i+1][k] in data[i]:
-                            #print "(Duplication:",data[i][j],"-",data[i][1],"-",data[i+1][1],"-",data[i+1][k],")"
+                            # print "(Duplication:",data[i][j],"-",data[i][1],
+                            # "-",data[i+1][1],"-",data[i+1][k],")"
                             continue
                         else:
-                            #print "torsion:",data[i][j],"-",data[i][1],"-",data[i+1][1],"-",data[i+1][k]
-                            torsion.append([data[i][j],data[i][1],data[i+1][1],data[i+1][k]])
-
+                            # print "torsion:",data[i][j],"-",data[i][1],"-",data[i+1][1],"-",data[i+1][k]
+                            torsion.append([data[i][j], data[i][1], \
+                                            data[i+1][1], data[i+1][k]])
         # print ("torsionmap",torsion)
         return bond, angle, torsion
-
 
     def getffname(self, atom, xyzfile, fffile):
         # xyzfile="monomer/pdb/" + molname + ".xyz"
@@ -1006,29 +1066,31 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
 
 
     def gen_udf(self, udf_param, out_name, som_param):
-        cellsize=udf_param[0]
-        ljparam=udf_param[1]
-        bondparam=udf_param[2]
-        angleparam=udf_param[3]
-        torsionparam=udf_param[4]
-        atom_list=udf_param[5]
-        totalstep=udf_param[6]
-        outstep=udf_param[7]
-        totalmass=udf_param[8]
-        algo=udf_param[9]
-        poslist=udf_param[10]
+        cellsize = udf_param[0]
+        ljparam = udf_param[1]
+        bondparam = udf_param[2]
+        angleparam = udf_param[3]
+        torsionparam = udf_param[4]
+        atom_list = udf_param[5]
+        totalstep = udf_param[6]
+        outstep = udf_param[7]
+        totalmass = udf_param[8]
+        algo = udf_param[9]
+        poslist = udf_param[10]
 
-        header=self.putheader()
-        simucondition=self.putsimulationcondition(totalstep, outstep, totalmass, algo)
-        initialstructure=self.putinitialstructure(cellsize)
-        molattr=self.putmolecularattributes(ljparam,bondparam,angleparam,torsionparam,atom_list)
-        interactions=self.putinteractions(ljparam)
-        somolecules=self.putsetofmolecules(poslist,som_param)
-        structure=self.putstructure(poslist,cellsize)
+        header = self.putheader()
+        simucondition = self.putsimulationcondition(totalstep, outstep, totalmass, algo)
+        initialstructure = self.putinitialstructure(cellsize)
+        molattr = self.putmolecularattributes(ljparam, bondparam,
+                                              angleparam, torsionparam, atom_list)
+        interactions = self.putinteractions(ljparam)
+        somolecules = self.putsetofmolecules(poslist,som_param)
+        structure = self.putstructure(poslist,cellsize)
 
-        udf_body=str(header) + str(simucondition) + str(initialstructure) + str(molattr) + str(interactions) + str(somolecules) + str(structure)
-        out_file=open(out_name,"w")
-        print (udf_body, file=out_file)
+        udf_body = str(header) + str(simucondition) + str(initialstructure) + \
+            str(molattr) + str(interactions) + str(somolecules) + str(structure)
+        out_file = open(out_name, "w")
+        print(udf_body, file=out_file)
         out_file.close()
 
 

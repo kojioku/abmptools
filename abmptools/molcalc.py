@@ -42,80 +42,91 @@ class molcalc():
         dist = np.linalg.norm(np.array(p1) - np.array(p2))
         return dist
 
-    def getpos(self, pos,molnum,cell):
-    #    vol=getvolume(pos)
-    #    vol = vol * 1.2
-        poslist=[[],[]]
-        #print vol
-        vec=[]
-        raw=math.ceil(math.pow(sum(molnum),(1.0/3.0)))
-        dist=cell[0]/raw
+    def getpos(self, pos, molnum, cell):
+        # vol = getvolume(pos)
+        # vol = vol * 1.2
+        poslist = [[], []]
+        # print vol
+        vec = []
+        raw = math.ceil(math.pow(sum(molnum), (1.0/3.0)))
+        dist = cell[0]/raw
 
-        #print "raw",raw,"dist",dist
-        #get center pos of each pos for put
-        count=0
+        # print "raw",raw,"dist",dist
+        # get center pos of each pos for put
+        count = 0
         flag = False
         centerflag = False
-        raw=int(raw)
+        raw = int(raw)
         for i in range(raw):
             for j in range(raw):
-                for k  in range(raw):
-                    if centerflag == True:
-                        centcount=count
-                    x=i*dist
-                    y=j*dist
-                    z=k*dist
-                    vec.append([x,y,z])
-                    count=count+1
-                    if count==sum(molnum):
+                for k in range(raw):
+                    if centerflag is True:
+                        centcount = count
+                    x = i*dist
+                    y = j*dist
+                    z = k*dist
+                    vec.append([x, y, z])
+                    count = count + 1
+                    if count == sum(molnum):
                         flag = True
                         break
                 if flag == True:
                     break
-            if flag ==True:
+            if flag == True:
                 break
 
-        #print "pos",pos
+        # print "pos",pos
         count = 0
         for i in range(2):
             for j in range(molnum[i]):
-                tpos=self.gettranspos(pos[i],vec[count])
+                tpos = self.gettranspos(pos[i], vec[count])
                 poslist[i].append(tpos)
                 count += 1
-        #print len(poslist[1][2])
-        #for i in range(len(pos[0])):
-        #    poslist[0][0][i] = [pos[0][i][0] + cell[0]/2 ,pos[0][i][1] + cell[0]/2 ,pos[0][i][2] + cell[0]/2]
+        # print len(poslist[1][2])
+        # for i in range(len(pos[0])):
+        # poslist[0][0][i] = [pos[0][i][0] + cell[0]/2 ,pos[0][i][1] + cell[0]/2 ,pos[0][i][2] + cell[0]/2]
 
-        #print poslist
+        # print poslist
         return poslist
 
-    def gettranspos(self, pos,vec):
+    def gettranspos(self, pos, vec):
             data=[]
             for i in range(len(pos)):
                  aaa=[pos[i][0] + vec[0] , pos[i][1] + vec[1] , pos[i][2] + vec[2] ]
                  data.append(aaa)
             return data
 
-    def getvolume(self, pos):
-        aaa=0
-        data=[]
+    def getmolradius(self, pos):
+        aaa = 0
+        data = []
         for i in range(len(pos)):
-            aaa = math.sqrt(pow(pos[i][0],2) + pow(pos[i][1],2) + pow(pos[i][2],2))
+            aaa = math.sqrt(pow(pos[i][0], 2) + pow(pos[i][1], 2)
+                            + pow(pos[i][2], 2))
             data.append(aaa)
-        #print max(data)
+        # print max(data)
         return max(data)
 
-    def getchg(self, fname,natom,molchg):
-        chg=[]
+    def getvolume(self, pos):
+        aaa = 0
+        data = []
+        for i in range(len(pos)):
+            aaa = math.sqrt(pow(pos[i][0], 2) + pow(pos[i][1], 2)
+                            + pow(pos[i][2], 2))
+            data.append(aaa)
+        # print max(data)
+        return max(data)
+
+    def getchg(self, fname, natom, molchg):
+        chg = []
     #    print fname,natom,molname
-        f =open(fname, "r")
+        f = open(fname, "r")
         text = f.readlines()
         for i in range(len(text)):
             itemList = text[i].split()
             if itemList == ['TWO-STAGE', 'RESP', 'FITTING:', 'SECOND', 'STAGE']:
                 chg = []
                 for j in range(int(natom)):
-                    aaa=text[i+20+j].split()
+                    aaa = text[i+20+j].split()
                     chg.append(float(aaa[2]) * 18.2208933832)
 
             # if fmo
@@ -136,51 +147,76 @@ class molcalc():
         return chg
 
     def getmolnum(self, dirname, fname, nummol_seg, repeats):
-        molnum=[]
+        molnum = []
 
-        f =open(dirname + "/" + "molnum.dat","r")
+        f = open(dirname + "/" + "molnum.dat", "r")
         text = f.readlines()
         for i in range(len(text)):
             itemList = text[i][:-1].split()
             if fname[0] == fname[1]:
-                mol0=int(math.ceil(int(itemList[0])/float(repeats[0])))
-                mol1=int(math.ceil(int(itemList[1])/float(repeats[0])))
+                mol0 = int(math.ceil(int(itemList[0])/float(repeats[0])))
+                mol1 = int(math.ceil(int(itemList[1])/float(repeats[0])))
             else:
-                mol0=int(math.ceil(1*nummol_seg[0]/float(repeats[0])))
-                mol1=int(math.ceil(int(itemList[1])*2/float(repeats[0])))
+                mol0 = int(math.ceil(1*nummol_seg[0]/float(repeats[0])))
+                mol1 = int(math.ceil(int(itemList[1])*2/float(repeats[0])))
 
             molnum.append(mol0)
             molnum.append(mol1)
-            print ("molnum;",molnum)
+            print("molnum;", molnum)
         return molnum
 
-    def getmolmass(self, ffname,atom_list):
-        data =[]
+    def getmolmass(self, ffname, atom_list):
+        data = []
         for i in range(len(ffname)):
             for j in range(len(atom_list)):
                 if ffname[i][1] == atom_list[j][0]:
-                    data.append(atom_list[j][1])
-        #print data
+                    data.append(atom_list[j][1])  # mass[amu, g/mol]
+        # print(data)
         return data
 
-    def gettotalmass(self, mass,molnum):
-        data=0
-        print ("molnum",molnum)
+    def gettotalmass(self, mass, molnum):
+        data = 0
+        print ("molnum", molnum)
         for i in range(len(mass)):
-            data += sum(mass[i])*molnum[i]
-        #print "mass=",data
+            data += sum(mass[i]) * molnum[i]
+        # print "mass=",data
         return data
 
-    def Exportardpos(self, path, iname,  molindex, posMol, nameAtom):
+    def calccellsize(self, totalmass, density):
+        '''
+        Args:
+            totalmass: total mass [amu(g/mol)]
+            density: density [g/cm^3]
+        Returns:
+            cellsize: cell size
+        '''
+
+        # 定数
+        amu_to_grams = 1.66053906660e-24  # 1 amu = 1.66054e-24 g
+        cm_to_angstrom = 1e8  # 1 cm = 1e8 Å
+
+        # 総分子量 [amu] をグラムに変換
+        mass_in_grams = totalmass * amu_to_grams
+
+        # 体積 [cm^3] を求める
+        volume_in_cm3 = mass_in_grams / density
+
+        # セルの体積から立方体のセルサイズ [Å] を求める
+        cellsize_in_angstrom = math.pow(volume_in_cm3, 1/3.0) * cm_to_angstrom
+
+        return cellsize_in_angstrom
+
+    def Exportardpos(self, path, iname, molindex, posMol, nameAtom):
         # export molindex mol data from whole posMol
 
         if os.path.exists(path) is False:
             print(path)
             subprocess.call(["mkdir", path])
 
-            # print molindex
-        # # Export position of mol
-        out_file = path + "/" + str(iname) + ".xyz"
+        # print molindex
+        # Export position of mol
+        out_head = path + "/" + str(iname)
+        out_file = out_head + ".xyz"
         # print out_file
 
         numlist = []
@@ -204,8 +240,8 @@ class molcalc():
                     posMol[i][j][0], posMol[i][j][1], posMol[i][j][2], file=f)
         f.close()
 
-        # subprocess.call(["obabel", "-ixyz", out_file, "-opdb -O",
-                         # path + "/" + str(iname) + ".pdb"])
+        cmd = "obabel -ixyz " + out_head + ".xyz -opdb -O " + out_head + ".pdb"
+        subprocess.call(cmd.split(" "))
 
     def exportplus1pos(self, path, pos, name, atom, molindex):
         # # Export position of mol
@@ -234,18 +270,8 @@ class molcalc():
                     pos[i][j][0], pos[i][j][1], pos[i][j][2], file=f)
         f.close()
 
-        subprocess.call(["obabel", "-ixyz", out_file,
-            "-opdb -O", out_head + ".pdb"])
-
-    def getvolume(self, pos):
-        aaa = 0
-        data = []
-        for i in range(len(pos)):
-            aaa = math.sqrt(pow(pos[i][0], 2) + pow(pos[i][1], 2) +
-                            pow(pos[i][2], 2))
-            data.append(aaa)
-        # print max(data)
-        return max(data)
+        cmd = "obabel -ixyz " + out_head + ".xyz -opdb -O " + out_head + ".pdb"
+        subprocess.call(cmd.split(" "))
 
     def getatomisite(self, isitelist, typenameMol):
         # get the position of a molecule
@@ -281,8 +307,9 @@ class molcalc():
                 pos[i][0], pos[i][1], pos[i][2], file=f)
         f.close()
 
-        subprocess.call(["obabel", "-ixyz", out_file,
-                         "-opdb -O", out_head + ".pdb"])
+        # convert to pdb
+        cmd = "obabel -ixyz " + out_head + ".xyz -opdb -O " + out_head + ".pdb"
+        subprocess.call(cmd.split(" "))
 
     def exportdata(self, path, oname, data):
         if os.path.exists(path) is False:
@@ -356,6 +383,15 @@ class molcalc():
         return energy
 
     def getcontactlist(self, inmol, posMol, site, neighborMol):
+        '''
+        check contact between molecules
+        Args:
+            inmol: number of molecules
+            posMol: position of molecules
+            site: site of molecules (atomtype)
+            neighborMol: neighbor molecules (use com)
+        '''
+
         contactlist = []
         #print neighborMol
         print(len(site))
@@ -372,6 +408,7 @@ class molcalc():
                     r2 = s2[k]
                     p2 = posMol[neighborMol[i][1]][k]
                     dist = self.getdist(p1, p2)
+                    # print(dist, r1, r2)
                     if dist < (r1 + r2)/1.5:
                         contactlist.append([neighborMol[i][0], neighborMol[i][1]])
                         flag = True
@@ -500,12 +537,23 @@ class molcalc():
         return index
 
     def getcontactfrag(self, clist, posMol, site, fragids, infrag):
-    # clist i:mol j: contact to clist[i][0]
-    # posfrag_mols i:molid j:fragid k:atomid l:x,y,z(3)
-    # site i:molid j:fragid k:atomid
+        '''
+        check contact between fragments
+        Args:
+            clist: contact molecule list
+            posMol: position of molecules
+            site: site of molecules (atomtype)
+            fragids: fragment id
+            infrag: number of fragments
+        '''
+        # clist i:mol j: contact to clist[i][0]
+        # posfrag_mols i:molid j:fragid k:atomid l:x,y,z(3)
+        # site i:molid j:fragid k:atomid
+
+        # search contact atoms
         contactlists = []
         for i in range(len(clist)):
-            for j in range(1,len(clist[i])):
+            for j in range(1, len(clist[i])):
                 flag = False
                 s1 = site[clist[i][0]]
                 s2 = site[clist[i][j]]
@@ -516,12 +564,12 @@ class molcalc():
                         flag = False
                         # print "m =", m
                         # print "1"
-                        for l in range(len(s1[k])): # k: fragid l:atomid
-                            if flag == True:
+                        for l in range(len(s1[k])):  # k: fragid l:atomid
+                            if flag is True:
                                 break
                             r1 = s1[k][l]
                             p1 = posMol[clist[i][0]][k][l]
-                            for n in range(len(s2[m])): # m; fragid n:atomid
+                            for n in range(len(s2[m])):  # m; fragid n:atomid
                                 r2 = s2[m][n]
                                 p2 = posMol[clist[i][j]][m][n]
                                 dist = self.getdist(p1, p2)
@@ -533,8 +581,8 @@ class molcalc():
                                     # print "break"
                                     flag = True
                                     break
-        #return contactlist
 
+        # search contact atoms -> convert to fragid pair
         contactfrag = []
         for alist in contactlists:
             # print alist
@@ -542,9 +590,9 @@ class molcalc():
             contactfrag.append([fragids[alist[0]][alist[1]], fragids[alist[2]][alist[3]]])
         # print("contactfrag", contactfrag)
 
-        # --arrange contact list per mol--
+        # arrange contact fragments list per fragment in seg1
         clistall = []
-        for i in range(1,infrag+1):
+        for i in range(1, infrag+1):
             clistmol = []
             for j in contactfrag:
                 flag = False
@@ -872,11 +920,9 @@ class molcalc():
 
         return rotated
 
-
     def babelxyzpdb(self, head):
         cmd = "obabel -ixyz " + head + ".xyz -opdb -O " + head + ".pdb"
         subprocess.call(cmd.split(" "))
-
 
     def writexyzpoly(self, head, natomsum, atoms, pos, dums, seq, cnct_count, cncted_count):
         # print atoms
@@ -932,3 +978,190 @@ class molcalc():
 
         return pos2_dihed_rot + pos2_orig[l1]
 
+    @staticmethod
+    def parse_lammps_data(file_path):
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+
+        masses = {}
+        atoms = []
+        atom_molecule_map = {}
+
+        masses_section = False
+        atoms_section = False
+
+        for line in lines:
+            if re.match(r"^\s*$", line):
+                continue  # Skip empty lines
+            if "Masses" in line:
+                masses_section = True
+                atoms_section = False
+                continue
+            elif "Atoms" in line:
+                masses_section = False
+                atoms_section = True
+                continue
+            elif "Bonds" in line:
+                masses_section = False
+                atoms_section = False
+
+            if masses_section:
+                if re.match(r"^\s*\d+\s+\d+\.\d+", line):
+                    parts = line.split()
+                    atom_type = int(parts[0])
+                    mass = float(parts[1])
+                    masses[atom_type] = mass
+            elif atoms_section:
+                if re.match(r"^\s*\d+\s+\d+\s+\d+\s+[-+]?\d*\.?\d+([eE][-+]?\d+)?\s+[-+]?\d*\.?\d+([eE][-+]?\d+)?\s+[-+]?\d*\.?\d+([eE][-+]?\d+)?", line):
+                    parts = line.split()
+                    atom_id = int(parts[0])
+                    molecule_tag = int(parts[1])
+                    atom_type = int(parts[2])
+                    x = float(parts[3])
+                    y = float(parts[4])
+                    z = float(parts[5])
+                    extra_data = [float(part) for part in parts[6:]]
+                    atom_molecule_map[atom_id] = molecule_tag
+                    atoms.append([atom_id, molecule_tag, atom_type, x, y, z] + extra_data)
+
+        return masses, atoms, atom_molecule_map
+
+    @staticmethod
+    def get_element_name(mass):
+        # Define a mapping from rounded mass to element name
+        element_mapping = {
+            12: 'C',  # Carbon
+            14: 'N',  # Nitrogen
+            16: 'O',  # Oxygen
+            1: 'H',   # Hydrogen
+            19: 'F'   # Fluorine
+        }
+        rounded_mass = round(mass)
+        return element_mapping.get(rounded_mass, 'Unknown')
+
+    @staticmethod
+    def get_atomic_radius(element):
+        # Define a mapping from element name to atomic radius (in pm)
+        radius_mapping = {
+            'C': 1.926,   # Carbon
+            'N': 1.830,   # Nitrogen
+            'O': 1.750,   # Oxygen
+            'H': 1.443,   # Hydrogen
+            'F': 1.682    # Fluorine
+        }
+        return 2.0 * radius_mapping.get(element, 0)
+
+    @staticmethod
+    def group_atoms_by_molecule(atoms, masses):
+        molecules = {}
+        for atom in atoms:
+            atom_id, molecule_tag, atom_type, x, y, z = atom[:6]
+            if molecule_tag not in molecules:
+                molecules[molecule_tag] = []
+            element_name = molcalc.get_element_name(masses[atom_type])
+            molecules[molecule_tag].append(element_name)
+        return molecules
+
+    @staticmethod
+    def parse_lammps_trajectory(file_path):
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+
+        timesteps = {}
+        current_timestep = None
+        atom_section = False
+        atom_data = []
+
+        for i, line in enumerate(lines):
+            if line.startswith("ITEM: TIMESTEP"):
+                if current_timestep is not None and atom_data:
+                    timesteps[current_timestep] = atom_data
+                    atom_data = []
+                current_timestep = int(lines[i + 1].strip())
+            elif line.startswith("ITEM: NUMBER OF ATOMS"):
+                num_atoms = int(lines[i + 1].strip())
+            elif line.startswith("ITEM: BOX BOUNDS"):
+                xlo, xhi = map(float, lines[i + 1].strip().split())
+                ylo, yhi = map(float, lines[i + 2].strip().split())
+                zlo, zhi = map(float, lines[i + 3].strip().split())
+                box_bounds = (xlo, xhi, ylo, yhi, zlo, zhi)
+            elif line.startswith("ITEM: ATOMS"):
+                atom_section = True
+                continue
+            elif atom_section:
+                if len(atom_data) < num_atoms:
+                    parts = line.strip().split()
+                    atom_id = int(parts[0])
+                    atom_type = int(parts[1])
+                    xs = float(parts[2])
+                    ys = float(parts[3])
+                    zs = float(parts[4])
+                    ix = int(parts[5])
+                    iy = int(parts[6])
+                    iz = int(parts[7])
+                    atom_data.append([atom_id, atom_type, xs, ys, zs, ix, iy, iz])
+                if len(atom_data) == num_atoms:
+                    atom_section = False
+                    timesteps[current_timestep] = atom_data
+
+        return timesteps, box_bounds
+
+    @staticmethod
+    def scale_to_real_coords(scaled_coords, box_bounds, atom_molecule_map):
+        xlo, xhi, ylo, yhi, zlo, zhi = box_bounds
+        real_coords = []
+        for coord in scaled_coords:
+            atom_id, atom_type, xs, ys, zs, ix, iy, iz = coord
+            x = xs * (xhi - xlo) + xlo + ix * (xhi - xlo)
+            y = ys * (yhi - ylo) + ylo + iy * (yhi - ylo)
+            z = zs * (zhi - zlo) + zlo + iz * (zhi - zlo)
+            molecule_tag = atom_molecule_map[atom_id]
+            real_coords.append([atom_id, molecule_tag, atom_type, x, y, z])
+        return real_coords
+
+    @staticmethod
+    def group_real_coords_by_molecule(real_coords):
+        molecule_coords = {}
+        for coord in real_coords:
+            atom_id, molecule_tag, atom_type, x, y, z = coord
+            if molecule_tag not in molecule_coords:
+                molecule_coords[molecule_tag] = []
+            molecule_coords[molecule_tag].append([x, y, z])
+        return molecule_coords
+
+    @staticmethod
+    def get_radii_for_molecules(real_coords, masses):
+        molecule_radii = {}
+        for coord in real_coords:
+            atom_id, molecule_tag, atom_type, x, y, z = coord
+            if molecule_tag not in molecule_radii:
+                molecule_radii[molecule_tag] = []
+            element_name = molcalc.get_element_name(masses[atom_type])
+            atomic_radius = molcalc.get_atomic_radius(element_name)
+            molecule_radii[molecule_tag].append(atomic_radius)
+        return molecule_radii
+
+    @staticmethod
+    def wrap_to_primary_cell(coord, box_bounds):
+        xlo, xhi, ylo, yhi, zlo, zhi = box_bounds
+        lx = xhi - xlo
+        ly = yhi - ylo
+        lz = zhi - zlo
+        x, y, z = coord
+        x = xlo + (x - xlo) % lx
+        y = ylo + (y - ylo) % ly
+        z = zlo + (z - zlo) % lz
+        return [x, y, z]
+
+    @staticmethod
+    def shift_molecule_to_primary_cell(coords, box_bounds):
+        xlo, xhi, ylo, yhi, zlo, zhi = box_bounds
+        cx = sum(x for x, y, z in coords) / len(coords)
+        cy = sum(y for x, y, z in coords) / len(coords)
+        cz = sum(z for x, y, z in coords) / len(coords)
+        cx, cy, cz = molcalc.wrap_to_primary_cell([cx, cy, cz], box_bounds)
+        dx = cx - sum(x for x, y, z in coords) / len(coords)
+        dy = cy - sum(y for x, y, z in coords) / len(coords)
+        dz = cz - sum(z for x, y, z in coords) / len(coords)
+        shifted_coords = [[x + dx, y + dy, z + dz] for x, y, z in coords]
+        return shifted_coords

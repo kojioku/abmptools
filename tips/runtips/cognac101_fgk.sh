@@ -7,12 +7,11 @@
 
 # ---user input --- #
 node=1
-proc_per_node=2
+proc_per_node=1
 jobtime="10:00:00"  # "hour:minutes:seconds"
-ABINIT_DIR=/path/to/abinit_dir
-BINARY_NAME=abinitmp_smp
+BINARY_NAME='/path/to/cognac101'
 rscgrp='small'
-group='hp190133'
+group='hpxxxxxx'
 # ----user input end ---- #
 
 fhead=${1%.*}
@@ -22,10 +21,10 @@ OMP_NUM_THREADS=`echo "48 / $proc_per_node" | bc`
 OMP_STACKSIZE='256M'
 
 FILE_NAME=${fhead}
-NUM_CORE=_${node}n-${proc_per_node}p-${OMP_NUM_THREADS}t
+NUM_CORE=_${node}n-${OMP_NUM_THREADS}t
 
-AJF_NAME=${FILE_NAME}.ajf
-OUT_NAME=${FILE_NAME}${NUM_CORE}.log
+IN_NAME=$1
+OUT_NAME=${FILE_NAME}${NUM_CORE}.bdf
 ERR_NAME=${FILE_NAME}${NUM_CORE}.err
 
 # --- print section ---
@@ -38,16 +37,20 @@ echo """#!/bin/bash
 #PJM --mpi \"proc=$totalproc,max-proc-per-node=$proc_per_node\"
 #PJM -L \"elapse=$jobtime\"
 #PJM -g \"${group}\"
+#PJM -x PJM_LLIO_GFSCACHE=/vol0002:/vol0003:/vol0004:/vol0005:/vol0006
 #PJM -j
-
-module switch lang/tcsds-1.2.34
 
 export OMP_NUM_THREADS=${OMP_NUM_THREADS}
 export OMP_STACKSIZE=${OMP_STACKSIZE}
 
+export OCTA84_HOME=${OCTA84_HOME}
+export PATH=\$OCTA84_HOME/GOURMET:\$PATH
+. ${OCTA84_HOME}/GOURMET/gourmetterm -
+
+# export UDF_DEF_PATH="/path/to/OCTA84/ENGINES/udf"
+
 #------- Program execution -------#
-${ABINIT_DIR}/mkinp_openver1rev20.py < ${AJF_NAME} > ${FILE_NAME}.inp
-mpiexec -stdin ${FILE_NAME}.inp -stdout ${OUT_NAME} -stderr ${ERR_NAME} ${ABINIT_DIR}/${BINARY_NAME}
+$BINARY_NAME -I ${IN_NAME} -O ${OUT_NAME} -n $OMP_NUM_THREADS
 """ > ${fhead}${NUM_CORE}.sh
 
 # --- run pjsub ---
