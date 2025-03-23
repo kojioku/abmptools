@@ -692,3 +692,7 @@ class udf_io(molc.molcalc):
                 break
         return list[6]
         # list[6]: [sigma(/2^(1/6)), epsilon(sqrt(e1 * e2))]
+
+    def getatomtype(self, uobj):
+        atomtype = uobj.get("Molecular_Attributes.Atom_Type[]")
+        return atomtype
