@@ -670,17 +670,21 @@ class molcalc():
         return posVec
 
     def getdummyatom(self, connect, end):
-        flag = False
+        print('start getdummyatom')
+        # e.g.) connect: [['CONECT', 0, 6, 5, 1, 13], ['CONECT', 1, 2, 2, 0, 4]]
         for i in range(len(connect)):
             if connect[i][1] == end:
+                # check dummy is connected to others
                 for j in range(2, len(connect[i])):
+                    flag = False
                     for k in range(len(connect)):
+                        print(connect[i][j], connect[k][1])
                         if connect[i][j] == connect[k][1]:
-                            # print connect[i][j], connect[k][1]
+                            print(connect[i][j], 'is connected to others e.g.)', connect[k], ':skip')
                             flag = True
-                        if flag is False:
-                            return connect[i][j]
-
+                    if flag is False:
+                        print('dummy atom is', connect[i][j])
+                        return connect[i][j]
         return
 
     def getangle(self, p1, p2, p3, length):
