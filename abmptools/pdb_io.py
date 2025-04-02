@@ -147,7 +147,7 @@ class pdb_io(fab.abinit_io):
                     print("numの変換に失敗しました:", e)
                     num_int = 0  # もしくは、適切なデフォルト値を設定する
 
-                if num < 100000:
+                if num_int < 100000:
                     head=line[0:6]
                     num=line[6:11]
                     atypename=line[12:16]
