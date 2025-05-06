@@ -10,6 +10,7 @@ import math
 import re
 import subprocess
 from ctypes import *
+import tarfile
 # import setparam as sp
 import mol_io as mi
 try:
@@ -829,9 +830,7 @@ MD='OFF'
                 # print("**** 1.capt te running*****")
                 for i in range(1, self.total_num+1):
                     target = target_dir + '/%05d' % i + ".out"
-                    # if i % 1000 == 0:
-                        # print(target + " end")
-                    energy = self.captfmomp2e(target)
+                    energy = self.captfmomp2etar(target)
                     energies.append(energy)
                 # print energies
                 f = open(elistname, "w")
@@ -850,7 +849,7 @@ MD='OFF'
                     # if i % 1000 == 0:
                         # print(target)
                     # print(target)
-                    energy = self.getfmopbenergy(target)
+                    energy = self.getfmopbenergytar(target)
                     energies.append(energy)
                 # print energies
                 f = open(elistname, "w")
@@ -937,6 +936,46 @@ MD='OFF'
             return [0, 0]
             # sys.exit()
 
+    def captfmomp2etar(self, target):
+        """
+        target: '/path/to/00001.out' のようなパスを受け取る。
+        常に同ディレクトリの out_files.tar から member を取り出して解析する。
+        """
+        out_tar = os.path.join(os.path.dirname(target), 'out_files.tar')
+        try:
+            # tar を開く（読み込みモード）
+            with tarfile.open(out_tar, 'r') as tar:
+                member_name = os.path.basename(target)
+                # member が存在しなければ KeyError
+                member = tar.getmember(member_name)
+                fobj = tar.extractfile(member)
+                if fobj is None:
+                    raise IOError(f"Failed to extract {member_name} from {out_tar}")
+
+                # 行末の改行を剥がしてリスト化
+                lines = [line.rstrip('\n') for line in fobj.readlines()]
+
+            # エネルギー抽出
+            for idx, line in enumerate(lines):
+                cols = line.split()
+                if cols == ['##', 'FMO', 'TOTAL', 'ENERGY']:
+                    hf_vals = lines[idx + 6].split()
+                    mp2_vals = (lines[idx + 13].split()
+                                if self.PR_flag else
+                                lines[idx + 8].split())
+                    hf = float(hf_vals[3])
+                    mp2 = float(mp2_vals[2])
+                    return [hf, mp2]
+
+            # 該当セクションが見つからなかった場合
+            print("Warning: can't parse energies in:", target)
+            return [0.0, 0.0]
+
+        except Exception as e:
+            # bare except を避け、例外内容も表示
+            print("Warning: can't get result:", target, ":", e)
+            return [0.0, 0.0]
+
     def getmomp2ene(self, target):
         mp2 = 0
         hf = 0
@@ -972,6 +1011,85 @@ MD='OFF'
             print("Error! can't get monomer result:", target)
             return [0,0]
             # sys.exit()
+
+
+    def getfmopbenergytar(self, target):
+        try:
+            # out_files.tar のパス
+            tar_path = os.path.join(os.path.dirname(target), 'out_files.tar')
+            # tar を開いて member を取り出す
+            with tarfile.open(tar_path, 'r') as tar:
+                member_name = os.path.basename(target)  # '00001.out' 等
+                member = tar.getmember(member_name)
+                fobj = tar.extractfile(member)
+                if fobj is None:
+                    raise IOError(f"Failed to extract {member_name}")
+                text = fobj.readlines()
+                fobj.close()
+        except Exception:
+            print("can't open " + target)
+            return 0, 0, 0, 0, 0
+
+            if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
+                index = 0
+                pbdone =False
+                getflag = False
+                for i in range(len(text)):
+                    itemList = text[i][:-1].split()
+                    if len(itemList) < 3:
+                        continue
+                    if itemList[0:4] == ['##', 'SOLUTE', 'TOTAL', 'ENERGY']:
+                        getflag = True
+                    if  getflag == True:
+                        if itemList[0:3] == ['FMO2', 'in', 'vacuo']:
+                            # print('vacuo')
+                            eg = itemList  # [5]
+                        if itemList[0:2] == ['in', 'solvent']:
+                            # print('in solv')
+                            esol = itemList
+                        if itemList[0] == 'difference':
+                            # print('diff')
+                            dif = itemList
+                        if itemList[0] == 'Electrostatic' or \
+                                itemList[0:3] == ["ES", "term", "(FMO2-MP2)"]:
+                            # print('ES')
+                            dges = itemList
+                        if itemList[0] == 'Nonpolar' or \
+                                itemList[0:2] == ["NP", "term"]:
+                            # print('NP')
+                            dgnp = itemList
+                        if itemList[0] == 'Total':
+                            # print('total')
+                            dg = itemList
+                            pbdone =True
+                    if pbdone:
+                        break
+                # egas, cor(insolv), dgtotal, dges, dgnp
+                # print(eg[3], esol[3], dg[2], dges[2], dgnp[2])
+                try:
+                    return eg[3], esol[3], dg[-1], dges[-1], dgnp[-1]
+                except:
+                    print("Warning: can't get result:", target)
+                    return 0, 0, 0, 0, 0
+
+                '''
+                ## SOLUTE TOTAL ENERGY
+
+                                           SCF / Hartree   MP2 corr. / Hartree       Total / Hartree
+                   FMO2 in vacuo           -236.52210938*          -0.80641280         -237.32852218
+                        in solvent         -236.52238631           -0.80642693*        -237.32881324
+                        difference           -0.00027693           -0.00001413           -0.00029106
+                      ( ES correction        -0.00028778 )
+
+
+                 ## SOLVATION FREE ENERGY
+
+                                           FMO2 / Hartree       FMO2 / kcal/mol
+                    Electrostatic             -0.04769392          -29.92838623*
+                    Nonpolar                   0.00548501            3.44189687*
+                    Total                     -0.04220891          -26.48648936*
+                '''
+
 
 
     def getfmopbenergy(self, target):
