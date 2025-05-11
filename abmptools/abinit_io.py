@@ -828,7 +828,7 @@ MD='OFF'
         # (前) target_dir 内の out_files.tar を展開
         out_tar = os.path.join(target_dir, 'out_files.tar')
         outfile = os.path.join(target_dir, '*.out')
-        if os.path.exists(out_tar) and len(outfile)/total_num > 0.9:
+        if os.path.exists(out_tar) and len(outfile)/total_num < 0.9:
             with tarfile.open(out_tar, 'r') as tar:
                 tar.extractall(path=target_dir)
             print(f"→ Extracted {os.path.basename(out_tar)} into {target_dir}")
