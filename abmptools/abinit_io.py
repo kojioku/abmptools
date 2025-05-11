@@ -823,6 +823,37 @@ MD='OFF'
 
         return [ifie, pbterm]
 
+    @staticmethod
+    def unpack_tar(target_dir, total_num):
+        # (前) target_dir 内の out_files.tar を展開
+        out_tar = os.path.join(target_dir, 'out_files.tar')
+        outfile = os.path.join(target_dir, '*.out')
+        if os.path.exists(out_tar) and len(outfile)/total_num > 0.9:
+            with tarfile.open(out_tar, 'r') as tar:
+                tar.extractall(path=target_dir)
+            print(f"→ Extracted {os.path.basename(out_tar)} into {target_dir}")
+        return
+
+    @staticmethod
+    # (後) 展開された *.out を一括削除＆まとめて出力
+    def del_out(target_dir):
+        out_files = [
+            fn for fn in glob.glob(os.path.join(target_dir, '*.out'))
+            if 'zz_submit' not in os.path.basename(fn)
+        ]
+        removed = 0
+        for out_file in out_files:
+            try:
+                os.remove(out_file)
+                removed += 1
+            except OSError:
+                pass
+        if removed:
+            print(f"→ Removed {removed} outfiles")
+        else:
+            print(f"→ No out files to remove")
+        return
+
     def getTE(self, target_dir, molname, mode, fzcflag):
         elistname = target_dir + "/energylist_" + self.solvtype
         if mode == "batch":
@@ -830,13 +861,7 @@ MD='OFF'
             if self.pbflag is False:
                 print("**** 1.capt te running ****")
 
-                # (前) target_dir 内の out_files.tar を展開
-                out_tar = os.path.join(target_dir, 'out_files.tar')
-                if os.path.exists(out_tar):
-                    with tarfile.open(out_tar, 'r') as tar:
-                        tar.extractall(path=target_dir)
-                    print(f"→ Extracted {os.path.basename(out_tar)} into {target_dir}")
-                # ここまで
+                self.unpack_tar(target_dir, self.total_num)
 
                 # 処理
                 for i in range(1, self.total_num+1):
@@ -854,36 +879,12 @@ MD='OFF'
                         print(0, 0, file=f)
                 f.close()
                 # print("create", elistname)
-
-                # (後) 展開された *.out を一括削除＆まとめて出力
-                out_files = [
-                    fn for fn in glob.glob(os.path.join(target_dir, '*.out'))
-                    if 'zz_submit' not in os.path.basename(fn)
-                ]
-                removed = 0
-                for out_file in out_files:
-                    try:
-                        os.remove(out_file)
-                        removed += 1
-                    except OSError:
-                        pass
-
-                if removed:
-                    print(f"→ Removed {removed} outfiles")
-                else:
-                    print(f"→ No out files to remove")
-                # ここまで
+                # self.del_out(target_dir)
 
             if self.pbflag is True:
                 print("*** 1.capt bepb running ***")
 
-                # (前) target_dir 内の out_files.tar を展開
-                out_tar = os.path.join(target_dir, 'out_files.tar')
-                if os.path.exists(out_tar):
-                    with tarfile.open(out_tar, 'r') as tar:
-                        tar.extractall(path=target_dir)
-                    print(f"→ Extracted {os.path.basename(out_tar)} into {target_dir}")
-                # ここまで
+                self.unpack_tar(target_dir, self.total_num)
 
                 # 本処理
                 for i in range(1, self.total_num+1):
@@ -902,25 +903,7 @@ MD='OFF'
 
                 f.close()
                 # print("*****create", elistname)
-
-                # (後) 展開された *.out を一括削除＆まとめて出力
-                out_files = [
-                    fn for fn in glob.glob(os.path.join(target_dir, '*.out'))
-                    if 'zz_submit' not in os.path.basename(fn)
-                ]
-                removed = 0
-                for out_file in out_files:
-                    try:
-                        os.remove(out_file)
-                        removed += 1
-                    except OSError:
-                        pass
-
-                if removed:
-                    print(f"→ Removed {removed} outfiles")
-                else:
-                    print(f"→ No out files to remove")
-                # ここまで
+                # self.del_out(target_dir)
 
         if mode == "single":
             target = target_dir + "/" + molname + ".out"
