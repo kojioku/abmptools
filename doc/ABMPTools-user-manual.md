@@ -334,9 +334,9 @@ frag i と分子AのIFIEの時系列変化
 
 
 #### 注意点
-- MP3, MP4の取得はfortranモジュールオプションのみが対応しています。
-- PB-IFIE, BSSE-IFIEの取得は-nof90 オプションのみで対応しています。
-- monomer energy, dimer energy は-nof90 オプションのみで対応しています。
+- MP3, MP4の取得はfortranモジュールオプションのみ対応しています。
+- PB-IFIE, BSSE-IFIEの取得は-nof90 オプションのみ対応しています。
+- monomer energy, dimer energy は-nof90 オプションのみ対応しています。
 - 一部ローカル版の出力に対応していない可能性があります。
 
 
