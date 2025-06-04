@@ -17,7 +17,7 @@ subprocess.call('make')
 
 setup(
     name='ABMPTools',
-    version='1.14.2',
+    version='1.14.3',
     description='setup tool for ABINIT-MP',
     long_description=readme,
     # install_requires=['numpy', 'pandas'],
