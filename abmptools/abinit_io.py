@@ -827,8 +827,12 @@ MD='OFF'
     def unpack_tar(target_dir, total_num):
         # (前) target_dir 内の out_files.tar を展開
         out_tar = os.path.join(target_dir, 'out_files.tar')
-        outfile = os.path.join(target_dir, '*.out')
-        if os.path.exists(out_tar) and len(outfile)/total_num < 0.9:
+        outfile = os.path.join(target_dir, '*sh*.out')
+        print(f"→ Checking for {os.path.basename(out_tar)} in {target_dir}")
+        print(f"→ Total number of expected output files: {total_num}")
+        num_outfile = len(glob.glob(outfile))
+        print("→ num of outfile", num_outfile, "\n")
+        if os.path.exists(out_tar) and num_outfile/total_num < 0.9:
             with tarfile.open(out_tar, 'r') as tar:
                 tar.extractall(path=target_dir)
             print(f"→ Extracted {os.path.basename(out_tar)} into {target_dir}")
