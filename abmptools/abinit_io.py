@@ -1639,7 +1639,8 @@ MD='OFF'
         seg_data = fdata['seg_data']
         # print (seg_data)
         # default data
-        seg_conf = {'name': seg_name,
+        seg_conf = {
+                    'name': seg_name,
                     'atom': [seg_atom],
                     'charge': [0],
                     'connect_num': [0],
@@ -1649,7 +1650,9 @@ MD='OFF'
                     'repeat': [1],
                     'pair_file': [],
                     'partial_charge': [],
-                    'multi_xyz': 'none'}
+                    'multi_xyz': 'none',
+                    'nterm': 2,
+                   }
 
         for i in range(len(seg_data)):
             if seg_name == seg_data[i]['name']:
