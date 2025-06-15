@@ -6,12 +6,14 @@ import sys
 with open('README.md', 'r', encoding='utf-8') as f:
     readme = f.read()
 
-argvs = sys.argv
-if 'install' in argvs:
-    try:
-        subprocess.call('make')
-    except:
-        pass
+subprocess.call('make')
+
+# argvs = sys.argv
+# if 'install' in argvs:
+#     try:
+#         subprocess.call('make')
+#     except:
+#         pass
 
 setup(
     name='ABMPTools',
