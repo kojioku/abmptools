@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 from setuptools import setup, find_packages
 import subprocess
-import sys
 
 with open('README.md', 'r', encoding='utf-8') as f:
     readme = f.read()
 
-subprocess.call('make')
+try:
+    ret = subprocess.call('make')
+except Exception:
+    pass
 
 # argvs = sys.argv
 # if 'install' in argvs:
