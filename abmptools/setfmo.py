@@ -372,9 +372,8 @@ class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
             seg_info.append(mol_conf['seg_info'])
             nummol_seg.append(mol_conf['nummol_seg'])
 
-
-        self = self.getmb_frag_seclists([frag_atom, frag_charge, frag_connect_num, frag_connect, seg_info],
-            nameid)
+        self = self.getmb_frag_seclists([
+            frag_atom, frag_charge, frag_connect_num, frag_connect, seg_info], nameid)
 
         # frag_atoms, frag_charges, frag_baanums, frag_atmlabs, frag_connects = self.getmb_frag_seclists(
         #     [frag_atom, frag_charge, frag_connect_num, frag_connect, seg_info],

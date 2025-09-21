@@ -131,6 +131,12 @@ if __name__ == "__main__":
                         default=None,
                         )
 
+    parser.add_argument('-ft', '--fragitype',
+                        help='fragment file type',
+                        default='ajf',
+                        choices=['ajf', 'config'],
+                        )
+
     parser.add_argument('-bsse', '--bsse',
                         help='bsse',
                         action='store_true',
@@ -196,17 +202,36 @@ if __name__ == "__main__":
     if args.manual:
         aobj.autofrag = False
         print('manual mode')
-        fragfile = args.manual
-        aobj.getfragdict([fragfile], 'segment_data.dat')
 
-        # fatomnums, fchgs, fbaas, fatminfos, connects = aobj.getfragtable(tgtmolsets, atomnumsets, nameidMol)
-        head, ext = os.path.splitext(fragfile)
-        ftemp = head.split('/')[-1]
-        print(ftemp)
-        aobj.getfragtable([ftemp])
-        # print (frag_atoms, frag_charges)
+        # read fragment file from ajf
+        fragfile = args.manual  
+        # e.g. '-ma xxxxx.ajf -ft ajf' or '-ma segment_data.dat -ft config'
 
-        aobj.saveajf()
+        # write segment config file
+        if args.fragitype == 'ajf':
+            aobj.getfragdict([fragfile], 'segment_data.dat')
+            # fatomnums, fchgs, fbaas, fatminfos, connects = aobj.getfragtable(tgtmolsets, atomnumsets, nameidMol)
+
+            # name setting
+            head, ext = os.path.splitext(fragfile)
+            ftemp = head.split('/')[-1]
+            print(ftemp)
+
+            aobj.getfragtable([ftemp])
+
+        if args.fragitype == 'config':
+            # name setting
+            head, ext = os.path.splitext(fragfile)
+            ftemp = head.split('/')[-1]
+            print(ftemp)
+
+            fdata = {}
+            exec(open(fragfile, "r").read(), fdata)
+            ftemp = fdata['seg_data'][0]['name']
+
+            aobj.getfragtable([ftemp])
+            # print (frag_atoms, frag_charges)
+        # aobj.saveajf()
 
     addstr = ''
 
