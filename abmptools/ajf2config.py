@@ -24,7 +24,6 @@ if __name__ == '__main__':
                         help='output config file',
                         default='segment_data.dat')
 
-
     # get args
     args = parser.parse_args()
     print('input =', args.input)

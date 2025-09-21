@@ -1638,7 +1638,8 @@ MD='OFF'
         exec(open(self.mainpath + "/segment_data.dat", "r").read(), fdata)
         seg_data = fdata['seg_data']
         # print (seg_data)
-        # default data
+
+        # default data(initialize)
         seg_conf = {
                     'name': seg_name,
                     'atom': [seg_atom],
@@ -1654,6 +1655,7 @@ MD='OFF'
                     'nterm': 2,
                    }
 
+        # search seg_data
         for i in range(len(seg_data)):
             if seg_name == seg_data[i]['name']:
                 for key, data in seg_data[i].items():
@@ -1725,8 +1727,14 @@ MD='OFF'
         self.fbaas = frag_baanums
         self.fatminfos = frag_atmlabss
         self.connects = frag_connectss
-        return  self
 
+        print('frag_atoms(head)', frag_atoms[:20], '...')
+        print('frag_charges(head)', frag_charges[:20], '...')
+        print('frag_baanums(head)', frag_baanums[:20], '...')
+        print('frag_atmlabss(head)', frag_atmlabss[:5], '...')
+        print('frag_connectss(head)', frag_connectss[:5], '...')
+
+        return self
         # return frag_atoms, frag_charges, frag_baanums, frag_atmlabss, frag_connectss
 
     def writemb_frag_section(self, param, nameid):

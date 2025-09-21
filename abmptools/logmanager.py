@@ -52,7 +52,7 @@ class LOGManager():
 
         # get condition
         Method, ElecState, BasisSet, Laoc, Lptc, Ldimer, ReadGeom, fragmode,\
-            is_npa, is_resp = self.getcondition(file)
+            is_npa, is_resp, Nprint = self.getcondition(file)
 
         condition = {
             'aoc': Laoc,
@@ -86,28 +86,23 @@ class LOGManager():
 
         elems = self.readelemslog(file)
 
-        # fraginfo
+        # fraginfo section
+        fchgs = []
+        if fragmode == 'auto':
+            fchgs = self.getfragchgs(file)
+
         nf, fnatoms, fbaas, fconnects, fragdatas, natom\
             = self.getfraginfo(file, fragmode)
-
-        '''
-        'static_data': {'natom': 38,  #総原子数
-                        'ndimer': 10, # <- fraginfoから
-                        'nfrag': 5, #AUTOMATIC FRAGMENTATION もしくは NF <- fraginfoからとれる
-                        'ntetramer': '0',
-                        'ntrimer': '0',
-                        'nuclear_repulsion_energy': 1889.49334720085,
-                        'total_electronic_energy': -2986.14838661631,
-                        'total_energy': -1096.65503941546},
-        '''
 
         fraginfo = {
             'natoms': fnatoms,
             'baas': fbaas,
             'connects': fconnects,
             'atomlabel': fragdatas,
+            'chgs': fchgs if fragmode == 'auto' else []
         }
 
+        # Create fragids table each atom belongs to for atom section
         # Create a dictionary to store the index of each number
         number_to_index = {}
         # Iterate through the data list to find the index of each number
@@ -119,6 +114,26 @@ class LOGManager():
         sorted_keys = sorted(number_to_index.keys())
         # ソートされた順番でリストを作成
         fragids = [number_to_index[key] for key in sorted_keys]
+
+        # Save and return only condition and fraginfo if Nprint=0
+        print('Nprint =', Nprint)
+        if Nprint == 0:
+            print('Since Nprint=0, only condition and fraginfo are retrieved.')
+            self.fraginfo = fraginfo
+            self.condition = condition
+            return
+
+        # static_data section
+        '''
+        'static_data': {'natom': 38,  #総原子数
+                        'ndimer': 10, # <- fraginfoから
+                        'nfrag': 5, #AUTOMATIC FRAGMENTATION もしくは NF <- fraginfoからとれる
+                        'ntetramer': '0',
+                        'ntrimer': '0',
+                        'nuclear_repulsion_energy': 1889.49334720085,
+                        'total_electronic_energy': -2986.14838661631,
+                        'total_energy': -1096.65503941546},
+        '''
 
         # number_to_index
         NR = self.getnr(file)
@@ -505,6 +520,9 @@ class LOGManager():
             if Items[0:2] == ['Method', '=']:
                 # print('logMethod =', Items[2])
                 Method = Items[2]
+            if Items[0:2] == ['Nprint', '=']:
+                # print('Nprint =', Items[2])
+                Nprint = int(Items[2])
             if Items[0:2] == ['ElecState', '=']:
                 # print('ElecState =', Items[2])
                 ElecState = Items[2]
@@ -557,7 +575,7 @@ class LOGManager():
             '''
 
         return Method, ElecState, BasisSet, Laoc, Lptc, Ldimer, \
-            ReadGeom, fragmode, is_npa, is_resp
+            ReadGeom, fragmode, is_npa, is_resp, Nprint
 
     @staticmethod
     def readifiepieda(file, Method):
@@ -655,7 +673,107 @@ class LOGManager():
             #     bssecount += 1
             # if bsseflag and bssecount > 2:
             #     bsse.append(Items)
+    @staticmethod
+    def getfragchgs(file):
 
+        '''
+              ## AUTOMATIC FRAGMENTATION
+
+           Fragmentation Type : +amino
+           Seq. Frag. Residue S-S  N-term.  C-Term. Charge
+         A  83      1    VAL           T        F      1 Nonpolar
+         A  84      2    LYS           F        F      1 Basic Charged Polar
+         A  85      3    LEU           F        F      0 Nonpolar
+         A  86      4    ALA           F        F      0 Nonpolar
+         A  87      5    GLY           F        F      0 Nonpolar
+         A  88      6    ASN           F        F      0 Uncharged Polar
+         A  89      7    SER           F        F      0 Uncharged Polar
+         A  90      8    SER           F        F      0 Uncharged Polar
+         A  91      9    LEU           F        F      0 Nonpolar
+         A  92     10    CYS   1       F        F      0 Uncharged Polar
+         A  93     11    PRO           F        F      0 Nonpolar
+         A  94     12    ILE           F        F      0 Nonpolar
+         A  95     13    ASN           F        F      0 Uncharged Polar
+         A  96     14    GLY           F        F      0 Nonpolar
+         A  97     15    TRP           F        F      0 Nonpolar
+         A  98     16    ALA           F        F      0 Nonpolar
+         A  99     17    VAL           F        F      0 Nonpolar
+        ...
+        Ions          rmax(Ang.)
+        or
+        The system has no ion
+        '''
+        # c45-47(44-46 for python) is charge line
+        # c8-12(7-11 for python) is fragid line
+        # c31(30 for python) is N-term (+1)
+        # c40(39 for python) is C-term (-1)
+
+        readflag = False
+        fchgs = []
+        fragids = []
+        nterms = []
+        cterms = []
+        while True:
+            line = file.readline()
+            items = line.strip().split()
+
+            # chains = line[0]
+            if len(items) == 0:
+                continue
+
+            # start read
+            if items[0:3] == ['Seq.', 'Frag.', 'Residue']:
+                readflag = True
+                continue
+
+            # end read
+            if items[0:2] == ['Ions', 'rmax(Ang.)'] or \
+                    items[0:5] == ['The', 'system', 'has', 'no', 'ion']:
+                readflag = False
+                break
+
+            # read fragids and chgs
+            if readflag is True:
+                # print(line.strip())
+                fchgs.append(int(line[44:47]))
+                fragids.append(int(line[7:12]))
+                nterm = 1 if line[30] == 'T' else 0
+                nterms.append(nterm)
+                cterm = -1 if line[39] == 'T' else 0
+                cterms.append(cterm)
+
+        #q fchgs, nterms, ctrmsを足し合わせる
+        fchgs = [f + n + c for f, n, c in zip(fchgs, nterms, cterms)]
+
+        # fragidsとfchgsをペアにしてソート
+        pairs = sorted(zip(fragids, fchgs), key=lambda pair: pair[0])
+
+        # fragidの重複を削除（最初に出てきたものだけ残す）
+        seen = set()
+        unique_pairs = []
+        for fid, charge in pairs:
+            if fid not in seen:
+                unique_pairs.append((fid, charge))
+                seen.add(fid)
+
+        # fchgsだけを抽出
+        sorted_fchgs = [charge for _, charge in unique_pairs]
+
+        # fragidsを連番に振り直し
+        sorted_fragids = list(range(1, len(unique_pairs) + 1))
+
+        print('length:', len(fchgs), len(fragids), len(sorted_fchgs), len(sorted_fragids))
+        print("sorted_fchgs:", sorted_fchgs)
+        print("sorted_fragids:", sorted_fragids)
+
+        # # fragidsの昇順に従ってfchgsを並べ替える
+        # sorted_fchgs = [x for _, x in sorted(zip(fragids, fchgs), key=lambda pair: pair[0])]
+        # print(fchgs)
+        # print(fragids)
+        # print(sorted_fchgs)
+        # print(sorted_fragids)
+
+        return sorted_fchgs
 
     @staticmethod
     def getfraginfo(file, fragmode):
