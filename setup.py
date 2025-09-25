@@ -19,7 +19,7 @@ except Exception:
 
 setup(
     name='ABMPTools',
-    version='1.14.4',
+    version='1.14.5',
     description='setup tool for ABINIT-MP',
     long_description=readme,
     # install_requires=['numpy', 'pandas'],
