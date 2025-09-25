@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.14.5] - 2025-9-22
+### Added
+- log2configモジュール(nprint=0のログから、fragment configファイルに変換する機能)を追加
+- generateajfモジュール: configファイルからajfを生成する機能を追加
+
 ## [1.14.1] - 2024-5-17
 ### Added
 - cpf2ifielistモジュール(cpfを読み込んで, 整形されたIFIEリストを出力する機能)を追加
