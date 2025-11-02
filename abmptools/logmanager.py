@@ -50,6 +50,9 @@ class LOGManager():
         else:
             file = open(filepath, 'rt')
 
+        # get version
+        version = self.getversion(file)
+
         # get condition
         Method, ElecState, BasisSet, Laoc, Lptc, Ldimer, ReadGeom, fragmode,\
             is_npa, is_resp, Nprint = self.getcondition(file)
@@ -89,7 +92,7 @@ class LOGManager():
         # fraginfo section
         fchgs = []
         if fragmode == 'auto':
-            fchgs = self.getfragchgs(file)
+            fchgs = self.getfragchgs(file, version)
 
         nf, fnatoms, fbaas, fconnects, fragdatas, natom\
             = self.getfraginfo(file, fragmode)
@@ -510,6 +513,26 @@ class LOGManager():
         return elems
 
     @staticmethod
+    def getversion(file):
+        count = 0
+        while True:
+            Items = file.readline().strip().split()
+            # print(Items)
+            # count += 1
+            if count == 10:
+                sys.exit()
+            if len(Items) <= 2:
+                continue
+            if Items[0] == 'ABINIT-MP':
+                if Items[0:5] == ['ABINIT-MP', '-', 'Open', 'Ver.', '2']:  # Rev. 8
+                    version = 2
+                else:
+                    version = 1
+                print('Log Version:', version)
+                break
+        return version
+
+    @staticmethod
     def getcondition(file):
         is_npa = False
         is_resp = False
@@ -674,9 +697,9 @@ class LOGManager():
             # if bsseflag and bssecount > 2:
             #     bsse.append(Items)
     @staticmethod
-    def getfragchgs(file):
+    def getfragchgs(file, version):
 
-        '''
+        ''' V1DD
               ## AUTOMATIC FRAGMENTATION
 
            Fragmentation Type : +amino
@@ -708,6 +731,33 @@ class LOGManager():
         # c31(30 for python) is N-term (+1)
         # c40(39 for python) is C-term (-1)
 
+        ''' Ver2 R8
+
+             ## AUTOMATIC FRAGMENTATION
+
+          Fragmentation Type :
+
+         +amino
+
+             Seq. Fragment Residue     S-S  N-term.  C-Term. Charge
+           A   1         1    ASN           T        F      1 Uncharged Polar
+           A   2         2    LEU           F        F      0 Nonpolar
+           A   3         3    TYR           F        F      0 Uncharged Polar
+           A   4         4    ILE           F        F      0 Nonpolar
+           A   5         5    GLN           F        F      0 Uncharged Polar
+           A   6         6    TRP           F        F      0 Nonpolar
+           A   7         7    LEU           F        F      0 Nonpolar
+           A   8         8    LYS           F        F      1 Basic Charged Polar
+           A   9         9    ASP           F        F     -1 Acidic Charged Polar
+        ...
+        The system has no ion.
+        '''
+        # c51-53(50-52 for python) is charge line
+        # c14-18(13-17 for python) is fragid line
+        # c37(36 for python) is N-term (+1)
+        # c46(45 for python) is C-term (-1)
+
+
         readflag = False
         fchgs = []
         fragids = []
@@ -721,26 +771,40 @@ class LOGManager():
             if len(items) == 0:
                 continue
 
-            # start read
+            # start read (V1DD)
             if items[0:3] == ['Seq.', 'Frag.', 'Residue']:
+                readflag = True
+                continue
+
+            # start read (V2R8)
+            if items[0:3] == ['Seq.', 'Fragment', 'Residue']:
                 readflag = True
                 continue
 
             # end read
             if items[0:2] == ['Ions', 'rmax(Ang.)'] or \
-                    items[0:5] == ['The', 'system', 'has', 'no', 'ion']:
+                    items[0:4] == ['The', 'system', 'has', 'no']:  # ion or ion.
                 readflag = False
                 break
 
             # read fragids and chgs
             if readflag is True:
-                # print(line.strip())
-                fchgs.append(int(line[44:47]))
-                fragids.append(int(line[7:12]))
-                nterm = 1 if line[30] == 'T' else 0
-                nterms.append(nterm)
-                cterm = -1 if line[39] == 'T' else 0
-                cterms.append(cterm)
+                if version == 1:
+                    # print(line.strip())
+                    fchgs.append(int(line[44:47]))
+                    fragids.append(int(line[7:12]))
+                    nterm = 1 if line[30] == 'T' else 0
+                    nterms.append(nterm)
+                    cterm = -1 if line[39] == 'T' else 0
+                    cterms.append(cterm)
+
+                if version == 2:
+                    fchgs.append(int(line[50:53]))
+                    fragids.append(int(line[13:18]))
+                    nterm = 1 if line[36] == 'T' else 0
+                    nterms.append(nterm)
+                    cterm = -1 if line[45] == 'T' else 0
+                    cterms.append(cterm)
 
         #q fchgs, nterms, ctrmsを足し合わせる
         fchgs = [f + n + c for f, n, c in zip(fchgs, nterms, cterms)]
