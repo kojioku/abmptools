@@ -757,7 +757,16 @@ class LOGManager():
         # c37(36 for python) is N-term (+1)
         # c46(45 for python) is C-term (-1)
 
-
+        # if system has S-S format collapsed (probably software bug)
+        '''
+           A 229       147    GLU           F        F     -1 Acidic Charged Polar
+           A 230       101    CYS       3       F        F      0 Uncharged Polar     
+           A 231       148    ALA           F        F      0 Nonpolar            
+           A 232       149    CYS       4       F        F      0 Uncharged Polar     
+           A 233       150    VAL           F        F      0 Nonpolar            
+           A 234       151    ASN           F        F      0 Uncharged Polar     
+        '''
+   
         readflag = False
         fchgs = []
         fragids = []
@@ -799,12 +808,28 @@ class LOGManager():
                     cterms.append(cterm)
 
                 if version == 2:
-                    fchgs.append(int(line[50:53]))
+                    # fchgs.append(int(line[50:53]))
+                    # fragids.append(int(line[13:18]))
+                    # nterm = 1 if line[36] == 'T' else 0
+                    # nterms.append(nterm)
+                    # cterm = -1 if line[45] == 'T' else 0
+                    # cterms.append(cterm)
+
                     fragids.append(int(line[13:18]))
-                    nterm = 1 if line[36] == 'T' else 0
-                    nterms.append(nterm)
-                    cterm = -1 if line[45] == 'T' else 0
-                    cterms.append(cterm)
+                    if line[22:25].strip() == "CYS" and line[32].strip().isdigit():
+                         # 特殊処理
+                         fchgs.append(int(line[54:57]))  # 54:57
+                         nterm = 1 if line[40] == 'T' else 0
+                         nterms.append(nterm)
+                         cterm = -1 if line[49] == 'T' else 0
+                         cterms.append(cterm)
+                    else:
+                         # 通常処理
+                         fchgs.append(int(line[50:53]))  # 50:53
+                         nterm = 1 if line[36] == 'T' else 0
+                         nterms.append(nterm)
+                         cterm = -1 if line[45] == 'T' else 0
+                         cterms.append(cterm)
 
         #q fchgs, nterms, ctrmsを足し合わせる
         fchgs = [f + n + c for f, n, c in zip(fchgs, nterms, cterms)]
