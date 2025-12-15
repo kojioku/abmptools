@@ -766,7 +766,26 @@ class LOGManager():
            A 233       150    VAL           F        F      0 Nonpolar            
            A 234       151    ASN           F        F      0 Uncharged Polar     
         '''
-   
+        # format for nucleotide
+        '''
+          Seq. Frag.  Base      5'-term. 3'-Term. Formal charge
+        A   1      1     DA           T        F     -1
+        A   1      2    p             T        F      1
+        A   2      3     DA           F        F     -1
+        A   2      4    p             F        F      0
+        A   3      5     DA           F        F     -1
+        A   3      6    p             F        F      0
+        A   4      7     DA           F        F     -1
+        A   4      8    p             F        F      0
+        A   5      9     DA           F        T     -1
+        A   5     10    p             F        T      0
+        '''
+        # c45-47(44-46 for python) is charge line
+        # c8-12(7-11 for python) is fragid line
+        # c31(30 for python) is N-term (+1)
+        # c40(39 for python) is C-term (-1)
+
+
         readflag = False
         fchgs = []
         fragids = []
@@ -789,6 +808,13 @@ class LOGManager():
             if items[0:3] == ['Seq.', 'Fragment', 'Residue']:
                 readflag = True
                 continue
+
+            # start read for nucleotide
+            if items[0:3] == ['Seq.', 'Frag.', 'Base']:
+                readflag = True
+                print('read nucleotide')
+                continue
+
 
             # end read
             if items[0:2] == ['Ions', 'rmax(Ang.)'] or \
@@ -814,28 +840,42 @@ class LOGManager():
                     # nterms.append(nterm)
                     # cterm = -1 if line[45] == 'T' else 0
                     # cterms.append(cterm)
+                    if len(items) < 5:
+                        continue
+
+                    # for nucleotide
+                    if not line[0].isspace():
+                        print(line.strip())
+                        fchgs.append(int(line[44:47]))
+                        fragids.append(int(line[7:12]))
+                        # nterm = 1 if line[30] == 'T' else 0
+                        nterms.append(0)
+                        # cterm = -1 if line[39] == 'T' else 0
+                        cterms.append(0)
+                        continue
 
                     fragids.append(int(line[13:18]))
                     if line[22:25].strip() == "CYS" and line[32].strip().isdigit():
-                         # 特殊処理
-                         fchgs.append(int(line[54:57]))  # 54:57
-                         nterm = 1 if line[40] == 'T' else 0
-                         nterms.append(nterm)
-                         cterm = -1 if line[49] == 'T' else 0
-                         cterms.append(cterm)
+                        # 特殊処理
+                        fchgs.append(int(line[54:57]))  # 54:57
+                        nterm = 1 if line[40] == 'T' else 0
+                        nterms.append(nterm)
+                        cterm = -1 if line[49] == 'T' else 0
+                        cterms.append(cterm)
                     else:
-                         # 通常処理
-                         fchgs.append(int(line[50:53]))  # 50:53
-                         nterm = 1 if line[36] == 'T' else 0
-                         nterms.append(nterm)
-                         cterm = -1 if line[45] == 'T' else 0
-                         cterms.append(cterm)
+                        # 通常処理
+                        fchgs.append(int(line[50:53]))  # 50:53
+                        nterm = 1 if line[36] == 'T' else 0
+                        nterms.append(nterm)
+                        cterm = -1 if line[45] == 'T' else 0
+                        cterms.append(cterm)
 
         #q fchgs, nterms, ctrmsを足し合わせる
         fchgs = [f + n + c for f, n, c in zip(fchgs, nterms, cterms)]
 
         # fragidsとfchgsをペアにしてソート
         pairs = sorted(zip(fragids, fchgs), key=lambda pair: pair[0])
+        # print('pairs', pairs)
 
         # fragidの重複を削除（最初に出てきたものだけ残す）
         seen = set()
@@ -851,6 +891,10 @@ class LOGManager():
         # fragidsを連番に振り直し
         sorted_fragids = list(range(1, len(unique_pairs) + 1))
 
+        # print('fcghs', fchgs)
+        # print('fragids', fragids)
+        # print('sorted_fchgs', sorted_fchgs)
+        # print('sorted_fragids', sorted_fragids)
         print('length:', len(fchgs), len(fragids), len(sorted_fchgs), len(sorted_fragids))
         print("sorted_fchgs:", sorted_fchgs)
         print("sorted_fragids:", sorted_fragids)
