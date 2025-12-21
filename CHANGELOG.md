@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.14.6] - 2025-12-21
+### Fixed
+- log2config (logmanager) の不具合修正
+  - 核酸への対応
+  - 核酸/タンパク複合体の計算
+  - V2 Rev.8 で、CYS架橋がある際にテーブルがずれる例外処理に対応
+- fcewsのoutファイル数check機能の修正
+
 ## [1.14.5] - 2025-9-22
 ### Added
 - log2configモジュール(nprint=0のログから、fragment configファイルに変換する機能)を追加
