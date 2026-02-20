@@ -46,7 +46,7 @@ Overview
 - (Optional) gfortran
 
 ## Usage
-[Documentをご参照ください](doc/ABMPTools-user-manual.md)
+[Documentをご参照ください](docs/ABMPTools-user-manual.md)
 
 ## Install
 `pip install --user .`
