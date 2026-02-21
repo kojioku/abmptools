@@ -39,13 +39,8 @@ abmptools/abmptools/udf2gro/
 
 ## 使い方
 
-### CLI（既存互換）
-
+### CLI
 ```bash
-# 旧来のスクリプト（内部で abmptools.udf2gro に委譲）
-python udf2gro/udf2gro.py input.udf output_prefix
-
-# 新しい CLI（直接呼び出し）
 python -m abmptools.udf2gro input.udf output_prefix
 ```
 
@@ -65,28 +60,19 @@ Exporter().export("system.udf", "output")
 `udf2gro/test/` にリファレンス入出力が用意されています。
 
 ```bash
-cd /path/to/fcews-workspace
+cd sample/udf2gro/input
 
 # 1. 変換実行（出力はカレントディレクトリ）
-python udf2gro/udf2gro.py udf2gro/test/input/test.udf test
+python -m abmptools.udf2gro test.udf test
 
 # 2. 期待値と比較
-diff test.top  udf2gro/test/output/test.top
-diff test.gro  udf2gro/test/output/test.gro
-diff test.mdp  udf2gro/test/output/test.mdp
+diff test.top  ../output/test.top
+diff test.gro  ../output/test.gro
+diff test.mdp  ../output/test.mdp
 
 # 3. 全て差分なしであれば PASS
 ```
 
-または abmptools.udf2gro を直接テスト:
-
-```bash
-python -m abmptools.udf2gro udf2gro/test/input/test.udf test_new
-
-diff test_new.top udf2gro/test/output/test.top
-diff test_new.gro udf2gro/test/output/test.gro
-diff test_new.mdp udf2gro/test/output/test.mdp
-```
 
 ---
 
