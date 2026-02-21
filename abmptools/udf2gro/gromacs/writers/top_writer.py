@@ -8,7 +8,7 @@ All Gromacs-specific string formatting (column widths, section headers)
 is contained here.
 """
 from __future__ import annotations
-from ...system_model import SystemModel, MoleculeTopology, DihedralRecord
+from ....core.system_model import SystemModel, MoleculeTopology, DihedralRecord
 
 
 # ---------------------------------------------------------------------------

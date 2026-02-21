@@ -5,7 +5,7 @@ gro_adapter.py
 Converts a GROFrame into the SystemModel intermediate data types:
   List[AtomPosition]  and  CellGeometry
 
-Reuses the existing abmptools.udf2gro.system_model dataclasses so that
+Reuses the abmptools.core.system_model dataclasses so that
 the gro2udf pipeline shares the same intermediate representation.
 
 Interpretation of AtomPosition fields in this gro2udf context:
@@ -25,7 +25,7 @@ from __future__ import annotations
 import math
 from typing import List, Tuple
 
-from ..udf2gro.system_model import AtomPosition, CellGeometry
+from ..core.system_model import AtomPosition, CellGeometry
 from .gro_parser import GROFrame
 
 

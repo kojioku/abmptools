@@ -62,7 +62,7 @@ class Exporter:
     # ------------------------------------------------------------------
     @staticmethod
     def _write_ndx(model, filepath: str) -> None:
-        from .system_model import NdxData
+        from ..core.system_model import NdxData
         ndx: NdxData = model.ndx_data
 
         with open(filepath, "w") as f:

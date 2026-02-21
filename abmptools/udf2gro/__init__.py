@@ -14,6 +14,6 @@ CLI usage (via __main__.py)::
     python -m abmptools.udf2gro system.udf output
 """
 from .exporter import Exporter
-from .system_model import SystemModel
+from ..core.system_model import SystemModel
 
 __all__ = ["Exporter", "SystemModel"]
