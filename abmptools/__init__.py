@@ -9,3 +9,8 @@ from .udfcreate import udfcreate
 from .anlfmo import anlfmo
 from .cpfmanager import CPFManager
 from .logmanager import LOGManager
+# udf2gro is imported lazily because it requires UDFManager (optional dep)
+try:
+    from .udf2gro import Exporter as Udf2groExporter
+except Exception:
+    pass
