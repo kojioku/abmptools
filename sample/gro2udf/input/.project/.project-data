@@ -1,0 +1,34 @@
+\begin{header}
+  \begin{def}
+    EngineType:string;
+    EngineVersion:string;
+    IOType:string;
+    ProjectName:string;
+    Comment:string;
+  \end{def}
+  \begin{data}
+    EngineType:"J-OCTA"
+    EngineVersion:"0.5"
+    IOType:"IN/OUT"
+    ProjectName:"J-OCTA"
+    Comment:"J-OCTA Project"
+  \end{data}
+\end{header}
+
+\begin{def}
+  
+  Project_Name:string
+  Author:string
+  Project_Comment:string
+  Keywords[]:string
+  Create_Date:string
+  Update_Date:string
+  Action_File_Path[]:string
+  
+\end{def}
+\begin{data}
+Project_Name:"input"
+Author:"kouji"
+Create_Date:"2026/02/21"
+Update_Date:"2026/02/21"
+\end{data}
