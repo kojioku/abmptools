@@ -6,7 +6,7 @@ Writes the GROMACS .gro structure file from a SystemModel.
 """
 from __future__ import annotations
 import math
-from ...system_model import SystemModel, CellGeometry
+from ....core.system_model import SystemModel, CellGeometry
 
 
 class GroWriter:

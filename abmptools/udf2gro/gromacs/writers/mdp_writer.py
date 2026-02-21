@@ -5,7 +5,7 @@ mdp_writer.py
 Writes the GROMACS .mdp simulation parameter file from a SystemModel.
 """
 from __future__ import annotations
-from ...system_model import SystemModel, SimulationParams
+from ....core.system_model import SystemModel, SimulationParams
 
 
 def _strl(total: str, data: str, n: int) -> str:

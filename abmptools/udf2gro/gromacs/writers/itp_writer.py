@@ -6,7 +6,7 @@ Stub: writes per-molecule .itp include files (not used in the standard flow,
 but provided for extensibility).
 """
 from __future__ import annotations
-from ...system_model import SystemModel
+from ....core.system_model import SystemModel
 
 
 class ItpWriter:

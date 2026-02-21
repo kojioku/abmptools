@@ -16,7 +16,7 @@ import math
 import os
 from typing import List, Optional, Tuple
 
-from .system_model import (
+from ..core.system_model import (
     AtomType, AtomRecord, BondRecord, PairRecord, AngleRecord, DihedralRecord,
     MoleculeTopology, AtomPosition, CellGeometry, NdxData,
     SimulationParams, SystemModel,

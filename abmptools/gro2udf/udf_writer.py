@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from typing import List
 
-from ..udf2gro.system_model import AtomPosition, CellGeometry
+from ..core.system_model import AtomPosition, CellGeometry
 
 _VELOCITY_UNIT = 1000   # nm/ps → m/s  (1 nm/ps = 1000 m/s)
 _SHEAR_STRAIN  = 0.0    # constant, same as original
