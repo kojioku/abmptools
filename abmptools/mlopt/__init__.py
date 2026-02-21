@@ -2,19 +2,28 @@
 """
 abmptools.mlopt
 ---------------
-Machine-learning-based structure optimization utilities.
+Structure optimization and minimization utilities.
 
-This subpackage is importable even when optional dependencies
-(ase, mace-torch, torch) are not installed.  The heavy imports
-are deferred to method call time inside each class.
+Both classes are importable even when their optional runtime dependencies
+are not installed; dependency errors are deferred to method call time.
 
 Public API::
 
     from abmptools.mlopt import MacePdbOptimizer
+    from abmptools.mlopt import OpenFFOpenMMMinimizer
 
+    # MACE ML potential (requires ase, mace-torch, torch)
     opt = MacePdbOptimizer(model_name="small", device="auto")
     result = opt.optimize_pdb("in.pdb", "out.pdb")
+    # {"energy": float[eV], "steps": int, "converged": bool, "out_pdb": str}
+
+    # OpenFF + OpenMM force field (requires openmm, openff-toolkit)
+    mini = OpenFFOpenMMMinimizer(forcefield="openff_unconstrained-2.1.0.offxml")
+    result = mini.minimize_pdb("in.pdb", "out.pdb")
+    # {"energy_before": float[kJ/mol], "energy_after": float[kJ/mol],
+    #  "energy": float[kJ/mol], "converged": bool, "elapsed": float, "out_pdb": str}
 """
 from .mace_optimizer import MacePdbOptimizer
+from .openff_openmm_minimizer import OpenFFOpenMMMinimizer
 
-__all__ = ["MacePdbOptimizer"]
+__all__ = ["MacePdbOptimizer", "OpenFFOpenMMMinimizer"]
