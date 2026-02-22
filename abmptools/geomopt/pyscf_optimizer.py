@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-abmptools.mlopt.pyscf_optimizer
+abmptools.geomopt.pyscf_optimizer
 --------------------------------
 QM geometry optimization using PySCF DFT with optional D3(BJ) dispersion.
 
@@ -22,7 +22,7 @@ Optional runtime dependencies (not required at import time):
 
 Usage::
 
-    from abmptools.mlopt import QMOptimizerPySCF
+    from abmptools.geomopt import QMOptimizerPySCF
 
     opt = QMOptimizerPySCF(functional="B3LYP", basis="def2-SVP",
                             dispersion="d3bj")

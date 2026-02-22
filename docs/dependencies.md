@@ -96,6 +96,47 @@ The library is loaded via `ctypes` at runtime and provides significant speedup f
 - MP3/MP4 extraction → requires Fortran module (`readifiepiedalib.so`).
 - PB-IFIE, BSSE-IFIE, monomer/dimer energies → requires pure Python mode (`-nof90`).
 
+## Optional Dependencies — abmptools.geomopt
+
+`abmptools.geomopt` はすべての重い依存を実行時まで遅延インポートするため、
+未インストールでも `import abmptools` 自体は成功します。
+各バックエンドに必要なパッケージは以下の通りです。
+
+### pdbopt バックエンド（`MacePdbOptimizer` / `OpenFFOpenMMMinimizer`）
+
+| パッケージ | バックエンド | 用途 | インストール |
+|---|---|---|---|
+| `ase` | MACE | 原子シミュレーション環境 | `pip install ase` |
+| `mace-torch` | MACE | MACE ML ポテンシャル | `pip install mace-torch` |
+| `torch` | MACE | PyTorch（mace-torch の依存） | `pip install torch` |
+| `openmm` | OpenFF | 分子動力学エンジン | `conda install -c conda-forge openmm` |
+| `openff-toolkit` | OpenFF | OpenFF 力場ツールキット | `conda install -c conda-forge openff-toolkit` |
+| `rdkit` | OpenFF | 分子グラフ（fallback） | `conda install -c conda-forge rdkit` |
+
+### qmopt バックエンド（`QMOptimizerPySCF`）
+
+| パッケージ | 必須/任意 | 用途 | インストール |
+|---|---|---|---|
+| `pyscf` | **必須** | DFT 計算エンジン | `pip install pyscf` |
+| `geometric` | 必須（推奨） | geomeTRIC 構造最適化ドライバ | `pip install geometric` |
+| `pyberny` | 任意 | berny 構造最適化ドライバ（geometric の代替） | `pip install pyberny`\* |
+| `simple-dftd3` | 任意 | D3(BJ) 分散補正（推奨） | `pip install simple-dftd3` |
+| `dftd3` | 任意 | D3(BJ) 分散補正（代替） | `pip install dftd3` |
+
+\* pyberny 0.6.3 は setuptools 82+ 環境で `pkg_resources` インポートエラーが発生する既知の問題があります（2026-02 確認）。
+`geometric` を推奨します。
+
+分散補正ライブラリがいずれも未インストールの場合は警告を出して
+dispersion なしで実行されます（エラーにはなりません）。
+
+### 動作確認済みバージョン（2026-02）
+
+| パッケージ | バージョン |
+|---|---|
+| pyscf | 2.12.1 |
+| geometric | 1.1 |
+| numpy | 1.26.4 |
+
 ## Dependency Summary
 
 ```
@@ -105,5 +146,9 @@ ABMPTools
 ├── [optional] UDFManager       (OCTA COGNAC MD workflows)
 ├── [optional] gfortran         (build-time, Fortran acceleration)
 ├── [optional] OpenBabel/obabel (XYZ→PDB conversion)
+├── [optional/geomopt-mace]   ase, mace-torch, torch
+├── [optional/geomopt-openff] openmm, openff-toolkit, rdkit
+├── [optional/geomopt-qm]     pyscf + geometric (or pyberny)
+│                             + simple-dftd3 (or dftd3)  [D3 dispersion]
 └── [build]    setuptools
 ```
