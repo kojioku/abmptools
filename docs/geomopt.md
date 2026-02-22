@@ -1,8 +1,8 @@
-# abmptools.mlopt — Structure Optimization and Minimization
+# abmptools.geomopt — Structure Optimization and Minimization
 
 ## Overview
 
-`abmptools.mlopt` provides two parallel classes for PDB structure
+`abmptools.geomopt` provides two parallel classes for PDB structure
 relaxation, each using a different backend:
 
 | Class | Backend | Convergence criterion | Energy unit |
@@ -51,7 +51,7 @@ conda install -c conda-forge ambertools
 ### `MacePdbOptimizer`
 
 ```python
-from abmptools.mlopt import MacePdbOptimizer
+from abmptools.geomopt import MacePdbOptimizer
 
 opt = MacePdbOptimizer(
     model_path=None,        # path to custom .model/.pt file (optional)
@@ -91,7 +91,7 @@ result = opt.optimize_pdb("input.pdb", "output.pdb")
 ### `OpenFFOpenMMMinimizer`
 
 ```python
-from abmptools.mlopt import OpenFFOpenMMMinimizer
+from abmptools.geomopt import OpenFFOpenMMMinimizer
 
 mini = OpenFFOpenMMMinimizer(
     forcefield="openff_unconstrained-2.1.0.offxml",  # OpenFF force field
@@ -148,7 +148,7 @@ molecule and OpenMM PDB reader report the same atom count.  A mismatch
 import logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
-from abmptools.mlopt import MacePdbOptimizer, OpenFFOpenMMMinimizer
+from abmptools.geomopt import MacePdbOptimizer, OpenFFOpenMMMinimizer
 
 # MACE: ML-level accuracy, requires GPU for large systems
 r1 = MacePdbOptimizer(model_name="small", fmax=0.05).optimize_pdb(
@@ -175,7 +175,7 @@ import logging
 logging.basicConfig(level=logging.INFO,
                     format="%(levelname)s %(name)s: %(message)s")
 
-from abmptools.mlopt import MacePdbOptimizer
+from abmptools.geomopt import MacePdbOptimizer
 
 opt = MacePdbOptimizer(model_name="small", device="auto", fmax=0.05, steps=100)
 result = opt.optimize_pdb("water.pdb", "water_mace.pdb")
@@ -195,7 +195,7 @@ import logging
 logging.basicConfig(level=logging.INFO,
                     format="%(levelname)s %(name)s: %(message)s")
 
-from abmptools.mlopt import OpenFFOpenMMMinimizer
+from abmptools.geomopt import OpenFFOpenMMMinimizer
 
 mini = OpenFFOpenMMMinimizer(
     forcefield="openff_unconstrained-2.1.0.offxml",

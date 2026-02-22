@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-abmptools.mlopt.openff_openmm_minimizer
+abmptools.geomopt.openff_openmm_minimizer
 ----------------------------------------
 PDB structure minimization using OpenFF (SMIRNOFF) force fields via OpenMM.
 
@@ -12,7 +12,7 @@ Optional runtime dependencies (not required at import time):
 
 Usage::
 
-    from abmptools.mlopt import OpenFFOpenMMMinimizer
+    from abmptools.geomopt import OpenFFOpenMMMinimizer
 
     minimizer = OpenFFOpenMMMinimizer(
         forcefield="openff_unconstrained-2.1.0.offxml",
@@ -50,7 +50,7 @@ class OpenFFOpenMMMinimizer:
     where those packages are not installed.
 
     This class is designed to be a parallel counterpart to
-    :class:`~abmptools.mlopt.MacePdbOptimizer` and follows the same
+    :class:`~abmptools.geomopt.MacePdbOptimizer` and follows the same
     conventions: lazy optional imports, identical I/O contract, and a
     consistent result dict.
 

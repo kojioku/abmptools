@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-abmptools.mlopt
+abmptools.geomopt
 ---------------
 Structure optimization and minimization utilities.
 
@@ -9,8 +9,8 @@ are not installed; dependency errors are deferred to method call time.
 
 Public API::
 
-    from abmptools.mlopt import MacePdbOptimizer
-    from abmptools.mlopt import OpenFFOpenMMMinimizer
+    from abmptools.geomopt import MacePdbOptimizer
+    from abmptools.geomopt import OpenFFOpenMMMinimizer
 
     # MACE ML potential (requires ase, mace-torch, torch)
     opt = MacePdbOptimizer(model_name="small", device="auto")

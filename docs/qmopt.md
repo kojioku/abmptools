@@ -1,27 +1,32 @@
 # QMOptimizerPySCF — PySCF QM Geometry Optimiser
 
-`abmptools.mlopt.QMOptimizerPySCF` は PySCF を使った DFT geometry optimiser です。
+`abmptools.geomopt.QMOptimizerPySCF` は PySCF を使った DFT geometry optimiser です。
 MACE・OpenFF optimizer と同等のインターフェースで使えます。
 
 ## 依存ライブラリ
 
-| パッケージ | 用途 | インストール |
-|---|---|---|
-| `pyscf` | DFT 計算エンジン（必須） | `pip install pyscf` |
-| `geometric` | 構造最適化ドライバ（推奨） | `pip install geometric` |
-| `pyberny` | 代替最適化ドライバ | `pip install pyberny` |
-| `simple-dftd3` | D3(BJ) 分散補正（推奨） | `pip install simple-dftd3` |
-| `dftd3` | D3 分散補正（代替） | `pip install dftd3` |
+| パッケージ | 必須/任意 | ライセンス | バージョン（動作確認済） | インストール |
+|---|---|---|---|---|
+| `pyscf` | **必須** | Apache 2.0 | 2.12.1 | `pip install pyscf` |
+| `geometric` | 必須（推奨） | BSD 3-Clause | 1.1 | `pip install geometric` |
+| `pyberny` | 任意 | MPL-2.0 | 0.6.3 | `pip install pyberny`\* |
+| `simple-dftd3` | 任意 | MIT | — | `pip install simple-dftd3` |
+| `dftd3` | 任意 | LGPL-3.0 | — | `pip install dftd3` |
+
+\* pyberny 0.6.3 は setuptools 82+ 環境で `pkg_resources` インポートエラーが発生する
+既知の問題があります（2026-02 確認）。`geometric` を推奨します。
 
 pyscf と geometric（または pyberny）は必須です。
 分散補正ライブラリが入っていない場合は警告を出して dispersion なしで実行されます。
+
+ライセンス詳細・互換性の考察は [licenses_third_party.md](./licenses_third_party.md) を参照してください。
 
 ## 基本的な使い方
 
 ### xyz ファイルの最適化
 
 ```python
-from abmptools.mlopt import QMOptimizerPySCF
+from abmptools.geomopt import QMOptimizerPySCF
 
 opt = QMOptimizerPySCF()           # デフォルト: B3LYP/def2-SVP/D3(BJ)
 result = opt.optimize("water.xyz", "water_opt.xyz")
@@ -76,7 +81,7 @@ result = opt.optimize("in.xyz", "out.xyz")
 ```bash
 cd abmptools
 python -c "
-from abmptools.mlopt import QMOptimizerPySCF
+from abmptools.geomopt import QMOptimizerPySCF
 opt = QMOptimizerPySCF(basis='sto-3g', dispersion='none', verbose=0)
 r = opt.optimize('sample/qmopt/water.xyz', '/tmp/water_opt.xyz')
 print(r)

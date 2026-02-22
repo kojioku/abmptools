@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-abmptools.mlopt.mace_optimizer
+abmptools.geomopt.mace_optimizer
 -------------------------------
 PDB structure optimization using a MACE machine-learning potential via ASE.
 
@@ -11,7 +11,7 @@ Optional runtime dependencies (not required at import time):
 
 Usage::
 
-    from abmptools.mlopt import MacePdbOptimizer
+    from abmptools.geomopt import MacePdbOptimizer
 
     opt = MacePdbOptimizer(model_name="small", device="auto", fmax=0.05)
     result = opt.optimize_pdb("in.pdb", "out.pdb")
