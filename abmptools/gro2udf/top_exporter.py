@@ -14,9 +14,9 @@ This module ports the following functions from convert_gromacs_udf.py:
 from __future__ import annotations
 
 import shutil
-from typing import List
+from typing import List, Optional
 
-from .top_model import GROFrameData, TopModel
+from .top_model import KB_AMU_A2_PS2_K, GROFrameData, TopModel
 from .top_parser import TopParser
 from .top_adapter import TopAdapter
 
@@ -39,6 +39,7 @@ class TopExporter:
         gro_path: str,
         template_path: str,
         out_path: str,
+        mdp_path: Optional[str] = None,
     ) -> None:
         """
         Parse *top_path* + *gro_path*, build :class:`TopModel`, write to *out_path*.
@@ -49,9 +50,11 @@ class TopExporter:
         gro_path      : path to GROMACS .gro file
         template_path : path to an existing COGNAC UDF file used as schema template
         out_path      : destination UDF path (created / overwritten)
+        mdp_path      : optional path to GROMACS .mdp file; when provided,
+                        Nose-Hoover Q and Ewald cutoff are computed from its values.
         """
         raw = TopParser().parse(top_path)
-        model = TopAdapter().build(raw, gro_path)
+        model = TopAdapter().build(raw, gro_path, mdp_path=mdp_path)
         self.export_model(model, template_path, out_path)
 
     def export_model(
@@ -87,7 +90,7 @@ class TopExporter:
         for frame in model.frames:
             self._append_structure(uobj, model, frame)
 
-        self._set_default_condition(uobj, model.fudge_qq)
+        self._set_default_condition(uobj, model)
         self._write_molecular_attributes(uobj, model)
         self._write_interactions(uobj, model)
 
@@ -235,12 +238,53 @@ class TopExporter:
         uobj.write()
 
     @staticmethod
-    def _set_default_condition(uobj, fudge_qq: float) -> None:
-        """Port of set_default_condition."""
+    def _set_default_condition(uobj, model: TopModel) -> None:
+        """
+        Set electrostatic flags, Nose-Hoover Q, and Ewald parameters.
+
+        Nose-Hoover Q
+        -------------
+        Q [amu·Å²] = g · k_B · T · τ²
+
+        where:
+          g   = 3·N_atoms − 3   (degrees of freedom; COM motion removed)
+          k_B = 0.83144626      amu·Å² / (ps²·K)  (Boltzmann constant in
+                                COGNAC internal units: amu, Å, ps)
+          T   = model.ref_t     [K]   (from MDP ref_t, default 300.0)
+          τ   = model.tau_t     [ps]  (from MDP tau_t, default 0.1)
+
+        Ewald defaults
+        --------------
+        Name                = "POINT_CHARGE"
+        Algorithm           = "Ewald"
+        Scale_1_4_Pair      = 0.83333333333333   (5/6, AMBER convention)
+        Ewald.Dielectric_Constant = 0.0
+        Ewald.R_cutoff      = model.ewald_r_cutoff [Å]  (Deserno & Holm
+                              formula from GRO box; fallback 10.0 Å)
+        Ewald.Ewald_Parameters = "Auto"
+        """
         uobj.jump(-1)
+
+        # --- electrostatic flag ---
         uobj.put(1, "Simulation_Conditions.Calc_Potential_Flags.Electrostatic")
-        uobj.put(fudge_qq,
-                 "Interactions.Electrostatic_Interaction[0].Scale_1_4_Pair")
+
+        # --- Nose-Hoover Q ---
+        n = model.n_atoms_total
+        if n > 0:
+            g = max(1, 3 * n - 3)           # degrees of freedom
+            Q = g * KB_AMU_A2_PS2_K * model.ref_t * (model.tau_t ** 2)
+            uobj.put(Q,
+                     "Simulation_Conditions.Solver.Dynamics.NVT_Nose_Hoover.Q")
+
+        # --- Ewald electrostatic interaction defaults ---
+        loc = "Interactions.Electrostatic_Interaction[0]"
+        uobj.put("POINT_CHARGE",      loc + ".Name")
+        uobj.put("Ewald",             loc + ".Algorithm")
+        uobj.put(0.83333333333333,    loc + ".Scale_1_4_Pair")
+        uobj.put(0.0,                 loc + ".Ewald.Dielectric_Constant")
+        uobj.put(model.ewald_r_cutoff, loc + ".Ewald.R_cutoff")
+        uobj.put("Auto",              loc + ".Ewald.Ewald_Parameters")
+
         uobj.write()
 
     @staticmethod

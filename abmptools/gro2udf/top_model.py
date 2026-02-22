@@ -15,6 +15,22 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+# ---------------------------------------------------------------------------
+# Physical constants
+# ---------------------------------------------------------------------------
+
+#: Boltzmann constant in COGNAC internal units [amu * Å² / (ps² * K)]
+#: k_B = R / N_A  converted from (kg·m²/s²/K) → (amu·Å²/ps²/K)
+#: = 1.38064852e-23 J/K / (1.66053906660e-23 J / (amu·Å²/ps²))
+#: = 0.83144626
+KB_AMU_A2_PS2_K: float = 0.83144626
+
+#: Fallback Ewald R_cutoff [Å] used only when GRO frames are unavailable.
+#: Under normal circumstances, R_cutoff is computed by the Deserno & Holm
+#: (JCP 1998) formula: R_cutoff = sqrt(11.5) / (sqrt(pi)*(5.5N/V²)^(1/6))
+#: (result converted nm → Å by ×10).
+EWALD_R_CUTOFF_DEFAULT: float = 10.0
+
 from ..core.system_model import CellGeometry
 
 
@@ -195,3 +211,13 @@ class TopModel:
 
     # --- structure frames from GRO ---
     frames: List[GROFrameData] = field(default_factory=list)
+
+    # --- simulation parameters (populated from .mdp when available) ---
+    #: Total number of atoms in the system (sum over all molecule instances)
+    n_atoms_total: int = 0
+    #: Reference temperature [K]  (from mdp: ref_t)
+    ref_t: float = 300.0
+    #: Nose-Hoover relaxation time [ps]  (from mdp: tau_t)
+    tau_t: float = 0.1
+    #: Ewald real-space cutoff [Å]  (Deserno & Holm formula from GRO box, or default)
+    ewald_r_cutoff: float = EWALD_R_CUTOFF_DEFAULT
