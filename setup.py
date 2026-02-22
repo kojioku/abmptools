@@ -27,5 +27,5 @@ setup(
     author_email='koujioku81@gmail.com',
     # license=license,
     packages=find_packages(exclude=('tests', 'docs', 'sample')),
-    package_data={'abmptools': ['f90/bin/*', '../*', '../tips/*']}
+    package_data={'abmptools': ['f90/bin/*', '../*', '../tips/*', 'gro2udf/default_template.udf']}
 )
