@@ -6,4 +6,4 @@ dist
 tags
 for_abmp
 *.swp
-
+.project
