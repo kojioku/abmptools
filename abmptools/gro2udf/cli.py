@@ -16,15 +16,22 @@ Can also be called via the installed package::
 New mode: convert from GROMACS TOP + GRO to COGNAC UDF::
 
     python -m abmptools.gro2udf --from-top system.top output.gro \\
-        [--template template.udf] [--out result.udf]
+        [--template template.udf] [--mdp system.mdp] [--out result.udf]
 
-    --template  : existing COGNAC UDF to use as schema (default: <topfile_stem>.udf)
+    --template  : existing COGNAC UDF to use as schema template.
+                  Default: <topfile_stem>.udf in the same directory,
+                  then the built-in default_template.udf bundled in this package.
+    --mdp       : GROMACS .mdp file; when given, Nose-Hoover Q and
+                  Ewald R_cutoff are derived from its values.
     --out       : output UDF path (default: <grofile_stem>_fromtop.udf)
 """
 from __future__ import annotations
 
 import os
 import sys
+
+#: Built-in fallback template bundled with this package.
+_BUILTIN_TEMPLATE = os.path.join(os.path.dirname(__file__), "default_template.udf")
 
 
 def _run_from_top(argv: list) -> None:
@@ -39,9 +46,10 @@ def _run_from_top(argv: list) -> None:
     parser.add_argument("top_path", help="GROMACS .top file")
     parser.add_argument("gro_path", help="GROMACS .gro file")
     parser.add_argument("--mdp", dest="mdp_path", default=None,
-                        help="GROMACS .mdp file (accepted but currently not processed)")
+                        help="GROMACS .mdp file (ref_t, tau_t, rcoulomb are read)")
     parser.add_argument("--template", dest="template_path", default=None,
-                        help="Existing COGNAC UDF file (schema template)")
+                        help="Existing COGNAC UDF file (schema template). "
+                             "Defaults to <top_stem>.udf → built-in template.")
     parser.add_argument("--out", dest="out_path", default=None,
                         help="Output UDF file path")
 
@@ -52,25 +60,29 @@ def _run_from_top(argv: list) -> None:
     top_path = args.top_path
     gro_path = args.gro_path
 
-    # Resolve template path
+    # --- Resolve template path ---
     template_path = args.template_path
     if template_path is None:
+        # 1st priority: <top_stem>.udf in the same directory
         top_stem = os.path.splitext(top_path)[0]
         candidate = top_stem + ".udf"
         if os.path.isfile(candidate):
             template_path = candidate
+            print("Template: {} (auto-detected)".format(template_path))
         else:
-            print("ERROR: --template not specified and '{}' not found.".format(candidate))
-            sys.exit(1)
+            # 2nd priority: built-in default_template.udf
+            template_path = _BUILTIN_TEMPLATE
+            print("Template: {} (built-in default)".format(template_path))
 
-    # Resolve output path
+    # --- Resolve output path ---
     out_path = args.out_path
     if out_path is None:
         gro_stem = os.path.splitext(os.path.basename(gro_path))[0]
         out_path = gro_stem + "_fromtop.udf"
 
     from .top_exporter import TopExporter
-    TopExporter().export(top_path, gro_path, template_path, out_path)
+    TopExporter().export(top_path, gro_path, template_path, out_path,
+                         mdp_path=args.mdp_path)
     print("Written: {}".format(out_path))
 
 

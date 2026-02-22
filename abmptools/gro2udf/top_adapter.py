@@ -14,10 +14,13 @@ Responsibilities:
 """
 from __future__ import annotations
 
+import math
 from typing import List, Optional
 
 from .gro_parser import GROParser
+from .mdp_parser import MdpParams, load_mdp
 from .top_model import (
+    EWALD_R_CUTOFF_DEFAULT,
     AtomTypeSpec,
     BondTypeSpec,
     AngleTypeSpec,
@@ -41,6 +44,7 @@ class TopAdapter:
         self,
         raw: TopRawData,
         gro_path: str,
+        mdp_path: Optional[str] = None,
     ) -> TopModel:
         """
         Convert *raw* (from TopParser) + GRO frames into a TopModel.
@@ -49,6 +53,11 @@ class TopAdapter:
         ----------
         raw       : TopRawData returned by TopParser.parse()
         gro_path  : path to the GROMACS .gro file
+        mdp_path  : optional path to GROMACS .mdp file; when provided,
+                    simulation parameters (ref_t, tau_t) are extracted
+                    and stored in the returned TopModel.
+                    Ewald R_cutoff is always computed from the Deserno &
+                    Holm formula using the GRO box, not from rcoulomb.
         """
         # --- mass dictionary: type_name -> mass ---
         mass_dict = self._build_mass_dict(raw)
@@ -83,6 +92,23 @@ class TopAdapter:
         # --- GRO frames ---
         frames = self._read_gro_frames(gro_path)
 
+        # --- total atom count (sum over all molecule instances) ---
+        n_atoms_total = sum(
+            len(mol_specs[mol_type_names.index(m)].atoms)
+            for m in raw.mol_instance_list
+        )
+
+        # --- simulation parameters from MDP (optional) ---
+        mdp: Optional[MdpParams] = load_mdp(mdp_path)
+        ref_t = mdp.ref_t if mdp is not None else 300.0
+        tau_t = mdp.tau_t if mdp is not None else 0.1
+
+        # --- Ewald R_cutoff: Deserno & Holm (JCP 1998) optimal formula ---
+        # R_cutoff = sqrt(11.5) / alpha
+        # alpha    = sqrt(pi) * (5.5 * N / V^2)^(1/6)
+        # N = total atoms, V = box volume [nm^3] from first GRO frame
+        ewald_r_cutoff = self._compute_ewald_r_cutoff(n_atoms_total, frames)
+
         return TopModel(
             comb_rule=raw.comb_rule,
             fudge_lj=raw.fudge_lj,
@@ -96,6 +122,10 @@ class TopAdapter:
             mol_specs=mol_specs,
             mol_instance_list=list(raw.mol_instance_list),
             frames=frames,
+            n_atoms_total=n_atoms_total,
+            ref_t=ref_t,
+            tau_t=tau_t,
+            ewald_r_cutoff=ewald_r_cutoff,
         )
 
     # ------------------------------------------------------------------
@@ -325,3 +355,41 @@ class TopAdapter:
                 cell=cell,
             ))
         return frames
+
+    @staticmethod
+    def _compute_ewald_r_cutoff(
+        n_atoms: int,
+        frames: List[GROFrameData],
+    ) -> float:
+        """
+        Compute the optimal Ewald real-space cutoff [Å] using the
+        Deserno & Holm (J. Chem. Phys. 109, 7678, 1998) formula that
+        equalises real-space and reciprocal-space errors:
+
+        .. math::
+
+            R_{\\text{cutoff}} = \\frac{\\sqrt{11.5}}{\\alpha}
+
+            \\alpha = \\sqrt{\\pi}\\left(\\frac{5.5 N}{V^2}\\right)^{1/6}
+
+        where N is the number of atoms and V [nm³] is the box volume
+        taken from the first GRO frame.
+
+        Falls back to :data:`EWALD_R_CUTOFF_DEFAULT` when the box
+        volume cannot be determined (empty frame list or zero volume).
+
+        Returns
+        -------
+        float
+            R_cutoff in [Å] (COGNAC internal length unit).
+        """
+        if not frames or n_atoms <= 0:
+            return EWALD_R_CUTOFF_DEFAULT
+
+        cell = frames[0].cell   # [a, b, c] in nm
+        V = cell[0] * cell[1] * cell[2]
+        if V <= 0.0:
+            return EWALD_R_CUTOFF_DEFAULT
+
+        alpha = math.sqrt(math.pi) * (5.5 * n_atoms / V ** 2) ** (1.0 / 6.0)
+        return (math.sqrt(11.5) / alpha) * 10.0  # nm → Å
