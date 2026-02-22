@@ -22,8 +22,16 @@ Public API::
     result = mini.minimize_pdb("in.pdb", "out.pdb")
     # {"energy_before": float[kJ/mol], "energy_after": float[kJ/mol],
     #  "energy": float[kJ/mol], "converged": bool, "elapsed": float, "out_pdb": str}
+
+    # PySCF DFT QM optimiser (requires pyscf, geometric or pyberny)
+    opt = QMOptimizerPySCF(functional="B3LYP", basis="def2-SVP",
+                            dispersion="d3bj")
+    result = opt.optimize("in.xyz", "out.xyz")
+    # {"energy": float[eV], "energy_hartree": float[Ha],
+    #  "steps": int, "converged": bool, "out_xyz": str}
 """
 from .mace_optimizer import MacePdbOptimizer
 from .openff_openmm_minimizer import OpenFFOpenMMMinimizer
+from .pyscf_optimizer import QMOptimizerPySCF
 
-__all__ = ["MacePdbOptimizer", "OpenFFOpenMMMinimizer"]
+__all__ = ["MacePdbOptimizer", "OpenFFOpenMMMinimizer", "QMOptimizerPySCF"]
