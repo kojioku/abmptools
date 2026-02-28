@@ -24,6 +24,7 @@ __all__ = [
     "CellGeometry",
     "NdxData",
     "SimulationParams",
+    "AnnealProtocol",
     "SystemModel",
 ]
 
@@ -230,6 +231,30 @@ class SimulationParams:
     # --- constraint freeze (optional) ---
     freeze_grps: Optional[str] = None
     freeze_dim: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Annealing protocol (for amorphous builder)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class AnnealProtocol:
+    """Parameters for multi-stage annealing MD (amorphous builder)."""
+    T_high: float = 600.0              # [K]
+    T_low: float = 300.0               # [K]
+    P_ref: float = 1.0                 # [bar]
+    em_steps: int = 50000
+    em_tol: float = 1000.0             # [kJ/mol/nm]
+    nvt_high_nsteps: int = 100000
+    npt_high_nsteps: int = 200000
+    anneal_nsteps: int = 500000
+    npt_low_nsteps: int = 500000
+    dt: float = 0.001                  # [ps]
+    tau_t: float = 0.1                 # [ps]
+    tau_p: float = 2.0                 # [ps]
+    nstxout_compressed: int = 5000
+    nstenergy: int = 1000
+    gen_seed: Optional[int] = None
 
 
 # ---------------------------------------------------------------------------
