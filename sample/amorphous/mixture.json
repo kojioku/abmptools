@@ -1,0 +1,12 @@
+{
+  "components": [
+    {"smiles": "CCCCC", "name": "pentane", "n_mol": 200},
+    {"smiles": "c1ccccc1", "name": "benzene", "n_mol": 50}
+  ],
+  "density_g_cm3": 0.8,
+  "temperature": 300,
+  "T_high": 600,
+  "seed": 42,
+  "forcefield": "openff_unconstrained-2.1.0.offxml",
+  "output_dir": "./pentane_benzene"
+}

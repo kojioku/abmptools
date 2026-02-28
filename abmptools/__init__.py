@@ -18,3 +18,7 @@ try:
     from .gro2udf import Exporter as Gro2udfExporter
 except Exception:
     pass
+try:
+    from .amorphous import AmorphousBuilder
+except Exception:
+    pass
