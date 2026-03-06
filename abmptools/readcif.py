@@ -509,7 +509,7 @@ if __name__ == '__main__':
                     xyzsym_idx = scolumns.index('_symmetry_equiv_pos_as_xyz')
                     print('xyzsym_idx', xyzsym_idx)
 
-            if symflag == True:
+            if symflag:
                 print(line[0:1])
                 if 'loop_' in line[0] or '_cell' in line[0]:
                     symflag = False
@@ -557,7 +557,7 @@ if __name__ == '__main__':
                 continue
 
             ## save length and angle for mol list
-            if cellend == True:
+            if cellend:
                 cellend = False
                 # coords = np.array(coords)
                 # lengthmol.append(length)
@@ -572,7 +572,7 @@ if __name__ == '__main__':
                 acolumns.append(line[0])
                 acolumnsflag = True
                 continue
-            if acolumnsflag == True:
+            if acolumnsflag:
                 if '_atom_site' not in line[0]:
                     acolumnsflag = False
                     coordflag = True
@@ -581,7 +581,7 @@ if __name__ == '__main__':
                     y_idx = acolumns.index('_atom_site_fract_y')
                     z_idx = acolumns.index('_atom_site_fract_z')
                     print(symbol_idx, x_idx, y_idx, z_idx)
-            if coordflag == True:
+            if coordflag:
                 # print('line!!!!!', line, len(line))
                 if line[0:1] == ['loop_']:
                     coordflag = False
@@ -597,7 +597,7 @@ if __name__ == '__main__':
                     coords.append([float(line[x_idx]), float(line[y_idx]), float(line[z_idx])])
 
             # end read coord xyz and save for list
-            if coordend == True:
+            if coordend:
                 coordend = False
                 atomsmol.append(atoms)
                 coordsmol.append(coords)
@@ -805,7 +805,7 @@ if __name__ == '__main__':
             # print(a_s)
             distdatas = []
             distvals = []
-            if calc_dist == True:
+            if calc_dist:
                 # print(as_27)
                 a_permol = getpermol(as_27, anum_inmol)
                 b_permol = getpermol(bs_27, anum_inmol)
@@ -815,7 +815,7 @@ if __name__ == '__main__':
 
                 for moli in range(len(a_permol)):
                     for molj in range(len(a_permol)):
-                        if nointra == True:
+                        if nointra:
                             if moli == molj:
                                 continue
                         for atomi in range(len(a_permol[moli])):
@@ -845,7 +845,7 @@ if __name__ == '__main__':
                                         tgtflag = True
                                         distdatas.append([moli+1, atomi+1, atmname_i, molj+1, atomj+1, atmname_j])
                                         distvals.append(dist)
-                if tgtflag == True:
+                if tgtflag:
                     truemolid.append(i)
 
             if args.min:

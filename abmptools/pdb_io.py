@@ -1,25 +1,23 @@
 import sys
 import os
-scrdir = os.path.abspath(os.path.dirname(__file__))
-sys.path.append(scrdir)
 import math
 import subprocess
 import re
 import time
 import copy
-import abinit_io as fab
+from .abinit_io import abinit_io as fab
 import collections
 import itertools
 try:
     import numpy as np
-except:
+except ImportError:
     pass
 try:
     from UDFManager import *
-except:
+except ImportError:
     pass
 
-class pdb_io(fab.abinit_io):
+class pdb_io(fab):
     def __init__(self):
         super().__init__()
         # print('## load pdb io init')
@@ -276,7 +274,7 @@ class pdb_io(fab.abinit_io):
             amarkRes = self.getpermol2(totalRes, anummols, amarks)
             chargeRes = self.getpermol2(totalRes, anummols, charges)
 
-            if self.assignresname == True:
+            if self.assignresname:
                 moldatas = []
                 moldatas_el = []
                 molidnames = []
@@ -427,7 +425,7 @@ class pdb_io(fab.abinit_io):
                     atomname = self.amarkRes[i][j]
                     form ='{0[0]:<6}{0[1]:>5} {0[2]:>2}  {0[3]:>1}{0[4]:<3} {0[5]:>1}{0[6]:>4}{0[7]:>1}   {0[8]:>8}{0[9]:>8}{0[10]:>8}{0[11]:>6}{0[12]:>6}          {0[13]:>2}{0[14]:>2}'
 
-                if self.refreshresid == True:
+                if self.refreshresid:
                     resid = reslab
                 else:
                     resid = self.resnumRes[i][j]
@@ -612,7 +610,7 @@ class pdb_io(fab.abinit_io):
                                 # print('add mol', i, self.resnames[i])
                                 break
 
-                if icflag == True:
+                if icflag:
                     icflag == False
                     continue
 
@@ -646,7 +644,7 @@ class pdb_io(fab.abinit_io):
                                 # print('add mol', i, self.resnames[i])
                                 break
 
-                if icflag == True:
+                if icflag:
                     icflag == False
                     continue
 
@@ -685,7 +683,7 @@ class pdb_io(fab.abinit_io):
                                 print('add mol', i, self.resnames[i])
                                 break
 
-                if icflag == True:
+                if icflag:
                     icflag = False
                     continue
 
@@ -698,11 +696,11 @@ class pdb_io(fab.abinit_io):
                 # no solute: check dist between solute and no solute
                 # j: atom loop in mol i
                 for j in range(len(self.posRes[i])):
-                    if nextf == True:
+                    if nextf:
                         break
                     # k: solute mol id
                     for k in self.solutes:
-                        if nextf == True:
+                        if nextf:
                             break
                         # l: solute atom id in mol k
                         for l in range(len(self.posRes[k])):

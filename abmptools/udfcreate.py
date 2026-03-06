@@ -8,7 +8,7 @@ import math
 from multiprocessing import Pool
 try:
     from UDFManager import *
-except:
+except ImportError:
     pass
 import time
 
@@ -159,7 +159,7 @@ class udfcreate():
                 for k in range (2, len(data[i])):
                     if data[i][k] in data[j]:
                         flag = True
-            if flag == True:
+            if flag:
 
                 for j in range(2, len(data[i])):
                     for k in range(2, len(data[i+1])):

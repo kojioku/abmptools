@@ -198,7 +198,7 @@ def setupmode(aobj):
         aobj.anlmode = 'fraginmol'
         try:
             aobj.tgtmolid = int(args.fraginmol[0])
-        except:
+        except (ValueError, TypeError):
             aobj.tgtmolid = args.fraginmol[0]
         aobj.tgt1_lofrag = int(args.fraginmol[1])
         aobj.tgt2molname = args.fraginmol[2]

@@ -1,8 +1,6 @@
 import sys
 import os
 import gzip
-scrdir = os.path.abspath(os.path.dirname(__file__))
-sys.path.append(scrdir)
 try:
     import pandas as pd
 except ImportError:
@@ -1064,7 +1062,7 @@ class LOGManager():
                 atomcount += 1
                 try:
                     num = int(line[6:12])
-                except:
+                except (ValueError, TypeError):
                     head = line[0:6]
                     num = line[6:11]
                     atypename = line[12:16]

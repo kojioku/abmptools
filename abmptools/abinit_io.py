@@ -1,34 +1,28 @@
 import sys
 import os
-scrdir = os.path.abspath(os.path.dirname(__file__))
-sys.path.append(scrdir)
-
-from multiprocessing import Pool
 import copy
 import random
 import math
 import re
 import subprocess
-from ctypes import *
 import tarfile
 import glob
-# import setparam as sp
-import mol_io as mi
+from .mol_io import mol_io as mi
 try:
     import collections
-except:
+except ImportError:
     pass
 try:
     import pandas as pd
-except:
+except ImportError:
     pass
 try:
     import itertools
-except:
+except ImportError:
     pass
 
 
-class abinit_io(mi.mol_io):
+class abinit_io(mi):
 
     def __init__(self):
         # print('## load abinit io')
@@ -177,7 +171,7 @@ class abinit_io(mi.mol_io):
 
     def gen_ajf_bodywrap(self, inname):
         # i, j ,k (mol, frag, component_perfrag) dimension
-        if self.autofrag == True:
+        if self.autofrag :
             ajf_fragment = ""
         else:
             ajf_fragment = self.get_fragsection()[:-1]
@@ -263,7 +257,7 @@ NP=""" + np + """
 MaxSCCcyc=250
 MaxSCCenergy=5.0E-7
 """
-        if  self.ligchg != None:
+        if  self.ligchg is not None:
             ligchgstr = "LigandCharge='"
             for i in range(len(self.ligchg)):
                 ligchgstr += self.ligchg[i][0] + '=' + self.ligchg[i][1]
@@ -276,7 +270,7 @@ MaxSCCenergy=5.0E-7
             ajf_body += ligchgstr + """
 """
 
-        if  self.rsolv != None:
+        if  self.rsolv is not None:
             rsolvstr = "RSolv='"
             for i in range(len(self.rsolv)):
                 rsolvstr += self.rsolv[i][0] + '=' + self.rsolv[i][1]
@@ -289,7 +283,7 @@ MaxSCCenergy=5.0E-7
             ajf_body += rsolvstr + """
 """
 
-        if self.cmmflag == True:
+        if self.cmmflag:
             ajf_body += """Dimer_es_multipole='YES'
 Ldimer_cmm=5.0
 /
@@ -404,7 +398,7 @@ LPRINT=2"""
 /
 
 &ANALYSIS """
-            if self.piedaflag == True:
+            if self.piedaflag:
                 new_section += """
 PIEDA='YES'"""
             else:
@@ -421,7 +415,7 @@ PIEDA='NO'"""
 /
 
 &PIEDA"""
-            if self.piedaflag == True:
+            if self.piedaflag:
                 new_section += """
 EnergyDecomposition='YES'"""
             new_section += """
@@ -433,7 +427,7 @@ EnergyDecomposition='YES'"""
 
         ajf_body += str(new_section) + """
 &BSSE"""
-        if self.bsseflag == True:
+        if self.bsseflag:
             ajf_body += """
 CP='ON'"""
         ajf_body += """
@@ -486,10 +480,10 @@ THRCNV=1.0E-5
 
 &POP
 """
-        if self.resp == True:
+        if self.resp :
             ajf_body += "ESPFIT='ON'\n"
             ajf_body += "ESPTYP='RESP'\n"
-        if self.nbo == True:
+        if self.nbo :
             ajf_body +="NBOANL='ON'"
         ajf_body +="""
 /
@@ -739,7 +733,7 @@ MD='OFF'
         if readflag is False:
             try:
                 print("can't read ifie", fname.split("/")[1])
-            except:
+            except (ValueError, IndexError):
                 pass
 
         if debug:
@@ -772,7 +766,7 @@ MD='OFF'
             f = open(fname, "r")
             text = f.readlines()
             f.close()
-        except:
+        except (IOError, OSError):
             print("can't open", fname)
             return [ifie, pbterm]
         flag = False
@@ -917,7 +911,7 @@ MD='OFF'
 
         if mode == "single":
             target = target_dir + "/" + molname + ".out"
-            if fzcflag == True:
+            if fzcflag:
                 # print (molname + ": nofzc")
                 target = target_dir + "/nofzc/" + molname + ".out"
             if self.pbflag is False:
@@ -984,7 +978,7 @@ MD='OFF'
                     else:
                         mp2 = text[i + 8].split()
                     return [eval(hf[3]), eval(mp2[2])]
-        except:
+        except Exception:
             print("Warning: can't get result:", target)
             return [0, 0]
             # sys.exit()
@@ -1037,7 +1031,7 @@ MD='OFF'
             f = open(target, "r")
             text = f.readlines()
             f.close()
-        except:
+        except (IOError, OSError):
             print("Error! can't open monomer file:", target)
             return [0,0]
             # sys.exit()
@@ -1061,7 +1055,7 @@ MD='OFF'
 
         try:
             return [eval(hf[3]), eval(mp2[2])]
-        except:
+        except (IndexError, TypeError):
             print("Error! can't get monomer result:", target)
             return [0,0]
             # sys.exit()
@@ -1132,7 +1126,7 @@ MD='OFF'
             # print(eg[3], esol[3], dg[2], dges[2], dgnp[2])
             try:
                 return eg[3], esol[3], dg[-1], dges[-1], dgnp[-1]
-            except:
+            except (NameError, IndexError):
                 print("Warning: can't get result:", target)
                 return 0, 0, 0, 0, 0
 
@@ -1161,7 +1155,7 @@ MD='OFF'
             f = open(target, "r")
             text = f.readlines()
             f.close()
-        except:
+        except (IOError, OSError):
             print("can't open " + target)
             return 0, 0, 0, 0, 0
         if self.abinit_ver in ['rev11', 'rev15', 'mizuho']:
@@ -1188,7 +1182,7 @@ MD='OFF'
             # print eg, cor, dg
             try:
                 return eg[8], cor[2], dg[5], dges[5], dgnp[5]
-            except:
+            except (NameError, IndexError):
                 print("Warning: can't get result:", target)
                 return 0, 0, 0, 0, 0
 
@@ -1202,7 +1196,7 @@ MD='OFF'
                     continue
                 if itemList[0:4] == ['##', 'SOLUTE', 'TOTAL', 'ENERGY']:
                     getflag = True
-                if  getflag == True:
+                if  getflag:
                     if itemList[0:3] == ['FMO2', 'in', 'vacuo']:
                         # print('vacuo')
                         eg = itemList  # [5]
@@ -1230,7 +1224,7 @@ MD='OFF'
             # print(eg[3], esol[3], dg[2], dges[2], dgnp[2])
             try:
                 return eg[3], esol[3], dg[-1], dges[-1], dgnp[-1]
-            except:
+            except (NameError, IndexError):
                 print("Warning: can't get result:", target)
                 return 0, 0, 0, 0, 0
 
@@ -1259,7 +1253,7 @@ MD='OFF'
             f = open(target, "r")
             text = f.readlines()
             f.close()
-        except:
+        except (IOError, OSError):
             print ("can't open " + target)
             return 0, 0, 0, 0, 0
 
@@ -1285,7 +1279,7 @@ MD='OFF'
             # print eg, cor, dg
             try:
                 return eg[8], cor[2], dg[5], dges[5], dgnp[5]
-            except:
+            except (NameError, IndexError):
                 print("Error! can't get monomer result:", target)
                 # sys.exit()
                 return 0, 0, 0, 0, 0
@@ -1327,7 +1321,7 @@ MD='OFF'
                 lcount = 0
                 continue
             # fatom section
-            if flag == True and typcount == 0:
+            if flag and typcount == 0:
                 fatomnums.append(itemlist)
                 lcount += 1
                 if lcount == baseline:
@@ -1336,7 +1330,7 @@ MD='OFF'
                     fatomnums = self.flatten(fatomnums)
                     continue
             # chg section
-            if flag == True and typcount == 1:
+            if flag and typcount == 1:
                 fchgs.append(itemlist)
                 lcount += 1
                 if lcount == baseline:
@@ -1346,7 +1340,7 @@ MD='OFF'
                     continue
 
             # bda section
-            if flag == True and typcount == 2:
+            if flag and typcount == 2:
                 fbaas.append(itemlist)
                 lcount += 1
                 if lcount == baseline:
@@ -1356,7 +1350,7 @@ MD='OFF'
                     continue
 
             # seginfo section
-            if flag == True and typcount == 3:
+            if flag and typcount == 3:
                 # print('typ', typcount)
                 # print(nfcount)
                 fatomnum = fatomnums[nfcount]
@@ -1375,10 +1369,10 @@ MD='OFF'
                         continue
 
             # bda-baa atom section
-            if flag == True and itemlist[0] == '/':
+            if flag and itemlist[0] == '/':
                 break
 
-            if flag == True and typcount == 4:
+            if flag and typcount == 4:
                 connects.append(itemlist)
                 connects = self.functor(int, connects)
                 # datas.append(itemlist)
@@ -1537,19 +1531,19 @@ MD='OFF'
                         if double[0] == nagmolids[i]:
                             dmidflag = True
 
-                    if dendflag == True:
+                    if dendflag:
                         baaidx = atomnameMol[nagmolids[i-1]].index(' O4 ')
                         print('baaidx double', baaidx, nagmolids[i-1])
                         baaatomid = anummols[nagmolids[i-1]][baaidx]
                         print('baaaaaaaaaaaaaa', baaatomid)
 
                     # for old(asn) frag
-                    if dendflag == False:
+                    if dendflag is False:
                         fchgs[j] -= 1
                         fbaas[j] += 1
 
                     # for new frag
-                    if dmidflag == True:
+                    if dmidflag:
                         fchgs.append(0)
                         fbaas.append(1)
                     else:
@@ -1577,7 +1571,7 @@ MD='OFF'
 
                     #connects
                     print(len(connects))
-                    if dendflag == True:
+                    if dendflag:
                         connects.append([int(nagbdas[i]), int(baaatomid)])
                         print('connects', nagbdas[i], baaatomid)
 
@@ -1819,7 +1813,7 @@ MD='OFF'
 
 
     def saveajf(self, oname=None):
-        if oname == None:
+        if oname is None:
             oname = os.path.splitext(self.readgeom)[0] + '-' + self.ajf_method + '-' + self.ajf_basis_set.replace('*', 'd') + '.ajf'
             ohead = os.path.splitext(self.readgeom)[0] + '-' + self.ajf_method
         else:
