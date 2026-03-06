@@ -1,37 +1,31 @@
 import sys
 import os
-scrdir = os.path.abspath(os.path.dirname(__file__))
-sys.path.append(scrdir)
-
-from multiprocessing import Pool
 import copy
 import random
 import math
 import re
 import subprocess
-import csv
-import pdb_io as pdio
+from .pdb_io import pdb_io as pdio
 import time
-from ctypes import *
 
 try:
     import numpy as np
-except:
+except ImportError:
     pass
 try:
     import collections
-except:
+except ImportError:
     pass
 try:
     import pandas as pd
-except:
+except ImportError:
     pass
 try:
     import itertools
-except:
+except ImportError:
     pass
 
-class anlfmo(pdio.pdb_io):
+class anlfmo(pdio):
     def __init__(self):
         super().__init__()
         self.cpfflag = True
@@ -327,15 +321,15 @@ class anlfmo(pdio.pdb_io):
                     autoreadflag = True
                     continue
 
-                if autoreadflag == True and items[0:2] == ['The', 'system']:
+                if autoreadflag and items[0:2] == ['The', 'system']:
                     autoreadflag = False
                     continue
 
-                if autoreadflag == True and items[0] == 'Ions':
+                if autoreadflag and items[0] == 'Ions':
                     autoreadflag = False
                     continue
 
-                if autoreadflag == True:
+                if autoreadflag:
                    # print(items)
                    seqnos.append(items[0])
                    fragnos.append(items[1])
@@ -399,7 +393,7 @@ class anlfmo(pdio.pdb_io):
                     readflag = False
                 if items[0:2] == ["ALL", "ATOM"]:
                     natom = int(items[3])
-                if readflag == True:
+                if readflag:
                     if line[0:21] == "                     ":
                         # print(line)
                         fragdata = fragdata + items
@@ -419,15 +413,15 @@ class anlfmo(pdio.pdb_io):
                     autoreadflag = True
                     continue
 
-                if autoreadflag == True and items[0:2] == ['The', 'system']:
+                if autoreadflag and items[0:2] == ['The', 'system']:
                     autoreadflag = False
                     continue
 
-                if autoreadflag == True and items[0] == 'Ions':
+                if autoreadflag and items[0] == 'Ions':
                     autoreadflag = False
                     continue
 
-                if autoreadflag == True:
+                if autoreadflag:
                    # print(items)
                    seqnos.append(items[0])
                    fragnos.append(items[1])
@@ -569,7 +563,7 @@ class anlfmo(pdio.pdb_io):
                 readflag = False
             if items[0:2] == ["ALL", "ATOM"]:
                 natom = int(items[3])
-            if readflag == True:
+            if readflag:
                 if line[0:21] == "                     ":
                     # print(line)
                     fragdata = fragdata + items
@@ -589,11 +583,11 @@ class anlfmo(pdio.pdb_io):
                 autoreadflag = True
                 continue
 
-            if autoreadflag == True and items[0:2] == ['The', 'system']:
+            if autoreadflag and items[0:2] == ['The', 'system']:
                 autoreadflag = False
                 continue
 
-            if autoreadflag == True:
+            if autoreadflag:
                # print(items)
                seqnos.append(items[0])
                fragnos.append(items[1])
@@ -635,7 +629,7 @@ class anlfmo(pdio.pdb_io):
             for fragdata in fragdatas:
                 try:
                     tgts.append(fragdata[2])
-                except:
+                except IndexError:
                     tgts.append(fragdata[0])
 
             for tgt in tgts:
@@ -811,7 +805,7 @@ class anlfmo(pdio.pdb_io):
             tgtfrags = copy.deepcopy(self.tgt2frag)
             try:
                 tgtfrags.remove(f1)
-            except:
+            except ValueError:
                 pass
             tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgtfrags)) | (tgtdf['J'].isin(tgtfrags))]
 
@@ -914,7 +908,7 @@ class anlfmo(pdio.pdb_io):
                 tgtfrags = copy.deepcopy(self.tgt2frag)
                 try:
                     tgtfrags.remove(f1)
-                except:
+                except ValueError:
                     pass
                 tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgtfrags)) | (tgtdf['J'].isin(tgtfrags))]
 
@@ -1184,7 +1178,7 @@ class anlfmo(pdio.pdb_io):
         tgtfrags = copy.deepcopy(tgt2frag)
         try:
             tgtfrags.remove(f1)
-        except:
+        except ValueError:
             pass
         tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgtfrags)) | (tgtdf['J'].isin(tgtfrags))]
 
@@ -1251,7 +1245,7 @@ class anlfmo(pdio.pdb_io):
         tgtfrags = copy.deepcopy(tgt2frag)
         try:
             tgtfrags.remove(f1)
-        except:
+        except ValueError:
             pass
         tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgtfrags)) | (tgtdf['J'].isin(tgtfrags))]
 
@@ -1321,7 +1315,7 @@ class anlfmo(pdio.pdb_io):
             tgtdf_filter = tgtdf[tgtdf['DIST'] < self.dist]
         elif self.tgt2type == 'dimer-es':
             print('--- ifie around tgt ', self.tgt1frag, 'without Dimer-es approximation ---')
-            if self.f90soflag == True:
+            if self.f90soflag:
                 tgtdf_filter = tgtdf[tgtdf['DIMER-ES'] == 0]
             else:
                 tgtdf_filter = tgtdf[tgtdf['DIMER-ES'] == 'F']
@@ -1653,7 +1647,7 @@ class anlfmo(pdio.pdb_io):
             f = open(fname, "r")
             text = f.readlines()
             f.close()
-        except:
+        except (IOError, OSError):
             print("can't open", fname)
             return ifie
         flag = False
@@ -1703,7 +1697,7 @@ class anlfmo(pdio.pdb_io):
                 sflag = True
                 solv = []
                 scount = 0
-            if sflag == True:
+            if sflag:
                 scount += 1
 
             if itemList[1:3] == ['NONPOLAR', 'CONTRIBUTION']:
@@ -1716,7 +1710,7 @@ class anlfmo(pdio.pdb_io):
         if not flag and not pflag:
             try:
                 print("can't read ifie", fname.split("/")[1])
-            except:
+            except (ValueError, IndexError):
                 pass
 
         for i in range(len(ifie)):
@@ -1856,7 +1850,7 @@ class anlfmo(pdio.pdb_io):
             try:
                 if self.tgt2molname in rname_permolinrec[j]:
                     tgtmolfrags += molfragss[j]
-            except:
+            except (TypeError, KeyError):
                 continue
         print(tgtmolfrags)
 
@@ -1942,7 +1936,7 @@ class anlfmo(pdio.pdb_io):
         try:
             HF_BSSE_sum = ifdf_filter['HF-BSSE'].sum()
             MP2_BSSE_sum = ifdf_filter['MP2-BSSE'].sum()
-        except:
+        except KeyError:
             HF_BSSE_sum = 0
             MP2_BSSE_sum = 0
 
@@ -1951,7 +1945,7 @@ class anlfmo(pdio.pdb_io):
             momenetgtdf = momenedf[momenedf['Frag.'] == self.momfrag]
             momene_tgt = momenetgtdf['HF'][0] + momenetgtdf['MP2'][0]
             momlabel = 'MonomerEnergy(' + str(self.momfrag) + ')'
-        except:
+        except (KeyError, IndexError):
             momene_tgt = None
             momlabel = 'MonomerEnergy(' + str(self.momfrag) + ')'
 
@@ -1961,7 +1955,7 @@ class anlfmo(pdio.pdb_io):
             dimene_tgt = dimenetgtdf['DIMER-HF'][0] + dimenetgtdf['DIMER-MP2'][0]
             dimlabel = 'DimerEnergy(' + str(self.dimfrag1) + '-' + str(self.dimfrag2) + ')'
 
-        except:
+        except (KeyError, IndexError):
             dimene_tgt = None
             dimlabel = 'DimerEnergy(' + str(self.dimfrag1) + '-' + str(self.dimfrag2) + ')'
 
@@ -2239,7 +2233,7 @@ class anlfmo(pdio.pdb_io):
             try:
                 if ifpidfs[i] is None:
                     delids.append(i)
-            except:
+            except (IndexError, TypeError):
                 pass
         dellist = lambda items, indexes: [item for index, item in enumerate(items) if index not in indexes]
         ifpidfs = dellist(ifpidfs, delids)
@@ -2521,7 +2515,7 @@ class anlfmo(pdio.pdb_io):
 
             # setup tgt2frag
             if self.tgt2type == 'frag':
-                if item2 != None:
+                if item2 is not None:
                     print('type', type(item2))
                     if item2[-1] == '-':
                         print('check tgt2 frags')
@@ -2552,18 +2546,18 @@ class anlfmo(pdio.pdb_io):
                             try:
                                 del self.tgt2frag[self.tgt2frag.index(dfrag)]
                                 print('- Info: del frag', dfrag, 'from tgt2')
-                            except:
+                            except ValueError:
                                 pass
                 print('tgt1frag, tgt2frag', self.tgt1frag, self.tgt2frag)
 
 
             if self.tgt2type == 'molname':
-                if item2 != None:
+                if item2 is not None:
                     self.tgt2molname = item2
                 print('tgt1frag, tgt2mol', self.tgt1frag, self.tgt2molname)
 
 
-            if self.rpdbflag == True:
+            if self.rpdbflag:
                 nfs = []
                 molnames_perrec = []
                 resnamenonums_perfrag = []
@@ -2668,7 +2662,7 @@ class anlfmo(pdio.pdb_io):
                 try:
                     del self.tgt2frag[self.tgt2frag.index(dfrag)]
                     print('- Info: del frag', dfrag, 'from tgt2')
-                except:
+                except ValueError:
                     pass
 
         # PIEDA
@@ -2676,7 +2670,7 @@ class anlfmo(pdio.pdb_io):
             self.pcolumn = ['I', 'J', 'ES', 'EX', 'CT-mix', 'Solv(ES)', 'DI(MP2)', 'q(I=>J)']
 
         # get resname reference
-        if self.addresinfo == True or self.rpdbflag == True or self.anlmode == 'fraginmol':
+        if self.addresinfo or self.rpdbflag or self.anlmode == 'fraginmol':
             print('\n## read reference resname')
             if type(self.tgtlogs) == list:
                 for i in range(len(self.tgtlogs)):
@@ -2698,7 +2692,7 @@ class anlfmo(pdio.pdb_io):
             print('- fragmode:', self.fragmode)
             print('- NP:', self.pynp)
             print('- addresflag', self.addresinfo)
-        except:
+        except AttributeError:
             pass
         print('## input summary end\n')
 
@@ -3085,7 +3079,7 @@ class anlfmo(pdio.pdb_io):
                     tgtid = self.tgt1frag[0]
                     try:
                         ohead = head + '-' + str(tgtid) + '-' + frags[tgtid - 1]
-                    except:
+                    except (IndexError, TypeError):
                         ohead = head + '-' + str(tgtid)
 
                     if self.tgt2type == 'dist':
@@ -3109,7 +3103,7 @@ class anlfmo(pdio.pdb_io):
                     if self.pbflag:
                         try:
                             ohead = head + '-' + str(tgtid) + '-' + frags[tgtid - 1]
-                        except:
+                        except (IndexError, TypeError):
                             ohead = head + '-' + str(tgtid)
 
                     if self.tgt2type == 'dist':

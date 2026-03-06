@@ -4,18 +4,18 @@ import math
 import subprocess
 import re
 from multiprocessing import Pool
-import udf_io as uio
+from .udf_io import udf_io as uio
 try:
     from UDFManager import *
-except:
+except ImportError:
     pass
 try:
     import numpy as np
-except:
+except ImportError:
     pass
 
 
-class udfrm_io(uio.udf_io):
+class udfrm_io(uio):
     def __init__(self):
         self.molflag = False
         self.cell = None
@@ -37,12 +37,12 @@ class udfrm_io(uio.udf_io):
         print("targetRec = ", tgtrec)
         print("moveflag = ", moveflag)
 
-        if moveflag == True:
+        if moveflag:
             self.moveintocell_rec(_udf_, tgtrec, totalMol)
 
         oname = os.path.splitext(fname)[0].split("/")[-1]
         print(oname)
-        if self.molflag == True:
+        if self.molflag:
             self.convert_udf_pdb(tgtrec, _udf_, tgtmol, oname)
         else:
             self.convert_udf_pdb(tgtrec, _udf_, totalMol, oname)
@@ -57,7 +57,7 @@ class udfrm_io(uio.udf_io):
         typenameMol = []
         molnamelist = []
 
-        if self.molflag == True:
+        if self.molflag:
             tgtmol = totalMol
             print('tgtmol =', tgtmol)
             for i in range(tgtmol, tgtmol + 1):
@@ -71,7 +71,7 @@ class udfrm_io(uio.udf_io):
 
             oname = ohead + ".xyz"
             # self.Exportpos(".", rec, tgtmol, uobj, oname)
-            if writef == True:
+            if writef:
                 self.Exporttgtmolpos(".", oname, rec, [tgtmol], uobj)
 
         else:
@@ -85,7 +85,7 @@ class udfrm_io(uio.udf_io):
             # print (molnamelist)
 
             oname = ohead + ".xyz"
-            if writef == True:
+            if writef:
                 self.Exportpos(".", rec, totalMol, uobj, oname)
 
         return [typenameMol, posMol, molnamelist]

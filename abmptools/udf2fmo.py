@@ -58,7 +58,7 @@ if __name__ == "__main__":
     print('parameter = ', args.parameter)
 
     is_solutes = False
-    if args.solutes != None:
+    if args.solutes is not None:
         is_solutes = True
 
     _udf_ = UDFManager(args.incoord)
@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
     print('solutes', aobj.solutes)
 
-    if args.output == None:
+    if args.output is None:
         oname= os.path.splitext(args.incoord)[0].split('/')[-1] + '-' + aobj.cutmode + '-' + 'rec' + str(tgtrec)
 
         if aobj.cutmode == 'around':

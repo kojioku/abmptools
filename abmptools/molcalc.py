@@ -5,10 +5,9 @@ import copy
 import re
 import subprocess
 import math
-from multiprocessing import Pool
 try:
     import numpy as np
-except:
+except ImportError:
     pass
 
 
@@ -70,9 +69,9 @@ class molcalc():
                     if count == sum(molnum):
                         flag = True
                         break
-                if flag == True:
+                if flag:
                     break
-            if flag == True:
+            if flag:
                 break
 
         # print "pos",pos
@@ -462,7 +461,7 @@ class molcalc():
         for k in range(len(fragids)):
             flag = False
             for i in range(len(fragids[k])):
-                if flag == True:
+                if flag:
                     break
                 for j in range(len(index)):
                     if index[j] == fragids[k][i]:
@@ -697,7 +696,7 @@ class molcalc():
         # print (angle)
         try:
             theta = math.acos(angle) * 180 / math.pi
-        except:
+        except ValueError:
             theta = 0.0
         return theta
 

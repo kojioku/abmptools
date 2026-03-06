@@ -12,13 +12,13 @@ from .logmanager import LOGManager
 # udf2gro and gro2udf are imported lazily because they require UDFManager (optional dep)
 try:
     from .udf2gro import Exporter as Udf2groExporter
-except Exception:
+except ImportError:
     pass
 try:
     from .gro2udf import Exporter as Gro2udfExporter
-except Exception:
+except ImportError:
     pass
 try:
     from .amorphous import AmorphousBuilder
-except Exception:
+except ImportError:
     pass

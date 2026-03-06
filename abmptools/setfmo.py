@@ -1,26 +1,24 @@
 try:
     from UDFManager import *
-except:
+except ImportError:
     pass
 import sys
 import os
-scrdir = os.path.abspath(os.path.dirname(__file__))
-sys.path.append(scrdir)
 import math
 import subprocess
 import re
 import time
 import copy
-import udfcreate as ufc
-import udfrm_io as rud
-import pdb_io as pdio
+from .udfcreate import udfcreate as ufc
+from .udfrm_io import udfrm_io as rud
+from .pdb_io import pdb_io as pdio
 try:
     import numpy as np
-except:
+except ImportError:
     pass
 
 
-class setfmo(pdio.pdb_io, ufc.udfcreate, rud.udfrm_io):
+class setfmo(pdio, ufc, rud):
     def __init__(self):
         super().__init__()
         self.ajf_method = 'HF'

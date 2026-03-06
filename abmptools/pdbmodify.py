@@ -101,7 +101,7 @@ if __name__ == "__main__":
     print('sort', args.sort)
 
     is_sort = False
-    if args.sort != None:
+    if args.sort is not None:
         is_sort = True
         sortres = args.sort[0]
         sortres2 = args.sort[1]
@@ -114,7 +114,7 @@ if __name__ == "__main__":
 
     # move info
     moveflag = args.move
-    if args.mol == None:
+    if args.mol is None:
         movemode = 'pos' # pos or mol
     else:
         movemode = 'mol' # pos or mol
@@ -123,7 +123,7 @@ if __name__ == "__main__":
 
 
     addchain = False
-    if args.addchain != None:
+    if args.addchain is not None:
         addchain = True
         addres_start = int(args.addchain[0])
         addres_end = int(args.addchain[1])
@@ -230,7 +230,7 @@ if __name__ == "__main__":
             # print('gatmlabRes', gatmlabRes)
 
             # print(resnums)
-            if addchain == True:
+            if addchain:
                 print(addres)
                 alreadys = []
                 for i in range(len(resnums)):
@@ -253,7 +253,7 @@ if __name__ == "__main__":
 
 
 
-            if is_sort == True:
+            if is_sort:
                 for i in range(len(molnames)):
                     if sortres == molnames[i]:
                         print(molnames[i], i)
@@ -289,7 +289,7 @@ if __name__ == "__main__":
 #                 print(posMol[ival])
 #                 print(posMol[jval])
 
-            if moveflag == True:
+            if moveflag:
                 # get center of solute
                 if movemode == 'mol':
                     coctgt = aobj.getCenter(posMol[tgtmol-1])
@@ -305,14 +305,14 @@ if __name__ == "__main__":
                     posmove = aobj.movemoltranspdb(posMol[i], transVec)
                     posmoveMol.append(posmove)
 
-                if intoflag == True:
+                if intoflag:
                     posintoMol = aobj.moveintocellpdb(posmoveMol, totalMol, cellsize)
 
                 else:
                     posintoMol = copy.deepcopy(posmoveMol)
 
             else:
-                if intoflag == True:
+                if intoflag:
                     posintoMol = aobj.moveintocellpdb(posMol, totalMol, cellsize)
 
                 else:

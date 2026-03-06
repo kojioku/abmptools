@@ -1,15 +1,9 @@
-import sys
 import os
-scrdir = os.path.abspath(os.path.dirname(__file__))
-sys.path.append(scrdir)
-
-from multiprocessing import Pool
 import copy
 import random
 import math
 import re
 import subprocess
-from ctypes import *
 
 
 class mol_io():
