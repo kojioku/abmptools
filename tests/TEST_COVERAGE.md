@@ -4,13 +4,13 @@
 
 | カテゴリ | モジュール数 | テストファイル | テスト数 | ステータス |
 |---------|------------|--------------|---------|-----------|
-| コアクラス (継承チェーン) | 7 | 7 | 205 | 完了 |
-| 複合クラス | 2 | 2 | 41 | 完了 |
+| コアクラス (継承チェーン) | 7 | 7 | 300 | 完了 |
+| 複合クラス | 2 | 2 | 72 | 完了 |
 | マネージャクラス | 2 | 2 | 64 | 完了 |
 | スタンドアロン関数モジュール | 2 | 2 | 61 | 完了 |
 | CLIスクリプト | 11 | - | - | テスト対象外 (Phase 3) |
 | サブパッケージ (gro2udf等) | 4+ | - | - | 別途管理 |
-| **合計** | | **13** | **385** | **全PASS** |
+| **合計** | | **13** | **481** | **全PASS** |
 
 ---
 
@@ -22,8 +22,8 @@
 |---|--------------|--------------|------|---------|--------------|-----------|
 | 1 | `test_molcalc.py` | `molcalc.py` | 1170 | 55 | `getdist`, `getangle`, `getcrossprod`, `getCenter`, `getoriginpos`, `gettranspos`, `getmolradius`, `calccellsize`, `moveMolTrans`, `rotate_ardz`, `rotate_ardvec`, `get_element_name`, `get_atomic_radius`, `wrap_to_primary_cell`, `shift_molecule_to_primary_cell`, `getindex`, `getatomisite`, `getmolmass`, `getrenumindex` | [x] 完了 |
 | 2 | `test_mol_io.py` | `mol_io.py` | 175 | 27 | `read_mol_name`, `read_xyz`, `getatoms`, `getatom`, `convert_xyz_pdb`, `Exportpospdb` | [x] 完了 |
-| 3 | `test_abinit_io.py` | `abinit_io.py` | 1826 | 39 | `__init__` defaults, `chkdepth`, `get_fragsection` | [x] 完了 |
-| 4 | `test_pdb_io.py` | `pdb_io.py` | 943 | 22 | `__init__` defaults, `readpdb` (HETATM/ATOM, 単一/複数残基) | [x] 完了 |
+| 3 | `test_abinit_io.py` | `abinit_io.py` | 2758 | 76 | `__init__` defaults, `chkdepth`, `get_fragsection`, `config_read`, `gen_ajf_body`, `read_ifie`, `getmo_or_fmo`, `flatten`, `functor`, `getfraginfo` | [x] 完了 |
+| 4 | `test_pdb_io.py` | `pdb_io.py` | 1875 | 50 | `__init__` defaults, `readpdb`, `getpdbcell`, `exportardpdbfull`, `exportardpdb`, `getpdbinfowrap`, `movemoltranspdb`, roundtrip | [x] 完了 |
 | 5 | `test_udf_io.py` | `udf_io.py` | 696 | 7 | `getposatom`, `getposmol`, `getposmolrec`, `getnameAtom`, `getAtomtypename`, `putPositionsMol` (UDFManager mock) | [x] 完了 |
 | 6 | `test_udfrm_io.py` | `udfrm_io.py` | 125 | 11 | `__init__`, `getmolname`, `moveintocell_rec`, `convert_udf_pdb` (UDFManager mock) | [x] 完了 |
 | 7 | `test_udfcreate.py` | `udfcreate.py` | 1130 | 10 | `__init__`, `setudfparam`, `getconnectdata`, `getbatdata` | [x] 完了 |
@@ -33,7 +33,7 @@
 | # | テストファイル | 対象モジュール | 行数 | テスト数 | 主要テスト対象 | ステータス |
 |---|--------------|--------------|------|---------|--------------|-----------|
 | 8 | `test_setfmo.py` | `setfmo.py` | 637 | 20 | `__init__` defaults, `setrfmoparam` (全キー/部分/デフォルト) | [x] 完了 |
-| 9 | `test_anlfmo.py` | `anlfmo.py` | 3478 | 21 | `__init__` defaults (全属性検証) | [x] 完了 |
+| 9 | `test_anlfmo.py` | `anlfmo.py` | 4410 | 51 | `__init__` defaults, `depth`, `getisdisp`, `getlogmethod`, `getpbflag`, `getifiedf`, `getpiedadf`, `getmomenedf`, `getdimenedf`, `gettgtdf_ff/ffs` | [x] 完了 |
 
 ### 3. マネージャクラス
 
@@ -88,7 +88,7 @@
 ## 実行方法
 
 ```bash
-pytest tests/ -v              # 全テスト実行 (385 tests)
+pytest tests/ -v              # 全テスト実行 (481 tests)
 pytest tests/ -v -k molcalc   # molcalcのみ
 pytest tests/ -v --tb=short   # 簡潔な出力
 ```
