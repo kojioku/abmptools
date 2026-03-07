@@ -4,13 +4,9 @@ try:
     from UDFManager import *
 except ImportError:
     pass
-import sys
 import os
-import math
-import subprocess
 import re
 import time
-import copy
 import logging
 from .udfcreate import udfcreate as ufc
 from .udfrm_io import udfrm_io as rud

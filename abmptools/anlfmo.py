@@ -1,10 +1,7 @@
 import sys
 import os
 import copy
-import random
-import math
 import re
-import subprocess
 import logging
 from .pdb_io import pdb_io as pdio
 import time

@@ -1,9 +1,7 @@
 import sys
 import os
-import math
 import subprocess
 import re
-import time
 import copy
 import logging
 from .abinit_io import abinit_io as fab

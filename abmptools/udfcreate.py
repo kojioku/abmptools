@@ -2,17 +2,13 @@ from __future__ import annotations
 # -*- coding: utf-8 -*-
 import ast
 import os
-import sys
-import copy
 import re
 import subprocess
 import math
-from multiprocessing import Pool
 try:
     from UDFManager import *
 except ImportError:
     pass
-import time
 import logging
 
 logger = logging.getLogger(__name__)
