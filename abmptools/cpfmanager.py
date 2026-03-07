@@ -34,35 +34,32 @@ class CPFManager:
         if os.path.splitext(filepath)[-1] == '.gz':
             self.is_gz = True
 
-        if self.is_gz:
-            file = gzip.open(filepath, 'rt')
-        else:
-            file = open(filepath, 'rt')
-
-        # Read header
-        header, natom, nfrag, labels, cpfver = self.read_header(file)
-        # Read atom data
-        atominfo = self.read_atominfo(file, labels, natom, cpfver, tgtfrag)
-        # Read fragment data
-        fraginfo = self.read_fraginfo(file, nfrag, atominfo, cpfver, tgtfrag)
-        # Read fragment distance data
-        diminfo, dimaccept = self.read_dimdist(file, nfrag, tgtfrag)
-        # Read dipole data
-        mominfo = self.read_dipole(file, labels, nfrag, tgtfrag)
-        # Read condition data
-        condition = \
-            self.read_condition(file)
-        # Read static data
-        static_data = \
-            self.read_static(file, natom, nfrag, atominfo, tgtfrag)
-        # Read monomer data
-        mominfo = \
-            self.read_monomer(file, mominfo, labels, natom,
-                              tgtfrag, cpfver, nfrag)
-        # Read dimer data
-        diminfo, static_data = \
-            self.read_dimer(file, diminfo, labels, nfrag,
-                            cpfver, dimaccept, static_data, tgtfrag)
+        opener = gzip.open if self.is_gz else open
+        with opener(filepath, 'rt') as file:
+            # Read header
+            header, natom, nfrag, labels, cpfver = self.read_header(file)
+            # Read atom data
+            atominfo = self.read_atominfo(file, labels, natom, cpfver, tgtfrag)
+            # Read fragment data
+            fraginfo = self.read_fraginfo(file, nfrag, atominfo, cpfver, tgtfrag)
+            # Read fragment distance data
+            diminfo, dimaccept = self.read_dimdist(file, nfrag, tgtfrag)
+            # Read dipole data
+            mominfo = self.read_dipole(file, labels, nfrag, tgtfrag)
+            # Read condition data
+            condition = \
+                self.read_condition(file)
+            # Read static data
+            static_data = \
+                self.read_static(file, natom, nfrag, atominfo, tgtfrag)
+            # Read monomer data
+            mominfo = \
+                self.read_monomer(file, mominfo, labels, natom,
+                                  tgtfrag, cpfver, nfrag)
+            # Read dimer data
+            diminfo, static_data = \
+                self.read_dimer(file, diminfo, labels, nfrag,
+                                cpfver, dimaccept, static_data, tgtfrag)
         import pandas as pd
         self.cpfver = cpfver
         self.atominfo = pd.DataFrame(atominfo)
@@ -73,7 +70,6 @@ class CPFManager:
         self.diminfo = pd.DataFrame(diminfo)
         self.labels = labels
 
-        file.close()
         return self
 
     def write(self, header, filename, cpfver=23):

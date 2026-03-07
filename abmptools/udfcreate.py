@@ -73,14 +73,15 @@ class udfcreate():
     def getconnectdata(self, fname):
         data = []
         # atomdata = []
-        for line in open(fname, 'r'):
-            itemList = line[:-1].split()
-            # print itemList[0]
-            if itemList[0] == "CONECT" and len(itemList) >= 4:
-                # print (len(itemList))
-                data.append(itemList)
-            # if itemList[0] in ["HETATM","ATOM"]:
-                # atomdata.append([itemList[1],itemList[-1]])
+        with open(fname, 'r') as _fh:
+            for line in _fh:
+                itemList = line[:-1].split()
+                # print itemList[0]
+                if itemList[0] == "CONECT" and len(itemList) >= 4:
+                    # print (len(itemList))
+                    data.append(itemList)
+                # if itemList[0] in ["HETATM","ATOM"]:
+                    # atomdata.append([itemList[1],itemList[-1]])
         for i in range(len(data)):
             for j in range(1, len(data[i])):
                 data[i][j] = int(data[i][j]) - 1
@@ -135,23 +136,23 @@ class udfcreate():
         # fffile="monomer/" + molname + ".ff"
 
         if os.path.exists(fffile) is False:
-            outff = open(fffile, 'w')
-            cmd = "obminimize -n 1 -ff GAFF -onul " + xyzfile
-            ps = subprocess.Popen(cmd, shell=True, stderr=outff)
-            ps.wait()
-            outff.close()
+            with open(fffile, 'w') as outff:
+                cmd = "obminimize -n 1 -ff GAFF -onul " + xyzfile
+                ps = subprocess.Popen(cmd, shell=True, stderr=outff)
+                ps.wait()
 
         ffname = []
         i = 0
         # print('get', fffile)
         # time.sleep(2)
-        for line in open(fffile, 'r'):
-            itemList = line[:-1].split()
-            i += 1
-            if i >= 5:
-                ffname.append([int(itemList[0])-1, itemList[1]])
-            if i == len(atom) + 4:
-                break
+        with open(fffile, 'r') as _fh:
+            for line in _fh:
+                itemList = line[:-1].split()
+                i += 1
+                if i >= 5:
+                    ffname.append([int(itemList[0])-1, itemList[1]])
+                if i == len(atom) + 4:
+                    break
         return ffname
 
 #         if os.path.exists(fffile) is False:
@@ -190,9 +191,10 @@ class udfcreate():
 
     def getfflist(self, infile):
         data=[]
-        for line in open(infile, 'r'):
-            if line[0] != "#":
-                data.append(ast.literal_eval(line))
+        with open(infile, 'r') as _fh:
+            for line in _fh:
+                if line[0] != "#":
+                    data.append(ast.literal_eval(line))
         return data
 
 
@@ -203,24 +205,25 @@ class udfcreate():
         data3=[]
         data4=[]
         flag=0
-        for line in open(infile, 'r'):
-            aaa= line.split()
-            if aaa[0] == '#"X-@-@-@"':
-                flag = 1
-            if aaa[0] == '#"X-X-@-@"':
-                flag = 2
-            if aaa[0] == '#"@-@-@-@"':
-                flag = 3
-            if line[0] == "#":
-                continue
-            if flag==0:
-                data1.append(ast.literal_eval(line))
-            if flag==1:
-                data2.append(ast.literal_eval(line))
-            if flag==2:
-                data3.append(ast.literal_eval(line))
-            if flag==3:
-                data4.append(ast.literal_eval(line))
+        with open(infile, 'r') as _fh:
+            for line in _fh:
+                aaa= line.split()
+                if aaa[0] == '#"X-@-@-@"':
+                    flag = 1
+                if aaa[0] == '#"X-X-@-@"':
+                    flag = 2
+                if aaa[0] == '#"@-@-@-@"':
+                    flag = 3
+                if line[0] == "#":
+                    continue
+                if flag==0:
+                    data1.append(ast.literal_eval(line))
+                if flag==1:
+                    data2.append(ast.literal_eval(line))
+                if flag==2:
+                    data3.append(ast.literal_eval(line))
+                if flag==3:
+                    data4.append(ast.literal_eval(line))
         data.append(data1)
         data.append(data2)
         data.append(data3)
@@ -1045,9 +1048,8 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
 
         udf_body = str(header) + str(simucondition) + str(initialstructure) + \
             str(molattr) + str(interactions) + str(somolecules) + str(structure)
-        out_file = open(out_name, "w")
-        print(udf_body, file=out_file)
-        out_file.close()
+        with open(out_name, "w") as out_file:
+            print(udf_body, file=out_file)
 
 
     def putclusterpos(self, uobj, poslist, molnum):

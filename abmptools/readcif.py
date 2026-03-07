@@ -441,7 +441,8 @@ if __name__ == '__main__':
         out = out.split('/')[-1]
 
         print('\n##  Start Read', infile)
-        lines = open(infile, 'r').readlines()
+        with open(infile, 'r') as _fh:
+            lines = _fh.readlines()
         ## initialize
         num = 1
         coordflag = False
@@ -906,22 +907,21 @@ if __name__ == '__main__':
             else:
                 austr = ''
             oname = xyzdir + '/' + out + number + 'layer' + str(args.layer) + 'Zp' + str(zprime[i]) + austr + '.xyz'
-            fo = open(oname, 'w')
-            print(len(xyzs27mols[i]), file=fo)
-            print('', file=fo)
-            for j in range(len(xyzs27mols[i])):
-                # for k in range(len(xyzs27mols[i][j])):
-                    # print(i)
-                print((atomsmol[0][j % len(atomsmol[0])]), xyzs27mols[i][j][0], xyzs27mols[i][j][1], xyzs27mols[i][j][2], file=fo)
-            fo.close()
+            with open(oname, 'w') as fo:
+                print(len(xyzs27mols[i]), file=fo)
+                print('', file=fo)
+                for j in range(len(xyzs27mols[i])):
+                    # for k in range(len(xyzs27mols[i][j])):
+                        # print(i)
+                    print((atomsmol[0][j % len(atomsmol[0])]), xyzs27mols[i][j][0], xyzs27mols[i][j][1], xyzs27mols[i][j][2], file=fo)
 
             if pdbflag:
                 aobj.convert_xyz_pdb(oname)
 
     if calc_dist and args.min:
-        fomin = open('mindist.log', 'w')
-        for i in range(len(minvals)):
-            print(mindatas[i], minvals[i], file=fomin)
+        with open('mindist.log', 'w') as fomin:
+            for i in range(len(minvals)):
+                print(mindatas[i], minvals[i], file=fomin)
         print('generated mindist.log')
 
     if pdbflag and not args.noout:

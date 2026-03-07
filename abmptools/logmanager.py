@@ -46,10 +46,8 @@ class LOGManager():
         if os.path.splitext(filepath)[-1] == '.gz':
             self.is_gz = True
 
-        if self.is_gz:
-            file = gzip.open(filepath, 'rt')
-        else:
-            file = open(filepath, 'rt')
+        opener = gzip.open if self.is_gz else open
+        file = opener(filepath, 'rt')
 
         # get version
         version = self.getversion(file)
@@ -123,6 +121,7 @@ class LOGManager():
         logger.info('Nprint = %s', Nprint)
         if Nprint == 0:
             logger.info('Since Nprint=0, only condition and fraginfo are retrieved.')
+            file.close()
             self.fraginfo = fraginfo
             self.condition = condition
             return
@@ -1033,7 +1032,6 @@ class LOGManager():
 
         logger.info('--- get pdbinfo ---')
         logger.info('infile: %s', fname)
-        file = open(fname, 'r')
         molnames = []
         xcoords = []
         ycoords = []
@@ -1053,86 +1051,87 @@ class LOGManager():
         nums = []
         atomcount = 0
 
-        while True:
-            line = file.readline()
-            if not line:
-                break
-            itemlist = line.strip().split()
-            if len(itemlist) < 3:
-                continue
+        with open(fname, 'r') as file:
+            while True:
+                line = file.readline()
+                if not line:
+                    break
+                itemlist = line.strip().split()
+                if len(itemlist) < 3:
+                    continue
 
-            if line[0:6] == 'HETATM' or line[0:4] == 'ATOM':
-                atomcount += 1
-                try:
-                    num = int(line[6:12])
-                except (ValueError, TypeError):
-                    head = line[0:6]
-                    num = line[6:11]
-                    atypename = line[12:16]
-                    lab = line[16]
-                    res = line[17:20].strip()
-                    chain = line[21]
-                    resnum = line[22:26]
-                    code = line[26]
-                    xcoord = float(line[30:38].strip())
-                    ycoord = float(line[38:46].strip())
-                    zcoord = float(line[46:54].strip())
-                    occ = line[54:60]
-                    temp = line[60:66]
-                    amark = line[76:78]
-                    charge = line[78:80]
+                if line[0:6] == 'HETATM' or line[0:4] == 'ATOM':
+                    atomcount += 1
+                    try:
+                        num = int(line[6:12])
+                    except (ValueError, TypeError):
+                        head = line[0:6]
+                        num = line[6:11]
+                        atypename = line[12:16]
+                        lab = line[16]
+                        res = line[17:20].strip()
+                        chain = line[21]
+                        resnum = line[22:26]
+                        code = line[26]
+                        xcoord = float(line[30:38].strip())
+                        ycoord = float(line[38:46].strip())
+                        zcoord = float(line[46:54].strip())
+                        occ = line[54:60]
+                        temp = line[60:66]
+                        amark = line[76:78]
+                        charge = line[78:80]
 
-                if num < 100000:
-                    head = line[0:6]
-                    num = line[6:11]
-                    atypename = line[12:16]
-                    lab = line[16]
-                    res = line[17:20].strip()
-                    chain = line[21]
-                    resnum = line[22:26]
-                    code = line[26]
-                    xcoord = float(line[30:38].strip())
-                    ycoord = float(line[38:46].strip())
-                    zcoord = float(line[46:54].strip())
-                    occ = line[54:60]
-                    temp = line[60:66]
-                    amark = line[76:78]
-                    charge = line[78:80]
+                    if num < 100000:
+                        head = line[0:6]
+                        num = line[6:11]
+                        atypename = line[12:16]
+                        lab = line[16]
+                        res = line[17:20].strip()
+                        chain = line[21]
+                        resnum = line[22:26]
+                        code = line[26]
+                        xcoord = float(line[30:38].strip())
+                        ycoord = float(line[38:46].strip())
+                        zcoord = float(line[46:54].strip())
+                        occ = line[54:60]
+                        temp = line[60:66]
+                        amark = line[76:78]
+                        charge = line[78:80]
 
-                else:
-                    head = line[0:6]
-                    num = line[6:12]
-                    atypename = line[13:17]
-                    lab = line[17]
-                    res = line[18:21].strip()
-                    chain = line[22]
-                    resnum = line[23:27]
-                    code = line[27]
-                    xcoord = float(line[31:39].strip())
-                    ycoord = float(line[39:47].strip())
-                    zcoord = float(line[47:55].strip())
-                    occ = line[55:61]
-                    temp = line[61:67]
-                    amark = line[77:79]
-                    charge = line[79:81]
+                    else:
+                        head = line[0:6]
+                        num = line[6:12]
+                        atypename = line[13:17]
+                        lab = line[17]
+                        res = line[18:21].strip()
+                        chain = line[22]
+                        resnum = line[23:27]
+                        code = line[27]
+                        xcoord = float(line[31:39].strip())
+                        ycoord = float(line[39:47].strip())
+                        zcoord = float(line[47:55].strip())
+                        occ = line[55:61]
+                        temp = line[61:67]
+                        amark = line[77:79]
+                        charge = line[79:81]
 
-                nums.append(num)
-                heads.append(head)
-                molnames.append(res)
-                atypenames.append(atypename)
-                labs.append(lab)
-                chains.append(chain)
-                resnums.append(resnum)
-                codes.append(code)
-                xcoords.append(xcoord)
-                ycoords.append(ycoord)
-                zcoords.append(zcoord)
-                occs.append(occ)
-                temps.append(temp)
-                amarks.append(amark)
-                charges.append(charge.replace('\n', ''))
+                    nums.append(num)
+                    heads.append(head)
+                    molnames.append(res)
+                    atypenames.append(atypename)
+                    labs.append(lab)
+                    chains.append(chain)
+                    resnums.append(resnum)
+                    codes.append(code)
+                    xcoords.append(xcoord)
+                    ycoords.append(ycoord)
+                    zcoords.append(zcoord)
+                    occs.append(occ)
+                    temps.append(temp)
+                    amarks.append(amark)
+                    charges.append(charge.replace('\n', ''))
 
-            totalatom = atomcount
+                totalatom = atomcount
 
         return nums, heads, molnames, atypenames, labs, chains, \
             resnums, codes, xcoords, ycoords, zcoords, occs, temps, amarks, charges, totalatom

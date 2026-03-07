@@ -149,7 +149,8 @@ class anlfmo(pdio):
     def read_pieda(self, fname):
         ifie = []
         count = 0
-        text = open(fname, "r").readlines()
+        with open(fname, "r") as _fh:
+            text = _fh.readlines()
         flag = False
         # print text
         for i in range(len(text)):
@@ -255,7 +256,8 @@ class anlfmo(pdio):
     def getlognf(self, logname, fragmode):
         # print('fragmode', fragmode)
         if fragmode == 'manual':
-            text = open(logname, "r").readlines()
+            with open(logname, "r") as _fh:
+                text = _fh.readlines()
             for i in range(len(text)):
                 itemList = text[i][:-1].split()
                 # print(itemList)
@@ -265,7 +267,6 @@ class anlfmo(pdio):
                    nf = int(itemList[2])
                    break
         if fragmode == 'auto':
-            f = open(logname, 'r')
             readflag = False
             autoreadflag = False
             fragdata = []
@@ -277,66 +278,67 @@ class anlfmo(pdio):
             logreadGeom = []
             pdbabs = ""
 
-            for line in f:
-                items = line[1:].split()
-                chains = line[0]
-                if len(items) == 0:
-                    continue
+            with open(logname, 'r') as f:
+                for line in f:
+                    items = line[1:].split()
+                    chains = line[0]
+                    if len(items) == 0:
+                        continue
 
-                if items[0] == 'ReadGeom':
-                     logreadGeom = items[2]
+                    if items[0] == 'ReadGeom':
+                         logreadGeom = items[2]
 
-                if items[0] == 'AutoFrag':
-                    if items[2] == 'ON':
-                        self.fragmode = 'auto'
-                    else:
-                        self.fragmode = 'manual'
+                    if items[0] == 'AutoFrag':
+                        if items[2] == 'ON':
+                            self.fragmode = 'auto'
+                        else:
+                            self.fragmode = 'manual'
 
-                # read frag table
-                # if len(items) == 3:
-                    # print (items)
-                if items[0:3] == ['Frag.', 'Elec.', 'ATOM']:
-                    readflag = True
-                    # print('# readflag ON #')
-                    continue
-                if items[0:2] == ["ALL", "ELECTRON"]:
-                    fragdatas.append(fragdata)
-                    readflag = False
-                if items[0:2] == ["ALL", "ATOM"]:
-                    natom = int(items[3])
-                if readflag is True:
-                    if line[0:21] == "                     ":
-                        # print(line)
-                        fragdata = fragdata + items
-                    else:
-                        if len(fragdata) != 0:
-                            fragdatas.append(fragdata)
-                            elecs.append(int(elec))
-                        fragdata = []
-                        elec = items[1]
-                        fragdata = fragdata + items[2:]
+                    # read frag table
+                    # if len(items) == 3:
+                        # print (items)
+                    if items[0:3] == ['Frag.', 'Elec.', 'ATOM']:
+                        readflag = True
+                        # print('# readflag ON #')
+                        continue
+                    if items[0:2] == ["ALL", "ELECTRON"]:
+                        fragdatas.append(fragdata)
+                        readflag = False
+                    if items[0:2] == ["ALL", "ATOM"]:
+                        natom = int(items[3])
+                    if readflag is True:
+                        if line[0:21] == "                     ":
+                            # print(line)
+                            fragdata = fragdata + items
+                        else:
+                            if len(fragdata) != 0:
+                                fragdatas.append(fragdata)
+                                elecs.append(int(elec))
+                            fragdata = []
+                            elec = items[1]
+                            fragdata = fragdata + items[2:]
 
-                if items [0:2] == ['START', 'FRAGMENT']:
-                    break
+                    if items [0:2] == ['START', 'FRAGMENT']:
+                        break
 
-                ## AUTOMATIC FRAGMENTATION
-                if items[0:3] == ['Seq.', 'Frag.', 'Residue']:
-                    autoreadflag = True
-                    continue
+                    ## AUTOMATIC FRAGMENTATION
+                    if items[0:3] == ['Seq.', 'Frag.', 'Residue']:
+                        autoreadflag = True
+                        continue
 
-                if autoreadflag and items[0:2] == ['The', 'system']:
-                    autoreadflag = False
-                    continue
+                    if autoreadflag and items[0:2] == ['The', 'system']:
+                        autoreadflag = False
+                        continue
 
-                if autoreadflag and items[0] == 'Ions':
-                    autoreadflag = False
-                    continue
+                    if autoreadflag and items[0] == 'Ions':
+                        autoreadflag = False
+                        continue
 
-                if autoreadflag:
-                   # print(items)
-                   seqnos.append(items[0])
-                   fragnos.append(items[1])
-                   residuestr.append(items[2])
+                    if autoreadflag:
+                       # print(items)
+                       seqnos.append(items[0])
+                       fragnos.append(items[1])
+                       residuestr.append(items[2])
 
             nf = len(fragdatas)
             # print('-------nf--------', nf)
@@ -347,7 +349,8 @@ class anlfmo(pdio):
     def readlog(self, logname, fragmode):
         # print('fragmode', fragmode)
         if fragmode == 'manual':
-            text = open(logname, "r").readlines()
+            with open(logname, "r") as _fh:
+                text = _fh.readlines()
             for i in range(len(text)):
                 itemList = text[i][:-1].split()
                 # print(itemList)
@@ -357,7 +360,6 @@ class anlfmo(pdio):
                    nf = int(itemList[2])
                    break
         if fragmode == 'auto':
-            f = open(logname, 'r')
             readflag = False
             autoreadflag = False
             fragdata = []
@@ -369,66 +371,67 @@ class anlfmo(pdio):
             logreadGeom = []
             pdbabs = ""
 
-            for line in f:
-                items = line[1:].split()
-                chains = line[0]
-                if len(items) == 0:
-                    continue
+            with open(logname, 'r') as f:
+                for line in f:
+                    items = line[1:].split()
+                    chains = line[0]
+                    if len(items) == 0:
+                        continue
 
-                if items[0] == 'ReadGeom':
-                     logreadGeom = items[2]
+                    if items[0] == 'ReadGeom':
+                         logreadGeom = items[2]
 
-                if items[0] == 'AutoFrag':
-                    if items[2] == 'ON':
-                        self.fragmode = 'auto'
-                    else:
-                        self.fragmode = 'manual'
+                    if items[0] == 'AutoFrag':
+                        if items[2] == 'ON':
+                            self.fragmode = 'auto'
+                        else:
+                            self.fragmode = 'manual'
 
-                # read frag table
-                # if len(items) == 3:
-                    # print (items)
-                if items[0:3] == ['Frag.', 'Elec.', 'ATOM']:
-                    readflag = True
-                    # print('# readflag ON #')
-                    continue
-                if items[0:2] == ["ALL", "ELECTRON"]:
-                    fragdatas.append(fragdata)
-                    readflag = False
-                if items[0:2] == ["ALL", "ATOM"]:
-                    natom = int(items[3])
-                if readflag:
-                    if line[0:21] == "                     ":
-                        # print(line)
-                        fragdata = fragdata + items
-                    else:
-                        if len(fragdata) != 0:
-                            fragdatas.append(fragdata)
-                            elecs.append(int(elec))
-                        fragdata = []
-                        elec = items[1]
-                        fragdata = fragdata + items[2:]
+                    # read frag table
+                    # if len(items) == 3:
+                        # print (items)
+                    if items[0:3] == ['Frag.', 'Elec.', 'ATOM']:
+                        readflag = True
+                        # print('# readflag ON #')
+                        continue
+                    if items[0:2] == ["ALL", "ELECTRON"]:
+                        fragdatas.append(fragdata)
+                        readflag = False
+                    if items[0:2] == ["ALL", "ATOM"]:
+                        natom = int(items[3])
+                    if readflag:
+                        if line[0:21] == "                     ":
+                            # print(line)
+                            fragdata = fragdata + items
+                        else:
+                            if len(fragdata) != 0:
+                                fragdatas.append(fragdata)
+                                elecs.append(int(elec))
+                            fragdata = []
+                            elec = items[1]
+                            fragdata = fragdata + items[2:]
 
-                if items [0:2] == ['START', 'FRAGMENT']:
-                    break
+                    if items [0:2] == ['START', 'FRAGMENT']:
+                        break
 
-                ## AUTOMATIC FRAGMENTATION
-                if items[0:3] == ['Seq.', 'Frag.', 'Residue']:
-                    autoreadflag = True
-                    continue
+                    ## AUTOMATIC FRAGMENTATION
+                    if items[0:3] == ['Seq.', 'Frag.', 'Residue']:
+                        autoreadflag = True
+                        continue
 
-                if autoreadflag and items[0:2] == ['The', 'system']:
-                    autoreadflag = False
-                    continue
+                    if autoreadflag and items[0:2] == ['The', 'system']:
+                        autoreadflag = False
+                        continue
 
-                if autoreadflag and items[0] == 'Ions':
-                    autoreadflag = False
-                    continue
+                    if autoreadflag and items[0] == 'Ions':
+                        autoreadflag = False
+                        continue
 
-                if autoreadflag:
-                   # print(items)
-                   seqnos.append(items[0])
-                   fragnos.append(items[1])
-                   residuestr.append(items[2])
+                    if autoreadflag:
+                       # print(items)
+                       seqnos.append(items[0])
+                       fragnos.append(items[1])
+                       residuestr.append(items[2])
 
             nf = len(fragdatas)
             logger.debug('-------nf-------- %s', nf)
@@ -438,8 +441,8 @@ class anlfmo(pdio):
     def getlognatom(self, fname):
         acount = 0
         flag = False
-        f =open(fname, "r")
-        text = f.readlines()
+        with open(fname, "r") as f:
+            text = f.readlines()
         for i in range(len(text)):
             itemList = text[i].split()
             if itemList[0:4] == ['##', 'READ', 'MOLECULAR', 'STRUCTURE']:
@@ -457,8 +460,8 @@ class anlfmo(pdio):
 
     def getlogchg(self, fname, natom):
         chgs = []
-        f =open(fname, "r")
-        text = f.readlines()
+        with open(fname, "r") as f:
+            text = f.readlines()
         for i in range(len(text)):
             itemList = text[i].split()
             # MO
@@ -530,7 +533,6 @@ class anlfmo(pdio):
 
     def getlogorpdbfrag(self, ifile):
 
-        f = open(ifile, 'r')
         readflag = False
         autoreadflag = False
         fragdata = []
@@ -542,59 +544,60 @@ class anlfmo(pdio):
         logreadGeom = []
         pdbabs = ""
 
-        for line in f:
-            items = line[1:].split()
-            chains = line[0]
-            if len(items) == 0:
-                continue
+        with open(ifile, 'r') as f:
+            for line in f:
+                items = line[1:].split()
+                chains = line[0]
+                if len(items) == 0:
+                    continue
 
-            if items[0] == 'ReadGeom':
-                 logreadGeom = items[2]
+                if items[0] == 'ReadGeom':
+                     logreadGeom = items[2]
 
-            if items[0] == 'AutoFrag':
-                if items[2] == 'ON':
-                    self.fragmode = 'auto'
-                else:
-                    self.fragmode = 'manual'
+                if items[0] == 'AutoFrag':
+                    if items[2] == 'ON':
+                        self.fragmode = 'auto'
+                    else:
+                        self.fragmode = 'manual'
 
-            # read frag table
-            if items[0:3] == ['Frag.', 'Elec.', 'ATOM']:
-                readflag = True
-                continue
-            if items[0:2] == ["ALL", "ELECTRON"]:
-                fragdatas.append(fragdata)
-                readflag = False
-            if items[0:2] == ["ALL", "ATOM"]:
-                natom = int(items[3])
-            if readflag:
-                if line[0:21] == "                     ":
-                    # print(line)
-                    fragdata = fragdata + items
-                else:
-                    if len(fragdata) != 0:
-                        fragdatas.append(fragdata)
-                        elecs.append(int(elec))
-                    fragdata = []
-                    elec = items[1]
-                    fragdata = fragdata + items[2:]
+                # read frag table
+                if items[0:3] == ['Frag.', 'Elec.', 'ATOM']:
+                    readflag = True
+                    continue
+                if items[0:2] == ["ALL", "ELECTRON"]:
+                    fragdatas.append(fragdata)
+                    readflag = False
+                if items[0:2] == ["ALL", "ATOM"]:
+                    natom = int(items[3])
+                if readflag:
+                    if line[0:21] == "                     ":
+                        # print(line)
+                        fragdata = fragdata + items
+                    else:
+                        if len(fragdata) != 0:
+                            fragdatas.append(fragdata)
+                            elecs.append(int(elec))
+                        fragdata = []
+                        elec = items[1]
+                        fragdata = fragdata + items[2:]
 
-            if items [0:2] == ['START', 'FRAGMENT'] or items[0] == 'Ions':
-                break
+                if items [0:2] == ['START', 'FRAGMENT'] or items[0] == 'Ions':
+                    break
 
-            ## AUTOMATIC FRAGMENTATION
-            if items[0:3] == ['Seq.', 'Frag.', 'Residue']:
-                autoreadflag = True
-                continue
+                ## AUTOMATIC FRAGMENTATION
+                if items[0:3] == ['Seq.', 'Frag.', 'Residue']:
+                    autoreadflag = True
+                    continue
 
-            if autoreadflag and items[0:2] == ['The', 'system']:
-                autoreadflag = False
-                continue
+                if autoreadflag and items[0:2] == ['The', 'system']:
+                    autoreadflag = False
+                    continue
 
-            if autoreadflag:
-               # print(items)
-               seqnos.append(items[0])
-               fragnos.append(items[1])
-               residuestr.append(items[2])
+                if autoreadflag:
+                   # print(items)
+                   seqnos.append(items[0])
+                   fragnos.append(items[1])
+                   residuestr.append(items[2])
 
 
         nf = len(fragdatas)
@@ -1546,82 +1549,81 @@ class anlfmo(pdio):
             logger.error("can't open %s", fname)
             return ifie, pieda, momene, dimene
 
-        file = open(fname, "rt")
+        with open(fname, "rt") as file:
+            flag = False
+            momflag = False
+            dimflag = False
+            for line in file:
+                # itemList = text[i][:-1].split()
+                # itemList = file.readline().strip().split()
+                itemList = line.strip().split()
 
-        flag = False
-        momflag = False
-        dimflag = False
-        for line in file:
-            # itemList = text[i][:-1].split()
-            # itemList = file.readline().strip().split()
-            itemList = line.strip().split()
+                # print itemList
+                if len(itemList) < 2:
+                    continue
+                if itemList[1:3] == ['MONOMER', 'ENERGY']:
+                    momflag = True
+                    continue
+                if itemList[1:3] == ['DIMER', 'ENERGY']:
+                    dimflag = True
+                    continue
+                if itemList[1:3] == ['DIMER', '<S^2>']:
+                    dimflag = False
+                if dimflag is True:
+                    dimcount += 1
+                if dimflag is True and dimcount > 2:
+                    # print('DIMER Energy', itemList)
+                    dimene.append(itemList)
 
-            # print itemList
-            if len(itemList) < 2:
-                continue
-            if itemList[1:3] == ['MONOMER', 'ENERGY']:
-                momflag = True
-                continue
-            if itemList[1:3] == ['DIMER', 'ENERGY']:
-                dimflag = True
-                continue
-            if itemList[1:3] == ['DIMER', '<S^2>']:
-                dimflag = False
-            if dimflag is True:
-                dimcount += 1
-            if dimflag is True and dimcount > 2:
-                # print('DIMER Energy', itemList)
-                dimene.append(itemList)
+                if momflag and (self.anlmode != 'mol' and self.anlmode != 'fraginmol'):
+                    # print(itemList)
+                    momcount += 1
+                    if momcount == 1 + int(self.tgt1frag[0]):
+                        momene.append(itemList)
+                        momflag = False
 
-            if momflag and (self.anlmode != 'mol' and self.anlmode != 'fraginmol'):
-                # print(itemList)
-                momcount += 1
-                if momcount == 1 + int(self.tgt1frag[0]):
-                    momene.append(itemList)
-                    momflag = False
+                if itemList[1] == 'MP2-IFIE' or itemList[1] == 'HF-IFIE':
+                    flag = True
+                    # head.append(itemList)
+                    continue
+                if itemList[1] == 'PIEDA':
+                    flag = False
+                    pflag = True
+                    # print('pieda start!!')
+                    continue
+                if flag is True:
+                    count += 1
+                if flag is True and count > 2:
+                    if self.logMethod == 'HF':
+                        ifie.append(itemList[:-2])
+                    else:
+                        ifie.append(itemList)
+                if len(itemList) < 2:
+                    continue
 
-            if itemList[1] == 'MP2-IFIE' or itemList[1] == 'HF-IFIE':
-                flag = True
-                # head.append(itemList)
-                continue
-            if itemList[1] == 'PIEDA':
-                flag = False
-                pflag = True
-                # print('pieda start!!')
-                continue
-            if flag is True:
-                count += 1
-            if flag is True and count > 2:
-                if self.logMethod == 'HF':
-                    ifie.append(itemList[:-2])
-                else:
-                    ifie.append(itemList)
-            if len(itemList) < 2:
-                continue
+                # after pieda or BSSE (break)
+                if itemList[1] == 'Mulliken':
+                    # flag = False
+                    break
+                # for BSSE
+                if pflag is True and itemList[:5] == ['##','BSSE', 'for','non-bonding','MP2-IFIE']:
+                    pflag = False
+                    # print('pieda end! next is BSSE')
+                    continue
+                if itemList[:4] == ['##','BSSE', 'for', 'MP2-IFIE']:
+                    bsseflag = True
+                    # print('BSSE start!')
+                    continue
+                if bsseflag is True:
+                    bssecount += 1
+                if bsseflag is True and bssecount > 2:
+                    bsse.append(itemList)
 
-            # after pieda or BSSE (break)
-            if itemList[1] == 'Mulliken':
-                # flag = False
-                break
-            # for BSSE
-            if pflag is True and itemList[:5] == ['##','BSSE', 'for','non-bonding','MP2-IFIE']:
-                pflag = False
-                # print('pieda end! next is BSSE')
-                continue
-            if itemList[:4] == ['##','BSSE', 'for', 'MP2-IFIE']:
-                bsseflag = True
-                # print('BSSE start!')
-                continue
-            if bsseflag is True:
-                bssecount += 1
-            if bsseflag is True and bssecount > 2:
-                bsse.append(itemList)
-
-            # for pieda
-            if pflag is True:
-                pcount += 1
-            if pflag is True and pcount > 2:
-                pieda.append(itemList)
+                # for pieda
+                if pflag is True:
+                    pcount += 1
+                if pflag is True and pcount > 2:
+                    pieda.append(itemList)
 
         if not flag and not pflag and not bsseflag:
             logger.warning("can't read ifie %s", fname.split("/")[-1])
@@ -1634,7 +1636,6 @@ class anlfmo(pdio):
                     ifie[i][5] = 0.0
                     ifie[i][6] = 0.0
 
-        file.close()
         return ifie, pieda, momene, dimene, bsse
 
 
@@ -1647,9 +1648,8 @@ class anlfmo(pdio):
         sflag = False
 
         try:
-            f = open(fname, "r")
-            text = f.readlines()
-            f.close()
+            with open(fname, "r") as f:
+                text = f.readlines()
         except (IOError, OSError):
             logger.error("can't open %s", fname)
             return ifie
@@ -2430,39 +2430,39 @@ class anlfmo(pdio):
         return self
 
     def getisdisp(self, tgtlog):
-        f = open(tgtlog, 'r')
-        for line in f:
-            Items = line.split()
-            if len(Items) <= 2:
-                continue
-            if Items[0:3] == ['Disp', '=', 'ON']:
-                logger.info('MP2-LRD single shot mode')
-                return True
+        with open(tgtlog, 'r') as f:
+            for line in f:
+                Items = line.split()
+                if len(Items) <= 2:
+                    continue
+                if Items[0:3] == ['Disp', '=', 'ON']:
+                    logger.info('MP2-LRD single shot mode')
+                    return True
         return False
 
     def getlogmethod(self, tgtlog):
-        f = open(tgtlog, 'r')
-        for line in f:
-            Items = line.split()
-            if len(Items) <= 2:
-                continue
-            if Items[0:2] == ['Method', '=']:
-                logger.info('logMethod = %s', Items[2])
-                return Items[2]
+        with open(tgtlog, 'r') as f:
+            for line in f:
+                Items = line.split()
+                if len(Items) <= 2:
+                    continue
+                if Items[0:2] == ['Method', '=']:
+                    logger.info('logMethod = %s', Items[2])
+                    return Items[2]
 
     def getpbflag(self, tgtlog):
         self.pbflag = False
-        f = open(tgtlog, 'r')
-        for line in f:
-            Items = line.split()
-            if len(Items) <= 2:
-                continue
-            if Items[0:2] == ['EFFECT', '=']:
-                if Items[2] == 'ON':
-                    self.pbflag = True
-                    logger.info('PB effect = %s', Items[2])
-            if Items[0:3] == ['##', 'CHECK', 'AVAILABLE']:
-                break
+        with open(tgtlog, 'r') as f:
+            for line in f:
+                Items = line.split()
+                if len(Items) <= 2:
+                    continue
+                if Items[0:2] == ['EFFECT', '=']:
+                    if Items[2] == 'ON':
+                        self.pbflag = True
+                        logger.info('PB effect = %s', Items[2])
+                if Items[0:3] == ['##', 'CHECK', 'AVAILABLE']:
+                    break
 
         return
 
