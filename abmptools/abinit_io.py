@@ -1,3 +1,4 @@
+import ast
 import sys
 import os
 import copy
@@ -980,7 +981,7 @@ MD='OFF'
                         mp2 = text[i + 13].split()
                     else:
                         mp2 = text[i + 8].split()
-                    return [eval(hf[3]), eval(mp2[2])]
+                    return [float(hf[3]), float(mp2[2])]
         except Exception:
             logger.warning("can't get result: %s", target)
             return [0, 0]
@@ -1057,7 +1058,7 @@ MD='OFF'
                 break
 
         try:
-            return [eval(hf[3]), eval(mp2[2])]
+            return [float(hf[3]), float(mp2[2])]
         except (IndexError, TypeError):
             logger.error("can't get monomer result: %s", target)
             return [0,0]
@@ -1638,7 +1639,11 @@ MD='OFF'
 
     def config_read(self, seg_name, seg_atom=0):
         fdata = {}
-        exec(open(self.mainpath + "/segment_data.dat", "r").read(), fdata)
+        with open(self.mainpath + "/segment_data.dat", "r") as _f:
+            _tree = ast.parse(_f.read())
+        for _node in _tree.body:
+            if isinstance(_node, ast.Assign) and len(_node.targets) == 1 and isinstance(_node.targets[0], ast.Name):
+                fdata[_node.targets[0].id] = ast.literal_eval(_node.value)
         seg_data = fdata['seg_data']
         # print (seg_data)
 

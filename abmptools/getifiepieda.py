@@ -1,3 +1,4 @@
+import ast
 import sys
 import os
 import pandas as pd
@@ -160,8 +161,9 @@ def setupmode(aobj):
         if args.multi is None and args.tfmatrix is None:
             aobj.ilog_head = args.input
         else:
-            aobj.ilog_head = eval(args.input)[0]
-            aobj.ilog_tail = eval(args.input)[1]
+            _parsed = ast.literal_eval(args.input)
+            aobj.ilog_head = _parsed[0]
+            aobj.ilog_tail = _parsed[1]
         print('inputlog =', args.input)
 
     elif args.inputx:

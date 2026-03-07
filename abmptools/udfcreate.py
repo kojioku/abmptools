@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import ast
 import os
 import sys
 import copy
@@ -191,7 +192,7 @@ class udfcreate():
         data=[]
         for line in open(infile, 'r'):
             if line[0] != "#":
-                data.append(eval(line))
+                data.append(ast.literal_eval(line))
         return data
 
 
@@ -213,13 +214,13 @@ class udfcreate():
             if line[0] == "#":
                 continue
             if flag==0:
-                data1.append(eval(line))
+                data1.append(ast.literal_eval(line))
             if flag==1:
-                data2.append(eval(line))
+                data2.append(ast.literal_eval(line))
             if flag==2:
-                data3.append(eval(line))
+                data3.append(ast.literal_eval(line))
             if flag==3:
-                data4.append(eval(line))
+                data4.append(ast.literal_eval(line))
         data.append(data1)
         data.append(data2)
         data.append(data3)

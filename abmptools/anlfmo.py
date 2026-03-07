@@ -2613,7 +2613,7 @@ class anlfmo(pdio):
                         logger.debug('tgtmol %s', tgt)
                         self.tgtmolid = [ i for i in range(int(tgt[0]), int(tgt[1]) + 1) ]
                     else:
-                        self.tgtmolid = [eval(self.tgtmolid)]
+                        self.tgtmolid = [int(self.tgtmolid)]
 
                 elif type(self.tgtmolid) == int:
                     self.tgtmolid = [self.tgtmolid]
