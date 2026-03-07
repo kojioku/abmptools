@@ -24,9 +24,9 @@ except ImportError:
 
 class udfrm_io(uio):
     def __init__(self) -> None:
+        super().__init__()
         self.molflag: bool = False
         self.cell: list[float] | None = None
-        pass
 
     def run_convert(self, args: tuple[str, int, int, bool]) -> None:
         fname, tgtrec, tgtmol, moveflag = args
