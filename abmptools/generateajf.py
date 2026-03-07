@@ -246,16 +246,16 @@ if __name__ == "__main__":
     if aobj.bsseflag:
         addstr += '-bsse'
 
-    if aobj.piedaflag is False:
+    if not aobj.piedaflag:
         addstr += '-nopieda'
 
-    if aobj.cpfflag is False:
+    if not aobj.cpfflag:
         addstr += '-nocpf'
 
-    if aobj.nbo is True:
+    if aobj.nbo:
         addstr += '-nbo'
 
-    if aobj.resp is True:
+    if aobj.resp:
         addstr += '-resp'
 
     fname = os.path.splitext(aobj.readgeom)[0] + '-' + aobj.ajf_method + '-' + aobj.ajf_basis_set.replace('*', 'd') + addstr

@@ -427,9 +427,9 @@ if __name__ == '__main__':
     # print('tgtdist:', tgtdist)
     print('########## Read Start #########')
 
-    if os.path.exists(odir) is False:
+    if not os.path.exists(odir):
         os.makedirs(odir)
-    if os.path.exists(xyzdir) is False:
+    if not os.path.exists(xyzdir):
         os.makedirs(xyzdir)
     if not os.path.exists(pdbdir) and pdbflag:
         os.makedirs(pdbdir)

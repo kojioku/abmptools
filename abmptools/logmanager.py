@@ -826,7 +826,7 @@ class LOGManager():
                 break
 
             # read fragids and chgs
-            if readflag is True:
+            if readflag:
                 if version == 1:
                     # print(line.strip())
                     fchgs.append(int(line[44:47]))
@@ -971,7 +971,7 @@ class LOGManager():
                 readflag = False
                 baaflag = True
 
-            if baaflag is True and items[0:2] == ["Frag.", "Bonded"]:
+            if baaflag and items[0:2] == ["Frag.", "Bonded"]:
                 baareadstart = True
                 continue
 

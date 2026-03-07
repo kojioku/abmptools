@@ -341,7 +341,7 @@ DimerResponseTerm='NO'
         ajf_body += """
 &MP2"""
 
-        if self.dgemm is True:
+        if self.dgemm:
             ajf_body += """
 MOD1ST='GEMM'
 MOD2ND='GEMM'
@@ -442,7 +442,7 @@ CP='ON'"""
 
 """
         # define solv section
-        if self.solv_flag is True:
+        if self.solv_flag:
             solv_section = """
 &SOLVATION
 EFFECT='ON'
@@ -469,7 +469,7 @@ EFFECT='OFF' """
 
 &PBEQ
 """
-        if self.solv_flag is True:
+        if self.solv_flag:
             ajf_body += """
 MAXITR=1000
 JDGCNV='RMS'
@@ -578,7 +578,7 @@ MD='OFF'
 
     def getifie(self, target_dir, frag, skipbsse=False):
         ielist = []
-        if self.pbflag is False:
+        if not self.pbflag:
             # print "**** 1.get ifie running*****"
             for i in range(1, self.total_num+1):
                 target = target_dir + '/%05d' % i + ".out"
@@ -601,7 +601,7 @@ MD='OFF'
                 for i in range(len(ielist)):
                     print(ielist[i][0] + ielist[i][1], file=f)
 
-        if self.pbflag is True:
+        if self.pbflag:
             # print("*** 1.get ifie-pb running ***")
             for i in range(1, self.total_num+1):
                 target = target_dir + '/%05d' % i + ".out"
@@ -641,7 +641,7 @@ MD='OFF'
                 for k in(1, len(frag[0]) + 1):  # seg1の要素を動かすループ
                     if int(energy[i][1]) == int(k) and int(energy[i][0]) == int(j):
                         hf += float(energy[i][4])
-                        if self.PR_flag is True:
+                        if self.PR_flag:
                             mp2 += float(energy[i][6])
                         else:
                             mp2 += float(energy[i][5])
@@ -708,28 +708,28 @@ MD='OFF'
                 break
             # for BSSE
             if itemList[:5] == ['##', 'BSSE', 'for', 'non-bonding', 'MP2-IFIE']:
-                if skipbsse is True:
+                if skipbsse:
                     break
                 flag = False
                 # print('pieda end! next is BSSE')
                 continue
             if itemList[:4] == ['##', 'BSSE', 'for', 'MP2-IFIE']:
-                if skipbsse is True:
+                if skipbsse:
                     break
                 bsseflag = True
                 # print('BSSE start!')
                 continue
-            if bsseflag is True:
+            if bsseflag:
                 bssecount += 1
-            if bsseflag is True and bssecount > 2:
+            if bsseflag and bssecount > 2:
                 bsse.append(itemList)
-            if flag is True:
+            if flag:
                 count += 1
-            if flag is True and count > 2:
+            if flag and count > 2:
                 ifie.append(itemList)
                 if debug:
                     logger.debug(itemList)
-        if readflag is False:
+        if not readflag:
             try:
                 logger.warning("can't read ifie %s", fname.split("/")[1])
             except (ValueError, IndexError):
@@ -744,7 +744,7 @@ MD='OFF'
                 ifie[i][5] = 0.0
                 ifie[i][6] = 0.0
 
-        if bsseflag is True:
+        if bsseflag:
             # print(bsse)
             for i in range(len(ifie)):
                 if not (float(ifie[i][4]) < -2 or float(ifie[i][5]) < -2):
@@ -785,9 +785,9 @@ MD='OFF'
                 if itemList[1] == 'Mulliken' or itemList[1] == 'PIEDA' or itemList[1] == 'NATURAL':
                     flag = False
                 # break
-            if flag is True:
+            if flag:
                 count += 1
-            if flag is True and count > 2:
+            if flag and count > 2:
                 ifie.append(itemList)
 
             if len(itemList) >= 4:
@@ -798,11 +798,11 @@ MD='OFF'
                 if itemList[1] == 'ESTIMATION' and itemList[3] == 'NON-POLAR':
                     flag2 = False
                     break
-            if flag2 is True:
+            if flag2:
                 count2 += 1
-            if flag2 is True and count2 >= 4:
+            if flag2 and count2 >= 4:
                 pbterm.append(itemList)
-        if hit != 2 and flag2 is False:
+        if hit != 2 and not flag2:
             logger.warning("can't read pb %s", fname.split("/")[1])
 
         for i in range(len(ifie)):
@@ -860,7 +860,7 @@ MD='OFF'
         elistname = target_dir + "/energylist_" + self.solvtype
         if mode == "batch":
             energies = []
-            if self.pbflag is False:
+            if not self.pbflag:
                 logger.info("**** 1.capt te running ****")
 
                 self.unpack_tar(target_dir, self.total_num)
@@ -882,7 +882,7 @@ MD='OFF'
                 # print("create", elistname)
                 # self.del_out(target_dir)
 
-            if self.pbflag is True:
+            if self.pbflag:
                 logger.info("*** 1.capt bepb running ***")
 
                 self.unpack_tar(target_dir, self.total_num)
@@ -909,9 +909,9 @@ MD='OFF'
             if fzcflag:
                 # print (molname + ": nofzc")
                 target = target_dir + "/nofzc/" + molname + ".out"
-            if self.pbflag is False:
+            if not self.pbflag:
                 self.captmom_single(target)
-            elif self.pbflag is True:
+            elif self.pbflag:
                 self.captpb_single(target)
 
         return
@@ -921,7 +921,7 @@ MD='OFF'
         fmoflag = self.getmo_or_fmo(target)  # FMO計算かMO計算かの判定
         # print(target)
         # print(fmoflag)
-        if fmoflag is True:
+        if fmoflag:
             hf, mp2 = self.captfmomp2e(target)
         else:
             hf, mp2 = self.getmomp2ene(target)
@@ -932,7 +932,7 @@ MD='OFF'
     def captpb_single(self, target):
         out = os.path.splitext(target)[0]
         fmoflag = self.getmo_or_fmo(target)  # FMO計算かMO計算かの判定
-        if fmoflag is True:
+        if fmoflag:
             eg, cor, dg, dges, dgnp = self.getfmopbenergy(target)
         else:
             eg, cor, dg, dges, dgnp = self.getmopbenergy(target)
@@ -964,7 +964,7 @@ MD='OFF'
                 itemList = text[i][:-1].split()
                 if itemList == ['##', 'FMO', 'TOTAL', 'ENERGY']:
                     hf = text[i + 6].split()
-                    if self.PR_flag is True:
+                    if self.PR_flag:
                         mp2 = text[i + 13].split()
                     else:
                         mp2 = text[i + 8].split()
@@ -1032,12 +1032,12 @@ MD='OFF'
             # print itemList
             if itemList == ['SCF', 'COMPLETED']:
                 # print itemList
-                if hfflag is False:
+                if not hfflag:
                     hf = text[i + 4].split()
                     hfflag = True
             if itemList == ['##', 'MP2', 'ENERGY']:
                 # print itemList
-                if self.PR_flag is True:
+                if self.PR_flag:
                     mp2 = text[i + 7].split()
                 else:
                     mp2 = text[i + 2].split()
@@ -1088,7 +1088,7 @@ MD='OFF'
                     continue
                 if itemList[0:4] == ['##', 'SOLUTE', 'TOTAL', 'ENERGY']:
                     getflag = True
-                if getflag is True:
+                if getflag:
                     if itemList[0:3] == ['FMO2', 'in', 'vacuo']:
                         # print('vacuo')
                         eg = itemList  # [5]
@@ -1165,7 +1165,7 @@ MD='OFF'
                     pbdone =True
                 if itemList == ['##', 'FMO', 'TOTAL', 'ENERGY']:
                     index = i
-            if  pbdone is False:
+            if not pbdone:
                 return 0, 0, 0, 0, 0
             cor = text[index+8].split()
             # print eg, cor, dg
@@ -1527,7 +1527,7 @@ MD='OFF'
                         logger.debug("baaaaaaaaaaaaaa %s", baaatomid)
 
                     # for old(asn) frag
-                    if dendflag is False:
+                    if not dendflag:
                         fchgs[j] -= 1
                         fbaas[j] += 1
 

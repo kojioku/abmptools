@@ -308,7 +308,7 @@ class pdb_io(fab):
                             flags.append(flag)
                             # print(flags)
 
-                            if flag is False:
+                            if not flag:
                                 molidnames.append('{:0>3}'.format(str(k + 1)))
                                 break
 
@@ -419,7 +419,7 @@ class pdb_io(fab):
                     if tatomlab >= 100000:
                         tatomlab -= 100000
 
-                    if self.refreshatmtype is False:
+                    if not self.refreshatmtype:
                         atomname = self.atmtypeRes[i][j]
                         if atomname.strip() == 'HS':
                             atomname = 'H  '
@@ -612,7 +612,7 @@ class pdb_io(fab):
                                 break
 
                 if icflag:
-                    icflag == False
+                    icflag = False
                     continue
 
                 for j in range(len(self.posRes[i])):
@@ -646,7 +646,7 @@ class pdb_io(fab):
                                 break
 
                 if icflag:
-                    icflag == False
+                    icflag = False
                     continue
 
                 for j in range(len(self.posRes[i])):
@@ -868,7 +868,7 @@ class pdb_io(fab):
         # print (posRes)
         opath = 'for_abmp'
         # oname = "mdout"
-        if os.path.exists(opath) is False:
+        if not os.path.exists(opath):
             logger.info('%s', opath)
             subprocess.call(["mkdir", opath])
 
