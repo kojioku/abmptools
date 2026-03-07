@@ -966,10 +966,9 @@ MD='OFF'
                     else:
                         mp2 = text[i + 8].split()
                     return [float(hf[3]), float(mp2[2])]
-        except Exception:
+        except (OSError, ValueError, IndexError):
             logger.warning("can't get result: %s", target)
             return [0, 0]
-            # sys.exit()
 
     def captfmomp2etar(self, target):
         """
@@ -1072,7 +1071,7 @@ MD='OFF'
                 lines = text.splitlines()
                 fobj.close()
 
-        except Exception:
+        except (OSError, KeyError, UnicodeDecodeError):
             logger.error("can't open %s", target)
             return 0, 0, 0, 0, 0
 

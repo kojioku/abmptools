@@ -212,9 +212,7 @@ class molcalc():
     def Exportardpos(self, path: str, iname: str, molindex: list[int], posMol: list[list[list[float]]], nameAtom: list[list[str]]) -> None:
         # export molindex mol data from whole posMol
 
-        if not os.path.exists(path):
-            logger.info("%s", path)
-            subprocess.call(["mkdir", path])
+        os.makedirs(path, exist_ok=True)
 
         # print molindex
         # Export position of mol
@@ -246,8 +244,7 @@ class molcalc():
     def exportplus1pos(self, path: str, pos: list[list[list[float]]], name: str, atom: list[list[str]], molindex: list[int]) -> None:
         # # Export position of mol
         # head, ext = os.path.splitext(str(iname))
-        if not os.path.exists(path + "/pdb"):
-            subprocess.call(["mkdir", path + "/pdb"])
+        os.makedirs(path + "/pdb", exist_ok=True)
 
         out_head = path + "/pdb/" + name
         out_file = out_head + ".xyz"
@@ -306,9 +303,7 @@ class molcalc():
         subprocess.call(cmd.split(" "))
 
     def exportdata(self, path: str, oname: str, data: list) -> None:
-        if not os.path.exists(path):
-            logger.info("%s", path)
-            subprocess.call(["mkdir", path])
+        os.makedirs(path, exist_ok=True)
 
         out_file = path + "/" + str(oname) + ".dat"
 

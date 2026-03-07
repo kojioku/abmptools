@@ -209,7 +209,7 @@ class OpenFFOpenMMMinimizer:
                 platform = openmm.Platform.getPlatformByName(name)
                 logger.debug("Auto-selected OpenMM platform: %s", name)
                 return platform
-            except Exception:
+            except (Exception,):  # OpenMM raises various exception types
                 continue
 
         raise RuntimeError(

@@ -1,6 +1,5 @@
 import sys
 import os
-import subprocess
 import re
 import copy
 import logging
@@ -866,9 +865,7 @@ class pdb_io(fab):
         # print (posRes)
         opath = 'for_abmp'
         # oname = "mdout"
-        if not os.path.exists(opath):
-            logger.info('%s', opath)
-            subprocess.call(["mkdir", opath])
+        os.makedirs(opath, exist_ok=True)
 
         # refresh
         index = [i for i in range(len(posRes))]
