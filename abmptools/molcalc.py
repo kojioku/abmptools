@@ -1,7 +1,6 @@
 from __future__ import annotations
 # -*- coding: utf-8 -*-
 import os
-import sys
 import copy
 import re
 import subprocess

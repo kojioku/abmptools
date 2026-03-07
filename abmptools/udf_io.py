@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sys
 import os
-import math
 import subprocess
 import re
 import time
