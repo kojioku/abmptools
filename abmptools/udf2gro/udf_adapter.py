@@ -12,6 +12,7 @@ All UDFManager calls are contained here; no UDF access occurs in the Writers.
 """
 from __future__ import annotations
 
+import logging
 import math
 import os
 from typing import List, Optional, Tuple
@@ -21,6 +22,8 @@ from ..core.system_model import (
     MoleculeTopology, AtomPosition, CellGeometry, NdxData,
     SimulationParams, SystemModel,
 )
+
+logger = logging.getLogger(__name__)
 
 # Charge conversion constant (same as original script)
 _CHARGE_UNIT = 18.224159264
@@ -129,13 +132,13 @@ class UdfAdapter:
     def build(self) -> SystemModel:
         udf = self._udf
         udf.jump(udf.totalRecord() - 1)
-        print(" Data output : Record number = ", udf.totalRecord() - 1)
+        logger.info("Data output: Record number = %s", udf.totalRecord() - 1)
 
         udf_path = str(udf.udfFile()).strip()
         title = udf_path.split("/")[-1] if "/" in udf_path else udf_path
 
         calcQQ = udf.get("Simulation_Conditions.Calc_Potential_Flags.Electrostatic")
-        print(" Electrostatic is {}.".format("ON" if calcQQ == 1 else "OFF"))
+        logger.info("Electrostatic is %s.", "ON" if calcQQ == 1 else "OFF")
 
         # --- counts ---
         atm_type_num = udf.size(udf.rlocation("Molecular_Attributes.Atom_Type[]", []))
@@ -154,9 +157,9 @@ class UdfAdapter:
         totallyOPLS, partiallyOPLS = self._detect_opls()
         comb_rule = 3 if totallyOPLS else 2
         if totallyOPLS:
-            print("OPLS FF is detected. LJ mixing-rule -> geometric")
+            logger.info("OPLS FF is detected. LJ mixing-rule -> geometric")
         elif partiallyOPLS:
-            print("Warning!! LJ mixing-rule cannot be identified!")
+            logger.warning("LJ mixing-rule cannot be identified!")
 
         # --- fudge factors ---
         flags14 = udf.get("Simulation_Conditions.Calc_Potential_Flags.Non_Bonding_1_4")
@@ -172,13 +175,13 @@ class UdfAdapter:
         mol_name_list, molname_map, mol_name = self._build_mol_name_mappings(mol_num)
 
         mol_type_num = len(mol_name)
-        print(" Molecular type's num = ", mol_type_num)
-        print(" Molecular's num      = ", mol_num)
-        print(" Atom's num   = ", all_atm_num)
-        print(" Atomtype num = ", atm_type_num)
-        print(" molecule name map (udf -> top)")
+        logger.info("Molecular type's num = %s", mol_type_num)
+        logger.info("Molecular's num      = %s", mol_num)
+        logger.info("Atom's num   = %s", all_atm_num)
+        logger.info("Atomtype num = %s", atm_type_num)
+        logger.info("molecule name map (udf -> top)")
         for name in molname_map.keys():
-            print(" {:15s} -> {:5s}".format(name, molname_map[name]))
+            logger.info("%-15s -> %-5s", name, molname_map[name])
 
         # --- bond name -> potential type map ---
         bond_name_potmap = self._build_bond_name_potmap()
@@ -274,9 +277,9 @@ class UdfAdapter:
                         molname_new = "".join(a[0] for a in atypelist)
                         map_molname_atypes[molname_new] = atypelist
                         ncount_diff += 1
-                    print("mol[{}], name={} is renamed to {}".format(
+                    logger.info("mol[%s], name=%s is renamed to %s",
                         j, molname, molname_new
-                    ))
+                    )
                     mol_name_list[j] = molname_new
             else:
                 map_molname_atypes[molname] = atypelist
@@ -328,7 +331,7 @@ class UdfAdapter:
                 site2   = udf.getArray("Interactions.Pair_Interaction[].Site2_Name", [j])
                 pottype = udf.get("Interactions.Pair_Interaction[].Potential_Type", [j])
                 if pottype != "Lennard_Jones":
-                    print("Error!! non LJ(12,6) type potential is detected")
+                    logger.error("non LJ(12,6) type potential is detected")
                     raise RuntimeError("non-LJ potential")
                 if site1 == name and site1 == site2:
                     sigma   = udf.get("Interactions.Pair_Interaction[].Lennard_Jones.sigma",   [j], "[nm]")
@@ -362,7 +365,7 @@ class UdfAdapter:
             udf_name = mol_name[m]
             gro_raw  = molname_map[udf_name]
             gro_name = _shorten_molname(gro_raw)
-            print(" moltype %d %s" % (m, gro_name))
+            logger.info("moltype %d %s", m, gro_name)
 
             # find representative molecule index
             mol_no = next(
@@ -403,7 +406,7 @@ class UdfAdapter:
         udf = self._udf
         atm_num = udf.size("Set_of_Molecules.molecule[].atom[]", [mol_no])
         ele_num = udf.size("Set_of_Molecules.molecule[].electrostatic_Site[]", [mol_no])
-        print("  atom_num     = %d" % atm_num)
+        logger.info("atom_num     = %d", atm_num)
 
         atoms = []
         for i in range(atm_num):
@@ -432,7 +435,7 @@ class UdfAdapter:
     def _build_bonds(self, mol_no, bond_name_potmap, bnd_type_num):
         udf = self._udf
         bnd_num = udf.size(udf.rlocation("Set_of_Molecules.molecule[].bond[]", [mol_no]))
-        print("  bond_num     = %d" % bnd_num)
+        logger.info("bond_num     = %d", bnd_num)
 
         bonds = []
         for i in range(bnd_num):
@@ -512,7 +515,7 @@ class UdfAdapter:
                     pair2.append(a4)
 
         del bond_map
-        print("  1-4 pair_num =", len(pair1))
+        logger.info("1-4 pair_num = %s", len(pair1))
 
         site1names = udf.get("Interactions.Pair_Interaction[].Site1_Name")
         site2names = udf.get("Interactions.Pair_Interaction[].Site2_Name")
@@ -542,7 +545,7 @@ class UdfAdapter:
     def _build_angles(self, mol_no: int, agl_type_num: int) -> List[AngleRecord]:
         udf = self._udf
         agl_num = udf.size(udf.rlocation("Set_of_Molecules.molecule[].angle[]", [mol_no]))
-        print("  angle_num    = %d" % agl_num)
+        logger.info("angle_num    = %d", agl_num)
 
         angles = []
         for i in range(agl_num):
@@ -572,7 +575,7 @@ class UdfAdapter:
     def _build_dihedrals(self, mol_no: int, tor_type_num: int) -> List[DihedralRecord]:
         udf = self._udf
         tor_num = udf.size(udf.rlocation("Set_of_Molecules.molecule[].torsion[]", [mol_no]))
-        print("  torsion_num  = %d" % tor_num)
+        logger.info("torsion_num  = %d", tor_num)
 
         tors_pot_type_list = udf.get("Molecular_Attributes.Torsion_Potential[].Potential_Type")
         use_amber_header = "Amber" in tors_pot_type_list
@@ -688,9 +691,9 @@ class UdfAdapter:
                     rest_udfpath = os.path.join(udfdir, rest_udfname)
                 else:
                     rest_udfpath = rest_udfname
-                print("Restart geometry is read from record {} in '{}'".format(
+                logger.info("Restart geometry is read from record %s in '%s'",
                     rest_record, rest_udfname
-                ))
+                )
                 if not os.path.exists(rest_udfpath):
                     raise RuntimeError(
                         "Error! UDF file for restart does not exist!\n"
@@ -853,10 +856,10 @@ class UdfAdapter:
 
         # --- vel_gen override from restart ---
         gen_method = udf.get("Initial_Structure.Generate_Method.Method")
-        print(gen_method)
+        logger.debug("%s", gen_method)
         if gen_method == "Restart":
             restore_vel = udf.get("Initial_Structure.Generate_Method.Restart.Restore_Velocity")
-            print("restore_vel", restore_vel)
+            logger.debug("restore_vel %s", restore_vel)
             vel_gen = (restore_vel == 0)
 
         # --- integrator ---
@@ -894,7 +897,7 @@ class UdfAdapter:
                     "Interactions.Electrostatic_Interaction[].Ewald.R_cutoff", [0], "[nm]"
                 )
                 if cutoff_c > 0.0:
-                    print(" Ewald.R_cutoff was substituted for rcoulomb.")
+                    logger.info("Ewald.R_cutoff was substituted for rcoulomb.")
             if cutoff_c <= cutoff_l:
                 cutoff_c = cutoff_l
             cutoff_cl = max(cutoff_c, cutoff_l)
@@ -914,7 +917,7 @@ class UdfAdapter:
         elif pbc_a == "PERIODIC" and pbc_b == "PERIODIC" and pbc_c == "PERIODIC":
             pbc = "xyz"
         else:
-            print(" Error: Please Check Your Boundary Conditions")
+            logger.error("Please Check Your Boundary Conditions")
             pbc = "xyz"
 
         periodic_mol = bool(udf.get("Simulation_Conditions.Boundary_Conditions.Periodic_Bond"))
@@ -1083,7 +1086,7 @@ class UdfAdapter:
 
             if deform_npt:
                 if deform_vel[3] != 0 or deform_vel[4] != 0 or deform_vel[5] != 0:
-                    print("Error!! shear deformation with NPT ensemble is not supported!")
+                    logger.error("shear deformation with NPT ensemble is not supported!")
 
         return deform, deform_npt, deform_vel
 
@@ -1100,7 +1103,7 @@ class UdfAdapter:
         }
         t_coupl_str = t_coupl_map.get(algorithm, "no")
         if t_coupl_str == "no" and algorithm not in t_coupl_map:
-            print("algorithm %s is not supported !!" % algorithm)
+            logger.error("algorithm %s is not supported !!", algorithm)
 
         if t_coupl_str == "no":
             return t_coupl_str, 0.1, 300.0
@@ -1161,7 +1164,7 @@ class UdfAdapter:
             if fix_cell in ("", "xy", "yz", "zx", "x", "y", "z") or deform_npt:
                 pcoupltype = "anisotropic"
             else:
-                print(" Error: Fix_Cell_Length {} is not supported!".format(fix_cell))
+                logger.error("Fix_Cell_Length %s is not supported!", fix_cell)
                 pcoupltype = "isotropic"
         else:
             pcoupltype = "isotropic"

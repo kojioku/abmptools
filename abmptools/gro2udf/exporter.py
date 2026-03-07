@@ -22,7 +22,10 @@ Step-filter logic (replicates importStructure / ConvertStructure):
 """
 from __future__ import annotations
 
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 
 class Exporter:
@@ -38,7 +41,7 @@ class Exporter:
         try:
             return self._run(udf_path, gro_path)
         except Exception as exc:
-            print("ERROR:", exc)
+            logger.error("%s", exc)
             return 1
 
     # ------------------------------------------------------------------
@@ -51,7 +54,7 @@ class Exporter:
         from .gro_adapter import GROAdapter
         from .udf_writer import UDFWriter
 
-        print("## gro2udf ")
+        logger.info("## gro2udf")
 
         udf = UDFManager(udf_path)
 
@@ -89,21 +92,21 @@ class Exporter:
                 continue
 
             udf.newRecord()
-            print("steps = {}, record = {}".format(steps, udf.currentRecord()))
+            logger.info("steps = %s, record = %s", steps, udf.currentRecord())
 
             positions, cell = adapter.to_positions_and_cell(frame)
             writer.write_frame(udf, positions, cell, steps, frame.time)
 
             written += 1
 
-        print("Total number of records : ", udf.totalRecord())
+        logger.info("Total number of records: %s", udf.totalRecord())
 
         # Output file: {udf_basename}_groout.udf in current directory
         output_file = (
             os.path.basename(os.path.splitext(udf_path)[0]) + "_groout.udf"
         )
-        print("output file : ", output_file)
+        logger.info("output file: %s", output_file)
         udf.write(output_file)
 
-        print(" Finished!! ")
+        logger.info("Finished!!")
         return 0

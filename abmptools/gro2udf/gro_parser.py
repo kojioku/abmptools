@@ -15,9 +15,12 @@ that numeric precision is identical:
 """
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass, field
 from typing import Iterator, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -106,7 +109,7 @@ class GROParser:
             time = float(temp[npos + 1])
         else:
             time = 0.0
-            print("warning : no record")
+            logger.warning("no record")
 
         if "step=" in temp:
             npos = temp.index("step=")

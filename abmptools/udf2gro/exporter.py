@@ -10,7 +10,10 @@ Usage::
     Exporter().export("input.udf", "output_prefix")
 """
 from __future__ import annotations
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 
 class Exporter:
@@ -32,7 +35,7 @@ class Exporter:
         try:
             model = UdfAdapter(udf).build()
         except RuntimeError as exc:
-            print(str(exc))
+            logger.error("%s", exc)
             return 1
         finally:
             udf = None
@@ -42,21 +45,19 @@ class Exporter:
         file_gro = output_prefix + ".gro"
         file_ndx = output_prefix + ".ndx"
 
-        print(" --- making top ---")
+        logger.info("--- making top ---")
         TopWriter().write(model, file_top)
 
-        print(" --- making gro ---")
+        logger.info("--- making gro ---")
         GroWriter().write(model, file_gro)
 
         if model.ndx_data is not None:
             self._write_ndx(model, file_ndx)
 
-        print(" --- making mdp ---")
+        logger.info("--- making mdp ---")
         MdpWriter().write(model, file_mdp)
 
-        print("-----------------------------------------")
-        print(" Finished!! ")
-        print("-----------------------------------------")
+        logger.info("Finished!!")
         return 0
 
     # ------------------------------------------------------------------

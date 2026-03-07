@@ -5,7 +5,10 @@ mdp_writer.py
 Writes the GROMACS .mdp simulation parameter file from a SystemModel.
 """
 from __future__ import annotations
+import logging
 from ....core.system_model import SystemModel, SimulationParams
+
+logger = logging.getLogger(__name__)
 
 
 def _strl(total: str, data: str, n: int) -> str:
@@ -56,7 +59,7 @@ class MdpWriter:
             s = _strl(s, "constraints",         20) + " = all-angles\n"
             s = _strl(s, "constraint-algorithm", 20) + " = Lincs\n"
         elif sp.rattle_bond and sp.rattle_angle:
-            print(" Error: Please choose one constraint type (Bond or Angle)")
+            logger.error("Please choose one constraint type (Bond or Angle)")
         else:
             s = _strl(s, "constraints", 20) + " = none\n"
 
@@ -65,11 +68,11 @@ class MdpWriter:
         # electrostatics
         if sp.calcQQ == 1:
             if sp.qq_algorithm == "Ewald":
-                print(" Electrostatic algorithm was changed to PME.")
+                logger.info("Electrostatic algorithm was changed to PME.")
                 s = _strl(s, "coulombtype",      20) + " = PME\n"
                 s = _strl(s, "fourier-spacing",  20) + " = 0.1\n"
             else:
-                print(" Electrostatic algorithm was changed to Cutoff_Coulomb.")
+                logger.info("Electrostatic algorithm was changed to Cutoff_Coulomb.")
                 s = _strl(s, "coulombtype", 20) + " = cut-off\n"
             s = _strl(s, "coulomb-modifier", 20) + " = None\n"
         else:

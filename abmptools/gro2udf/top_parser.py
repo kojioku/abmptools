@@ -12,9 +12,12 @@ TopParser().parse(top_path) -> TopRawData
 """
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -200,10 +203,10 @@ class TopParser:
                             itp_lines = f.readlines()
                         result.append("\n")
                         result.extend(itp_lines)
-                        print("itp was included from", itp_path)
+                        logger.info("itp was included from %s", itp_path)
                         continue
                     except OSError as exc:
-                        print("Warning: could not include {}: {}".format(itp_path, exc))
+                        logger.warning("could not include %s: %s", itp_path, exc)
             result.append(line)
         return result
 
@@ -256,19 +259,19 @@ class TopParser:
             stripped = line.strip()
 
             if "[ atomtypes ]" in stripped:
-                print(" reading atomtypes")
+                logger.info("reading atomtypes")
                 flg_atom, flg_bond, flg_angle, flg_torsion = True, False, False, False
                 continue
             elif "[ bondtypes ]" in stripped:
-                print(" reading bondtypes")
+                logger.info("reading bondtypes")
                 flg_atom, flg_bond, flg_angle, flg_torsion = False, True, False, False
                 continue
             elif "[ angletypes ]" in stripped:
-                print(" reading angletypes")
+                logger.info("reading angletypes")
                 flg_atom, flg_bond, flg_angle, flg_torsion = False, False, True, False
                 continue
             elif "[ dihedraltypes ]" in stripped:
-                print(" reading torsiontypes")
+                logger.info("reading torsiontypes")
                 flg_atom, flg_bond, flg_angle, flg_torsion = False, False, False, True
                 continue
             elif stripped.startswith("[") and stripped.endswith("]"):
@@ -295,7 +298,7 @@ class TopParser:
                 if ptype == "A":
                     atomtypes.append([name, mass, charge, sigma, epsilon])
                 else:
-                    print("Warning! particle type {} detected".format(ptype))
+                    logger.warning("particle type %s detected", ptype)
 
             elif flg_bond:
                 atom1 = parts[0]
@@ -333,10 +336,10 @@ class TopParser:
                     params.append(float(p))
                 torsiontypes.append([atom1, atom2, atom3, atom4, funct, params])
 
-        print("{} atoms, {} bonds, {} angles, {} dihedrals "
-              "have been read (global defs)".format(
-                  len(atomtypes), len(bondtypes),
-                  len(angletypes), len(torsiontypes)))
+        logger.info("%s atoms, %s bonds, %s angles, %s dihedrals "
+                    "have been read (global defs)",
+                    len(atomtypes), len(bondtypes),
+                    len(angletypes), len(torsiontypes))
         return atomtypes, bondtypes, angletypes, torsiontypes
 
     # ------------------------------------------------------------------
@@ -391,7 +394,7 @@ class TopParser:
 
             # --- section headers ---
             if "[ moleculetype ]" in stripped:
-                print(" reading moleculetype")
+                logger.info("reading moleculetype")
                 if mol_types:
                     atomlist.append(atomlist_mol)
                     bondlist.append(bondlist_mol)
@@ -404,19 +407,19 @@ class TopParser:
                 flg1, flg2, flg3, flg4, flg5 = True, False, False, False, False
                 continue
             elif "[ atoms ]" in stripped:
-                print(" reading atoms")
+                logger.info("reading atoms")
                 flg1, flg2, flg3, flg4, flg5 = False, True, False, False, False
                 continue
             elif "[ bonds ]" in stripped:
-                print(" reading bonds")
+                logger.info("reading bonds")
                 flg1, flg2, flg3, flg4, flg5 = False, False, True, False, False
                 continue
             elif "[ angles ]" in stripped:
-                print(" reading angles")
+                logger.info("reading angles")
                 flg1, flg2, flg3, flg4, flg5 = False, False, False, True, False
                 continue
             elif "[ dihedrals ]" in stripped:
-                print(" reading dihedrals")
+                logger.info("reading dihedrals")
                 # flush pending torsion
                 if len(stmp) == 8 and len(params) > 0:
                     imp = is_improper([atom1, atom2, atom3, atom4], bondlist_mol)
@@ -431,7 +434,7 @@ class TopParser:
                 stmp = []
                 continue
             elif "[ molecules ]" in stripped:
-                print(" reading molecules")
+                logger.info("reading molecules")
                 # flush pending torsion
                 if flg5 and len(stmp) == 8 and len(params) > 0:
                     imp = is_improper([atom1, atom2, atom3, atom4], bondlist_mol)
