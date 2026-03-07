@@ -9,6 +9,7 @@ import subprocess
 import re
 import time
 import copy
+import logging
 from .udfcreate import udfcreate as ufc
 from .udfrm_io import udfrm_io as rud
 from .pdb_io import pdb_io as pdio
@@ -16,6 +17,8 @@ try:
     import numpy as np
 except ImportError:
     pass
+
+logger = logging.getLogger(__name__)
 
 
 class setfmo(pdio, ufc, rud):
@@ -40,96 +43,24 @@ class setfmo(pdio, ufc, rud):
         pass
 
     def setrfmoparam(self, param_rfmo):
-        try:
-            self.cutmode = param_rfmo['cutmode']
-        except KeyError:
-            self.cutmode = 'sphere'
-
-        try:
-            self.getmode = param_rfmo['getmode']
-        except KeyError:
-            self.getmode = 'resnum'
-
-        try:
-            self.ajf_method = param_rfmo['ajf_method']
-        except KeyError:
-            self.ajf_method = 'HF'
-
-        try:
-            self.ajf_basis_set = param_rfmo['ajf_basis_set']
-        except KeyError:
-            self.ajf_basis_set = '6-31Gdag'
-
-        try:
-            self.cpfflag = param_rfmo['cpfflag']
-        except KeyError:
-            self.cpfflag = True
-
-        try:
-            self.solv_flag = param_rfmo['solv_flag']
-        except KeyError:
-            self.solv_flag = False
-
-        try:
-            self.piedaflag = param_rfmo['piedaflag']
-        except KeyError:
-            self.piedaflag = True
-
-        try:
-            self.cmmflag = param_rfmo['cmmflag']
-        except KeyError:
-            self.cmmflag = False
-
-        try:
-            self.abinit_ver = param_rfmo['abinit_ver']
-        except KeyError:
-            self.abinit_ver = 'rev22'
-
-        try:
-            self.molname = param_rfmo['molname']
-        except KeyError:
-            self.molname = []
-
-        try:
-            self.criteria = param_rfmo['criteria']
-        except KeyError:
-            self.criteria = []
-
-        try:
-            self.tgtpos = param_rfmo['tgtpos']
-        except KeyError:
-            self.tgtpos = []
-
-        try:
-            self.solutes = param_rfmo['solutes']
-        except KeyError:
-            self.solutes = []
-
-        try:
-            self.solutes_charge = param_rfmo['solutes_charge']
-        except KeyError:
-            self.solutes_charge = 0
-
-        try:
-            self.ionname = param_rfmo['ionname']
-        except KeyError:
-            self.ionname = []
-
-        try:
-            self.ionmode = param_rfmo['ionmode']
-        except KeyError:
-            self.ionmode = 'remain'
-
-        try:
-            self.memory = param_rfmo['memory']
-        except KeyError:
-            self.memory = 3000
-
-
-        try:
-            self.npro = param_rfmo['npro']
-        except KeyError:
-            self.npro = 8
+        self.cutmode = param_rfmo.get('cutmode', 'sphere')
+        self.getmode = param_rfmo.get('getmode', 'resnum')
+        self.ajf_method = param_rfmo.get('ajf_method', 'HF')
+        self.ajf_basis_set = param_rfmo.get('ajf_basis_set', '6-31Gdag')
+        self.cpfflag = param_rfmo.get('cpfflag', True)
+        self.solv_flag = param_rfmo.get('solv_flag', False)
+        self.piedaflag = param_rfmo.get('piedaflag', True)
+        self.cmmflag = param_rfmo.get('cmmflag', False)
+        self.abinit_ver = param_rfmo.get('abinit_ver', 'rev22')
+        self.molname = param_rfmo.get('molname', [])
+        self.criteria = param_rfmo.get('criteria', [])
+        self.tgtpos = param_rfmo.get('tgtpos', [])
+        self.solutes = param_rfmo.get('solutes', [])
+        self.solutes_charge = param_rfmo.get('solutes_charge', 0)
+        self.ionname = param_rfmo.get('ionname', [])
+        self.ionmode = param_rfmo.get('ionmode', 'remain')
+        self.memory = param_rfmo.get('memory', 3000)
+        self.npro = param_rfmo.get('npro', 8)
 
     def getendatom(self, connect, term):
         flag = False
@@ -140,12 +71,12 @@ class setfmo(pdio, ufc, rud):
         return
 
     def gettermfrag(self, seg_info, endatom):
-        print (seg_info)
-        print (endatom)
+        logger.debug(seg_info)
+        logger.debug(endatom)
         for i in range(len(seg_info)):
             for j in range(len(seg_info[i])):
                 if seg_info[i][j] - 1 == endatom:
-                    print ("hit")
+                    logger.debug("hit")
                     return i
 
     def getpolyconf_rmapfmo(self, seg_conf):
@@ -165,15 +96,15 @@ class setfmo(pdio, ufc, rud):
         for term in terms:
             endatom = self.getendatom(connectinfo, term - 1)
             termfrag = self.gettermfrag(seg_info, endatom)
-            print (termfrag)
+            logger.debug(termfrag)
             endatoms.append(endatom)
             termfrags.append(termfrag)
-        print (termfrags)
-        print (charge)
-        print (seg_atom)
-        print (connect_num)
-        print (connect)
-        print (terms)
+        logger.debug(termfrags)
+        logger.debug(charge)
+        logger.debug(seg_atom)
+        logger.debug(connect_num)
+        logger.debug(connect)
+        logger.debug(terms)
         atom_temp = []
         charge_temp = []
         connect_num_temp = []
@@ -268,7 +199,7 @@ class setfmo(pdio, ufc, rud):
 
         #for connect
         segatomnum = sum([len(segi) for segi in seg_info])
-        print (endatoms)
+        logger.debug(endatoms)
         connect_temps = []
         for i in range(repeat):
         # first
@@ -314,11 +245,11 @@ class setfmo(pdio, ufc, rud):
                 connect_temps.append(new_conn)
                 current_num = current_num + segatomnum - 2
 
-        print (connect_temps)
-        print (seg_info_temps)
-        print ('atom_temp', atom_temp)
-        print ('charge_temp', charge_temp)
-        print ('connect_temp', connect_num_temp)
+        logger.debug(connect_temps)
+        logger.debug(seg_info_temps)
+        logger.debug('atom_temp %s', atom_temp)
+        logger.debug('charge_temp %s', charge_temp)
+        logger.debug('connect_temp %s', connect_num_temp)
 
 
         # poly_atom =
@@ -339,7 +270,7 @@ class setfmo(pdio, ufc, rud):
     def getfragtable(self, molset=None, atomnums=[0], nameid=[0]):
         # print make_input_param
 
-        print('getfragtable')
+        logger.info('getfragtable')
         # fragment configure reading
         frag_atom = []
         frag_charge = []
@@ -404,10 +335,10 @@ class setfmo(pdio, ufc, rud):
         seg_info = []
         nummol_seg = []
 
-        print('molset', molset)
+        logger.debug('molset %s', molset)
         # print('atomnums', atomnums)
         for i in range(len(molset)):
-            print(molset[i], atomnums[i])
+            logger.debug('%s %s', molset[i], atomnums[i])
             mol_conf = self.config_read(molset[i], atomnums[i])
             # atominfo is applied from segment_data.dat. So 2nd arg = 0
 
@@ -451,12 +382,12 @@ class setfmo(pdio, ufc, rud):
         for i in range(len(nameid)):
             num_fragment += len(frag_atom[nameid[i]])
 
-        print("molnum")
+        logger.info("molnum")
         for i in range(len(molset)):
-            print(molset[i], "[", nameid.count(i), "]")
+            logger.info('%s [ %s ]', molset[i], nameid.count(i))
 
-        print("num_fragment")
-        print(num_fragment)
+        logger.info("num_fragment")
+        logger.info(num_fragment)
 
         Si_flag = 0
         ajf_parameter = [ajf_charge, ajf_fragment, num_fragment, Si_flag]
@@ -485,7 +416,7 @@ class setfmo(pdio, ufc, rud):
         self.moveintocell_rec(uobj, rec, totalMol)
 
         cell = uobj.get("Structure.Unit_Cell.Cell_Size")
-        print("totalmol:",totalMol, "rec", rec)
+        logger.info("totalmol: %s rec %s", totalMol, rec)
         # getmolatomnum(_udf_, totalMol)
 
         index = [ i for i in range(totalMol)]
@@ -503,14 +434,14 @@ class setfmo(pdio, ufc, rud):
             typenameMol_orig.append(self.getAtomtypename(uobj, i))
             atomname_orig.append(self.getnameAtom(uobj, i))
         t2 = time.time()
-        print("elapsed_time:", t2-t1)
+        logger.debug("elapsed_time: %s", t2-t1)
 
         # print (typenameMol_orig)
         # print (posMol_orig)
 
         # 1. -- 切り取らない場合 --
         if self.cutmode == 'none':
-            print('none mode')
+            logger.info('none mode')
             # -- get neighbor mol --
             neighborindex = []
             for i in range(len(posMol_orig)):
@@ -536,7 +467,7 @@ class setfmo(pdio, ufc, rud):
 
         # 2. -- 範囲内に原子が入っているかで絞る方法 --
         if self.cutmode == 'sphere':
-            print('sphere mode')
+            logger.info('sphere mode')
             # -- get neighbor mol --
             neighborindex = []
             for i in range(len(posMol_orig)):
@@ -548,7 +479,7 @@ class setfmo(pdio, ufc, rud):
 
         # 3. -- 球状でなくて正方形で絞る方法
         if self.cutmode == 'cube':
-            print('cube mode')
+            logger.info('cube mode')
             # -- get neighbor mol --
             tgtx = [tgtpos[0] - criteria[0], tgtpos[0] + criteria[0]]
             tgty = [tgtpos[1] - criteria[1], tgtpos[1] + criteria[1]]
@@ -565,13 +496,13 @@ class setfmo(pdio, ufc, rud):
 
         # 4. -- 溶質からの距離でスクリーニング --
         if self.cutmode == 'around':
-            print('around mode')
+            logger.info('around mode')
             # -- get neighbor mol --
             neighborindex = []
             # solutes = [0, 1]
             for k in self.solutes:
                 for l in range(len(posMol_orig[k])):
-                    print('check mol', k, 'atom', l)
+                    logger.debug('check mol %s atom %s', k, l)
                     for i in range(len(posMol_orig)):
                         if (i in self.solutes) or (i in neighborindex):
                             continue
@@ -581,9 +512,9 @@ class setfmo(pdio, ufc, rud):
                                 neighborindex.append(i)
                                 break
 
-        print(neighborindex)
+        logger.debug(neighborindex)
         # print vec
-        print("cellsize", cell)
+        logger.debug("cellsize %s", cell)
         posMol = []
         typenameMol = []
         molnamelist = []
@@ -612,7 +543,7 @@ class setfmo(pdio, ufc, rud):
                 if molname[i] == molnamelist_orig[j]:
                     atomnums.append(len(posMol_orig[j]))
                     break
-        print ('atomnums', atomnums)
+        logger.debug('atomnums %s', atomnums)
 
         # print (posMol)
         opath = 'for_abmp'

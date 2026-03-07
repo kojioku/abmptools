@@ -5,9 +5,12 @@ import subprocess
 import re
 import time
 import copy
+import logging
 from .abinit_io import abinit_io as fab
 import collections
 import itertools
+
+logger = logging.getLogger(__name__)
 try:
     import numpy as np
 except ImportError:
@@ -47,8 +50,8 @@ class pdb_io(fab):
 
     def readpdb(self, fname):
 
-        print('--- get pdbinfo ---')
-        print('infile:', fname)
+        logger.info('--- get pdbinfo ---')
+        logger.info('infile: %s', fname)
         lines = open(fname, 'r').readlines()
         molnames = []
         poss = []
@@ -87,7 +90,7 @@ class pdb_io(fab):
             # print(itemlist)
             if self.getmode == 'TER':
                 if len(itemlist) >= 1 and itemlist[0] == 'TER':
-                    print(itemlist)
+                    logger.debug('%s', itemlist)
                     posRes.append(poss)
                     atmtypeRes.append(atypenames)
                     headRes.append(heads)
@@ -142,7 +145,7 @@ class pdb_io(fab):
                     num_int = int(num)
                 except (ValueError, TypeError) as e:
                     # numが整数に変換できなかった場合の処理
-                    print("numの変換に失敗しました:", e)
+                    logger.warning("numの変換に失敗しました: %s", e)
                     num_int = 0  # もしくは、適切なデフォルト値を設定する
 
                 if num_int < 100000:
@@ -192,12 +195,12 @@ class pdb_io(fab):
             totalatom = atomcount
         # print(poss)
         if amarks[0].strip() == '':
-            print('warning: this file dont have elem mark column. -> refreshatmtype = False')
+            logger.warning('this file dont have elem mark column. -> refreshatmtype = False')
             self.refreshatmtype = False
         if self.getmode == 'rfile':
             molname_set = set(molnames)
-            print('totalatom', totalatom)
-            print('molname_set', molname_set)
+            logger.info('totalatom %s', totalatom)
+            logger.info('molname_set %s', molname_set)
             mol_confs = []
             for molname in molname_set:
                 mol_confs.append(self.config_read(molname, 0))
@@ -206,7 +209,7 @@ class pdb_io(fab):
             molnums = {}
             for molconf in mol_confs:
                 molnums[molconf['name']] = sum(molconf['atom'])
-            print('molnatoms', molnums)
+            logger.info('molnatoms %s', molnums)
 
             #search molhead
             i = 0
@@ -218,7 +221,7 @@ class pdb_io(fab):
                 if i + 1> totalatom:
                     break
                 # print(i + 1, molnames[i])
-            print('molnames_permol', resnames)
+            logger.info('molnames_permol %s', resnames)
             totalRes = len(resnames)
 
             gatmlabRes = self.getpermol(totalRes, molnums, resnames, nums)
@@ -376,7 +379,7 @@ class pdb_io(fab):
     def exportardpdbfull(self, out_file, mollist):
 
         out_file = out_file + '.pdb'
-        print('outfile', out_file)
+        logger.info('outfile %s', out_file)
 
         # # Export position of mol
         # head, ext = os.path.splitext(str(iname))
@@ -478,7 +481,7 @@ class pdb_io(fab):
     def exportardxyzfull(self, ifile, out_file, gatmlabRes):
 
         out_file = out_file + '.xyz'
-        print('outfile', out_file)
+        logger.info('outfile %s', out_file)
 
         f = open(out_file, "w", newline = "\n")
         itemlines = open(ifile, "r", newline = "\n").readlines()
@@ -496,7 +499,7 @@ class pdb_io(fab):
             tgt = itemlines[int(gatm) + 1].split()
             print(tgt[0], tgt[1], tgt[2], tgt[3], file=f)
             self.xyzstr += str(xyzi) + ' ' + tgt[0] + ' 1 ' + ' ' + tgt[1] + ' ' + tgt[2] + ' ' + tgt[3] + ' 1\n'
-        print(self.xyzstr)
+        logger.debug('%s', self.xyzstr)
         return
 
     def exportardpdb(self, out_file, mollist, posRes, nameAtom, molnames_orig):
@@ -508,7 +511,7 @@ class pdb_io(fab):
         # head, ext = os.path.splitext(str(iname))
 
         molids = sorted(set(molnames_orig), key=molnames_orig.index)
-        print(molids)
+        logger.debug('%s', molids)
 
         molnames = []
         for molname in molnames_orig:
@@ -527,7 +530,7 @@ class pdb_io(fab):
         f = open(out_file, "a+", newline = "\n")
         tatomlab = 0
         reslab = 0
-        print(mollist)
+        logger.debug('%s', mollist)
         for i in mollist:
             molname = str(molnames[i])
             Molnum = i
@@ -578,13 +581,13 @@ class pdb_io(fab):
         chargeRes_orig  = copy.deepcopy(self.chargeRes)
         gatmlabRes_orig = copy.deepcopy(self.gatmlabRes)
 
-        print("totalmol:",self.totalRes)
+        logger.info("totalmol: %s", self.totalRes)
         # getmolatomnum(_udf_, totalRes)
-        print("resnames_orig",resnames_orig)
+        logger.info("resnames_orig %s", resnames_orig)
 
         # 1. -- 切り取らない場合 --
         if self.cutmode == 'none':
-            print('none mode')
+            logger.info('none mode')
             # -- get neighbor mol --
             neighborindex = []
             for i in range(self.totalRes):
@@ -592,7 +595,7 @@ class pdb_io(fab):
 
         # 2. -- cut sphere shape--
         if self.cutmode == 'sphere':
-            print('sphere mode')
+            logger.info('sphere mode')
             # -- get neighbor mol --
             neighborindex = []
             for i in range(len(self.posRes)):
@@ -622,7 +625,7 @@ class pdb_io(fab):
 
         # 3. -- cut cube shape
         if self.cutmode == 'cube':
-            print('cube mode')
+            logger.info('cube mode')
             # -- get neighbor mol --
             tgtx = [tgtpos[0] - criteria[0], tgtpos[0] + criteria[0]]
             tgty = [tgtpos[1] - criteria[1], tgtpos[1] + criteria[1]]
@@ -657,7 +660,7 @@ class pdb_io(fab):
 
         # 4. -- screening dist from solute --
         if self.cutmode == 'around':
-            print('around mode')
+            logger.info('around mode')
             # -- get neighbor mol --
             neighborindex = []
             # solutes = [0, 1]
@@ -680,7 +683,7 @@ class pdb_io(fab):
                             elif self.ionmode == 'remain':
                                 icflag = True
                                 neighborindex.append(i)
-                                print('add mol', i, self.resnames[i])
+                                logger.debug('add mol %s %s', i, self.resnames[i])
                                 break
 
                 if icflag:
@@ -688,7 +691,7 @@ class pdb_io(fab):
                     continue
 
                 if i % 100 == 0:
-                    print('check mol', i)
+                    logger.info('check mol %s', i)
                 nextf = False
                 # solute: skip
                 if i in self.solutes:
@@ -714,9 +717,9 @@ class pdb_io(fab):
         # 5. ion neautoral
         if self.cutmode == 'neutral':
 
-            print('### start neutral mode ###')
-            print('solutes_charge:', self.solutes_charge)
-            print('dist_criteria:', self.criteria)
+            logger.info('### start neutral mode ###')
+            logger.info('solutes_charge: %s', self.solutes_charge)
+            logger.info('dist_criteria: %s', self.criteria)
             neighborindex = []
             # solutes = [0, 1]
             ionindex = []
@@ -733,7 +736,7 @@ class pdb_io(fab):
                         elif ion.strip().upper() == 'CL':
                             clindex.append(i)
                         else:
-                            print('Error! this elem is not support in this version')
+                            logger.error('this elem is not support in this version')
                             sys.exit()
                         break
             # print('naindex', naindex)
@@ -764,11 +767,11 @@ class pdb_io(fab):
                 # print(mindist)
                 if mindist <= criteria:
                     if i in naindex:
-                        print(self.resnames[i], i, 'is near the solute', mindist, 'angstrom')
+                        logger.info('%s %s is near the solute %s angstrom', self.resnames[i], i, mindist)
                         # minnadists.append(mindist)
                         minnaid.append(i)
                     elif i in clindex:
-                        print(self.resnames[i], i, 'is near the solute', mindist, 'angstrom')
+                        logger.info('%s %s is near the solute %s angstrom', self.resnames[i], i, mindist)
                         # mincldists.append(mindist)
                         minclid.append(i)
                 else:
@@ -783,7 +786,7 @@ class pdb_io(fab):
             neighborindex += minclid
 
             cur_totchg = len(minnaid) - len(minclid) + solutes_charge
-            print('current total charge', cur_totchg, '\n-> add', abs(cur_totchg), 'nearest ions')
+            logger.info('current total charge %s\n-> add %s nearest ions', cur_totchg, abs(cur_totchg))
 
             if cur_totchg == 0:
                 pass
@@ -794,7 +797,7 @@ class pdb_io(fab):
                 elif cur_totchg < 0:
                     checkdists = np.array(checknadists)
                     checkids = checknaid
-                print('ion-solute dist-list\n', checkdists, checkids)
+                logger.info('ion-solute dist-list\n %s %s', checkdists, checkids)
 
                 sortedids = checkdists.argsort()[:abs(cur_totchg)]
                 for tgtid in sortedids:
@@ -862,13 +865,13 @@ class pdb_io(fab):
                     atomnums.append(len(posRes_orig[j]))
                     tgtmolnames.append(resnames_orig[j])
                     break
-        print ('atomnums', atomnums)
+        logger.info('atomnums %s', atomnums)
 
         # print (posRes)
         opath = 'for_abmp'
         # oname = "mdout"
         if os.path.exists(opath) is False:
-            print(opath)
+            logger.info('%s', opath)
             subprocess.call(["mkdir", opath])
 
         # refresh
@@ -900,10 +903,10 @@ class pdb_io(fab):
         # # Move into cell
         posintoMol = []
         cell2 = []
-        print(cell)
+        logger.debug('%s', cell)
         for i in range(3):
             cell2.append(cell[i]/2.0)
-        print('cell', cell)
+        logger.debug('cell %s', cell)
         for i in range(totalRes):
             transVec = np.array([0., 0., 0.])  # x,y,z
             centerOfMol = self.getCenter(posMol[i])
@@ -919,16 +922,16 @@ class pdb_io(fab):
 
             posintoMol.append(self.moveMolTrans(posMol[i], transVec))
 
-        print("move_done.")
+        logger.info("move_done.")
         return posintoMol
 
     def getpdbinfowrap(self, fname):
         # get pdbinfo
         self.readpdb(fname)
-        print('totalres', self.totalRes)
+        logger.info('totalres %s', self.totalRes)
         # print('atomnameMol', atomnameMol)
         # print('resnames', molnames)
-        print('res_count', collections.Counter(self.resnames))
+        logger.info('res_count %s', collections.Counter(self.resnames))
         # print('nummols', nummols)
 
         cellsize = self.getpdbcell(fname)
@@ -936,8 +939,8 @@ class pdb_io(fab):
     #
         if len(self.cellsize) == 0:
             self.cellsize = 0
-            print('cellinfo: None')
+            logger.info('cellinfo: None')
         else:
-            print('cellsize:', self.cellsize)
+            logger.info('cellsize: %s', self.cellsize)
     #
         return self

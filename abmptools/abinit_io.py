@@ -7,7 +7,10 @@ import re
 import subprocess
 import tarfile
 import glob
+import logging
 from .mol_io import mol_io as mi
+
+logger = logging.getLogger(__name__)
 try:
     import collections
 except ImportError:
@@ -266,7 +269,7 @@ MaxSCCenergy=5.0E-7
                 else:
                     ligchgstr += ','
 
-            print(ligchgstr)
+            logger.debug(ligchgstr)
             ajf_body += ligchgstr + """
 """
 
@@ -279,7 +282,7 @@ MaxSCCenergy=5.0E-7
                 else:
                     rsolvstr += ','
 
-            print(rsolvstr)
+            logger.debug(rsolvstr)
             ajf_body += rsolvstr + """
 """
 
@@ -686,7 +689,7 @@ MD='OFF'
             text = f.readlines()
             f.close()
         except IOError:
-            print("can't open", fname)
+            logger.error("can't open %s", fname)
             return ifie
         flag = False
         # print text
@@ -729,15 +732,15 @@ MD='OFF'
             if flag is True and count > 2:
                 ifie.append(itemList)
                 if debug:
-                    print(itemList)
+                    logger.debug(itemList)
         if readflag is False:
             try:
-                print("can't read ifie", fname.split("/")[1])
+                logger.warning("can't read ifie %s", fname.split("/")[1])
             except (ValueError, IndexError):
                 pass
 
         if debug:
-            print('ifie', ifie)
+            logger.debug("ifie %s", ifie)
 
         for i in range(len(ifie)):
             if float(ifie[i][4]) < -2 or float(ifie[i][5]) < -2:
@@ -767,7 +770,7 @@ MD='OFF'
             text = f.readlines()
             f.close()
         except (IOError, OSError):
-            print("can't open", fname)
+            logger.error("can't open %s", fname)
             return [ifie, pbterm]
         flag = False
         flag2 = False
@@ -805,7 +808,7 @@ MD='OFF'
             if flag2 is True and count2 >= 4:
                 pbterm.append(itemList)
         if hit != 2 and flag2 is False:
-            print("can't read pb", fname.split("/")[1])
+            logger.warning("can't read pb %s", fname.split("/")[1])
 
         for i in range(len(ifie)):
             if float(ifie[i][4]) < -2 or float(ifie[i][5]) < -2:
@@ -828,14 +831,14 @@ MD='OFF'
             if 'zz_submit' not in os.path.basename(fn)
         ]
 
-        print(f"→ Checking for {os.path.basename(out_tar)} in {target_dir}")
-        print(f"→ Total number of expected output files: {total_num}")
+        logger.info("Checking for %s in %s", os.path.basename(out_tar), target_dir)
+        logger.info("Total number of expected output files: %s", total_num)
         num_outfile = len(outfile)
-        print("→ num of outfile", num_outfile, "\n")
+        logger.info("num of outfile %s", num_outfile)
         if os.path.exists(out_tar) and num_outfile/total_num < 0.9:
             with tarfile.open(out_tar, 'r') as tar:
                 tar.extractall(path=target_dir)
-            print(f"→ Extracted {os.path.basename(out_tar)} into {target_dir}")
+            logger.info("Extracted %s into %s", os.path.basename(out_tar), target_dir)
         return
 
     @staticmethod
@@ -853,9 +856,9 @@ MD='OFF'
             except OSError:
                 pass
         if removed:
-            print(f"→ Removed {removed} outfiles")
+            logger.info("Removed %d outfiles", removed)
         else:
-            print(f"→ No out files to remove")
+            logger.info("No out files to remove")
         return
 
     def getTE(self, target_dir, molname, mode, fzcflag):
@@ -863,7 +866,7 @@ MD='OFF'
         if mode == "batch":
             energies = []
             if self.pbflag is False:
-                print("**** 1.capt te running ****")
+                logger.info("**** 1.capt te running ****")
 
                 self.unpack_tar(target_dir, self.total_num)
 
@@ -871,7 +874,7 @@ MD='OFF'
                 for i in range(1, self.total_num+1):
                     target = target_dir + '/%05d' % i + ".out"
                     if i % 500 == 0:
-                        print(target)
+                        logger.info(target)
                     energy = self.captfmomp2e(target)
                     energies.append(energy)
                 # print energies
@@ -886,7 +889,7 @@ MD='OFF'
                 # self.del_out(target_dir)
 
             if self.pbflag is True:
-                print("*** 1.capt bepb running ***")
+                logger.info("*** 1.capt bepb running ***")
 
                 self.unpack_tar(target_dir, self.total_num)
 
@@ -894,7 +897,7 @@ MD='OFF'
                 for i in range(1, self.total_num+1):
                     target = target_dir + '/%05d' % i + ".out"
                     if i % 500 == 0:
-                        print(target)
+                        logger.info(target)
                     energy = self.getfmopbenergy(target)
                     energies.append(energy)
                 # print energies
@@ -979,7 +982,7 @@ MD='OFF'
                         mp2 = text[i + 8].split()
                     return [eval(hf[3]), eval(mp2[2])]
         except Exception:
-            print("Warning: can't get result:", target)
+            logger.warning("can't get result: %s", target)
             return [0, 0]
             # sys.exit()
 
@@ -1004,7 +1007,7 @@ MD='OFF'
                 text = raw.decode('utf-8')
                 lines = text.splitlines()
         except Exception as e:
-            print("Warning: can't get result:", target, e)
+            logger.warning("can't get result: %s %s", target, e)
             return [0.0, 0.0]
 
         # エネルギー抽出
@@ -1021,7 +1024,7 @@ MD='OFF'
                 mp2 = float(mp2_vals[2])
                 return [hf, mp2]
 
-        print("Warning: can't parse energies in:", target)
+        logger.warning("can't parse energies in: %s", target)
         return [0.0, 0.0]
 
     def getmomp2ene(self, target):
@@ -1032,7 +1035,7 @@ MD='OFF'
             text = f.readlines()
             f.close()
         except (IOError, OSError):
-            print("Error! can't open monomer file:", target)
+            logger.error("can't open monomer file: %s", target)
             return [0,0]
             # sys.exit()
 
@@ -1056,7 +1059,7 @@ MD='OFF'
         try:
             return [eval(hf[3]), eval(mp2[2])]
         except (IndexError, TypeError):
-            print("Error! can't get monomer result:", target)
+            logger.error("can't get monomer result: %s", target)
             return [0,0]
             # sys.exit()
 
@@ -1086,7 +1089,7 @@ MD='OFF'
                 fobj.close()
 
         except Exception:
-            print("can't open " + target)
+            logger.error("can't open %s", target)
             return 0, 0, 0, 0, 0
 
         if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
@@ -1127,7 +1130,7 @@ MD='OFF'
             try:
                 return eg[3], esol[3], dg[-1], dges[-1], dgnp[-1]
             except (NameError, IndexError):
-                print("Warning: can't get result:", target)
+                logger.warning("can't get result: %s", target)
                 return 0, 0, 0, 0, 0
 
             '''
@@ -1156,7 +1159,7 @@ MD='OFF'
             text = f.readlines()
             f.close()
         except (IOError, OSError):
-            print("can't open " + target)
+            logger.error("can't open %s", target)
             return 0, 0, 0, 0, 0
         if self.abinit_ver in ['rev11', 'rev15', 'mizuho']:
             index = 0
@@ -1183,7 +1186,7 @@ MD='OFF'
             try:
                 return eg[8], cor[2], dg[5], dges[5], dgnp[5]
             except (NameError, IndexError):
-                print("Warning: can't get result:", target)
+                logger.warning("can't get result: %s", target)
                 return 0, 0, 0, 0, 0
 
         if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
@@ -1225,7 +1228,7 @@ MD='OFF'
             try:
                 return eg[3], esol[3], dg[-1], dges[-1], dgnp[-1]
             except (NameError, IndexError):
-                print("Warning: can't get result:", target)
+                logger.warning("can't get result: %s", target)
                 return 0, 0, 0, 0, 0
 
             '''
@@ -1254,7 +1257,7 @@ MD='OFF'
             text = f.readlines()
             f.close()
         except (IOError, OSError):
-            print ("can't open " + target)
+            logger.error("can't open %s", target)
             return 0, 0, 0, 0, 0
 
         if self.abinit_ver in ['rev11', 'rev15', 'mizuho']:
@@ -1280,7 +1283,7 @@ MD='OFF'
             try:
                 return eg[8], cor[2], dg[5], dges[5], dgnp[5]
             except (NameError, IndexError):
-                print("Error! can't get monomer result:", target)
+                logger.error("can't get monomer result: %s", target)
                 # sys.exit()
                 return 0, 0, 0, 0, 0
 
@@ -1311,10 +1314,10 @@ MD='OFF'
             if itemlist[0][:2].upper() == 'NF':
                 self.nf = int(itemlist[0].split('=')[-1])
                 nf = self.nf
-                print('NF =', self.nf)
+                logger.info("NF = %s", self.nf)
                 if self.nf > 10:
                     baseline = math.ceil(self.nf/10)
-                    print('n_line', baseline)
+                    logger.debug("n_line %s", baseline)
             if itemlist[0] == '&FRAGMENT':
                 flag = True
                 typcount = 0
@@ -1503,28 +1506,28 @@ MD='OFF'
                 dendflag = False
                 dmidflag = False
                 if nagatoms[i][0] in fatminfos[j]: # search (asn + nag)
-                    print('NAG', i, 'frag', j, 'start atom', nagatoms[i][0])
+                    logger.debug("NAG %s frag %s start atom %s", i, j, nagatoms[i][0])
 
                     # check baa asn atom id
                     tgtid = j
                     for bridged in bridgeds:
                         if tgtid >= bridged:
                             tgtid += 1
-                    print(molnames[tgtid], resnums[tgtid][0])
-                    print('atomnameMol', tgtid, atomnameMol[tgtid])
+                    logger.debug("%s %s", molnames[tgtid], resnums[tgtid][0])
+                    logger.debug("atomnameMol %s %s", tgtid, atomnameMol[tgtid])
                     baaidx = atomnameMol[tgtid].index(' ND2')
-                    print('asn_baaidx', anummols[tgtid][baaidx])
+                    logger.debug("asn_baaidx %s", anummols[tgtid][baaidx])
 
 
                     tgtbaaid = sum(fbaas[:j+1])
-                    print('tgtbaaid', tgtbaaid)
+                    logger.debug("tgtbaaid %s", tgtbaaid)
 
                     #fatomnums
                     # j: asn frag id
                     fatomnums[j] -= len(nagatoms[i])
                     fatomnums.append(len(nagatoms[i]))
 
-                    print('doubles', doubles)
+                    logger.debug("doubles %s", doubles)
                     for double in doubles:
                         if double[1] == nagmolids[i]:
                             dendflag = True
@@ -1533,9 +1536,9 @@ MD='OFF'
 
                     if dendflag:
                         baaidx = atomnameMol[nagmolids[i-1]].index(' O4 ')
-                        print('baaidx double', baaidx, nagmolids[i-1])
+                        logger.debug("baaidx double %s %s", baaidx, nagmolids[i-1])
                         baaatomid = anummols[nagmolids[i-1]][baaidx]
-                        print('baaaaaaaaaaaaaa', baaatomid)
+                        logger.debug("baaaaaaaaaaaaaa %s", baaatomid)
 
                     # for old(asn) frag
                     if dendflag is False:
@@ -1562,23 +1565,23 @@ MD='OFF'
                                 delid.append(l)
                                 break
 
-                    print('delid', delid)
+                    logger.debug("delid %s", delid)
                     dellist = lambda items, indexes: [item for index, item in enumerate(items) if index not in indexes]
                     fatminfos[j] = dellist(fatminfos[j], delid)
                     # atomnameMol[tgtid] = dellist(atomnameMol[j], delid)
-                    print('atom-len-check frag', j, ':',  len(fatminfos[j]), '-- mol', j, ':',  len(atomnameMol[tgtid]))
+                    logger.debug("atom-len-check frag %s : %s -- mol %s : %s", j, len(fatminfos[j]), j, len(atomnameMol[tgtid]))
                     fatminfos.append(nagatoms[i])
 
                     #connects
-                    print(len(connects))
+                    logger.debug("%s", len(connects))
                     if dendflag:
                         connects.append([int(nagbdas[i]), int(baaatomid)])
-                        print('connects', nagbdas[i], baaatomid)
+                        logger.debug("connects %s %s", nagbdas[i], baaatomid)
 
                     else:
                         connects.insert(tgtbaaid, [int(nagbdas[i]), int(anummols[tgtid][baaidx])])
-                        print('connects', nagbdas[i], anummols[tgtid][baaidx])
-                    print(' ')
+                        logger.debug("connects %s %s", nagbdas[i], anummols[tgtid][baaidx])
+                    logger.debug(" ")
         return fatomnums, fchgs, fbaas, connects, fatminfos
 
     def flatten(self, nested_list):
@@ -1728,11 +1731,11 @@ MD='OFF'
         self.fatminfos = frag_atmlabss
         self.connects = frag_connectss
 
-        print('frag_atoms(head)', frag_atoms[:20], '...')
-        print('frag_charges(head)', frag_charges[:20], '...')
-        print('frag_baanums(head)', frag_baanums[:20], '...')
-        print('frag_atmlabss(head)', frag_atmlabss[:5], '...')
-        print('frag_connectss(head)', frag_connectss[:5], '...')
+        logger.debug("frag_atoms(head) %s ...", frag_atoms[:20])
+        logger.debug("frag_charges(head) %s ...", frag_charges[:20])
+        logger.debug("frag_baanums(head) %s ...", frag_baanums[:20])
+        logger.debug("frag_atmlabss(head) %s ...", frag_atmlabss[:5])
+        logger.debug("frag_connectss(head) %s ...", frag_connectss[:5])
 
         return self
         # return frag_atoms, frag_charges, frag_baanums, frag_atmlabss, frag_connectss
@@ -1794,10 +1797,10 @@ MD='OFF'
                     ajf_fragment += '\n'
             atom_count += sum(frag_atom[nameid[i]])
 
-        print ('atom_count', atom_count)
+        logger.debug("atom_count %s", atom_count)
         atom_count = 0
         # connect info
-        print("frag_atom", frag_atom)
+        logger.debug("frag_atom %s", frag_atom)
         for i in range(len(nameid)):
             for j in range(len(frag_connect[nameid[i]])):
                 ajf_fragment += '%8d' % (
@@ -1820,7 +1823,7 @@ MD='OFF'
             ohead = os.path.splitext(oname)[0]
         ajf_body = self.gen_ajf_bodywrap(ohead)
 
-        print('ajf_oname:', oname)
+        logger.info("ajf_oname: %s", oname)
         ajf_file = open(oname, 'w')
 
         print(ajf_body, file=ajf_file)

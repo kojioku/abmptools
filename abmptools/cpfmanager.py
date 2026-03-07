@@ -3,6 +3,9 @@ import copy
 import os
 import gzip
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class CPFManager:
@@ -26,7 +29,7 @@ class CPFManager:
         nfrag = 0
         tgtfrag = self.tgtfrag
 
-        print('start read', filepath)
+        logger.info('start read %s', filepath)
         # filepath の拡張子が .gz なら gzip で読み込む
         if os.path.splitext(filepath)[-1] == '.gz':
             self.is_gz = True
@@ -109,7 +112,7 @@ class CPFManager:
             dimstr + trmstr + tetrstr + 'END'
         with open(filename, 'w') as f:
             f.write(out)
-        print(filename + ' is created.')
+        logger.info('%s is created.', filename)
 
         return None
 
@@ -151,10 +154,10 @@ class CPFManager:
         elif header[0:13] == 'CPF Ver.4.201':
             cpfver = 4.201
         else:
-            print('Unknown CPF version.')
+            logger.error('Unknown CPF version.')
             sys.exit()
 
-        print('cpfver', cpfver)
+        logger.debug('cpfver %s', cpfver)
         if cpfver == 23:
             charge_label = file.readline().strip().split()
             DPM_label = file.readline().strip().split()
@@ -215,7 +218,7 @@ class CPFManager:
             atominfo[chg] = []
 
         # Read the atom data
-        print('atom section')
+        logger.debug('atom section')
         for _ in range(natom):
             atom_data = file.readline().rstrip()
             if cpfver == 23:
@@ -293,7 +296,7 @@ class CPFManager:
             }
         '''
 
-        print('fragment section')
+        logger.debug('fragment section')
         fnatoms, fbaas, fconnects = CPFManager.readfragcpf(
             file, nfrag, tgtfrag, atominfo['alabels'], cpfver)
 
@@ -399,7 +402,7 @@ class CPFManager:
                 if count == sum(fbaas):
                     if tgtfrag != 0:
                         if int(itemlist[0]) not in alabels or int(itemlist[1]) not in alabels:
-                            print('break!')
+                            logger.debug('break!')
                             break
                     fconnects.append(itemlist)
                     fconnects = CPFManager.functor(int, fconnects)
@@ -435,7 +438,7 @@ class CPFManager:
             }
         '''
 
-        print('dimer distance section')
+        logger.debug('dimer distance section')
         # read the dimer info
         diminfo = {
             'fragi': [],
@@ -460,7 +463,7 @@ class CPFManager:
     def read_dipole(file, labels, nfrag, tgtfrag):
         # read the dipole data
 
-        print('dipole moment section')
+        logger.debug('dipole moment section')
         mominfo = {
             'fragi': []
             }
@@ -514,7 +517,7 @@ class CPFManager:
         '''
 
         # Read the basis set, electronic state, and calculation method
-        print('condition and static data section')
+        logger.debug('condition and static data section')
         condition = {}
         condition['basis_set'] = file.readline().strip()
         condition['electronic_state'] = file.readline().strip()
@@ -554,7 +557,7 @@ class CPFManager:
          5   0.302972088661468E+03  -0.692375396192077E+03
         '''
 
-        print('monomer section')
+        logger.debug('monomer section')
         # Initialize the data structures
         for mom in labels['monomer']:
             mominfo[mom] = []
@@ -597,7 +600,7 @@ class CPFManager:
     def read_dimer(file, diminfo, labels, nfrag,
                    cpfver, dimaccept, static_data, tgtfrag):
 
-        print('dimer section')
+        logger.debug('dimer section')
         # Initialize the data structures
         for dim in labels['dimer']:
             diminfo[dim] = []
@@ -839,7 +842,7 @@ class CPFManager:
         diststr = ''
         # standard ifie case
         if not is_difie:
-            print(static_data['ndimer'])
+            logger.debug(static_data['ndimer'])
             for i in range(static_data['ndimer']):
                 diststr += str(diminfo['fragi'][i]) + str(diminfo['fragj'][i]) \
                     + str(diminfo['min-dist'][i]) + '\n'

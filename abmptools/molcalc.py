@@ -5,10 +5,14 @@ import copy
 import re
 import subprocess
 import math
+import logging
+
 try:
     import numpy as np
 except ImportError:
     pass
+
+logger = logging.getLogger(__name__)
 
 
 class molcalc():
@@ -161,7 +165,7 @@ class molcalc():
 
             molnum.append(mol0)
             molnum.append(mol1)
-            print("molnum;", molnum)
+            logger.info("molnum; %s", molnum)
         return molnum
 
     def getmolmass(self, ffname, atom_list):
@@ -175,7 +179,7 @@ class molcalc():
 
     def gettotalmass(self, mass, molnum):
         data = 0
-        print ("molnum", molnum)
+        logger.info("molnum %s", molnum)
         for i in range(len(mass)):
             data += sum(mass[i]) * molnum[i]
         # print "mass=",data
@@ -209,7 +213,7 @@ class molcalc():
         # export molindex mol data from whole posMol
 
         if os.path.exists(path) is False:
-            print(path)
+            logger.info("%s", path)
             subprocess.call(["mkdir", path])
 
         # print molindex
@@ -250,7 +254,7 @@ class molcalc():
 
         out_head = path + "/pdb/" + name
         out_file = out_head + ".xyz"
-        print(out_file)
+        logger.info("%s", out_file)
 
         totalnum = 0
         for i in molindex:
@@ -291,7 +295,7 @@ class molcalc():
         # head, ext = os.path.splitext(str(iname))
         out_head = path + "/tmp" + str(num)
         out_file = out_head + ".xyz"
-        print(out_file)
+        logger.info("%s", out_file)
 
         f = open(out_file, "w")
         print(len(pos), file=f)
@@ -312,7 +316,7 @@ class molcalc():
 
     def exportdata(self, path, oname, data):
         if os.path.exists(path) is False:
-            print(path)
+            logger.info("%s", path)
             subprocess.call(["mkdir", path])
 
         out_file = path + "/" + str(oname) + ".dat"
@@ -377,7 +381,7 @@ class molcalc():
             energy = q1*q2/epsilon/r12
     #        print  "ENERGY", energy, "charge", q1/VALENCE ,q2/VALENCE,"length",r12
         else:
-            print("dielectric constant is zero !!!")
+            logger.error("dielectric constant is zero !!!")
 
         return energy
 
@@ -393,7 +397,7 @@ class molcalc():
 
         contactlist = []
         #print neighborMol
-        print(len(site))
+        logger.debug("%s", len(site))
         for i in range(len(neighborMol)):
             flag = False
             s1 = site[neighborMol[i][0]]
@@ -669,7 +673,7 @@ class molcalc():
         return posVec
 
     def getdummyatom(self, connect, end):
-        print('start getdummyatom')
+        logger.debug('start getdummyatom')
         # e.g.) connect: [['CONECT', 0, 6, 5, 1, 13], ['CONECT', 1, 2, 2, 0, 4]]
         for i in range(len(connect)):
             if connect[i][1] == end:
@@ -677,12 +681,12 @@ class molcalc():
                 for j in range(2, len(connect[i])):
                     flag = False
                     for k in range(len(connect)):
-                        print(connect[i][j], connect[k][1])
+                        logger.debug("%s %s", connect[i][j], connect[k][1])
                         if connect[i][j] == connect[k][1]:
-                            print(connect[i][j], 'is connected to others e.g.)', connect[k], ':skip')
+                            logger.debug("%s is connected to others e.g.) %s :skip", connect[i][j], connect[k])
                             flag = True
                     if flag is False:
-                        print('dummy atom is', connect[i][j])
+                        logger.debug('dummy atom is %s', connect[i][j])
                         return connect[i][j]
         return
 
@@ -762,7 +766,7 @@ class molcalc():
         rotate_z[2, 2] = 1.0
         # ------回転処理----------------
 
-        print ("theta", theta)
+        logger.debug("theta %s", theta)
         # print rotate_z
         rotpos = np.arange(len(pos) * 3.0).reshape(-1, 3)
         rotpos[:] = 0.0
@@ -929,8 +933,8 @@ class molcalc():
 
     def writexyzpoly(self, head, natomsum, atoms, pos, dums, seq, cnct_count, cncted_count):
         # print atoms
-        print (dums)
-        print (natomsum)
+        logger.debug("%s", dums)
+        logger.debug("%s", natomsum)
         f = open(head + ".xyz", "w")
         print (natomsum, file=f)
         print (" @@ " + head + " @@", file=f)
@@ -938,7 +942,7 @@ class molcalc():
             molid = seq[i]
             flag = cnct_count[i]
             flag2 = cncted_count[i]
-            print (molid, flag, flag2)
+            logger.debug("%s %s %s", molid, flag, flag2)
             for j in range(len(pos[i])):
                 if j == dums[molid][0] and flag != 0:
                     # print "CONT!"
