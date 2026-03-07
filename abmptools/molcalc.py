@@ -64,7 +64,7 @@ class molcalc():
         for i in range(raw):
             for j in range(raw):
                 for k in range(raw):
-                    if centerflag is True:
+                    if centerflag:
                         centcount = count
                     x = i*dist
                     y = j*dist
@@ -213,7 +213,7 @@ class molcalc():
     def Exportardpos(self, path: str, iname: str, molindex: list[int], posMol: list[list[list[float]]], nameAtom: list[list[str]]) -> None:
         # export molindex mol data from whole posMol
 
-        if os.path.exists(path) is False:
+        if not os.path.exists(path):
             logger.info("%s", path)
             subprocess.call(["mkdir", path])
 
@@ -247,7 +247,7 @@ class molcalc():
     def exportplus1pos(self, path: str, pos: list[list[list[float]]], name: str, atom: list[list[str]], molindex: list[int]) -> None:
         # # Export position of mol
         # head, ext = os.path.splitext(str(iname))
-        if os.path.exists(path + "/pdb") is False:
+        if not os.path.exists(path + "/pdb"):
             subprocess.call(["mkdir", path + "/pdb"])
 
         out_head = path + "/pdb/" + name
@@ -307,7 +307,7 @@ class molcalc():
         subprocess.call(cmd.split(" "))
 
     def exportdata(self, path: str, oname: str, data: list) -> None:
-        if os.path.exists(path) is False:
+        if not os.path.exists(path):
             logger.info("%s", path)
             subprocess.call(["mkdir", path])
 
@@ -394,7 +394,7 @@ class molcalc():
             s1 = site[neighborMol[i][0]]
             s2 = site[neighborMol[i][1]]
             for j in range(len(s1)):
-                if flag is True:
+                if flag:
                     break
                 r1 = s1[j]
                 p1 = posMol[neighborMol[i][0]][j]
@@ -522,7 +522,7 @@ class molcalc():
                 for k in index:
                     if j == k:
                         flag = True
-                if flag is False:
+                if not flag:
                     index.append(j)
 
         index.sort()
@@ -559,7 +559,7 @@ class molcalc():
                         # print "m =", m
                         # print "1"
                         for l in range(len(s1[k])):  # k: fragid l:atomid
-                            if flag is True:
+                            if flag:
                                 break
                             r1 = s1[k][l]
                             p1 = posMol[clist[i][0]][k][l]
@@ -594,13 +594,13 @@ class molcalc():
                     for k in clistmol:
                         if k == j[0]:
                             flag = True
-                    if flag is False:
+                    if not flag:
                         clistmol.append(j[0])
                 if j[0] == i:
                     for k in clistmol:
                         if k == j[1]:
                             flag = True
-                    if flag is False:
+                    if not flag:
                         clistmol.append(j[1])
             clistall.append(clistmol)
         # print("clistfrag_all",clistall)
@@ -676,7 +676,7 @@ class molcalc():
                         if connect[i][j] == connect[k][1]:
                             logger.debug("%s is connected to others e.g.) %s :skip", connect[i][j], connect[k])
                             flag = True
-                    if flag is False:
+                    if not flag:
                         logger.debug('dummy atom is %s', connect[i][j])
                         return connect[i][j]
         return
@@ -943,7 +943,7 @@ class molcalc():
                         if j == dums[molid][k] and flag2 != 0:
                             # print "CONTi!"
                             skipflag = True
-                    if skipflag is True:
+                    if skipflag:
                         continue
                     print (atoms[molid][j][1],  pos[i][j][0], \
                         pos[i][j][1], pos[i][j][2], file=f)

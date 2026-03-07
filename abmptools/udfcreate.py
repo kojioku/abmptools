@@ -137,7 +137,7 @@ class udfcreate():
         # xyzfile="monomer/pdb/" + molname + ".xyz"
         # fffile="monomer/" + molname + ".ff"
 
-        if os.path.exists(fffile) is False:
+        if not os.path.exists(fffile):
             with open(fffile, 'w') as outff:
                 cmd = "obminimize -n 1 -ff GAFF -onul " + xyzfile
                 ps = subprocess.Popen(cmd, shell=True, stderr=outff)
@@ -802,7 +802,7 @@ class udfcreate():
         structure+='    {0.0,{' + str(cell[0]) + ',' +  str(cell[1]) + ',' + str(cell[2]) + ',90.0000000000000,90.0000000000000,90.0000000000000}0.0}\n'
         structure+='}\n'
         structure+='Unit_Parameter:{"","",1.00000000000000,4.18550000000000,1.00000000000000e-001}\n'
-        structure+='\end{data}\n'
+        structure+='\\end{data}\n'
         #print structure
         return structure
 
@@ -810,7 +810,7 @@ class udfcreate():
         header=\
         '''COGNAC INPUT UDF DATA.
 
-\include{"cognac90.udf"}
+\\include{"cognac90.udf"}
 
 \\begin{header}
 \\begin{data}
@@ -820,8 +820,8 @@ IOType:"INOUT"
 ProjectName:"TEST"
 Comment:"FF_TYPE[GAFF]"
 Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_edit.act;cognac_lammps.act"
-\end{data}
-\end{header}
+\\end{data}
+\\end{header}
 
 \\begin{data}
 '''

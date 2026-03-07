@@ -358,7 +358,7 @@ class CPFManager:
             if len(itemlist) == 0:
                 continue
             # fragment natom section
-            if flag is True and typcount == 0:
+            if flag and typcount == 0:
                 fnatoms.append(itemlist)
                 lcount += 1
                 if lcount == nline:
@@ -369,7 +369,7 @@ class CPFManager:
                     continue
 
             # bda section
-            if flag is True and typcount == 1:
+            if flag and typcount == 1:
                 fbaas.append(itemlist)
                 lcount += 1
                 if lcount == nline:
@@ -380,7 +380,7 @@ class CPFManager:
                     continue
 
             # bda-baa atom section
-            if flag is True and typcount == 2:
+            if flag and typcount == 2:
                 count += 1
 
                 def split_integer(itemlist):

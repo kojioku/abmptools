@@ -267,7 +267,7 @@ def setupmode(aobj):
 
     # check getting momdimene frag
     aobj.is_momdimene = False
-    if args.is_momdim is True:
+    if args.is_momdim:
         aobj.is_momdimene = True
 
     return tgtfrag1, tgtfrag2

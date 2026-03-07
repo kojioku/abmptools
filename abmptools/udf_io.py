@@ -80,7 +80,7 @@ class udf_io(molc):
     def Exportpos(self, path: str, Rec: int, totalMol: int, uobj: Any, oname: str) -> None:
         # # Export position of mol
         # head, ext = os.path.splitext(str(iname))
-        if os.path.exists(path + "/pdb") is False:
+        if not os.path.exists(path + "/pdb"):
             subprocess.call(["mkdir", path + "/pdb"])
 
         out_file = path + "/pdb/" + str(oname)
@@ -119,7 +119,7 @@ class udf_io(molc):
 
     def Exporttgtmolpos(self, path: str, oname_i: str, Rec: int, mollist: list[int], uobj: Any) -> None:
 
-        if os.path.exists(path) is False:
+        if not os.path.exists(path):
             logger.info(path)
             subprocess.call(["mkdir", path])
 
@@ -214,7 +214,7 @@ class udf_io(molc):
 
     def Exportspecificpos(self, path: str, iname: str, Rec: int, mollist: list[int], uobj: Any, centermol: int) -> None:
 
-        if os.path.exists(path) is False:
+        if not os.path.exists(path):
             logger.info(path)
             subprocess.call(["mkdir", path])
 
@@ -467,7 +467,7 @@ class udf_io(molc):
         seg1_clunum(for whole mode):  number of moleclues in the system
         '''
 
-        if lammpsflag is False:
+        if not lammpsflag:
             uobj.jump(rec)
             cell = uobj.get("Structure.Unit_Cell.Cell_Size")
             logger.info("totalmol: %s rec %s", totalMol, rec)
@@ -481,7 +481,7 @@ class udf_io(molc):
                 typenameMol_orig.append(self.getAtomtypename(uobj, i))
                 elemMol_orig.append(self.getnameAtom(uobj, i))
 
-        if lammpsflag is True:
+        if lammpsflag:
             logger.info("LAMMPS mode")
             # require
             # posMol_orig
@@ -555,7 +555,7 @@ class udf_io(molc):
 
         # ---get contact_mol---
 
-        if lammpsflag is False:
+        if not lammpsflag:
             isitelist = self.getinteractionsitetable(uobj, 1)
             # print isitelist
 
@@ -655,7 +655,7 @@ class udf_io(molc):
 
         # --export pos for abinit --
         opath = path[0] + "/" + path[1] + "/pdb"
-        if self.mixflag is True or self.clusterflag is True:
+        if self.mixflag or self.clusterflag:
             # contact
             oname = rec
         else:

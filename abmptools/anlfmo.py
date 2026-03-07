@@ -135,9 +135,9 @@ class anlfmo(pdio):
                 if itemList[1] == 'system' or itemList[0] == 'Ions':
                     logger.debug('read end')
                     break
-                if flag is True:
+                if flag:
                     count += 1
-                if flag is True and count > 2:
+                if flag and count > 2:
                     if self.fragmode == 'hybrid':
                         frags.append(itemList[3] + itemList[1])
                     elif self.fragmode == 'auto':
@@ -164,9 +164,9 @@ class anlfmo(pdio):
             if itemList[1] == 'Mulliken':
                 # flag = False
                 break
-            if flag is True:
+            if flag:
                 count += 1
-            if flag is True and count > 2:
+            if flag and count > 2:
                 ifie.append(itemList)
 
         return ifie
@@ -305,7 +305,7 @@ class anlfmo(pdio):
                         readflag = False
                     if items[0:2] == ["ALL", "ATOM"]:
                         natom = int(items[3])
-                    if readflag is True:
+                    if readflag:
                         if line[0:21] == "                     ":
                             # print(line)
                             fragdata = fragdata + items
@@ -1568,9 +1568,9 @@ class anlfmo(pdio):
                     continue
                 if itemList[1:3] == ['DIMER', '<S^2>']:
                     dimflag = False
-                if dimflag is True:
+                if dimflag:
                     dimcount += 1
-                if dimflag is True and dimcount > 2:
+                if dimflag and dimcount > 2:
                     # print('DIMER Energy', itemList)
                     dimene.append(itemList)
 
@@ -1590,9 +1590,9 @@ class anlfmo(pdio):
                     pflag = True
                     # print('pieda start!!')
                     continue
-                if flag is True:
+                if flag:
                     count += 1
-                if flag is True and count > 2:
+                if flag and count > 2:
                     if self.logMethod == 'HF':
                         ifie.append(itemList[:-2])
                     else:
@@ -1605,7 +1605,7 @@ class anlfmo(pdio):
                     # flag = False
                     break
                 # for BSSE
-                if pflag is True and itemList[:5] == ['##','BSSE', 'for','non-bonding','MP2-IFIE']:
+                if pflag and itemList[:5] == ['##','BSSE', 'for','non-bonding','MP2-IFIE']:
                     pflag = False
                     # print('pieda end! next is BSSE')
                     continue
@@ -1613,15 +1613,15 @@ class anlfmo(pdio):
                     bsseflag = True
                     # print('BSSE start!')
                     continue
-                if bsseflag is True:
+                if bsseflag:
                     bssecount += 1
-                if bsseflag is True and bssecount > 2:
+                if bsseflag and bssecount > 2:
                     bsse.append(itemList)
 
                 # for pieda
-                if pflag is True:
+                if pflag:
                     pcount += 1
-                if pflag is True and pcount > 2:
+                if pflag and pcount > 2:
                     pieda.append(itemList)
 
         if not flag and not pflag and not bsseflag:
@@ -1669,9 +1669,9 @@ class anlfmo(pdio):
                 flag = False
                 pflag = True
                 continue
-            if flag is True:
+            if flag:
                 count += 1
-            if flag is True and count > 2:
+            if flag and count > 2:
                 if self.logMethod == 'HF':
                     ifie.append(itemList[:-2])
                 else:
@@ -1690,9 +1690,9 @@ class anlfmo(pdio):
                 count = 0
                 pcount = 0
                 continue
-            if pflag is True:
+            if pflag:
                 pcount += 1
-            if pflag is True and pcount > 2:
+            if pflag and pcount > 2:
                 pieda.append(itemList)
 
             if itemList[1] == 'SOLVENT-SCREENING':
@@ -1706,7 +1706,7 @@ class anlfmo(pdio):
                 sflag = False
                 break
 
-            if sflag is True and scount > 5:
+            if sflag and scount > 5:
                 solv.append([itemList[1], itemList[2], itemList[12]])
 
         if not flag and not pflag:
@@ -2389,7 +2389,7 @@ class anlfmo(pdio):
             # sys.exit()
             return self
 
-        if self.f90soflag is True:
+        if self.f90soflag:
             logger.info("use fortran library")
             ifpidfs = self.read_ifpif90(self.tgtlogs)
             self.ifdf = ifpidfs[0]
@@ -2732,7 +2732,7 @@ class anlfmo(pdio):
                                                 self.pidf, on=['I', 'J'], how='left')
                     logger.debug('%s', self.ifdf_filter)
 
-                    if self.pbflag is True:
+                    if self.pbflag:
                         pbtgtdf, pbifdf_filter = self.gettgtdf_fd(self.pbifdf)
                         self.pbifdf_filter = pd.merge(
                             pbifdf_filter, self.pbpidf, on=['I', 'J'], how='left')
@@ -2750,13 +2750,13 @@ class anlfmo(pdio):
                         ifdf_filter = self.gettgtdf_ffs(self. ifdf, tgt1, self.tgt2frag)
                         self.ifdf_filters.append(
                             pd.merge(ifdf_filter, self.pidf, on=['I','J'], how='left'))
-                        if self.pbflag is True:
+                        if self.pbflag:
                             pbifdf_filter = self.gettgtdf_ffs(
                                 self.pbifdf, tgt1, self.tgt2frag)
                             self.pbifdf_filters.append(
                                 pd.merge(pbifdf_filter, self.pbpidf, on=['I', 'J'], how='left'))
                     logger.debug('%s', self.ifdf_filters[0].head())
-                    if self.pbflag is True:
+                    if self.pbflag:
                         logger.debug('%s', self.pbifdf_filters[0].head())
 
         # mol-mol mode
@@ -2923,7 +2923,7 @@ class anlfmo(pdio):
         logger.info('## Write Section')
         path = 'csv'
         tgt2type = self.tgt2type
-        if os.path.exists('csv') is False:
+        if not os.path.exists('csv'):
             os.mkdir('csv')
 
         if self.anlmode == 'frag':
@@ -3458,7 +3458,7 @@ class anlfmo(pdio):
             ohead = head + '-' 'tgt1frag' + str(self.tgt1_lofrag) + '-mol' + \
                 str(self.tgt2molname) + 'frag' + str(self.tgt2_lofrag)
 
-            if self.addresinfo is True:
+            if self.addresinfo:
                 for i in range(1, len(self.resname_perfrag)+1):
                     val1 = i
                     val2 = self.resname_perfrag[i-1] + '(' + str(val1) + ')'

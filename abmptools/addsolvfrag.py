@@ -307,7 +307,7 @@ if __name__ == "__main__":
             aobj.mldatname = "'" + fname + "limit" + str(aobj.mllimit) + ".mldat'"
 
         opath = 'for_abmp'
-        if os.path.exists(opath) is False:
+        if not os.path.exists(opath):
             print(opath)
             subprocess.call(["mkdir", opath])
 
