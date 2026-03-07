@@ -395,13 +395,12 @@ class setfmo(pdio, ufc, rud):
         # --for one file--
         name = str(rec)
         ajf_file_name = path + "/" + name + ".ajf"
-        ajf_file = open(ajf_file_name, 'w')
-
-        self.readgeom = name + ".pdb"
-        self.writegeom = "'" + name  + '-' + \
-            self.ajf_method + '-' + self.ajf_basis_set.replace('*', 'd') + ".cpf'"
-        ajf_body = self.gen_ajf_body(ajf_parameter)
-        print(ajf_body, file=ajf_file)
+        with open(ajf_file_name, 'w') as ajf_file:
+            self.readgeom = name + ".pdb"
+            self.writegeom = "'" + name  + '-' + \
+                self.ajf_method + '-' + self.ajf_basis_set.replace('*', 'd') + ".cpf'"
+            ajf_body = self.gen_ajf_body(ajf_parameter)
+            print(ajf_body, file=ajf_file)
 
         return
 

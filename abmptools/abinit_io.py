@@ -589,19 +589,17 @@ MD='OFF'
                 ielist.append(ifiesum)
             # print energies
             out = target_dir + "/ielist_ifie" + self.mp2temp + self.solvtype + "_detail"
-            f = open(out, 'w')
-            # print ielist
-            print("HF-IFIE", "MP2-IFIE", "PB-term", "PB-polar", "PB-nonpolar", file=f)
-            for i in range(len(ielist)):
-                print(ielist[i][0], ielist[i][1], 0.0, 0.0, 0.0, file=f)
-            f.close()
+            with open(out, 'w') as f:
+                # print ielist
+                print("HF-IFIE", "MP2-IFIE", "PB-term", "PB-polar", "PB-nonpolar", file=f)
+                for i in range(len(ielist)):
+                    print(ielist[i][0], ielist[i][1], 0.0, 0.0, 0.0, file=f)
 
             out = target_dir + "/ielist_ifie" + self.mp2temp + self.solvtype
-            f = open(out, 'w')
-            # print ielist
-            for i in range(len(ielist)):
-                print(ielist[i][0] + ielist[i][1], file=f)
-            f.close()
+            with open(out, 'w') as f:
+                # print ielist
+                for i in range(len(ielist)):
+                    print(ielist[i][0] + ielist[i][1], file=f)
 
         if self.pbflag is True:
             # print("*** 1.get ifie-pb running ***")
@@ -615,22 +613,20 @@ MD='OFF'
                 ielist.append([ifiesum, pbsum])
             # print ielist
             out = target_dir + "/ielist_ifie" + self.mp2temp + self.solvtype + "_detail"
-            f = open(out, 'w')
-            # print ielist
-            print("HF-IFIE", "MP2-IFIE", "PB-term", "PB-polar", "PB-nonpolar", file=f)
-            for i in range(len(ielist)):
-                print(ielist[i][0][0], ielist[i][0][1], \
-                        ielist[i][1][0] + ielist[i][1][1], \
-                        ielist[i][1][0], ielist[i][1][1], file=f)
-            f.close()
+            with open(out, 'w') as f:
+                # print ielist
+                print("HF-IFIE", "MP2-IFIE", "PB-term", "PB-polar", "PB-nonpolar", file=f)
+                for i in range(len(ielist)):
+                    print(ielist[i][0][0], ielist[i][0][1], \
+                            ielist[i][1][0] + ielist[i][1][1], \
+                            ielist[i][1][0], ielist[i][1][1], file=f)
 
             out = target_dir + "/ielist_ifie" + self.mp2temp + self.solvtype
-            f = open(out, 'w')
-            # print ielist
-            for i in range(len(ielist)):
-                print(ielist[i][0][0] + ielist[i][0][1] + \
-                        ielist[i][1][0] + ielist[i][1][1], file=f)
-            f.close()
+            with open(out, 'w') as f:
+                # print ielist
+                for i in range(len(ielist)):
+                    print(ielist[i][0][0] + ielist[i][0][1] + \
+                            ielist[i][1][0] + ielist[i][1][1], file=f)
 
     def getifiesum(self, energy, frag):
         if len(energy) == 0:
@@ -686,9 +682,8 @@ MD='OFF'
         bsse = []
         readflag = False
         try:
-            f = open(fname, "r")
-            text = f.readlines()
-            f.close()
+            with open(fname, "r") as f:
+                text = f.readlines()
         except IOError:
             logger.error("can't open %s", fname)
             return ifie
@@ -767,9 +762,8 @@ MD='OFF'
         count2 = 0
         hit = 0
         try:
-            f = open(fname, "r")
-            text = f.readlines()
-            f.close()
+            with open(fname, "r") as f:
+                text = f.readlines()
         except (IOError, OSError):
             logger.error("can't open %s", fname)
             return [ifie, pbterm]
@@ -879,13 +873,12 @@ MD='OFF'
                     energy = self.captfmomp2e(target)
                     energies.append(energy)
                 # print energies
-                f = open(elistname, "w")
-                for i in energies:
-                    try:
-                        print(i[0], i[1], file=f)
-                    except TypeError:
-                        print(0, 0, file=f)
-                f.close()
+                with open(elistname, "w") as f:
+                    for i in energies:
+                        try:
+                            print(i[0], i[1], file=f)
+                        except TypeError:
+                            print(0, 0, file=f)
                 # print("create", elistname)
                 # self.del_out(target_dir)
 
@@ -902,14 +895,12 @@ MD='OFF'
                     energy = self.getfmopbenergy(target)
                     energies.append(energy)
                 # print energies
-                f = open(elistname, "w")
-                for i in energies:
-                    try:
-                        print(i[0], i[1], i[2], i[3], i[4], file=f)
-                    except TypeError:
-                        print(0, 0, 0, 0, 0, file=f)
-
-                f.close()
+                with open(elistname, "w") as f:
+                    for i in energies:
+                        try:
+                            print(i[0], i[1], i[2], i[3], i[4], file=f)
+                        except TypeError:
+                            print(0, 0, 0, 0, 0, file=f)
                 # print("*****create", elistname)
                 # self.del_out(target_dir)
 
@@ -934,10 +925,9 @@ MD='OFF'
             hf, mp2 = self.captfmomp2e(target)
         else:
             hf, mp2 = self.getmomp2ene(target)
-        f = open(out + "_te" + self.solvtype + ".dat", "w")
-        # print("hf:", hf, "mp2:", mp2)
-        print(hf, mp2, file=f)
-        f.close()
+        with open(out + "_te" + self.solvtype + ".dat", "w") as f:
+            # print("hf:", hf, "mp2:", mp2)
+            print(hf, mp2, file=f)
 
     def captpb_single(self, target):
         out = os.path.splitext(target)[0]
@@ -946,15 +936,13 @@ MD='OFF'
             eg, cor, dg, dges, dgnp = self.getfmopbenergy(target)
         else:
             eg, cor, dg, dges, dgnp = self.getmopbenergy(target)
-        f = open(out + "_te" + self.solvtype + ".dat", "w")
-        # print("eg:" + eg, "cor:" + cor, "dg:" + dg, "dges:" + dges, "dgnp:" + dgnp)
-        print(eg, cor, dg, dges, dgnp, file=f)
-        f.close()
+        with open(out + "_te" + self.solvtype + ".dat", "w") as f:
+            # print("eg:" + eg, "cor:" + cor, "dg:" + dg, "dges:" + dges, "dgnp:" + dgnp)
+            print(eg, cor, dg, dges, dgnp, file=f)
 
     def getmo_or_fmo(self, target):
-        f = open(target, "r")
-        text = f.readlines()
-        f.close()
+        with open(target, "r") as f:
+            text = f.readlines()
         fmoflag = False
         for i in range(len(text)):
             itemList = text[i][:-1].split()
@@ -970,9 +958,8 @@ MD='OFF'
         mp2 = 0
         hf = 0
         try:
-            f = open(target, "r")
-            text = f.readlines()
-            f.close()
+            with open(target, "r") as f:
+                text = f.readlines()
             for i in range(len(text)):
                 itemList = text[i][:-1].split()
                 if itemList == ['##', 'FMO', 'TOTAL', 'ENERGY']:
@@ -1032,9 +1019,8 @@ MD='OFF'
         mp2 = 0
         hf = 0
         try:
-            f = open(target, "r")
-            text = f.readlines()
-            f.close()
+            with open(target, "r") as f:
+                text = f.readlines()
         except (IOError, OSError):
             logger.error("can't open monomer file: %s", target)
             return [0,0]
@@ -1156,9 +1142,8 @@ MD='OFF'
 
     def getfmopbenergy(self, target):
         try:
-            f = open(target, "r")
-            text = f.readlines()
-            f.close()
+            with open(target, "r") as f:
+                text = f.readlines()
         except (IOError, OSError):
             logger.error("can't open %s", target)
             return 0, 0, 0, 0, 0
@@ -1254,9 +1239,8 @@ MD='OFF'
     def getmopbenergy(self, target):
         count = 0
         try:
-            f = open(target, "r")
-            text = f.readlines()
-            f.close()
+            with open(target, "r") as f:
+                text = f.readlines()
         except (IOError, OSError):
             logger.error("can't open %s", target)
             return 0, 0, 0, 0, 0
@@ -1295,7 +1279,8 @@ MD='OFF'
 
 
     def readajf(self, fname):
-        lines = open(fname, 'r').readlines()
+        with open(fname, 'r') as _fh:
+            lines = _fh.readlines()
 
         flag = False
         baseline = 1
@@ -1601,28 +1586,28 @@ MD='OFF'
 
 
     def getfragdict(self, fnames, ofile):
-        f = open(ofile, 'w')
+        with open(ofile, 'w') as f:
 
-        print("seg_data = [", file=f)
-        for fname in fnames:
-            head, ext = os.path.splitext(fname)
-            # fatomnums, fchgs, fbaas, fatminfos, connects, = self.readajf(fname)
-            self = self.readajf(fname)
-            print("    {", file=f)
-            print("    'name': '" + head.split('/')[-1] + "',", file=f)
-            print("    'atom': ", self.fatomnums, ',', file=f)
-            print("    'charge': ", self.fchgs, ',', file=f)
-            print("    'connect_num': ", self.fbaas, ',', file=f)
-            print("    'seg_info': ", self.fatminfos, ',', file=f)
-            print("    'connect': ", self.connects, ',', file=f)
-            end =  """    'nummol_seg': [1],
+            print("seg_data = [", file=f)
+            for fname in fnames:
+                head, ext = os.path.splitext(fname)
+                # fatomnums, fchgs, fbaas, fatminfos, connects, = self.readajf(fname)
+                self = self.readajf(fname)
+                print("    {", file=f)
+                print("    'name': '" + head.split('/')[-1] + "',", file=f)
+                print("    'atom': ", self.fatomnums, ',', file=f)
+                print("    'charge': ", self.fchgs, ',', file=f)
+                print("    'connect_num': ", self.fbaas, ',', file=f)
+                print("    'seg_info': ", self.fatminfos, ',', file=f)
+                print("    'connect': ", self.connects, ',', file=f)
+                end =  """    'nummol_seg': [1],
     'repeat': [1],
     'pair_file': [],
     'multi_xyz': 'none'
     },"""
-            print(end, file=f)
+                print(end, file=f)
 
-        print(']', file=f)
+            print(']', file=f)
 
         '''
                 seg_conf = {'name': seg_name,
@@ -1829,6 +1814,5 @@ MD='OFF'
         ajf_body = self.gen_ajf_bodywrap(ohead)
 
         logger.info("ajf_oname: %s", oname)
-        ajf_file = open(oname, 'w')
-
-        print(ajf_body, file=ajf_file)
+        with open(oname, 'w') as ajf_file:
+            print(ajf_body, file=ajf_file)

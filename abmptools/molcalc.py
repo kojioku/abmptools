@@ -122,8 +122,8 @@ class molcalc():
     def getchg(self, fname, natom, molchg):
         chg = []
     #    print fname,natom,molname
-        f = open(fname, "r")
-        text = f.readlines()
+        with open(fname, "r") as f:
+            text = f.readlines()
         for i in range(len(text)):
             itemList = text[i].split()
             if itemList == ['TWO-STAGE', 'RESP', 'FITTING:', 'SECOND', 'STAGE']:
@@ -152,8 +152,8 @@ class molcalc():
     def getmolnum(self, dirname, fname, nummol_seg, repeats):
         molnum = []
 
-        f = open(dirname + "/" + "molnum.dat", "r")
-        text = f.readlines()
+        with open(dirname + "/" + "molnum.dat", "r") as f:
+            text = f.readlines()
         for i in range(len(text)):
             itemList = text[i][:-1].split()
             if fname[0] == fname[1]:
@@ -230,18 +230,15 @@ class molcalc():
         totalAtm = sum(numlist)
         # print "totalAtom", totalAtm
 
-        f = open(out_file, "w")
-        print(totalAtm, file=f)
-        print(str(iname), file=f)
-        f.close()
+        with open(out_file, "w") as f:
+            print(totalAtm, file=f)
+            print(str(iname), file=f)
 
-        f = open(out_file, "a+")
-
-        for i in molindex:
-            for j in range(len(posMol[i])):
-                print(nameAtom[i][j], \
-                    posMol[i][j][0], posMol[i][j][1], posMol[i][j][2], file=f)
-        f.close()
+        with open(out_file, "a+") as f:
+            for i in molindex:
+                for j in range(len(posMol[i])):
+                    print(nameAtom[i][j], \
+                        posMol[i][j][0], posMol[i][j][1], posMol[i][j][2], file=f)
 
         cmd = "obabel -ixyz " + out_head + ".xyz -opdb -O " + out_head + ".pdb"
         subprocess.call(cmd.split(" "))
@@ -259,19 +256,16 @@ class molcalc():
         totalnum = 0
         for i in molindex:
             totalnum += len(pos[i])
-        f = open(out_file, "w")
-        print(totalnum, file=f)
-        print(out_file, file=f)
-        f.close()
+        with open(out_file, "w") as f:
+            print(totalnum, file=f)
+            print(out_file, file=f)
 
         # print pos
-        f = open(out_file, "a+")
-
-        for i in molindex:
-            for j in range(len(pos[i])):
-                print(atom[i][j][0:1].upper(), \
-                    pos[i][j][0], pos[i][j][1], pos[i][j][2], file=f)
-        f.close()
+        with open(out_file, "a+") as f:
+            for i in molindex:
+                for j in range(len(pos[i])):
+                    print(atom[i][j][0:1].upper(), \
+                        pos[i][j][0], pos[i][j][1], pos[i][j][2], file=f)
 
         cmd = "obabel -ixyz " + out_head + ".xyz -opdb -O " + out_head + ".pdb"
         subprocess.call(cmd.split(" "))
@@ -297,18 +291,15 @@ class molcalc():
         out_file = out_head + ".xyz"
         logger.info("%s", out_file)
 
-        f = open(out_file, "w")
-        print(len(pos), file=f)
-        print(out_file, file=f)
-        f.close()
+        with open(out_file, "w") as f:
+            print(len(pos), file=f)
+            print(out_file, file=f)
 
         # print pos
-        f = open(out_file, "a+")
-
-        for i in range(len(pos)):
-            print("H", \
-                pos[i][0], pos[i][1], pos[i][2], file=f)
-        f.close()
+        with open(out_file, "a+") as f:
+            for i in range(len(pos)):
+                print("H", \
+                    pos[i][0], pos[i][1], pos[i][2], file=f)
 
         # convert to pdb
         cmd = "obabel -ixyz " + out_head + ".xyz -opdb -O " + out_head + ".pdb"
@@ -321,16 +312,15 @@ class molcalc():
 
         out_file = path + "/" + str(oname) + ".dat"
 
-        f = open(out_file, "w")
-
-        for i in range(len(data)):
-            print(data[i], file=f)
-        f.close()
+        with open(out_file, "w") as f:
+            for i in range(len(data)):
+                print(data[i], file=f)
 
 
 
     def read_xyz(self, filename):
-        lines = [l.rstrip() for l in open(filename, "U")]
+        with open(filename, "U") as _fh:
+            lines = [l.rstrip() for l in _fh]
         atom = []
         coord = []
         for l in range(2, len(lines)):
@@ -935,29 +925,27 @@ class molcalc():
         # print atoms
         logger.debug("%s", dums)
         logger.debug("%s", natomsum)
-        f = open(head + ".xyz", "w")
-        print (natomsum, file=f)
-        print (" @@ " + head + " @@", file=f)
-        for i in range(len(pos)):
-            molid = seq[i]
-            flag = cnct_count[i]
-            flag2 = cncted_count[i]
-            logger.debug("%s %s %s", molid, flag, flag2)
-            for j in range(len(pos[i])):
-                if j == dums[molid][0] and flag != 0:
-                    # print "CONT!"
-                    continue
-                skipflag = False
-                for k in range(1, len(dums[molid])):
-                    if j == dums[molid][k] and flag2 != 0:
-                        # print "CONTi!"
-                        skipflag = True
-                if skipflag is True:
-                    continue
-                print (atoms[molid][j][1],  pos[i][j][0], \
-                    pos[i][j][1], pos[i][j][2], file=f)
-
-        f.close()
+        with open(head + ".xyz", "w") as f:
+            print (natomsum, file=f)
+            print (" @@ " + head + " @@", file=f)
+            for i in range(len(pos)):
+                molid = seq[i]
+                flag = cnct_count[i]
+                flag2 = cncted_count[i]
+                logger.debug("%s %s %s", molid, flag, flag2)
+                for j in range(len(pos[i])):
+                    if j == dums[molid][0] and flag != 0:
+                        # print "CONT!"
+                        continue
+                    skipflag = False
+                    for k in range(1, len(dums[molid])):
+                        if j == dums[molid][k] and flag2 != 0:
+                            # print "CONTi!"
+                            skipflag = True
+                    if skipflag is True:
+                        continue
+                    print (atoms[molid][j][1],  pos[i][j][0], \
+                        pos[i][j][1], pos[i][j][2], file=f)
 
     def getcrossprod(self, p1, p2, p3):
         v1 = p1 - p2
