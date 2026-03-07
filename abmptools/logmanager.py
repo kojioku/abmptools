@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import sys
 import os
 import gzip
 import logging
+from typing import TextIO
 
 logger = logging.getLogger(__name__)
 try:
@@ -11,7 +14,7 @@ except ImportError:
 
 
 class LOGManager():
-    def __init__(self):
+    def __init__(self) -> None:
         self.cpfver = 23
         self.atominfo = {}
         self.fraginfo = []
@@ -35,7 +38,7 @@ class LOGManager():
                            "SOLV-ES", "SOLV-NP", "EX", "CT", "DQ"]
         '''
 
-    def parse(self, filepath):
+    def parse(self, filepath: str) -> None:
         # Initialize the data structures
         # natom = 0
         # nfrag = 0
@@ -359,7 +362,7 @@ class LOGManager():
         return
 
     @staticmethod
-    def gettotalenergy(file, Method):
+    def gettotalenergy(file: TextIO, Method: str) -> tuple[str, str]:
         flag = False
         eneflag = False
         count = 0
@@ -408,7 +411,7 @@ class LOGManager():
         '''
 
     @staticmethod
-    def getmominfo(file, nmom, Method):
+    def getmominfo(file: TextIO, nmom: int, Method: str) -> list[float] | tuple[list[float], list[float]]:
         flag = False
         eneflag = False
         count = 0
@@ -456,7 +459,7 @@ class LOGManager():
         '''
 
     @staticmethod
-    def getdipoleinfo(file, nmom):
+    def getdipoleinfo(file: TextIO, nmom: int) -> tuple[list[float], list[float], list[float]]:
         flag = False
         eneflag = False
         count = 0
@@ -492,7 +495,7 @@ class LOGManager():
         return hf_x, hf_y, hf_z
 
     @staticmethod
-    def readelemslog(file):
+    def readelemslog(file: TextIO) -> list[str]:
         flag = False
         elems = []
         logger.info('--- get eleminfo from log ---')
@@ -513,7 +516,7 @@ class LOGManager():
         return elems
 
     @staticmethod
-    def getversion(file):
+    def getversion(file: TextIO) -> int:
         count = 0
         while True:
             Items = file.readline().strip().split()
@@ -533,7 +536,7 @@ class LOGManager():
         return version
 
     @staticmethod
-    def getcondition(file):
+    def getcondition(file: TextIO) -> tuple[str, str, str, float, float, float, str, str, bool, bool, int]:
         is_npa = False
         is_resp = False
         while True:
@@ -601,7 +604,7 @@ class LOGManager():
             ReadGeom, fragmode, is_npa, is_resp, Nprint
 
     @staticmethod
-    def readifiepieda(file, Method):
+    def readifiepieda(file: TextIO, Method: str) -> tuple[list[int], list[int], list[float], list[float], list[float], list[float], list[float], list[int], list[int], list[float], list[float], list[float], list[float], list[float]] | tuple[list[int], list[int], list[float], list[float], list[int], list[int], list[float], list[float], list[float], list[float], list[float]]:
         ''' read ifie and pieda data from file
 
         read ifie and pieda data from file
@@ -697,7 +700,7 @@ class LOGManager():
             # if bsseflag and bssecount > 2:
             #     bsse.append(Items)
     @staticmethod
-    def getfragchgs(file, version):
+    def getfragchgs(file: TextIO, version: int) -> list[int]:
 
         ''' V1DD
               ## AUTOMATIC FRAGMENTATION
@@ -909,7 +912,7 @@ class LOGManager():
         return sorted_fchgs
 
     @staticmethod
-    def getfraginfo(file, fragmode):
+    def getfraginfo(file: TextIO, fragmode: str) -> tuple[int, list[int], list[int], list[list[int]], list[list[int]], int]:
         # print('fragmode', fragmode)
         '''
         fraginfo = {
@@ -1028,7 +1031,7 @@ class LOGManager():
         return nf, fnatoms, fbaas, fconnects, fragdatas, natom
 
     @staticmethod
-    def readpdb(fname):
+    def readpdb(fname: str) -> tuple[list[str], list[str], list[str], list[str], list[str], list[str], list[str], list[str], list[float], list[float], list[float], list[str], list[str], list[str], list[str], int]:
 
         logger.info('--- get pdbinfo ---')
         logger.info('infile: %s', fname)
@@ -1137,7 +1140,7 @@ class LOGManager():
             resnums, codes, xcoords, ycoords, zcoords, occs, temps, amarks, charges, totalatom
 
     @staticmethod
-    def getnr(file):
+    def getnr(file: TextIO) -> float:
         '''
 
         ## FRAGMENT NUCLEAR REPULSION
@@ -1157,7 +1160,7 @@ class LOGManager():
                 return NR
 
     @staticmethod
-    def getlogresp(file, natom):
+    def getlogresp(file: TextIO, natom: int) -> tuple[list[int], list[str], list[int], list[int], list[float]]:
         alabs = []
         elems = []
         chgs = []
@@ -1215,7 +1218,7 @@ class LOGManager():
         '''
 
     @staticmethod
-    def getlogmul(file, natom):
+    def getlogmul(file: TextIO, natom: int) -> tuple[list[int], list[str], list[float], list[float]]:
         logger.info('get mulliken charge from log')
         alabs = []
         elems = []
@@ -1260,7 +1263,7 @@ class LOGManager():
         '''
 
     @staticmethod
-    def getlognpa(file, natom):
+    def getlognpa(file: TextIO, natom: int) -> tuple[list[int], list[str], list[int], list[int], list[float], list[float]]:
         logger.info('get npa charges from log')
         alabs = []
         elems = []

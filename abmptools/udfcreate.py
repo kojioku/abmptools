@@ -1,3 +1,4 @@
+from __future__ import annotations
 # -*- coding: utf-8 -*-
 import ast
 import os
@@ -17,7 +18,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class udfcreate():
-    def __init__(self):
+    def __init__(self) -> None:
         self.algo = ['NPT_Andersen_Kremer_Grest']
         self.cellsize = [30, 30, 30]
         self.totalstep = 20000
@@ -49,7 +50,7 @@ class udfcreate():
         # self.algo=""
         # self.poslist=""
 
-    def setudfparam(self, param_udf):
+    def setudfparam(self, param_udf: dict) -> None:
         # -- read for paramdata --
         self.algo = param_udf['algo']
         self.nvtalgo = param_udf.get('nvtalgo', ['NVT_Nose_Hoover'])
@@ -70,7 +71,7 @@ class udfcreate():
 
 
 
-    def getconnectdata(self, fname):
+    def getconnectdata(self, fname: str) -> list[list]:
         data = []
         # atomdata = []
         with open(fname, 'r') as _fh:
@@ -88,7 +89,7 @@ class udfcreate():
         # print "connect data", data
         return data
 
-    def getbatdata(self, data):
+    def getbatdata(self, data: list) -> tuple[list, list, list]:
         # get bond info
         # print "connectdata",data
         bond = []
@@ -131,7 +132,7 @@ class udfcreate():
         # print ("torsionmap",torsion)
         return bond, angle, torsion
 
-    def getffname(self, atom, xyzfile, fffile):
+    def getffname(self, atom: list, xyzfile: str, fffile: str) -> list:
         # xyzfile="monomer/pdb/" + molname + ".xyz"
         # fffile="monomer/" + molname + ".ff"
 
@@ -174,7 +175,7 @@ class udfcreate():
 #                 break
 #         return ffname
 
-    def getbatff(self, ffname,bond):
+    def getbatff(self, ffname: list, bond: list) -> list:
         fff=[]
         #print "bond",bond
         #print "ffname",ffname
@@ -189,7 +190,7 @@ class udfcreate():
         #print "fff",fff
         return fff
 
-    def getfflist(self, infile):
+    def getfflist(self, infile: str) -> list:
         data=[]
         with open(infile, 'r') as _fh:
             for line in _fh:
@@ -198,7 +199,7 @@ class udfcreate():
         return data
 
 
-    def gettorsionfflist(self, infile):
+    def gettorsionfflist(self, infile: str) -> list:
         data=[]
         data1=[]
         data2=[]
@@ -231,7 +232,7 @@ class udfcreate():
         return data
 
 
-    def getffid(self, batff,atom_list):
+    def getffid(self, batff: list, atom_list: list) -> list:
         fff=[]
         for i in range(len(batff)):
             dbuf=[]
@@ -271,7 +272,7 @@ class udfcreate():
 #     #    print atom_list
 #         return data
 
-    def getljparam(self, ffname, atom_list):
+    def getljparam(self, ffname: list, atom_list: list) -> list:
         # 1. atom_listについて、キー（atom[0]）毎に最後の要素を記録
         last_atom = {atom[0]: atom for atom in atom_list}
 
@@ -291,7 +292,7 @@ class udfcreate():
         return [last_atom[key] for key in unique_keys]
 
 
-    def getbondffparam(self, bondffid,ff_list,bond,bondff):
+    def getbondffparam(self, bondffid: list, ff_list: list, bond: list, bondff: list) -> tuple[list, list, list, list]:
     #    print bondffid
         iddata=[]
         fff=[]
@@ -325,7 +326,7 @@ class udfcreate():
         return iddata,bondffid,bond,bondff
 
 
-    def getangleffparam(self, angleffid,ff_list,angle,angleff):
+    def getangleffparam(self, angleffid: list, ff_list: list, angle: list, angleff: list) -> tuple[list, list, list, list]:
         iddata=[]
         fff=[]
         for i in range(len(angleffid)):
@@ -359,7 +360,7 @@ class udfcreate():
         return iddata,angleffid,angle,angleff
 
 
-    def gettorsionffparam(self, torsionffid,ff_list,torsion,torsionff):
+    def gettorsionffparam(self, torsionffid: list, ff_list: list, torsion: list, torsionff: list) -> tuple[list, list, list, list]:
         iddata=[]
         fff=[]
         # print ff_list[1]
@@ -454,14 +455,14 @@ class udfcreate():
         return iddata,torsionffid,torsion,torsionff
 
 
-    def inversetorsion(self, aaa,bbb,ccc):
+    def inversetorsion(self, aaa: list, bbb: list, ccc: list) -> tuple[list, list, list]:
         aaa[0],aaa[1],aaa[2],aaa[3] = aaa[3],aaa[2],aaa[1],aaa[0]
         bbb[0],bbb[1],bbb[2],bbb[3] = bbb[3],bbb[2],bbb[1],bbb[0]
         ccc[0],ccc[1],ccc[2],ccc[3] = ccc[3],ccc[2],ccc[1],ccc[0]
         return aaa,bbb,ccc
 
 
-    def putatomparam(self, paramfile):
+    def putatomparam(self, paramfile: list) -> str:
         atomtable ="    ["
         for i in paramfile:
             atomtable += '{"' + i[0] + '",' + str(i[1]) + "}"
@@ -470,7 +471,7 @@ class udfcreate():
         return atomtable
 
 
-    def putljparam(self, paramfile):
+    def putljparam(self, paramfile: list) -> str:
         ljtable="    [\n"
         for i in range(len(paramfile)):
             for j in range(i,len(paramfile)):
@@ -507,7 +508,7 @@ class udfcreate():
     #        }
 
 
-    def putbondparam(self, paramfile, atom_list):
+    def putbondparam(self, paramfile: list, atom_list: list) -> str:
     #    print "paramfile",paramfile
     #    print "atomlist",atom_list
         mol=[0,0]
@@ -534,7 +535,7 @@ class udfcreate():
     #    ]
 
 
-    def putangleparam(self, paramfile, atom_list):
+    def putangleparam(self, paramfile: list, atom_list: list) -> str:
         #print paramfile
         #print atom_list
         mol=[0,0,0]
@@ -560,7 +561,7 @@ class udfcreate():
     #    ]
 
 
-    def puttorsionparam(self, paramfile, atom_list):
+    def puttorsionparam(self, paramfile: list, atom_list: list) -> str:
         #print paimport numpy as npramfile
         #print atom_list
         mol=[0,0,0,0]
@@ -592,7 +593,7 @@ class udfcreate():
     #    ]
 
 
-    def putinteractions(self, ljparam):
+    def putinteractions(self, ljparam: list) -> str:
 
         ljtable=self.putljparam(ljparam)
         interactions='Interactions:{\n' + str(ljtable) +'''
@@ -609,7 +610,7 @@ class udfcreate():
         #print interactions
         return interactions
 
-    def putinteractionsitetype(self, paramfile):
+    def putinteractionsitetype(self, paramfile: list) -> str:
         #print paramfile
         isitetable="    ["
         for i in paramfile:
@@ -621,7 +622,7 @@ class udfcreate():
     #    [{"c3",1,4.41957044601440}{"ha",1,3.37953519821167}{"hc",1,3.44439268112183}{"ca",1,4.41957044601440}]
 
 
-    def putatom(self, atom, ffname, molname, tnum):
+    def putatom(self, atom: list, ffname: list, molname: str, tnum: int) -> tuple[int, str]:
         atomtable=""
         atomtable+="            [\n"
         for i in range(len(atom)):
@@ -636,7 +637,7 @@ class udfcreate():
     #                {3,  "C",  "c3",  0,  1,  [{"1","Polyethylene:0"}]}
     #            ]
 
-    def putbond(self, bondff, bond):
+    def putbond(self, bondff: list, bond: list) -> str:
     #    print bondff
     #    print bond
         bondtable="            [\n"
@@ -652,7 +653,7 @@ class udfcreate():
     #            ]
 
 
-    def putangle(self, angleff, angle):
+    def putangle(self, angleff: list, angle: list) -> str:
         angletable="            [\n"
         for i in range(len(angleff)):
             angletable+='                {"' + angleff[i][0] + "-" + angleff[i][1] + "-" + angleff[i][2]+ '",' + str(angle[i][0]) + ',' + str(angle[i][1]) + ',' + str(angle[i][2]) + '}\n'
@@ -666,7 +667,7 @@ class udfcreate():
     #                {"hc-c3-hc",1,0,6}
     #            ]
 
-    def puttorsion(self, torsionff, torsion):
+    def puttorsion(self, torsionff: list, torsion: list) -> str:
         torsiontable="            [\n"
         for i in range(len(torsionff)):
             torsiontable+='                {"' + torsionff[i][0] + "-" + torsionff[i][1] + "-" + torsionff[i][2] + "-" + torsionff[i][3] + '",' + str(torsion[i][0]) + ',' + str(torsion[i][1]) + ',' + str(torsion[i][2]) + ',' + str(torsion[i][3]) + '}\n'
@@ -679,7 +680,7 @@ class udfcreate():
     #                {"hc-c3-c3-hc",1,0,3,7}
     #            ]
 
-    def putinteractionsite(self, ffname):
+    def putinteractionsite(self, ffname: list) -> str:
         #print paramfile
         isitetable= "            [\n"
         for i in range(len(ffname)):
@@ -693,7 +694,7 @@ class udfcreate():
     #                {"hc", [2]}
     #            ]
 
-    def putpointcharge(self, chg):
+    def putpointcharge(self, chg: list) -> str:
         #f =open(chgfile, "r")
         #text = f.readlines()
         chgtable= "            [\n"
@@ -709,7 +710,7 @@ class udfcreate():
     #                {"POINT_CHARGE",  [2]  0.14860960643300}
     #            ]
 
-    def putmolecularattributes(self, ljparam, bondparam, angleparam, torsionparam, atom_list):
+    def putmolecularattributes(self, ljparam: list, bondparam: list, angleparam: list, torsionparam: list, atom_list: list) -> str:
         atomtable=self.putatomparam(ljparam)
         bondtable=self.putbondparam(bondparam,atom_list)
         angletable=self.putangleparam(angleparam,atom_list)
@@ -720,7 +721,7 @@ class udfcreate():
         #print molattr
         return molattr
 
-    def putsetofmolecules(self, poslist, param):
+    def putsetofmolecules(self, poslist: list, param: list) -> str:
         fname=param[0]
         atom=param[1]
         ffname=param[2]
@@ -772,7 +773,7 @@ class udfcreate():
     #        {
     #            "molA",
 
-    def putpos(self, pos):
+    def putpos(self, pos: list) -> str:
         #print pos
         #print len(pos)
         #print len(pos[0])
@@ -786,7 +787,7 @@ class udfcreate():
             postable+='            }\n'
         return postable
 
-    def putstructure(self, poslist,cell):
+    def putstructure(self, poslist: list, cell: list) -> str:
         postable=[]
         structure='Structure:{\n'
         structure+='    {\n'
@@ -804,7 +805,7 @@ class udfcreate():
         #print structure
         return structure
 
-    def putheader(self):
+    def putheader(self) -> str:
         header=\
         '''COGNAC INPUT UDF DATA.
 
@@ -826,7 +827,7 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
 
         return header
 
-    def putsimulationcondition(self, totalstep, outstep, totalmass, algo):
+    def putsimulationcondition(self, totalstep: int, outstep: int, totalmass: float, algo: list) -> str:
         simucondition=\
             '''Simulation_Conditions:{
     {
@@ -874,7 +875,7 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
 '''
         return simucondition
 
-    def putinitialstructure(self, cell):
+    def putinitialstructure(self, cell: list) -> str:
         initialstructure=\
         '''Initial_Structure:{
     {0.0,{'''+ str(cell[0]) + ',' + str(cell[1]) + ',' + str(cell[2]) + ''',90.0000000000000,90.0000000000000,90.0000000000000}0.0}
@@ -915,7 +916,7 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
 #         return iddata
 
 
-    def getbondparampair(self, data):
+    def getbondparampair(self, data: list) -> list:
         # data をフラットなリストに変換
         fff = [item for sub in data for item in sub]
 
@@ -957,7 +958,7 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
 #    #    print "angleparampair",iddata
 #        return iddata
 
-    def getangleparampair(self, data):
+    def getangleparampair(self, data: list) -> list:
         # data をフラットなリストに変換
         fff = [item for sub in data for item in sub]
 
@@ -1001,7 +1002,7 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
     #    return iddata
 
 
-    def gettorsionparampair(self, data):
+    def gettorsionparampair(self, data: list) -> list:
         # data をフラットなリストに変換
         fff = [item for sub in data for item in sub]
 
@@ -1024,7 +1025,7 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
         return iddata
 
 
-    def gen_udf(self, udf_param, out_name, som_param):
+    def gen_udf(self, udf_param: list, out_name: str, som_param: list) -> None:
         cellsize = udf_param[0]
         ljparam = udf_param[1]
         bondparam = udf_param[2]
@@ -1052,7 +1053,7 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
             print(udf_body, file=out_file)
 
 
-    def putclusterpos(self, uobj, poslist, molnum):
+    def putclusterpos(self, uobj: object, poslist: list, molnum: int) -> None:
         #molnum= uobj.size('Set_of_Molecules.molecule[]')
         count = 0
         #print poslist
@@ -1065,7 +1066,7 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
                 uobj.put(float(poslist[count][2]) + 3.0, 'Structure.Position.mol[' + str(i) + '].atom[' + str(j) + '].z')
                 count +=1
 
-    def clusterfix(self, uobj,atomlen,nummol_seg,fix_label):
+    def clusterfix(self, uobj: object, atomlen: int, nummol_seg: int, fix_label: list) -> None:
 
         ca_id = uobj.size("Simulation_Conditions.Constraint_Conditions.Constraint_Atom[]")
         for i in range (nummol_seg):

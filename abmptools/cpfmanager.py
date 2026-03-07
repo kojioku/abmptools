@@ -1,15 +1,21 @@
+from __future__ import annotations
+
 import math
 import copy
 import os
 import gzip
 import sys
 import logging
+from typing import TYPE_CHECKING, Any, Callable, TextIO
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 
 class CPFManager:
-    def __init__(self):
+    def __init__(self) -> None:
         self.cpfver = 23
         self.atominfo = {}
         self.fraginfo = []
@@ -23,7 +29,7 @@ class CPFManager:
         self.is_difie = False
         return
 
-    def parse(self, filepath):
+    def parse(self, filepath: str) -> CPFManager:
         # Initialize the data structures
         natom = 0
         nfrag = 0
@@ -72,7 +78,7 @@ class CPFManager:
 
         return self
 
-    def write(self, header, filename, cpfver=23):
+    def write(self, header: str, filename: str, cpfver: int = 23) -> None:
         '''Write the CPF file.
 
         Args:
@@ -112,7 +118,7 @@ class CPFManager:
 
         return None
 
-    def info(self):
+    def info(self) -> None:
         import pprint
 
         pprint.pprint(dir(self))
@@ -121,7 +127,7 @@ class CPFManager:
         return
 
     @staticmethod
-    def read_header(file):
+    def read_header(file: TextIO) -> tuple[str, int, int, dict[str, list[str]], float]:
         header = file.readline().strip()
         ''' \
         CPF Open1.0 rev23
@@ -193,7 +199,7 @@ class CPFManager:
         return header, natom, nfrag, labels, cpfver
 
     @staticmethod
-    def read_atominfo(file, labels, natom, cpfver, tgtfrag):
+    def read_atominfo(file: TextIO, labels: dict[str, list[str]], natom: int, cpfver: float, tgtfrag: int | list[int]) -> dict[str, list]:
 
         atominfo = {
             'alabels': [],  # 原子の番号(i10)
@@ -275,7 +281,7 @@ class CPFManager:
         '''
 
     @staticmethod
-    def read_fraginfo(file, nfrag, atominfo, cpfver, tgtfrag):
+    def read_fraginfo(file: TextIO, nfrag: int, atominfo: dict[str, list], cpfver: float, tgtfrag: int | list[int]) -> dict[str, list]:
         '''
         16      30      30      30      54
          0       1       1       1       1
@@ -311,7 +317,7 @@ class CPFManager:
         return fraginfo
 
     @staticmethod
-    def readfragcpf(file, nf, tgtfrag=0, alabels=None, cpfver=23):
+    def readfragcpf(file: TextIO, nf: int, tgtfrag: int | list[int] = 0, alabels: list[int] | None = None, cpfver: float = 23) -> tuple[list[int], list[int], list[list[int]]]:
         '''Read the fragment data from the CPF file.
 
         Args:
@@ -416,7 +422,7 @@ class CPFManager:
         return fnatoms, fbaas, fconnects
 
     @staticmethod
-    def read_dimdist(file, nfrag, tgtfrag):
+    def read_dimdist(file: TextIO, nfrag: int, tgtfrag: int | list[int]) -> tuple[dict[str, list], list[int]]:
         '''
             2           1  0.000000000000000E+000
             3           1   6.43498504089706
@@ -456,7 +462,7 @@ class CPFManager:
         return diminfo, dimaccept
 
     @staticmethod
-    def read_dipole(file, labels, nfrag, tgtfrag):
+    def read_dipole(file: TextIO, labels: dict[str, list[str]], nfrag: int, tgtfrag: int | list[int]) -> dict[str, list]:
         # read the dipole data
 
         logger.debug('dipole moment section')
@@ -493,7 +499,7 @@ class CPFManager:
         '''
 
     @staticmethod
-    def read_condition(file):
+    def read_condition(file: TextIO) -> dict[str, str | float]:
         '''
         STO-3G
         S1
@@ -528,7 +534,7 @@ class CPFManager:
         return condition
 
     @staticmethod
-    def read_static(file, natom, nfrag, atominfo, tgtfrag):
+    def read_static(file: TextIO, natom: int, nfrag: int, atominfo: dict[str, list], tgtfrag: int | list[int]) -> dict[str, float | int]:
         static_data = {}
         static_data['nuclear_repulsion_energy'] = float(file.readline().strip())
         static_data['total_electronic_energy'] = float(file.readline().strip())
@@ -543,7 +549,7 @@ class CPFManager:
         return static_data
 
     @staticmethod
-    def read_monomer(file, mominfo, labels, natom, tgtfrag, cpfver, nfrag):
+    def read_monomer(file: TextIO, mominfo: dict[str, list], labels: dict[str, list[str]], natom: int, tgtfrag: int | list[int], cpfver: float, nfrag: int) -> dict[str, list]:
         '''
          5
          1   0.321733218676314E+02  -0.111217900611777E+03
@@ -593,8 +599,8 @@ class CPFManager:
         return mominfo
 
     @staticmethod
-    def read_dimer(file, diminfo, labels, nfrag,
-                   cpfver, dimaccept, static_data, tgtfrag):
+    def read_dimer(file: TextIO, diminfo: dict[str, list], labels: dict[str, list[str]], nfrag: int,
+                   cpfver: float, dimaccept: list[int], static_data: dict[str, Any], tgtfrag: int | list[int]) -> tuple[dict[str, list], dict[str, Any]]:
 
         logger.debug('dimer section')
         # Initialize the data structures
@@ -672,7 +678,7 @@ class CPFManager:
         '''
 
     @staticmethod
-    def set_header(header, cpfver, static_data, labels):
+    def set_header(header: str, cpfver: int, static_data: dict[str, Any], labels: dict[str, list[str]]) -> str:
         if cpfver == 23:
             header = 'CPF Open1.0 rev23 ' + header
         if cpfver == 10:
@@ -691,7 +697,7 @@ class CPFManager:
         return header
 
     @staticmethod
-    def set_atom(labels, atominfo):
+    def set_atom(labels: dict[str, list[str]], atominfo: pd.DataFrame) -> str:
         # setup format dict
         formats = {
             'alabels': "{:>10}",  # 原子の番号(i10)
@@ -722,7 +728,7 @@ class CPFManager:
         return atomstr
 
     @staticmethod
-    def set_static(static_data):
+    def set_static(static_data: dict[str, Any]) -> str:
         # static section
         staticstr = ''
         staticstr += str(static_data['nuclear_repulsion_energy']) + '\n'
@@ -741,7 +747,7 @@ class CPFManager:
         return staticstr
 
     @staticmethod
-    def set_condition(condition):
+    def set_condition(condition: dict[str, str | float]) -> str:
         # condition
         conditionstr = ''
         conditionstr += "{:<20}".format(condition['basis_set']) + '\n'
@@ -765,7 +771,7 @@ class CPFManager:
         return conditionstr
 
     @staticmethod
-    def set_mom(labels, mominfo, static_data):
+    def set_mom(labels: dict[str, list[str]], mominfo: pd.DataFrame, static_data: dict[str, Any]) -> tuple[str, str]:
         formats = {
             'fragi': "{:>10}",  # フラグメント番号(i10)
         }
@@ -816,7 +822,7 @@ class CPFManager:
         '''
 
     @staticmethod
-    def set_dimer(diminfo, labels, static_data, is_difie):
+    def set_dimer(diminfo: pd.DataFrame, labels: dict[str, list[str]], static_data: dict[str, Any], is_difie: bool) -> tuple[str, str]:
         formats = {
             'fragi': "{:>10}",  # フラグメント番号(i10)
             'fragj': "{:>10}",  # フラグメント番号(i10)
@@ -903,7 +909,7 @@ class CPFManager:
     '''
 
     @staticmethod
-    def setupfragstr(fraginfo):
+    def setupfragstr(fraginfo: dict[str, list]) -> str:
         fragstr = ''
         count = 0
         for fnatom in fraginfo['natoms']:
@@ -940,7 +946,7 @@ class CPFManager:
         '''
 
     @staticmethod
-    def flatten(nested_list):
+    def flatten(nested_list: list[list[str]]) -> list[int]:
         '''2重のリストをフラットにする関数
 
         Args:
@@ -953,7 +959,7 @@ class CPFManager:
         return [int(e) for inner_list in nested_list for e in inner_list]
 
     @staticmethod
-    def functor(f, lname):
+    def functor(f: Callable, lname: Any) -> Any:
         '''リストの中身を関数で変換する関数
 
         Args:
@@ -974,7 +980,7 @@ class CPFManager:
     #     return [int(e) for inner_list in nested_list for e in inner_list]
 
     @staticmethod
-    def selectfrag(item1):
+    def selectfrag(item1: str | int) -> list[int] | int:
         if type(item1) == str:
             if '-' in item1:
                 tgt = item1.split('-')

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 import os
 import math
@@ -5,6 +7,8 @@ import subprocess
 import re
 import logging
 from multiprocessing import Pool
+from typing import Any
+
 from .udf_io import udf_io as uio
 
 logger = logging.getLogger(__name__)
@@ -19,12 +23,12 @@ except ImportError:
 
 
 class udfrm_io(uio):
-    def __init__(self):
-        self.molflag = False
-        self.cell = None
+    def __init__(self) -> None:
+        self.molflag: bool = False
+        self.cell: list[float] | None = None
         pass
 
-    def run_convert(self, args):
+    def run_convert(self, args: tuple[str, int, int, bool]) -> None:
         fname, tgtrec, tgtmol, moveflag = args
         _udf_ = UDFManager(fname)
 
@@ -50,7 +54,7 @@ class udfrm_io(uio):
         else:
             self.convert_udf_pdb(tgtrec, _udf_, totalMol, oname)
 
-    def convert_udf_pdb(self, rec, uobj, totalMol, ohead, writef=True):
+    def convert_udf_pdb(self, rec: int, uobj: Any, totalMol: int, ohead: str, writef: bool = True) -> list[list[Any]]:
         uobj.jump(rec)
         self.cell = uobj.get("Structure.Unit_Cell.Cell_Size")
         logger.debug("totalMol=%s, rec=%s", totalMol, rec)
@@ -94,7 +98,7 @@ class udfrm_io(uio):
         return [typenameMol, posMol, molnamelist]
 
 
-    def moveintocell_rec(self, uobj, Rec, totalMol):
+    def moveintocell_rec(self, uobj: Any, Rec: int, totalMol: int) -> None:
         # # Move into cell
         uobj.jump(Rec)
         cell = uobj.get("Structure.Unit_Cell.Cell_Size")
@@ -118,7 +122,7 @@ class udfrm_io(uio):
         logger.info("move_done.")
 
 
-    def getmolname(self, i, uobj):
+    def getmolname(self, i: int, uobj: Any) -> str:
         # --get used mol infomation--
         molname = uobj.get("Set_of_Molecules.molecule[" +
                            str(i) + "].Mol_Name")

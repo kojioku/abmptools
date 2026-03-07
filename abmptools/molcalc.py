@@ -1,3 +1,4 @@
+from __future__ import annotations
 # -*- coding: utf-8 -*-
 import os
 import sys
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class molcalc():
 
-    def getoriginpos(self, pos,cell):
+    def getoriginpos(self, pos: list[list[float]], cell: list[float]) -> list[list[float]]:
         x = y = z = 0
         for i in range(len(pos)):
             x = x + float(pos[i][0])
@@ -37,15 +38,15 @@ class molcalc():
         #print pos
         return pos
 
-    def getdist(self, p1, p2):
+    def getdist(self, p1: np.ndarray, p2: np.ndarray) -> float:
         dist = math.sqrt(sum((p1 - p2)**2))
         return dist
 
-    def getdist_list(self, p1, p2):
+    def getdist_list(self, p1: list[float], p2: list[float]) -> float:
         dist = np.linalg.norm(np.array(p1) - np.array(p2))
         return dist
 
-    def getpos(self, pos, molnum, cell):
+    def getpos(self, pos: list[list[list[float]]], molnum: list[int], cell: list[float]) -> list[list[list[list[float]]]]:
         # vol = getvolume(pos)
         # vol = vol * 1.2
         poslist = [[], []]
@@ -92,14 +93,14 @@ class molcalc():
         # print poslist
         return poslist
 
-    def gettranspos(self, pos, vec):
+    def gettranspos(self, pos: list[list[float]], vec: list[float]) -> list[list[float]]:
             data=[]
             for i in range(len(pos)):
                  aaa=[pos[i][0] + vec[0] , pos[i][1] + vec[1] , pos[i][2] + vec[2] ]
                  data.append(aaa)
             return data
 
-    def getmolradius(self, pos):
+    def getmolradius(self, pos: list[list[float]]) -> float:
         aaa = 0
         data = []
         for i in range(len(pos)):
@@ -109,7 +110,7 @@ class molcalc():
         # print max(data)
         return max(data)
 
-    def getvolume(self, pos):
+    def getvolume(self, pos: list[list[float]]) -> float:
         aaa = 0
         data = []
         for i in range(len(pos)):
@@ -119,7 +120,7 @@ class molcalc():
         # print max(data)
         return max(data)
 
-    def getchg(self, fname, natom, molchg):
+    def getchg(self, fname: str, natom: int, molchg: float) -> list[float]:
         chg = []
     #    print fname,natom,molname
         with open(fname, "r") as f:
@@ -149,7 +150,7 @@ class molcalc():
             # print ("modchg:",sum(chg))
         return chg
 
-    def getmolnum(self, dirname, fname, nummol_seg, repeats):
+    def getmolnum(self, dirname: str, fname: list[str], nummol_seg: list[int], repeats: list[float]) -> list[int]:
         molnum = []
 
         with open(dirname + "/" + "molnum.dat", "r") as f:
@@ -168,7 +169,7 @@ class molcalc():
             logger.info("molnum; %s", molnum)
         return molnum
 
-    def getmolmass(self, ffname, atom_list):
+    def getmolmass(self, ffname: list[list[str]], atom_list: list[list[float]]) -> list[float]:
         data = []
         for i in range(len(ffname)):
             for j in range(len(atom_list)):
@@ -177,7 +178,7 @@ class molcalc():
         # print(data)
         return data
 
-    def gettotalmass(self, mass, molnum):
+    def gettotalmass(self, mass: list[list[float]], molnum: list[int]) -> float:
         data = 0
         logger.info("molnum %s", molnum)
         for i in range(len(mass)):
@@ -185,7 +186,7 @@ class molcalc():
         # print "mass=",data
         return data
 
-    def calccellsize(self, totalmass, density):
+    def calccellsize(self, totalmass: float, density: float) -> float:
         '''
         Args:
             totalmass: total mass [amu(g/mol)]
@@ -209,7 +210,7 @@ class molcalc():
 
         return cellsize_in_angstrom
 
-    def Exportardpos(self, path, iname, molindex, posMol, nameAtom):
+    def Exportardpos(self, path: str, iname: str, molindex: list[int], posMol: list[list[list[float]]], nameAtom: list[list[str]]) -> None:
         # export molindex mol data from whole posMol
 
         if os.path.exists(path) is False:
@@ -243,7 +244,7 @@ class molcalc():
         cmd = "obabel -ixyz " + out_head + ".xyz -opdb -O " + out_head + ".pdb"
         subprocess.call(cmd.split(" "))
 
-    def exportplus1pos(self, path, pos, name, atom, molindex):
+    def exportplus1pos(self, path: str, pos: list[list[list[float]]], name: str, atom: list[list[str]], molindex: list[int]) -> None:
         # # Export position of mol
         # head, ext = os.path.splitext(str(iname))
         if os.path.exists(path + "/pdb") is False:
@@ -270,7 +271,7 @@ class molcalc():
         cmd = "obabel -ixyz " + out_head + ".xyz -opdb -O " + out_head + ".pdb"
         subprocess.call(cmd.split(" "))
 
-    def getatomisite(self, isitelist, typenameMol):
+    def getatomisite(self, isitelist: list[list], typenameMol: list[str]) -> list:
         # get the position of a molecule
         isitemol = []
         # print "isitelist",isitelist
@@ -284,7 +285,7 @@ class molcalc():
         # print "isitemol",isitemol
         return isitemol
 
-    def exportxyz(self, path, pos, num):
+    def exportxyz(self, path: str, pos: list[list[float]], num: int) -> None:
         # # Export position of mol
         # head, ext = os.path.splitext(str(iname))
         out_head = path + "/tmp" + str(num)
@@ -305,7 +306,7 @@ class molcalc():
         cmd = "obabel -ixyz " + out_head + ".xyz -opdb -O " + out_head + ".pdb"
         subprocess.call(cmd.split(" "))
 
-    def exportdata(self, path, oname, data):
+    def exportdata(self, path: str, oname: str, data: list) -> None:
         if os.path.exists(path) is False:
             logger.info("%s", path)
             subprocess.call(["mkdir", path])
@@ -318,7 +319,7 @@ class molcalc():
 
 
 
-    def read_xyz(self, filename):
+    def read_xyz(self, filename: str) -> list[list[str] | list[list[float]]]:
         with open(filename, "U") as _fh:
             lines = [l.rstrip() for l in _fh]
         atom = []
@@ -335,7 +336,7 @@ class molcalc():
         return [atom, coord]
 
 
-    def calcLJPairInteraction(self, pos1, pos2, param):
+    def calcLJPairInteraction(self, pos1: np.ndarray, pos2: np.ndarray, param: list[float]) -> float:
 
         # return LJ r1 r2
         sigma = param[0]
@@ -356,7 +357,7 @@ class molcalc():
         return LJ
 
 
-    def calcCoulombInteraction(self, pos1, pos2, q1, q2, epsilon):
+    def calcCoulombInteraction(self, pos1: np.ndarray, pos2: np.ndarray, q1: float, q2: float, epsilon: float) -> float:
 
         VALENCE = 18.220893
         r12 = getdist(pos1, pos2)
@@ -375,7 +376,7 @@ class molcalc():
 
         return energy
 
-    def getcontactlist(self, inmol, posMol, site, neighborMol):
+    def getcontactlist(self, inmol: int, posMol: list[list[list[float]]], site: list[list[float]], neighborMol: list[list[int]]) -> list[list[int]]:
         '''
         check contact between molecules
         Args:
@@ -430,7 +431,7 @@ class molcalc():
         return clistall
 
 
-    def getrenumindex(self, index, clistall):
+    def getrenumindex(self, index: list[int], clistall: list[list[int]]) -> tuple[list[int], list[list[int]]]:
         # index_renum:molid arranged
         index_renum = []
         for i in range(len(index)):
@@ -448,7 +449,7 @@ class molcalc():
         return index_renum, clistall
 
 
-    def getrenumfrag(self, index, clistall,fragids):
+    def getrenumfrag(self, index: list[int], clistall: list[list[int]], fragids: list[list[int]]) -> tuple[list[int], list[list[int]]]:
         flag = False
         count = 0
         aaa = []
@@ -512,7 +513,7 @@ class molcalc():
 
         return index_renum, clist_renum
 
-    def getindex(self, clistall):
+    def getindex(self, clistall: list[list[int]]) -> list[int]:
         # --get used mol index --
         index = []
         for i in range(len(clistall)):
@@ -529,7 +530,7 @@ class molcalc():
 
         return index
 
-    def getcontactfrag(self, clist, posMol, site, fragids, infrag):
+    def getcontactfrag(self, clist: list[list[int]], posMol: list[list[list[list[float]]]], site: list[list[list[float]]], fragids: list[list[int]], infrag: int) -> list[list[int]]:
         '''
         check contact between fragments
         Args:
@@ -614,19 +615,19 @@ class molcalc():
 
         return clistall
 
-    def getCenter(self, posVec):
+    def getCenter(self, posVec: np.ndarray) -> np.ndarray:
         # get center coordinates
         # print "posVec",posVec
         center = np.average(posVec, 0)
         # print "center",center
         return center
 
-    def moveMolTrans(self, posVec, transVec):
+    def moveMolTrans(self, posVec: np.ndarray, transVec: np.ndarray) -> np.ndarray:
         # Parallel shift
         posVec = posVec + transVec
         return posVec
 
-    def moveMolEuler(self, posVec, rotatRdn):
+    def moveMolEuler(self, posVec: np.ndarray, rotatRdn: np.ndarray) -> np.ndarray:
         # ## Rotation (specify the quaternion, Euler angle ZXZ '[rad])
         a = np.cos(rotatRdn[1]/2.)*np.cos((rotatRdn[2]+rotatRdn[0])/2.)
         b = np.sin(rotatRdn[1]/2.)*np.cos((rotatRdn[2]-rotatRdn[0])/2.)
@@ -640,7 +641,7 @@ class molcalc():
             posVec[i] = np.dot(A, posVec[i])
         return posVec
 
-    def moveMolRotat(self, posVec, rotatDeg):
+    def moveMolRotat(self, posVec: np.ndarray, rotatDeg: np.ndarray) -> np.ndarray:
         # Rotation (specify the Cardin angle XYZ [deg])
         if rotatDeg[1] == 90 or rotatDeg[1] == -90:
             a = 0
@@ -662,7 +663,7 @@ class molcalc():
             posVec[i] = np.dot(A, posVec[i])
         return posVec
 
-    def getdummyatom(self, connect, end):
+    def getdummyatom(self, connect: list[list[int]], end: int) -> int | None:
         logger.debug('start getdummyatom')
         # e.g.) connect: [['CONECT', 0, 6, 5, 1, 13], ['CONECT', 1, 2, 2, 0, 4]]
         for i in range(len(connect)):
@@ -680,7 +681,7 @@ class molcalc():
                         return connect[i][j]
         return
 
-    def getangle(self, p1, p2, p3, length):
+    def getangle(self, p1: np.ndarray, p2: np.ndarray, p3: np.ndarray, length: list[float]) -> float:
         # p1 - p2 - p3 angle
         p1 = p1 - p2
         p3 = p3 - p2
@@ -694,7 +695,7 @@ class molcalc():
             theta = 0.0
         return theta
 
-    def getnppos(self, pos):
+    def getnppos(self, pos: list[list[float]]) -> np.ndarray:
         for i in range(len(pos)):
             for j in range(len(pos[i])):
                 pos[i][j] = float(pos[i][j])
@@ -702,7 +703,7 @@ class molcalc():
         return pos
 
 
-    def get2vec(self, pos1, pos2, p2l1, p1l2, p1dum2, plus):
+    def get2vec(self, pos1: np.ndarray, pos2: np.ndarray, p2l1: int, p1l2: int, p1dum2: int, plus: float) -> tuple[np.ndarray, np.ndarray]:
         vec = pos1[p1l2] - pos2[p2l1]
         vec2 = pos1[p1dum2] - pos1[p1l2]
         dist = self.getdist(pos1[p1dum2], pos1[p1l2])
@@ -710,7 +711,7 @@ class molcalc():
         return vec, vec2
 
 
-    def xymatch(self, pos, pos2, l1, l2, dum1):
+    def xymatch(self, pos: np.ndarray, pos2: np.ndarray, l1: int, l2: int, dum1: int) -> np.ndarray:
         p1 = copy.deepcopy(pos[l2])
         p2 = copy.deepcopy(pos2[l1])
         p3 = copy.deepcopy(pos2[dum1])
@@ -739,7 +740,7 @@ class molcalc():
         return rotated
 
 
-    def rotate_ardz(self, theta, pos):
+    def rotate_ardz(self, theta: float, pos: np.ndarray) -> np.ndarray:
         # ------回転角の定義------
         rot = math.pi * theta/180  # ラジアンに変換
         # ------回転行列の成分の定義---------
@@ -770,7 +771,7 @@ class molcalc():
         return rotpos
 
 
-    def label1match(self, pos2in, pos1):
+    def label1match(self, pos2in: np.ndarray, pos1: np.ndarray) -> np.ndarray:
 
         normal = np.arange(3.0)
         normal[0] = pos2in[dum1, 1] / math.sqrt(pos2in[dum1, 0]**2 +
@@ -809,7 +810,7 @@ class molcalc():
 
         return rotated
 
-    def rotate_ardvec(self, theta, vec, pos):
+    def rotate_ardvec(self, theta: float, vec: np.ndarray, pos: np.ndarray) -> np.ndarray:
         # print ("vec", vec)
         # ------回転角の定義------
         rot = math.pi * theta/180  # ラジアンに変換
@@ -841,7 +842,7 @@ class molcalc():
         return rotpos
 
 
-    def dihed_rotate(self, pos2in, pos1, l1, l2):
+    def dihed_rotate(self, pos2in: np.ndarray, pos1: np.ndarray, l1: list[int], l2: list[int]) -> np.ndarray:
         vec = np.arange(3.0)
 
     #   normalization vec
@@ -876,7 +877,7 @@ class molcalc():
         return rotated
 
 
-    def dum1_rotate(self, pos2in, pos1, l1, l2, dum1):
+    def dum1_rotate(self, pos2in: np.ndarray, pos1: np.ndarray, l1: int, l2: int, dum1: int) -> np.ndarray:
         # rotate around crossproduct of pos1[l2]-pos2in[l1]-pos2in[dum1]
         vec = np.arange(3.0)
         # get cross product
@@ -917,11 +918,11 @@ class molcalc():
 
         return rotated
 
-    def babelxyzpdb(self, head):
+    def babelxyzpdb(self, head: str) -> None:
         cmd = "obabel -ixyz " + head + ".xyz -opdb -O " + head + ".pdb"
         subprocess.call(cmd.split(" "))
 
-    def writexyzpoly(self, head, natomsum, atoms, pos, dums, seq, cnct_count, cncted_count):
+    def writexyzpoly(self, head: str, natomsum: int, atoms: list[list[list[str]]], pos: list[np.ndarray], dums: list[list[int]], seq: list[int], cnct_count: list[int], cncted_count: list[int]) -> None:
         # print atoms
         logger.debug("%s", dums)
         logger.debug("%s", natomsum)
@@ -947,7 +948,7 @@ class molcalc():
                     print (atoms[molid][j][1],  pos[i][j][0], \
                         pos[i][j][1], pos[i][j][2], file=f)
 
-    def getcrossprod(self, p1, p2, p3):
+    def getcrossprod(self, p1: np.ndarray, p2: np.ndarray, p3: np.ndarray) -> np.ndarray:
         v1 = p1 - p2
         v2 = p3 - p2
         cross = np.arange(3.0)
@@ -957,7 +958,7 @@ class molcalc():
 
         return cross
 
-    def getrepeatpos(self, pos_orig, l1, l2, dum1, dum2, d_plus):
+    def getrepeatpos(self, pos_orig: np.ndarray, l1: int, l2: int, dum1: int, dum2: int, d_plus: float) -> np.ndarray:
         # target l1 and dum2 + 1.5 vec
         vec, vec2 = self.get2vec(pos_orig, l1, l2, dum2, d_plus)
         # print "vec2", vec2
@@ -974,7 +975,7 @@ class molcalc():
         return pos2_dihed_rot + pos2_orig[l1]
 
     @staticmethod
-    def parse_lammps_data(file_path):
+    def parse_lammps_data(file_path: str) -> tuple[dict[int, float], list[list], dict[int, int]]:
         with open(file_path, 'r') as file:
             lines = file.readlines()
 
@@ -1022,7 +1023,7 @@ class molcalc():
         return masses, atoms, atom_molecule_map
 
     @staticmethod
-    def get_element_name(mass):
+    def get_element_name(mass: float) -> str:
         # Define a mapping from rounded mass to element name
         element_mapping = {
             12: 'C',  # Carbon
@@ -1035,7 +1036,7 @@ class molcalc():
         return element_mapping.get(rounded_mass, 'Unknown')
 
     @staticmethod
-    def get_atomic_radius(element):
+    def get_atomic_radius(element: str) -> float:
         # Define a mapping from element name to atomic radius (in pm)
         radius_mapping = {
             'C': 1.926,   # Carbon
@@ -1047,7 +1048,7 @@ class molcalc():
         return 2.0 * radius_mapping.get(element, 0)
 
     @staticmethod
-    def group_atoms_by_molecule(atoms, masses):
+    def group_atoms_by_molecule(atoms: list[list], masses: dict[int, float]) -> dict[int, list[str]]:
         molecules = {}
         for atom in atoms:
             atom_id, molecule_tag, atom_type, x, y, z = atom[:6]
@@ -1058,7 +1059,7 @@ class molcalc():
         return molecules
 
     @staticmethod
-    def parse_lammps_trajectory(file_path):
+    def parse_lammps_trajectory(file_path: str) -> tuple[dict[int, list[list]], tuple[float, ...]]:
         with open(file_path, 'r') as file:
             lines = file.readlines()
 
@@ -1102,7 +1103,7 @@ class molcalc():
         return timesteps, box_bounds
 
     @staticmethod
-    def scale_to_real_coords(scaled_coords, box_bounds, atom_molecule_map):
+    def scale_to_real_coords(scaled_coords: list[list], box_bounds: tuple[float, ...], atom_molecule_map: dict[int, int]) -> list[list[float]]:
         xlo, xhi, ylo, yhi, zlo, zhi = box_bounds
         real_coords = []
         for coord in scaled_coords:
@@ -1115,7 +1116,7 @@ class molcalc():
         return real_coords
 
     @staticmethod
-    def group_real_coords_by_molecule(real_coords):
+    def group_real_coords_by_molecule(real_coords: list[list[float]]) -> dict[int, list[list[float]]]:
         molecule_coords = {}
         for coord in real_coords:
             atom_id, molecule_tag, atom_type, x, y, z = coord
@@ -1125,7 +1126,7 @@ class molcalc():
         return molecule_coords
 
     @staticmethod
-    def get_radii_for_molecules(real_coords, masses):
+    def get_radii_for_molecules(real_coords: list[list[float]], masses: dict[int, float]) -> dict[int, list[float]]:
         molecule_radii = {}
         for coord in real_coords:
             atom_id, molecule_tag, atom_type, x, y, z = coord
@@ -1137,7 +1138,7 @@ class molcalc():
         return molecule_radii
 
     @staticmethod
-    def wrap_to_primary_cell(coord, box_bounds):
+    def wrap_to_primary_cell(coord: list[float], box_bounds: tuple[float, ...]) -> list[float]:
         xlo, xhi, ylo, yhi, zlo, zhi = box_bounds
         lx = xhi - xlo
         ly = yhi - ylo
@@ -1149,7 +1150,7 @@ class molcalc():
         return [x, y, z]
 
     @staticmethod
-    def shift_molecule_to_primary_cell(coords, box_bounds):
+    def shift_molecule_to_primary_cell(coords: list[list[float]], box_bounds: tuple[float, ...]) -> list[list[float]]:
         xlo, xhi, ylo, yhi, zlo, zhi = box_bounds
         cx = sum(x for x, y, z in coords) / len(coords)
         cy = sum(y for x, y, z in coords) / len(coords)

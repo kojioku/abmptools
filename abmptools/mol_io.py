@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import copy
 import random
@@ -11,11 +13,11 @@ logger = logging.getLogger(__name__)
 
 class mol_io():
 
-    def __init__(self):
+    def __init__(self) -> None:
         # print('## load mol io')
         return
 
-    def read_mol_name(self, fname):
+    def read_mol_name(self, fname: str) -> str:
         molname, ext = os.path.splitext(fname)
         # lines = [l.rstrip() for l in open(filename, "U")]
         # text = lines[1]
@@ -23,7 +25,7 @@ class mol_io():
         # molname = molname[1]
         return molname
 
-    def read_xyz(self, filename):
+    def read_xyz(self, filename: str) -> list[list[str] | list[list[float]]]:
         with open(filename) as _fh:
             lines = [l.rstrip() for l in _fh]
         atom = []
@@ -39,7 +41,7 @@ class mol_io():
             coord.append(temp2)
         return [atom, coord]
 
-    def getatoms(self, fname):
+    def getatoms(self, fname: str) -> tuple[list[list[list[int | str]]], list[str], list[list[list[str]]]]:
         with open(fname, "r", newline="\n") as f:
             text = f.readlines()
 
@@ -77,7 +79,7 @@ class mol_io():
 
         return atoms, atomnums, poss
 
-    def convert_xyzs_pdb(self, fname, dirname, tgtnum=0):
+    def convert_xyzs_pdb(self, fname: str, dirname: str, tgtnum: int = 0) -> None:
         atoms, atomnums, poss = self.getatoms(fname)
         head, ext = os.path.splitext(fname)
         for i in range(len(atoms)):
@@ -93,7 +95,7 @@ class mol_io():
                     # print(oname)
                     self.Exportpospdb(atoms[i], atomnums[i], poss[i], oname)
 
-    def getatom(self, fname):
+    def getatom(self, fname: str) -> tuple[list[list[int | str]], str, list[list[str]]]:
         atom = []
         pos = []
         with open(fname, "r", newline="\n") as f:
@@ -108,13 +110,13 @@ class mol_io():
                 pos.append(itemList[1:4])
         return atom, atomnum, pos
 
-    def convert_xyz_pdb(self, fname):
+    def convert_xyz_pdb(self, fname: str) -> None:
         atom, atomnum, pos = self.getatom(fname)
         head, ext = os.path.splitext(fname)
         oname = str(head) + ".pdb"
         self.Exportpospdb(atom, atomnum, pos, oname)
 
-    def Exportpospdb(self, atom, atomnum, pos, out_file):
+    def Exportpospdb(self, atom: list[list[int | str]], atomnum: str, pos: list[list[str]], out_file: str) -> None:
         # # Export position of mol
         # head, ext = os.path.splitext(str(iname))
 
