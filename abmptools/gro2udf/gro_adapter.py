@@ -22,11 +22,14 @@ change in those 5 characters marks the start of a new UDF molecule.
 """
 from __future__ import annotations
 
+import logging
 import math
 from typing import List, Tuple
 
 from ..core.system_model import AtomPosition, CellGeometry
 from .gro_parser import GROFrame
+
+logger = logging.getLogger(__name__)
 
 
 class GROAdapter:
@@ -113,7 +116,7 @@ class GROAdapter:
             return CellGeometry(a=box[0], b=box[1], c=box[2])
 
         else:
-            print("warning : cell size ", box)
+            logger.warning("unexpected cell size: %s", box)
             return CellGeometry(a=0.0, b=0.0, c=0.0)
 
 

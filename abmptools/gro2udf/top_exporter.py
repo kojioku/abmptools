@@ -13,12 +13,15 @@ This module ports the following functions from convert_gromacs_udf.py:
 """
 from __future__ import annotations
 
+import logging
 import shutil
 from typing import List, Optional
 
 from .top_model import KB_AMU_A2_PS2_K, GROFrameData, TopModel
 from .top_parser import TopParser
 from .top_adapter import TopAdapter
+
+logger = logging.getLogger(__name__)
 
 
 class TopExporter:
@@ -381,8 +384,8 @@ class TopExporter:
                              "Molecular_Attributes.Torsion_Potential[].Cosine_Polynomial.p[]",
                              [j, k])
             else:
-                print("Warning! torsion funct={} is not supported ({})".format(
-                    funct, tt.name))
+                logger.warning("torsion funct=%s is not supported (%s)",
+                               funct, tt.name)
 
         uobj.write()
 
