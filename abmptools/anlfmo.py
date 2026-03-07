@@ -33,7 +33,6 @@ class anlfmo(pdio):
         super().__init__()
         self.cpfflag = True
         self.solv_flag = False  # True -> in water , False -> in vacuum
-        self.abinit_ver = True
         self.memory = 3000
         self.npro = 8
         self.para_job = 1

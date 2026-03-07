@@ -24,6 +24,7 @@ except ImportError:
 
 class udf_io(molc):
     def __init__(self) -> None:
+        super().__init__()
         self.verflag = True
 
     def getposatom(self, uobj: Any, indexatom: int) -> np.ndarray:

@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class udfcreate():
     def __init__(self) -> None:
+        super().__init__()
         self.algo = ['NPT_Andersen_Kremer_Grest']
         self.cellsize = [30, 30, 30]
         self.totalstep = 20000

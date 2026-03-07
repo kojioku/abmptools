@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 class mol_io():
 
     def __init__(self) -> None:
+        super().__init__()
         # print('## load mol io')
-        return
 
     def read_mol_name(self, fname: str) -> str:
         molname, ext = os.path.splitext(fname)
