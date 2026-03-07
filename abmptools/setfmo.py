@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 try:
     from UDFManager import *
 except ImportError:
@@ -22,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class setfmo(pdio, ufc, rud):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.ajf_method = 'HF'
         self.ajf_basis_set = '6-31Gdag'
@@ -42,7 +44,7 @@ class setfmo(pdio, ufc, rud):
         self.cmmflag = False
         pass
 
-    def setrfmoparam(self, param_rfmo):
+    def setrfmoparam(self, param_rfmo: dict) -> None:
         self.cutmode = param_rfmo.get('cutmode', 'sphere')
         self.getmode = param_rfmo.get('getmode', 'resnum')
         self.ajf_method = param_rfmo.get('ajf_method', 'HF')
@@ -62,7 +64,7 @@ class setfmo(pdio, ufc, rud):
         self.memory = param_rfmo.get('memory', 3000)
         self.npro = param_rfmo.get('npro', 8)
 
-    def getendatom(self, connect, term):
+    def getendatom(self, connect: list, term: int) -> int | None:
         flag = False
         for i in range(len(connect)):
             for j in range(2, len(connect[i])):
@@ -70,7 +72,7 @@ class setfmo(pdio, ufc, rud):
                     return connect[i][1]
         return
 
-    def gettermfrag(self, seg_info, endatom):
+    def gettermfrag(self, seg_info: list, endatom: int) -> int | None:
         logger.debug(seg_info)
         logger.debug(endatom)
         for i in range(len(seg_info)):
@@ -79,7 +81,7 @@ class setfmo(pdio, ufc, rud):
                     logger.debug("hit")
                     return i
 
-    def getpolyconf_rmapfmo(self, seg_conf):
+    def getpolyconf_rmapfmo(self, seg_conf: dict) -> dict:
         molname = seg_conf['name']
         seg_atom = seg_conf['atom']
         charge = seg_conf['charge']
@@ -267,7 +269,7 @@ class setfmo(pdio, ufc, rud):
 
         return poly_conf
 
-    def getfragtable(self, molset=None, atomnums=[0], nameid=[0]):
+    def getfragtable(self, molset: list | None = None, atomnums: list = [0], nameid: list = [0]) -> setfmo:
         # print make_input_param
 
         logger.info('getfragtable')
@@ -324,7 +326,7 @@ class setfmo(pdio, ufc, rud):
         # return frag_atoms, frag_charges, frag_baanums, frag_atmlabs, frag_connects
 
 
-    def make_abinput_rmap(self, molset, molnamelist, rec, path, atomnums):
+    def make_abinput_rmap(self, molset: list, molnamelist: list, rec: int, path: str, atomnums: list) -> None:
         # print make_input_param
 
         # fragment configure reading
@@ -405,7 +407,7 @@ class setfmo(pdio, ufc, rud):
         return
 
 
-    def getcontact_rmapfmo(self, rec, uobj, totalMol, inmol, path, oname):
+    def getcontact_rmapfmo(self, rec: int, uobj: object, totalMol: int, inmol: int, path: str, oname: str) -> None:
         molname = self.molname
         criteria = self.criteria
         tgtpos = self.tgtpos
