@@ -307,9 +307,7 @@ if __name__ == "__main__":
             aobj.mldatname = "'" + fname + "limit" + str(aobj.mllimit) + ".mldat'"
 
         opath = 'for_abmp'
-        if not os.path.exists(opath):
-            print(opath)
-            subprocess.call(["mkdir", opath])
+        os.makedirs(opath, exist_ok=True)
 
         ajf_oname = opath + '/' + ohead + '.ajf'
         aobj.saveajf(ajf_oname)

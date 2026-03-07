@@ -53,7 +53,7 @@ class UDFWriter:
         udf.put(step, "Steps")
         try:
             udf.put(time, "Time", "[ps]")
-        except Exception:
+        except TypeError:
             udf.put(time, "Time")
 
         # --- Atom positions and velocities ---
@@ -70,7 +70,7 @@ class UDFWriter:
                 udf.put(vx,   "Structure.Velocity.mol[].atom[].x", [m, a], "[m/s]")
                 udf.put(vy,   "Structure.Velocity.mol[].atom[].y", [m, a], "[m/s]")
                 udf.put(vz,   "Structure.Velocity.mol[].atom[].z", [m, a], "[m/s]")
-            except Exception:
+            except TypeError:
                 udf.put(ap.x, "Structure.Position.mol[].atom[].x", [m, a])
                 udf.put(ap.y, "Structure.Position.mol[].atom[].y", [m, a])
                 udf.put(ap.z, "Structure.Position.mol[].atom[].z", [m, a])
@@ -83,7 +83,7 @@ class UDFWriter:
             udf.put(cell.a, "Structure.Unit_Cell.Cell_Size.a", "[nm]")
             udf.put(cell.b, "Structure.Unit_Cell.Cell_Size.b", "[nm]")
             udf.put(cell.c, "Structure.Unit_Cell.Cell_Size.c", "[nm]")
-        except Exception:
+        except TypeError:
             udf.put(cell.a, "Structure.Unit_Cell.Cell_Size.a")
             udf.put(cell.b, "Structure.Unit_Cell.Cell_Size.b")
             udf.put(cell.c, "Structure.Unit_Cell.Cell_Size.c")

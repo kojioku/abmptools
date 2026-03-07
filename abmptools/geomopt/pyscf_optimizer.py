@@ -635,7 +635,7 @@ class QMOptimizerPySCF:
             )
             try:
                 energy_ha = float(mf.e_tot)
-            except Exception:
+            except (AttributeError, TypeError, ValueError):
                 energy_ha = float("nan")
                 logger.warning(
                     "Could not retrieve final energy for %s.", in_file.name

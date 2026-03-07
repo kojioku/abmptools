@@ -79,8 +79,7 @@ class udf_io(molc):
     def Exportpos(self, path: str, Rec: int, totalMol: int, uobj: Any, oname: str) -> None:
         # # Export position of mol
         # head, ext = os.path.splitext(str(iname))
-        if not os.path.exists(path + "/pdb"):
-            subprocess.call(["mkdir", path + "/pdb"])
+        os.makedirs(path + "/pdb", exist_ok=True)
 
         out_file = path + "/pdb/" + str(oname)
         logger.info(out_file)
@@ -118,9 +117,7 @@ class udf_io(molc):
 
     def Exporttgtmolpos(self, path: str, oname_i: str, Rec: int, mollist: list[int], uobj: Any) -> None:
 
-        if not os.path.exists(path):
-            logger.info(path)
-            subprocess.call(["mkdir", path])
+        os.makedirs(path, exist_ok=True)
 
         # print mollist
         # # Export position of mol
@@ -213,9 +210,7 @@ class udf_io(molc):
 
     def Exportspecificpos(self, path: str, iname: str, Rec: int, mollist: list[int], uobj: Any, centermol: int) -> None:
 
-        if not os.path.exists(path):
-            logger.info(path)
-            subprocess.call(["mkdir", path])
+        os.makedirs(path, exist_ok=True)
 
         mollist.append(centermol)
         # print mollist

@@ -99,7 +99,7 @@ def _molecular_weight(mol: Any) -> float:
         mw = sum(
             atom.mass.m_as(off_unit.dalton) for atom in mol.atoms
         )
-    except Exception:
+    except (AttributeError, TypeError):
         # fallback: manual element mass lookup
         from openff.toolkit.utils.toolkits import GLOBAL_TOOLKIT_REGISTRY
         mw = sum(atom.mass.magnitude for atom in mol.atoms)
