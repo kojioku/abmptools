@@ -1,3 +1,4 @@
+import ast
 import abmptools as ampt
 import os
 import argparse
@@ -226,7 +227,11 @@ if __name__ == "__main__":
             print(ftemp)
 
             fdata = {}
-            exec(open(fragfile, "r").read(), fdata)
+            with open(fragfile, "r") as _f:
+                _tree = ast.parse(_f.read())
+            for _node in _tree.body:
+                if isinstance(_node, ast.Assign) and len(_node.targets) == 1 and isinstance(_node.targets[0], ast.Name):
+                    fdata[_node.targets[0].id] = ast.literal_eval(_node.value)
             ftemp = fdata['seg_data'][0]['name']
 
             aobj.getfragtable([ftemp])
