@@ -11,6 +11,9 @@ try:
 except ImportError:
     pass
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 class udfcreate():
     def __init__(self):
@@ -48,69 +51,21 @@ class udfcreate():
     def setudfparam(self, param_udf):
         # -- read for paramdata --
         self.algo = param_udf['algo']
-
-        try:
-            self.nvtalgo = param_udf['nvtalgo']
-        except KeyError:
-            self.nvtalgo = ['NVT_Nose_Hoover']
-
-        try:
-            self.packmode = param_udf['packmode']
-        except KeyError:
-            self.packmode = 'density'
-
-        try:
-            self.density = param_udf['density']
-        except KeyError:
-            self.density = 0.5
-
-        try:
-            self.cellsize = param_udf['cellsize']
-        except KeyError:
-            self.cellsize = [30, 30, 30]
-
-        try:
-            self.totalstep = param_udf['totalstep']
-        except KeyError:
-            self.totalstep = 5000
-
-        try:
-            self.outstep = param_udf['outstep']
-        except KeyError:
-            self.outstep = 50
-
-        try:
-            self.nvtstep = param_udf['nvtstep']
-        except KeyError:
-            self.nvtstep = 1000
-
-        try:
-            self.nvtoutstep = param_udf['nvtoutstep']
-        except KeyError:
-            self.nvtoutstep = 10
-
-        try:
-            self.timestep = param_udf['timestep']
-        except KeyError:
-            self.timestep = 0.001 # 1fs
-
-        try:
-            self.pressure = param_udf['pressure']
-        except KeyError:
-            self.pressure = 1.0 # 1atm
-
+        self.nvtalgo = param_udf.get('nvtalgo', ['NVT_Nose_Hoover'])
+        self.packmode = param_udf.get('packmode', 'density')
+        self.density = param_udf.get('density', 0.5)
+        self.cellsize = param_udf.get('cellsize', [30, 30, 30])
+        self.totalstep = param_udf.get('totalstep', 5000)
+        self.outstep = param_udf.get('outstep', 50)
+        self.nvtstep = param_udf.get('nvtstep', 1000)
+        self.nvtoutstep = param_udf.get('nvtoutstep', 10)
+        self.timestep = param_udf.get('timestep', 0.001)  # 1fs
+        self.pressure = param_udf.get('pressure', 1.0)  # 1atm
         self.tempes = param_udf['temperature']
         self.octahome = param_udf['octahome']
         self.cognacpath = param_udf['cognacpath']
-        try:
-            self.mdlocalnp = param_udf['mdlocalnp']
-        except KeyError:
-            self.mdlocalnp = 24
-
-        try:
-            self.mdnp = param_udf['mdnp']
-        except KeyError:
-            self.mdnp = 48
+        self.mdlocalnp = param_udf.get('mdlocalnp', 24)
+        self.mdnp = param_udf.get('mdnp', 48)
 
 
 
@@ -1125,6 +1080,6 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
             uobj.put(0,"Simulation_Conditions.Constraint_Conditions.Constraint_Atom[" + str(ca_id) + "].Steady.Velocity.y")
             uobj.put(0,"Simulation_Conditions.Constraint_Conditions.Constraint_Atom[" + str(ca_id) + "].Steady.Velocity.z")
             ca_id += 1
-        print ("cluster fixed.")
+        logger.info("cluster fixed.")
 
 

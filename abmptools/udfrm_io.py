@@ -3,8 +3,11 @@ import os
 import math
 import subprocess
 import re
+import logging
 from multiprocessing import Pool
 from .udf_io import udf_io as uio
+
+logger = logging.getLogger(__name__)
 try:
     from UDFManager import *
 except ImportError:
@@ -26,22 +29,22 @@ class udfrm_io(uio):
         _udf_ = UDFManager(fname)
 
         totalMol, totalRec = self.gettotalmol_rec(_udf_)
-        print("totalRec = ", totalRec)
-        print("totalMol = ", totalMol)
+        logger.info("totalRec = %s", totalRec)
+        logger.info("totalMol = %s", totalMol)
         if tgtrec == -1:
             tgtrec = totalRec -1
 
         if tgtmol == -1:
             tgtmol = totalMol
 
-        print("targetRec = ", tgtrec)
-        print("moveflag = ", moveflag)
+        logger.info("targetRec = %s", tgtrec)
+        logger.info("moveflag = %s", moveflag)
 
         if moveflag:
             self.moveintocell_rec(_udf_, tgtrec, totalMol)
 
         oname = os.path.splitext(fname)[0].split("/")[-1]
-        print(oname)
+        logger.debug("%s", oname)
         if self.molflag:
             self.convert_udf_pdb(tgtrec, _udf_, tgtmol, oname)
         else:
@@ -50,7 +53,7 @@ class udfrm_io(uio):
     def convert_udf_pdb(self, rec, uobj, totalMol, ohead, writef=True):
         uobj.jump(rec)
         self.cell = uobj.get("Structure.Unit_Cell.Cell_Size")
-        print(totalMol, rec)
+        logger.debug("totalMol=%s, rec=%s", totalMol, rec)
         # getmolatomnum(_udf_, totalMol)
 
         posMol = []
@@ -59,7 +62,7 @@ class udfrm_io(uio):
 
         if self.molflag:
             tgtmol = totalMol
-            print('tgtmol =', tgtmol)
+            logger.debug("tgtmol = %s", tgtmol)
             for i in range(tgtmol, tgtmol + 1):
                 posMol.append(self.getposmol(uobj, i))
                 typenameMol.append(self.getAtomtypename(uobj, i))
@@ -112,7 +115,7 @@ class udfrm_io(uio):
 
             posMol = self.moveMolTrans(posMol, transVec)
             self.putPositionsMol(uobj, Molnum, posMol)
-        print("move_done.")
+        logger.info("move_done.")
 
 
     def getmolname(self, i, uobj):

@@ -5,7 +5,10 @@ import subprocess
 import re
 import time
 import copy
+import logging
 from .molcalc import molcalc as molc
+
+logger = logging.getLogger(__name__)
 try:
     from UDFManager import *
 except ImportError:
@@ -77,7 +80,7 @@ class udf_io(molc):
             subprocess.call(["mkdir", path + "/pdb"])
 
         out_file = path + "/pdb/" + str(oname)
-        print (out_file)
+        logger.info(out_file)
 
         numlist = []
         # get total atom
@@ -85,7 +88,7 @@ class udf_io(molc):
             numAtm = uobj.size("Structure.Position.mol[].atom[]", [i])
             numlist.append(numAtm)
         totalAtm = sum(numlist)
-        print(("totalAtom", totalAtm))
+        logger.info("totalAtom %s", totalAtm)
 
         f = open(out_file, "w")
         print(totalAtm, file=f)
@@ -115,7 +118,7 @@ class udf_io(molc):
     def Exporttgtmolpos(self, path, oname_i, Rec, mollist, uobj):
 
         if os.path.exists(path) is False:
-            print(path)
+            logger.info(path)
             subprocess.call(["mkdir", path])
 
         # print mollist
@@ -172,7 +175,7 @@ class udf_io(molc):
         # print(len(molnames_orig))
 
         molids = sorted(set(molnames_orig), key=molnames_orig.index)
-        print(molids)
+        logger.debug(molids)
         molnames = []
         for molname in molnames_orig:
             for i in range(len(molids)):
@@ -214,7 +217,7 @@ class udf_io(molc):
     def Exportspecificpos(self, path, iname, Rec, mollist, uobj, centermol):
 
         if os.path.exists(path) is False:
-            print(path)
+            logger.info(path)
             subprocess.call(["mkdir", path])
 
         mollist.append(centermol)
@@ -275,7 +278,7 @@ class udf_io(molc):
 
                 posMol = self.moveMolTrans(posMol, transVec)
                 self.putPositionsMol(uobj, Molnum, posMol)
-        print("move_done.")
+        logger.info("move_done.")
 
     def moveintocell_mol(self, uobj, totalRec, startmol, endmol):
         # # Move into cell
@@ -299,7 +302,7 @@ class udf_io(molc):
 
                 posMol = self.moveMolTrans(posMol, transVec)
                 self.putPositionsMol(uobj, Molnum, posMol)
-        print("move_done.")
+        logger.info("move_done.")
 
     def putnvtnewfile(self, uobj, Rec, iname, addname):
         head, ext = os.path.splitext(str(iname))
@@ -312,9 +315,9 @@ class udf_io(molc):
 
     def putnvtnewfilemb(self, uobj, Rec, iname, addname):
         head, ext = os.path.splitext(str(iname))
-        print("totalstep:", self.nvtstep)
-        print("outstep:", self.nvtoutstep)
-        print("Algorithm:", self.nvtalgo[0])
+        logger.info("totalstep: %s", self.nvtstep)
+        logger.info("outstep: %s", self.nvtoutstep)
+        logger.info("Algorithm: %s", self.nvtalgo[0])
         oname = head + addname + ".udf"
 
         uobj.jump(-1)   # jump to common record
@@ -342,13 +345,13 @@ class udf_io(molc):
         totalAtm = self.gettotalAtm(uobj)
         cell = self.getcellsize(uobj, totalRec-1)
 
-        print('totalMol:', totalMol)
-        print('totalAtm:', totalAtm)
-        print('cellinfo:', cell)
+        logger.info("totalMol: %s", totalMol)
+        logger.info("totalAtm: %s", totalAtm)
+        logger.info("cellinfo: %s", cell)
 
         molnamelist = self.getnamelist([i for i in range(totalMol)], uobj, totalMol)
         import collections
-        print(collections.Counter(molnamelist))
+        logger.info(collections.Counter(molnamelist))
 
         return totalMol, totalRec, totalAtm, cell
 
@@ -399,7 +402,7 @@ class udf_io(molc):
         # molnamelist: molname list for contact
         # clist: contact list per mol(renum)
         # clu_num: cluster_num
-        print("******calc MM****")
+        logger.info("******calc MM****")
         typenamelist = []
         poslist = []
         chglist = []
@@ -440,7 +443,7 @@ class udf_io(molc):
                         coulombsum += coulomb
                 ielist.append([LJsum, coulombsum])
         ielist = np.array(ielist)
-        print("ielist:", ielist)
+        logger.debug("ielist: %s", ielist)
     #
     #    #get sigma,epsilon from atomtypelist
     #
@@ -471,7 +474,7 @@ class udf_io(molc):
         if lammpsflag is False:
             uobj.jump(rec)
             cell = uobj.get("Structure.Unit_Cell.Cell_Size")
-            print("totalmol:", totalMol, "rec", rec)
+            logger.info("totalmol: %s rec %s", totalMol, rec)
 
             posMol_orig = []
             typenameMol_orig = []
@@ -483,14 +486,14 @@ class udf_io(molc):
                 elemMol_orig.append(self.getnameAtom(uobj, i))
 
         if lammpsflag is True:
-            print("LAMMPS mode")
+            logger.info("LAMMPS mode")
             # require
             # posMol_orig
             # typenameMol_orig
             # elemMol_orig
             # cell
             # Example usage for trajectory file
-            print(tgtfile)
+            logger.debug(tgtfile)
             trajectory_file_path = tgtfile
             timesteps, box_bounds = \
                 self.parse_lammps_trajectory(trajectory_file_path)
@@ -536,7 +539,7 @@ class udf_io(molc):
         vec = np.array(vec)
 
         # print vec
-        print("cellsize", cell)
+        logger.info("cellsize %s", cell)
 
         posMol = []
         typenameMol = []
@@ -571,16 +574,15 @@ class udf_io(molc):
         # sys.exit()
 
         # print "vec",vec
-        print("pos27molnum", len(posMol), end=' ')
-        print("pos_orig molnum", len(posMol_orig))
-        print("typenamemol len", len(typenameMol))
+        logger.debug("pos27molnum %s pos_orig molnum %s", len(posMol), len(posMol_orig))
+        logger.debug("typenamemol len %s", len(typenameMol))
         # print posMol
 
         posfrag_mols, typenamefrag_mols, sitefrag_mols, fragids, infrag = \
             self.getfraginfomb(molname, posMol, typenameMol,
                                site, len(posMol_orig), seg1_clunum)
         infrag = infrag * seg1_clunum
-        print("seg1_frag:", infrag)
+        logger.info("seg1_frag: %s", infrag)
         # sys.exit()
 
         # centerOfMol: com of each molecules
@@ -592,14 +594,14 @@ class udf_io(molc):
         self.exportxyz(path[0] + "/" + path[1], centerOfMol, "com")
 
         # check
-        print("nummol", len(posMol), "numatom_mol0", len(posMol[0]))
+        logger.debug("nummol %s numatom_mol0 %s", len(posMol), len(posMol[0]))
         # posMol: num of molecules in cell
         # posMol[0]: num of atoms in Mol[0]
 
         # --move check--
         aaa = self.moveMolTrans(posMol[0], -centerOfMol[0])
         # print(len(aaa))
-        print("center", self.getCenter(aaa))
+        logger.debug("center %s", self.getCenter(aaa))
 
         # --move all mol to origin--
         originmol = []
@@ -635,10 +637,10 @@ class udf_io(molc):
 
         # get contact list
         clistall = self.getcontactlist(seg1_clunum, posMol, site, neighborMol)
-        print("clistall", clistall)
+        logger.debug("clistall %s", clistall)
         clistfrag = self.getcontactfrag(clistall, posfrag_mols,
                                         sitefrag_mols, fragids, infrag)
-        print("clistfrag", clistfrag)
+        logger.debug("clistfrag %s", clistfrag)
         # sys.exit()
 
         index = self.getindex(clistall)

@@ -1,6 +1,9 @@
 import sys
 import os
 import gzip
+import logging
+
+logger = logging.getLogger(__name__)
 try:
     import pandas as pd
 except ImportError:
@@ -38,7 +41,7 @@ class LOGManager():
         # nfrag = 0
         # atom_data = []
 
-        print('start read', filepath)
+        logger.info('start read %s', filepath)
         # filepath の拡張子が .gz なら gzip で読み込む
         if os.path.splitext(filepath)[-1] == '.gz':
             self.is_gz = True
@@ -117,9 +120,9 @@ class LOGManager():
         fragids = [number_to_index[key] for key in sorted_keys]
 
         # Save and return only condition and fraginfo if Nprint=0
-        print('Nprint =', Nprint)
+        logger.info('Nprint = %s', Nprint)
         if Nprint == 0:
-            print('Since Nprint=0, only condition and fraginfo are retrieved.')
+            logger.info('Since Nprint=0, only condition and fraginfo are retrieved.')
             self.fraginfo = fraginfo
             self.condition = condition
             return
@@ -148,7 +151,7 @@ class LOGManager():
             'nuclear_repulsion_energy': NR,
         }
 
-        print('static_data\n', static_data)
+        logger.debug('static_data\n%s', static_data)
 
         nums, heads, molnames, atypenames, labs, chains, \
             resnums, codes, xcoords, ycoords, zcoords, occs, temps, \
@@ -180,12 +183,12 @@ class LOGManager():
         if Method == 'MP2':
             hf, mp2 = self.getmominfo(file, nf, Method)
         if Method == 'MP2D':
-            print('MP2D is not supported yet')
+            logger.error('MP2D is not supported yet')
             sys.exit()
 
         dpm_hf_x, dpm_hf_y, dpm_hf_z = self.getdipoleinfo(file, nf)
 
-        print('dipole moment section')
+        logger.info('dipole moment section')
         mominfo = {
             'fragi': [i+1 for i in range(nf)],
             }
@@ -194,7 +197,7 @@ class LOGManager():
         for dpm in DPM_label:
             mominfo[dpm] = []
 
-        print('monomer section')
+        logger.info('monomer section')
         # Initialize the data structures
         for mom in monomer_label:
             mominfo[mom] = []
@@ -218,7 +221,7 @@ class LOGManager():
                 pifrags, pjfrags, ess, exs, cts, dis, dqs \
                 = self.readifiepieda(file, Method)
         else:
-            print("Methods other than MP2 or HF are not supported.")
+            logger.error("Methods other than MP2 or HF are not supported.")
             sys.exit()
 
         hartree = 627.5095
@@ -233,7 +236,7 @@ class LOGManager():
         # ifragsの長さがndimerに満たない場合、要素を追加
         ndimer = static_data['ndimer']
         if len(ifrags) < ndimer:
-            print('Warning: ifrags is shorter than ndimer. Add missing pairs automatically.')
+            logger.warning('ifrags is shorter than ndimer. Add missing pairs automatically.')
             # ifragsとjfragsを正しい長さにする
             expected_ifrags = [i for i in range(2, nf + 1) for _ in range(i - 1)]
             expected_jfrags = [j for i in range(2, nf + 1) for j in range(1, i)]
@@ -294,8 +297,8 @@ class LOGManager():
 
         ifiedf = pd.DataFrame(ifieinfo)
         piedadf = pd.DataFrame(piedainfo)
-        print('ifiedf\n', ifiedf)
-        print('piedadf\n', piedadf)
+        logger.debug('ifiedf\n%s', ifiedf)
+        logger.debug('piedadf\n%s', piedadf)
 
         # merge ifie and pieda
         ifpidf = pd.merge(ifiedf, piedadf, on=['fragi', 'fragj'], how='left') \
@@ -335,13 +338,13 @@ class LOGManager():
         self.diminfo = ifpidf
         self.labels = labels
 
-        print('atominfo\n', self.atominfo)
-        print('fraginfo\n', self.fraginfo)
-        print('condition\n', self.condition)
-        print('static_data\n', self.static_data)
-        print('mominfo\n', self.mominfo)
-        print('diminfo\n', self.diminfo)
-        print('labels\n', self.labels)
+        logger.debug('atominfo\n%s', self.atominfo)
+        logger.debug('fraginfo\n%s', self.fraginfo)
+        logger.debug('condition\n%s', self.condition)
+        logger.debug('static_data\n%s', self.static_data)
+        logger.debug('mominfo\n%s', self.mominfo)
+        logger.debug('diminfo\n%s', self.diminfo)
+        logger.debug('labels\n%s', self.labels)
 
         '''
         self.cpfver = cpfver
@@ -367,7 +370,7 @@ class LOGManager():
             tgtline = 8
         elif Method == 'HF':
             tgtline = 4
-        print('--- get totalenergy from log ---')
+        logger.info('--- get totalenergy from log ---')
         while True:
             Items = file.readline().strip().split()
             if eneflag:
@@ -413,7 +416,7 @@ class LOGManager():
         gcount = 0
         hf = []
         mp2 = []
-        print('--- get mominfo from log ---')
+        logger.info('--- get mominfo from log ---')
         while True:
             Items = file.readline().strip().split()
             if eneflag:
@@ -462,7 +465,7 @@ class LOGManager():
         hf_x = []
         hf_y = []
         hf_z = []
-        print('--- get dipoleinfo from log ---')
+        logger.info('--- get dipoleinfo from log ---')
         while True:
             Items = file.readline().strip().split()
             if eneflag:
@@ -493,7 +496,7 @@ class LOGManager():
     def readelemslog(file):
         flag = False
         elems = []
-        print('--- get eleminfo from log ---')
+        logger.info('--- get eleminfo from log ---')
         while True:
             Items = file.readline().strip().split()
             if len(Items) <= 2:
@@ -504,7 +507,7 @@ class LOGManager():
                 continue
             # Molecular formula
             if Items[0:3] == ['##', 'Molecular', 'formula']:
-                print('End Read Elems')
+                logger.info('End Read Elems')
                 break
             if flag:
                 elems.append(Items[1])
@@ -526,7 +529,7 @@ class LOGManager():
                     version = 2
                 else:
                     version = 1
-                print('Log Version:', version)
+                logger.info('Log Version: %s', version)
                 break
         return version
 
@@ -573,7 +576,7 @@ class LOGManager():
                 if Items[2] == 'RESP':
                     is_resp = True
             if Items[0:3] == ['##', 'CHECK', 'AVAILABLE']:
-                print('End Read Condition')
+                logger.info('End Read Condition')
                 break
 
             '''
@@ -632,7 +635,7 @@ class LOGManager():
         dqs = []
 
         # print text
-        print('--- get IFIE and PIEDA from log ---')
+        logger.info('--- get IFIE and PIEDA from log ---')
         while True:
             Items = file.readline().strip().split()
             if (pflag or flag) and len(Items) != 0:
@@ -810,7 +813,7 @@ class LOGManager():
             # start read for nucleotide
             if items[0:3] == ['Seq.', 'Frag.', 'Base']:
                 readflag = True
-                print('read nucleotide')
+                logger.info('read nucleotide')
                 continue
 
 
@@ -843,7 +846,7 @@ class LOGManager():
 
                     # for nucleotide
                     if not line[0].isspace():
-                        print(line.strip())
+                        logger.debug('%s', line.strip())
                         fchgs.append(int(line[44:47]))
                         fragids.append(int(line[7:12]))
                         # nterm = 1 if line[30] == 'T' else 0
@@ -893,9 +896,9 @@ class LOGManager():
         # print('fragids', fragids)
         # print('sorted_fchgs', sorted_fchgs)
         # print('sorted_fragids', sorted_fragids)
-        print('length:', len(fchgs), len(fragids), len(sorted_fchgs), len(sorted_fragids))
-        print("sorted_fchgs:", sorted_fchgs)
-        print("sorted_fragids:", sorted_fragids)
+        logger.debug('length: %s %s %s %s', len(fchgs), len(fragids), len(sorted_fchgs), len(sorted_fragids))
+        logger.debug("sorted_fchgs: %s", sorted_fchgs)
+        logger.debug("sorted_fragids: %s", sorted_fragids)
 
         # # fragidsの昇順に従ってfchgsを並べ替える
         # sorted_fchgs = [x for _, x in sorted(zip(fragids, fchgs), key=lambda pair: pair[0])]
@@ -1028,8 +1031,8 @@ class LOGManager():
     @staticmethod
     def readpdb(fname):
 
-        print('--- get pdbinfo ---')
-        print('infile:',  fname)
+        logger.info('--- get pdbinfo ---')
+        logger.info('infile: %s', fname)
         file = open(fname, 'r')
         molnames = []
         xcoords = []
@@ -1214,7 +1217,7 @@ class LOGManager():
 
     @staticmethod
     def getlogmul(file, natom):
-        print('get mulliken charge from log')
+        logger.info('get mulliken charge from log')
         alabs = []
         elems = []
         chgs = []
@@ -1259,7 +1262,7 @@ class LOGManager():
 
     @staticmethod
     def getlognpa(file, natom):
-        print('get npa charges from log')
+        logger.info('get npa charges from log')
         alabs = []
         elems = []
         ress = []
