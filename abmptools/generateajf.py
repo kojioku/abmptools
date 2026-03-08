@@ -7,7 +7,8 @@ import abmptools as ampt
 import os
 import argparse
 
-if __name__ == "__main__":
+def get_args():
+    """コマンドライン引数を解析する。"""
     parser = argparse.ArgumentParser(
                 prog='generateajf.py', # program name
                 usage='python generateajf.py -i xxx.pdb', # program usage
@@ -149,6 +150,11 @@ if __name__ == "__main__":
 
     # get args
     args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    args = get_args()
 
     print('coord(pdb) =', args.incoord)
     print('solv = ', args.solvation)

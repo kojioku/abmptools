@@ -12,8 +12,8 @@ import collections
 import argparse
 # Matrix operation
 
-if __name__ == "__main__":
-    ## -- user setting --
+def get_args():
+    """コマンドライン引数を解析する。"""
     parser = argparse.ArgumentParser(
                 prog='getcharge.py', # program name
                 usage='''e.g.)
@@ -45,15 +45,16 @@ if __name__ == "__main__":
 
     # get args
     args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    ## -- user setting --
+    args = get_args()
 
     print('incoord(log) =', args.incoord)
     print('chargetype = ', args.type)
     print('frag = ', args.frag)
-
-    ####################################
-
-    args = parser.parse_args()
-    # print('output =', args.output)
 
     logname = args.incoord
     chgtype = args.type

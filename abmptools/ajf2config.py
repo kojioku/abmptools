@@ -5,7 +5,8 @@ import os
 import abmptools as ampt
 import argparse
 
-if __name__ == '__main__':
+def get_args():
+    """コマンドライン引数を解析する。"""
     parser = argparse.ArgumentParser(
                 prog='ajf2config.py', # program name
                 usage='python ajf2config.py -i xxx.frag yyy.frag', # program usage
@@ -27,6 +28,11 @@ if __name__ == '__main__':
 
     # get args
     args = parser.parse_args()
+    return args
+
+
+if __name__ == '__main__':
+    args = get_args()
     print('input =', args.input)
     print('output =', args.output)
 

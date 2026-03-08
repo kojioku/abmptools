@@ -13,7 +13,8 @@ import argparse
 # Koji Okuwaki: Update 2020/03/22
 # moveintocell and assignmolname
 
-if __name__ == "__main__":
+def get_args():
+    """コマンドライン引数を解析する。"""
     parser = argparse.ArgumentParser(
                 prog='pdbmodify.py', # program name
                 usage='''e.g.)
@@ -89,6 +90,11 @@ if __name__ == "__main__":
                         )
 
     args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    args = get_args()
     print('input =', args.input)
     print('mode =', args.mode)
     print('move =', args.move)

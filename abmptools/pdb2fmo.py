@@ -15,12 +15,11 @@ import abmptools as abmp
 import argparse
 
 
-if __name__ == "__main__":
-    # main
-    # create parser
+def get_args():
+    """コマンドライン引数を解析する。"""
     parser = argparse.ArgumentParser(
                 prog='pdb2fmo.py', # program name
-                usage='python pdb2fmo.py -i xxx.pdb', # program usage 
+                usage='python pdb2fmo.py -i xxx.pdb', # program usage
                 description='generate ABNITMP input (ajf,pdb set) from orig pdb and segment_data file',
                 epilog='end',
                 add_help=True,
@@ -54,6 +53,12 @@ if __name__ == "__main__":
 
     # get args
     args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    # main
+    args = get_args()
 
     print('coord(pdb) =', args.incoord)
     print('parameter = ', args.parameter)
