@@ -103,18 +103,21 @@ def _is_blank(line: str) -> bool:
 
 
 def get_bond_name(n1: str, n2: str) -> str:
+    """2つの原子名からソート済みの結合名を生成する。"""
     if n1 <= n2:
         return n1 + "-" + n2
     return n2 + "-" + n1
 
 
 def get_angle_name(n1: str, n2: str, n3: str) -> str:
+    """3つの原子名からソート済みの角度名を生成する。"""
     if n1 <= n3:
         return n1 + "-" + n2 + "-" + n3
     return n3 + "-" + n2 + "-" + n1
 
 
 def get_torsion_name(n1: str, n2: str, n3: str, n4: str) -> str:
+    """4つの原子名からソート済みの二面角名を生成する。"""
     if n1 < n4:
         return n1 + "-" + n2 + "-" + n3 + "-" + n4
     elif n1 == n4:

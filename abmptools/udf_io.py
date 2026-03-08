@@ -1,3 +1,5 @@
+"""UDFファイルの入出力および分子座標操作を提供するモジュール。"""
+
 from __future__ import annotations
 
 import sys
@@ -22,11 +24,22 @@ except ImportError:
 
 
 class udf_io(molc):
+    """UDFファイルの読み書きと分子座標の取得・設定・変換を行うクラス。"""
+
     def __init__(self) -> None:
         super().__init__()
         self.verflag = True
 
     def getposatom(self, uobj: Any, indexatom: int) -> np.ndarray:
+        """指定原子インデックスの座標を取得する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            indexatom: 原子のインデックス。
+
+        Returns:
+            原子の座標を格納したnumpy配列。
+        """
         # UDF operation
         # get the position of a molecule
         i = indexatom
@@ -36,6 +49,16 @@ class udf_io(molc):
         return position
 
     def getposmolrec(self, uobj: Any, indexMol: int, record: int) -> np.ndarray:
+        """指定レコードにおける分子の原子座標を取得する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            indexMol: 分子のインデックス。
+            record: 対象レコード番号。
+
+        Returns:
+            分子内の全原子座標を格納したnumpy配列。
+        """
         # UDF operation
         # get the position of a molecule
         uobj.jump(record)
@@ -46,6 +69,15 @@ class udf_io(molc):
         return position
 
     def getposmol(self, uobj: Any, indexMol: int) -> np.ndarray:
+        """指定分子の全原子座標を取得する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            indexMol: 分子のインデックス。
+
+        Returns:
+            分子内の全原子座標を格納したnumpy配列。
+        """
         # UDF operation
         # get the position of a molecule
         i = indexMol
@@ -55,12 +87,30 @@ class udf_io(molc):
         return position
 
     def getnameAtom(self, uobj: Any, indexMol: int) -> list[str]:
+        """指定分子内の全原子名を取得する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            indexMol: 分子のインデックス。
+
+        Returns:
+            原子名のリスト。
+        """
         # get atom name
         i = indexMol
         atom = uobj.get("Set_of_Molecules.molecule[].atom[].Atom_Name", [i])
         return atom
 
     def getAtomtypename(self, uobj: Any, indexMol: int) -> list[str]:
+        """指定分子内の全原子タイプ名を取得する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            indexMol: 分子のインデックス。
+
+        Returns:
+            原子タイプ名のリスト。
+        """
         # get atom name
         i = indexMol
         atomtype = uobj.get(
@@ -68,6 +118,13 @@ class udf_io(molc):
         return atomtype
 
     def putPositionsMol(self, uobj: Any, indexMol: int, position: np.ndarray) -> None:
+        """分子の原子座標をUDFに書き込む。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            indexMol: 分子のインデックス。
+            position: 書き込む原子座標のnumpy配列。
+        """
         # ## put the position of the molecule to UDF
         i = indexMol
         numAtm = uobj.size("Structure.Position.mol[].atom[]", [i])
@@ -77,6 +134,15 @@ class udf_io(molc):
             uobj.put(position[j, 2], "Structure.Position.mol[].atom[].z", [i, j])
 
     def Exportpos(self, path: str, Rec: int, totalMol: int, uobj: Any, oname: str) -> None:
+        """全分子の座標をXYZおよびPDB形式でエクスポートする。
+
+        Args:
+            path: 出力先ディレクトリパス。
+            Rec: 対象レコード番号。
+            totalMol: 全分子数。
+            uobj: UDFManagerオブジェクト。
+            oname: 出力ファイル名。
+        """
         # # Export position of mol
         # head, ext = os.path.splitext(str(iname))
         os.makedirs(path + "/pdb", exist_ok=True)
@@ -116,6 +182,15 @@ class udf_io(molc):
         self.exportpdb(uobj, Rec, out_file, mollist)
 
     def Exporttgtmolpos(self, path: str, oname_i: str, Rec: int, mollist: list[int], uobj: Any) -> None:
+        """指定分子リストの座標をXYZおよびPDB形式でエクスポートする。
+
+        Args:
+            path: 出力先ディレクトリパス。
+            oname_i: 出力ファイル名のベース。
+            Rec: 対象レコード番号。
+            mollist: 対象分子インデックスのリスト。
+            uobj: UDFManagerオブジェクト。
+        """
 
         os.makedirs(path, exist_ok=True)
 
@@ -156,6 +231,14 @@ class udf_io(molc):
         # subprocess.call(cmd, shell = True)
 
     def exportpdb(self, uobj: Any, Rec: int, out_file: str, mollist: list[int]) -> None:
+        """指定分子リストの座標をPDB形式で出力する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            Rec: 対象レコード番号。
+            out_file: 出力ファイルパス。
+            mollist: 対象分子インデックスのリスト。
+        """
 
         ohead, ext = os.path.splitext(out_file)
         out_file = ohead + '.pdb'
@@ -209,6 +292,16 @@ class udf_io(molc):
             print("END", file=f)
 
     def Exportspecificpos(self, path: str, iname: str, Rec: int, mollist: list[int], uobj: Any, centermol: int) -> None:
+        """指定分子リストに中心分子を加えた座標をXYZおよびPDB形式でエクスポートする。
+
+        Args:
+            path: 出力先ディレクトリパス。
+            iname: 出力ファイル名のベース。
+            Rec: 対象レコード番号。
+            mollist: 対象分子インデックスのリスト。
+            uobj: UDFManagerオブジェクト。
+            centermol: 中心分子のインデックス。
+        """
 
         os.makedirs(path, exist_ok=True)
 
@@ -247,6 +340,13 @@ class udf_io(molc):
                          path + "/" + str(iname) + ".pdb"])
 
     def moveintocell(self, uobj: Any, totalRec: int, totalMol: int) -> None:
+        """全レコード・全分子をセル内に移動させる。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            totalRec: 全レコード数。
+            totalMol: 全分子数。
+        """
         # # Move into cell
         for k in range(totalRec):
             uobj.jump(k)
@@ -271,6 +371,14 @@ class udf_io(molc):
         logger.info("move_done.")
 
     def moveintocell_mol(self, uobj: Any, totalRec: int, startmol: int, endmol: int) -> None:
+        """指定範囲の分子を全レコードにわたってセル内に移動させる。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            totalRec: 全レコード数。
+            startmol: 開始分子インデックス。
+            endmol: 終了分子インデックス（含まない）。
+        """
         # # Move into cell
         for k in range(totalRec):
             uobj.jump(k)
@@ -295,6 +403,14 @@ class udf_io(molc):
         logger.info("move_done.")
 
     def putnvtnewfile(self, uobj: Any, Rec: int, iname: str, addname: str) -> None:
+        """NVT Nose-Hoover設定を適用した新規UDFファイルを出力する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            Rec: 対象レコード番号。
+            iname: 入力ファイル名。
+            addname: 出力ファイル名に付加する文字列。
+        """
         head, ext = os.path.splitext(str(iname))
         oname = head + addname + ".udf"
         uobj.jump(Rec)
@@ -304,6 +420,14 @@ class udf_io(molc):
         uobj.write(oname, currentRecord, append)
 
     def putnvtnewfilemb(self, uobj: Any, Rec: int, iname: str, addname: str) -> None:
+        """NVTシミュレーション条件を設定しリスタート用UDFファイルを出力する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            Rec: 対象レコード番号。
+            iname: 入力ファイル名。
+            addname: 出力ファイル名に付加する文字列。
+        """
         head, ext = os.path.splitext(str(iname))
         logger.info("totalstep: %s", self.nvtstep)
         logger.info("outstep: %s", self.nvtoutstep)
@@ -331,6 +455,14 @@ class udf_io(molc):
         uobj.write(oname, currentRecord, append) # save target record
 
     def getudfinfowrap(self, uobj: Any) -> tuple[int, int, int, list[float]]:
+        """UDFファイルの基本情報（分子数、レコード数、原子数、セルサイズ）を一括取得する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+
+        Returns:
+            (全分子数, 全レコード数, 全原子数, セルサイズ)のタプル。
+        """
         totalMol, totalRec = self.gettotalmol_rec(uobj)
         totalAtm = self.gettotalAtm(uobj)
         cell = self.getcellsize(uobj, totalRec-1)
@@ -346,11 +478,27 @@ class udf_io(molc):
         return totalMol, totalRec, totalAtm, cell
 
     def gettotalmol_rec(self, uobj: Any) -> tuple[int, int]:
+        """UDFの全分子数と全レコード数を取得する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+
+        Returns:
+            (全分子数, 全レコード数)のタプル。
+        """
         totalMol = uobj.size("Set_of_Molecules.molecule[]")
         totalRec = uobj.totalRecord()
         return totalMol, totalRec
 
     def gettotalAtm(self, uobj: Any) -> int:
+        """UDF内の全原子数を取得する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+
+        Returns:
+            全原子数。
+        """
         totalMol = uobj.size("Set_of_Molecules.molecule[]")
         numlist = []
         for i in range(totalMol):
@@ -360,11 +508,29 @@ class udf_io(molc):
         return totalAtm
 
     def getcellsize(self, uobj: Any, rec: int) -> list[float]:
+        """指定レコードのセルサイズを取得する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            rec: 対象レコード番号。
+
+        Returns:
+            セルサイズのリスト。
+        """
         uobj.jump(rec)
         cell = uobj.get("Structure.Unit_Cell.Cell_Size")
         return cell
 
     def getmolatomnum(self, uobj: Any, totalMol: int) -> list[int]:
+        """各分子の原子数リストを取得する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            totalMol: 全分子数。
+
+        Returns:
+            各分子の原子数を格納したリスト。
+        """
         atmnumlist = []
         for i in range(totalMol):
             molnum = uobj.size("Set_of_Molecules.molecule[" + str(i) + "].atom[]")
@@ -377,6 +543,15 @@ class udf_io(molc):
 #         return dist
 
     def getinteractionsitetable(self, uobj: Any, indexatom: int) -> list[list[Any]]:
+        """相互作用サイトの名前と範囲のテーブルを取得する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            indexatom: 原子のインデックス。
+
+        Returns:
+            [名前リスト, 範囲リスト]の2要素リスト。
+        """
         # UDF operation
         # get the position of a molecule
         name = uobj.get("Molecular_Attributes.Interaction_Site_Type[].Name")
@@ -386,6 +561,18 @@ class udf_io(molc):
 
     def calcMMinteraction(self, index: list[int], posMol: list[np.ndarray], typenameMol: list[list[str]], molnamelist: list[str],
                           clist: list[list[int]], clu_num: int, fname: str, uobj: Any) -> None:
+        """コンタクトリストに基づきLJおよびクーロン分子間相互作用エネルギーを計算する。
+
+        Args:
+            index: コンタクト分子のインデックスリスト。
+            posMol: 全分子の原子座標リスト。
+            typenameMol: 各分子の原子タイプ名リスト。
+            molnamelist: コンタクト分子の名前リスト。
+            clist: 分子ごとのコンタクトリスト。
+            clu_num: クラスタ番号。
+            fname: 分子名。
+            uobj: UDFManagerオブジェクト。
+        """
         # index: contact mol id total info
         # posmol: all mol position list
         # typenameMol: atom type in mol
@@ -442,6 +629,16 @@ class udf_io(molc):
     #    calcCoulombInteraction
 
     def getnamelist(self, index: list[int], uobj: Any, totalMol: int) -> list[str]:
+        """指定インデックスの分子名リストを取得する。
+
+        Args:
+            index: 分子インデックスのリスト。
+            uobj: UDFManagerオブジェクト。
+            totalMol: 全分子数（周期境界条件での剰余計算に使用）。
+
+        Returns:
+            分子名のリスト。
+        """
         # --get used mol infomation--
         molnamelist = []
         for i in index:
@@ -673,6 +870,16 @@ class udf_io(molc):
         self.make_abinputmb(molname, molnamelist, oname, path)
 
     def getsigmaepsilon(self, atom1: str, atom2: str, uobj: Any) -> list[float]:
+        """指定原子ペアのLJパラメータ（sigma, epsilon）を取得する。
+
+        Args:
+            atom1: 第1原子のタイプ名。
+            atom2: 第2原子のタイプ名。
+            uobj: UDFManagerオブジェクト。
+
+        Returns:
+            [sigma, epsilon]のリスト。
+        """
         # size=uobj.size("Interactions.Pair_Interaction[]")
         aaa = uobj.get("Interactions.Pair_Interaction[]")
         for list in aaa:
@@ -684,5 +891,13 @@ class udf_io(molc):
         # list[6]: [sigma(/2^(1/6)), epsilon(sqrt(e1 * e2))]
 
     def getatomtype(self, uobj: Any) -> list[Any]:
+        """UDFから全原子タイプ情報を取得する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+
+        Returns:
+            原子タイプ情報のリスト。
+        """
         atomtype = uobj.get("Molecular_Attributes.Atom_Type[]")
         return atomtype

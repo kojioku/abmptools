@@ -38,6 +38,12 @@ class TopWriter:
     """Generates the content of a .top file and writes it."""
 
     def write(self, model: SystemModel, filepath: str) -> None:
+        """SystemModelから .top トポロジファイルを書き出す。
+
+        Args:
+            model: 中間表現のシステムモデル。
+            filepath: 出力先ファイルパス。
+        """
         with open(filepath, "w") as f:
             f.write(self._build_header(model))
             for topo in model.mol_topologies:

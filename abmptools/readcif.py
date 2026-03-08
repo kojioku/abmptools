@@ -1,3 +1,9 @@
+"""CIFファイルの読み込みと結晶構造の直交座標変換を行うモジュール。
+
+CIFファイルから格子定数・対称操作・原子座標を読み取り、
+直交座標系への変換やイメージセル展開を提供する。
+"""
+
 import sys
 import os
 import numpy as np
@@ -9,6 +15,15 @@ import glob
 import shutil
 
 def getcartesiancellvec(angle, length):
+    """格子定数（角度と辺長）から直交座標系のセルベクトルを計算する。
+
+    Args:
+        angle: [alpha, beta, gamma] の角度リスト（度単位）。
+        length: [a, b, c] の格子辺長リスト。
+
+    Returns:
+        tuple: (a_vec, b_vec, c_vec) の直交座標系セルベクトル。
+    """
 
     a_vec = [0] * 3
     b_vec = [0] * 3
@@ -65,6 +80,19 @@ def getcartesiancellvec(angle, length):
     return a_vec, b_vec, c_vec
 
 def getcartesianmol(a, b, c, acell, bcell, ccell):
+    """分率座標をセルベクトルで乗じて直交座標成分に変換する。
+
+    Args:
+        a: a軸方向の分率座標。
+        b: b軸方向の分率座標。
+        c: c軸方向の分率座標。
+        acell: a軸のセルベクトル。
+        bcell: b軸のセルベクトル。
+        ccell: c軸のセルベクトル。
+
+    Returns:
+        tuple: (a成分, b成分, c成分) の直交座標リスト。
+    """
 
     a = list(np.array(acell) * a)
     b = list(np.array(bcell) * b)
@@ -98,6 +126,15 @@ def getcartesianmol(a, b, c, acell, bcell, ccell):
 #     return shiftnums
 
 def intocell(incoords, anum_mol):
+    """分率座標を0〜1の範囲内に移動する（分子単位で平均値に基づく）。
+
+    Args:
+        incoords: 分率座標のリスト。
+        anum_mol: 各分子の原子数リスト（1〜2分子に対応）。
+
+    Returns:
+        list: セル内に移動された分率座標のリスト。
+    """
     if len(anum_mol) == 2:
         coordss = []
         a1 = anum_mol[0]
@@ -142,6 +179,19 @@ def intocell(incoords, anum_mol):
     return newcoordss
 
 def getsymcoord(sympos, incoord, label):
+    """対称操作文字列に従って座標を変換する。
+
+    CIFの_symmetry_equiv_pos_as_xyzで定義される対称操作
+    （例: 'x', '-y', '1/2+z'等）を適用する。
+
+    Args:
+        sympos: 対称操作の文字列表現（例: 'x', '1/2-y', 'x-y'）。
+        incoord: [x, y, z] の分率座標リスト。
+        label: 軸インデックス（0:x, 1:y, 2:z）。
+
+    Returns:
+        float: 対称操作適用後の座標値。
+    """
 
     if sympos in ['x']:
         coord = incoord[0]

@@ -1,3 +1,5 @@
+"""PDBファイルの読み書きおよび分子構造の切り出し・変換を行うモジュール。"""
+
 import sys
 import os
 import re
@@ -18,6 +20,12 @@ except ImportError:
     pass
 
 class pdb_io(fab):
+    """PDBファイルの入出力と分子構造操作を提供するクラス。
+
+    PDB形式ファイルの読み込み・書き出し、残基単位での分子切り出し、
+    セル内への分子移動などの機能を持つ。
+    """
+
     def __init__(self):
         super().__init__()
         # print('## load pdb io init')
@@ -46,6 +54,11 @@ class pdb_io(fab):
         pass
 
     def readpdb(self, fname):
+        """PDBファイルを読み込み、残基ごとの原子情報をインスタンス変数に格納する。
+
+        Args:
+            fname: 読み込むPDBファイルのパス。
+        """
 
         logger.info('--- get pdbinfo ---')
         logger.info('infile: %s', fname)
@@ -341,6 +354,17 @@ class pdb_io(fab):
         # return totalRes, atmtypeRes, resnames, gatmlabRes, posRes, headRes, labRes, chainRes ,resnumRes ,codeRes ,occRes ,tempRes ,amarkRes ,chargeRes
 
     def getpermol(self, totalRes, molnums, resnames, datas):
+        """フラットなデータリストを分子名ごとの原子数に基づいて残基単位に分割する。
+
+        Args:
+            totalRes: 残基の総数。
+            molnums: 分子名をキー、原子数を値とする辞書。
+            resnames: 各残基の分子名リスト。
+            datas: 分割対象のフラットなデータリスト。
+
+        Returns:
+            残基単位に分割されたデータのリスト。
+        """
         datamols = []
         count = 0
         for i in range(totalRes):
@@ -352,6 +376,16 @@ class pdb_io(fab):
         return datamols
 
     def getpermol2(self, totalRes, anummols, datas):
+        """フラットなデータリストを各残基の原子数リストに基づいて残基単位に分割する。
+
+        Args:
+            totalRes: 残基の総数。
+            anummols: 各残基の原子数リスト。
+            datas: 分割対象のフラットなデータリスト。
+
+        Returns:
+            残基単位に分割されたデータのリスト。
+        """
         datamols = []
         # print(anummols)
         count = 0
@@ -375,6 +409,12 @@ class pdb_io(fab):
 
 
     def exportardpdbfull(self, out_file, mollist):
+        """インスタンスに格納された残基情報を元にPDBファイルを出力する。
+
+        Args:
+            out_file: 出力ファイルパス（拡張子 .pdb は自動付与）。
+            mollist: 出力対象の残基インデックスのリスト。
+        """
 
         out_file = out_file + '.pdb'
         logger.info('outfile %s', out_file)
@@ -475,6 +515,13 @@ class pdb_io(fab):
     #15 79 - 80 原子の電荷
 
     def exportardxyzfull(self, ifile, out_file, gatmlabRes):
+        """XYZファイルから原子座標を読み取り、指定された原子ラベルに基づきXYZ形式で出力する。
+
+        Args:
+            ifile: 入力XYZファイルのパス。
+            out_file: 出力ファイルパス（拡張子 .xyz は自動付与）。
+            gatmlabRes: 残基ごとの原子ラベルリスト。
+        """
 
         out_file = out_file + '.xyz'
         logger.info('outfile %s', out_file)
@@ -500,6 +547,15 @@ class pdb_io(fab):
         return
 
     def exportardpdb(self, out_file, mollist, posRes, nameAtom, molnames_orig):
+        """指定された分子リストの座標と原子名からPDBファイルを出力する。
+
+        Args:
+            out_file: 出力ファイルパス。
+            mollist: 出力対象の分子インデックスリスト。
+            posRes: 残基ごとの座標リスト。
+            nameAtom: 残基ごとの原子名リスト。
+            molnames_orig: 各残基の分子名リスト。
+        """
 
         ohead, ext = os.path.splitext(out_file)
         out_file = ohead + '.pdb'
@@ -547,6 +603,13 @@ class pdb_io(fab):
             print("END", file=f)
 
     def getcontact_rmapfmopdb(self, path, fname, oname):
+        """PDBファイルから指定条件で近傍分子を切り出し、FMO計算用入力ファイルを生成する。
+
+        Args:
+            path: 作業ディレクトリのパス。
+            fname: 入力PDBファイル名。
+            oname: 出力ファイルのベース名。
+        """
         molname = self.molname
         criteria = self.criteria
         tgtpos = self.tgtpos
@@ -878,11 +941,28 @@ class pdb_io(fab):
         # monomer structure
 
     def movemoltranspdb(self, posVec, transVec):
+        """分子の座標を並進ベクトル分だけ平行移動する。
+
+        Args:
+            posVec: 移動前の座標ベクトル。
+            transVec: 並進ベクトル。
+
+        Returns:
+            平行移動後の座標ベクトル。
+        """
         # Parallel shift
         posVec = posVec + transVec
         return posVec
 
     def getpdbcell(self, fname):
+        """PDBファイルからCRYST1レコードのセルサイズを取得する。
+
+        Args:
+            fname: PDBファイルのパス。
+
+        Returns:
+            セルサイズ [a, b, c] のリスト。CRYST1が無い場合は空リスト。
+        """
         with open(fname, 'r') as _fh:
             f = _fh.readlines()
         cell = []
@@ -894,6 +974,16 @@ class pdb_io(fab):
         return cell
 
     def moveintocellpdb(self, posMol, totalRes, cell):
+        """各分子の重心がセル内に収まるように座標を周期境界条件で移動する。
+
+        Args:
+            posMol: 残基ごとの原子座標リスト。
+            totalRes: 残基の総数。
+            cell: セルサイズ [a, b, c]。
+
+        Returns:
+            セル内に移動された座標リスト。
+        """
         # # Move into cell
         posintoMol = []
         cell2 = []
@@ -920,6 +1010,14 @@ class pdb_io(fab):
         return posintoMol
 
     def getpdbinfowrap(self, fname):
+        """PDBファイルの読み込みとセル情報の取得をまとめて行うラッパーメソッド。
+
+        Args:
+            fname: PDBファイルのパス。
+
+        Returns:
+            セル情報を含む自身のインスタンス。
+        """
         # get pdbinfo
         self.readpdb(fname)
         logger.info('totalres %s', self.totalRes)

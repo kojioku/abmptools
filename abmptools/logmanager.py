@@ -1,4 +1,9 @@
 from __future__ import annotations
+"""ABINIT-MPのログファイルを解析してCPF形式データを生成するモジュール。
+
+ログファイルからエネルギー、IFIE、PIEDA等の計算結果を読み取り、
+CPFManager互換のデータ構造に変換する機能を提供する。
+"""
 
 import sys
 import os
@@ -14,6 +19,12 @@ except ImportError:
 
 
 class LOGManager():
+    """ABINIT-MPログファイルの解析・データ変換を行うクラス。
+
+    ログファイルを解析し、原子情報・フラグメント情報・モノマー/ダイマーエネルギー等を
+    CPFManager互換のデータ構造として保持する。
+    """
+
     def __init__(self) -> None:
         self.cpfver = 23
         self.atominfo = {}
@@ -39,6 +50,14 @@ class LOGManager():
         '''
 
     def parse(self, filepath: str) -> None:
+        """ABINIT-MPログファイルを解析し、各種データをインスタンス変数に格納する。
+
+        条件情報、フラグメント情報、モノマー/ダイマーエネルギー、
+        IFIE/PIEDA、電荷等を読み取りCPFManager互換形式で保持する。
+
+        Args:
+            filepath: ログファイルのパス（.gz圧縮にも対応）。
+        """
         # Initialize the data structures
         # natom = 0
         # nfrag = 0
@@ -363,6 +382,15 @@ class LOGManager():
 
     @staticmethod
     def gettotalenergy(file: TextIO, Method: str) -> tuple[str, str]:
+        """ログファイルからFMO全エネルギー（電子エネルギー、全エネルギー）を取得する。
+
+        Args:
+            file: 読み込み中のファイルオブジェクト。
+            Method: 計算方法（'MP2'または'HF'）。
+
+        Returns:
+            (電子エネルギー, 全エネルギー) の文字列タプル。
+        """
         flag = False
         eneflag = False
         count = 0
@@ -412,6 +440,16 @@ class LOGManager():
 
     @staticmethod
     def getmominfo(file: TextIO, nmom: int, Method: str) -> list[float] | tuple[list[float], list[float]]:
+        """ログファイルからモノマーエネルギー情報を取得する。
+
+        Args:
+            file: 読み込み中のファイルオブジェクト。
+            nmom: モノマー（フラグメント）数。
+            Method: 計算方法（'MP2'の場合HFとMP2の両方、'HF'の場合HFのみ）。
+
+        Returns:
+            'HF'の場合はHFエネルギーのリスト、'MP2'の場合は(HFリスト, MP2リスト)のタプル。
+        """
         flag = False
         eneflag = False
         count = 0
@@ -460,6 +498,15 @@ class LOGManager():
 
     @staticmethod
     def getdipoleinfo(file: TextIO, nmom: int) -> tuple[list[float], list[float], list[float]]:
+        """ログファイルからモノマー電気双極子モーメントを読み取る。
+
+        Args:
+            file: ログファイルのファイルオブジェクト。
+            nmom: 読み取るモノマー数。
+
+        Returns:
+            tuple: (x成分, y成分, z成分) の双極子モーメントリスト。
+        """
         flag = False
         eneflag = False
         count = 0
@@ -496,6 +543,14 @@ class LOGManager():
 
     @staticmethod
     def readelemslog(file: TextIO) -> list[str]:
+        """ログファイルから元素情報を読み取る。
+
+        Args:
+            file: ログファイルのファイルオブジェクト。
+
+        Returns:
+            list[str]: 元素名のリスト。
+        """
         flag = False
         elems = []
         logger.info('--- get eleminfo from log ---')
@@ -517,6 +572,14 @@ class LOGManager():
 
     @staticmethod
     def getversion(file: TextIO) -> int:
+        """ログファイルからABINIT-MPのバージョン番号を取得する。
+
+        Args:
+            file: ログファイルのファイルオブジェクト。
+
+        Returns:
+            int: バージョン番号（1または2）。
+        """
         count = 0
         while True:
             Items = file.readline().strip().split()
@@ -537,6 +600,15 @@ class LOGManager():
 
     @staticmethod
     def getcondition(file: TextIO) -> tuple[str, str, str, float, float, float, str, str, bool, bool, int]:
+        """ログファイルから計算条件（Method、BasisSet、近似パラメータ等）を取得する。
+
+        Args:
+            file: 読み込み中のファイルオブジェクト。
+
+        Returns:
+            (Method, ElecState, BasisSet, Laoc, Lptc, Ldimer,
+             ReadGeom, fragmode, is_npa, is_resp, Nprint) のタプル。
+        """
         is_npa = False
         is_resp = False
         while True:
@@ -1032,6 +1104,16 @@ class LOGManager():
 
     @staticmethod
     def readpdb(fname: str) -> tuple[list[str], list[str], list[str], list[str], list[str], list[str], list[str], list[str], list[float], list[float], list[float], list[str], list[str], list[str], list[str], int]:
+        """PDBファイルから原子座標および属性情報を読み取る。
+
+        Args:
+            fname: PDBファイルのパス。
+
+        Returns:
+            tuple: (heads, molnames, atypenames, labs, chains, resnums, codes,
+                nums, xcoords, ycoords, zcoords, occs, temps, amarks,
+                charges, atomcount) の原子情報タプル。
+        """
 
         logger.info('--- get pdbinfo ---')
         logger.info('infile: %s', fname)
@@ -1161,6 +1243,15 @@ class LOGManager():
 
     @staticmethod
     def getlogresp(file: TextIO, natom: int) -> tuple[list[int], list[str], list[int], list[int], list[float]]:
+        """ログファイルからRESP電荷を読み取る。
+
+        Args:
+            file: ログファイルのファイルオブジェクト。
+            natom: 読み取る原子数。
+
+        Returns:
+            tuple: (原子ラベル, 元素名, 残基番号, フラグメント番号, RESP電荷) のリスト。
+        """
         alabs = []
         elems = []
         chgs = []
@@ -1219,6 +1310,15 @@ class LOGManager():
 
     @staticmethod
     def getlogmul(file: TextIO, natom: int) -> tuple[list[int], list[str], list[float], list[float]]:
+        """ログファイルからMulliken原子電荷・原子占有数を読み取る。
+
+        Args:
+            file: ログファイルのファイルオブジェクト。
+            natom: 読み取る原子数。
+
+        Returns:
+            tuple: (原子ラベル, 元素名, 原子占有数, Mulliken電荷) のリスト。
+        """
         logger.info('get mulliken charge from log')
         alabs = []
         elems = []
@@ -1264,6 +1364,15 @@ class LOGManager():
 
     @staticmethod
     def getlognpa(file: TextIO, natom: int) -> tuple[list[int], list[str], list[int], list[int], list[float], list[float]]:
+        """ログファイルからNPA（Natural Population Analysis）電荷を読み取る。
+
+        Args:
+            file: ログファイルのファイルオブジェクト。
+            natom: 読み取る原子数。
+
+        Returns:
+            tuple: (原子ラベル, 元素名, 残基番号, フラグメント番号, NPA電荷, 原子占有数) のリスト。
+        """
         logger.info('get npa charges from log')
         alabs = []
         elems = []

@@ -150,6 +150,11 @@ class CellGeometry:
     gamma: float = 90.0
 
     def is_rectangular(self, thres: float = 1e-5) -> bool:
+        """セルが直方体かどうかを判定する。
+
+        Args:
+            thres: 90度からの許容誤差。
+        """
         return (abs(self.alpha - 90.0) < thres and
                 abs(self.beta  - 90.0) < thres and
                 abs(self.gamma - 90.0) < thres)

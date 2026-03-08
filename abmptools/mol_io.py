@@ -1,4 +1,5 @@
 from __future__ import annotations
+"""XYZファイルおよびPDB形式の分子構造データの読み書きを行うモジュール。"""
 
 import os
 import re
@@ -8,12 +9,21 @@ logger = logging.getLogger(__name__)
 
 
 class mol_io():
+    """XYZ形式やPDB形式の分子構造ファイルの入出力を行うクラス。"""
 
     def __init__(self) -> None:
         super().__init__()
         # print('## load mol io')
 
     def read_mol_name(self, fname: str) -> str:
+        """ファイル名から拡張子を除いた分子名を取得する。
+
+        Args:
+            fname: ファイル名。
+
+        Returns:
+            拡張子を除いたファイル名（分子名）。
+        """
         molname, ext = os.path.splitext(fname)
         # lines = [l.rstrip() for l in open(filename, "U")]
         # text = lines[1]
@@ -22,6 +32,14 @@ class mol_io():
         return molname
 
     def read_xyz(self, filename: str) -> list[list[str] | list[list[float]]]:
+        """XYZファイルを読み込み、原子種と座標を返す。
+
+        Args:
+            filename: XYZファイルのパス。
+
+        Returns:
+            [原子種リスト, 座標リスト] の2要素リスト。
+        """
         with open(filename) as _fh:
             lines = [l.rstrip() for l in _fh]
         atom = []
@@ -38,6 +56,14 @@ class mol_io():
         return [atom, coord]
 
     def getatoms(self, fname: str) -> tuple[list[list[list[int | str]]], list[str], list[list[list[str]]]]:
+        """複数構造を含むXYZファイルを読み込み、構造ごとの原子情報と座標を返す。
+
+        Args:
+            fname: 複数構造XYZファイルのパス。
+
+        Returns:
+            (原子情報リスト, 原子数リスト, 座標リスト) のタプル。
+        """
         with open(fname, "r", newline="\n") as f:
             text = f.readlines()
 
@@ -76,6 +102,13 @@ class mol_io():
         return atoms, atomnums, poss
 
     def convert_xyzs_pdb(self, fname: str, dirname: str, tgtnum: int = 0) -> None:
+        """複数構造XYZファイルの各構造を個別のPDBファイルに変換する。
+
+        Args:
+            fname: 入力XYZファイルのパス。
+            dirname: 出力先ディレクトリ。
+            tgtnum: 特定構造のみ変換する場合の番号（0で全構造）。
+        """
         atoms, atomnums, poss = self.getatoms(fname)
         head, ext = os.path.splitext(fname)
         for i in range(len(atoms)):
@@ -92,6 +125,14 @@ class mol_io():
                     self.Exportpospdb(atoms[i], atomnums[i], poss[i], oname)
 
     def getatom(self, fname: str) -> tuple[list[list[int | str]], str, list[list[str]]]:
+        """単一構造のXYZファイルを読み込み、原子情報と座標を返す。
+
+        Args:
+            fname: XYZファイルのパス。
+
+        Returns:
+            (原子情報リスト, 原子数, 座標リスト) のタプル。
+        """
         atom = []
         pos = []
         with open(fname, "r", newline="\n") as f:
@@ -107,12 +148,25 @@ class mol_io():
         return atom, atomnum, pos
 
     def convert_xyz_pdb(self, fname: str) -> None:
+        """単一構造のXYZファイルをPDBファイルに変換する。
+
+        Args:
+            fname: 入力XYZファイルのパス。
+        """
         atom, atomnum, pos = self.getatom(fname)
         head, ext = os.path.splitext(fname)
         oname = str(head) + ".pdb"
         self.Exportpospdb(atom, atomnum, pos, oname)
 
     def Exportpospdb(self, atom: list[list[int | str]], atomnum: str, pos: list[list[str]], out_file: str) -> None:
+        """原子情報と座標をPDB形式でファイルに出力する。
+
+        Args:
+            atom: 原子インデックスと元素名のペアのリスト。
+            atomnum: 原子数（文字列）。
+            pos: 各原子の座標リスト。
+            out_file: 出力PDBファイルのパス。
+        """
         # # Export position of mol
         # head, ext = os.path.splitext(str(iname))
 

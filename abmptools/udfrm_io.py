@@ -1,4 +1,9 @@
 from __future__ import annotations
+"""UDFファイルからPDB/XYZ形式への変換を行うモジュール。
+
+UDFManager経由で分子座標を読み込み、セル内移動や
+PDB/XYZ形式でのエクスポートを提供する。
+"""
 
 import os
 import logging
@@ -18,12 +23,23 @@ except ImportError:
 
 
 class udfrm_io(uio):
+    """UDFファイルの座標データをPDB/XYZ形式に変換するクラス。
+
+    指定レコード・分子の座標をセル内に移動し、XYZ/PDBファイルとして出力する。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.molflag: bool = False
         self.cell: list[float] | None = None
 
     def run_convert(self, args: tuple[str, int, int, bool]) -> None:
+        """UDFファイルを読み込み、指定条件でPDB/XYZ形式に変換する。
+
+        Args:
+            args: (ファイル名, 対象レコード番号, 対象分子番号, セル内移動フラグ) のタプル。
+                  レコード/分子番号に-1を指定すると最終レコード/全分子を対象とする。
+        """
         fname, tgtrec, tgtmol, moveflag = args
         _udf_ = UDFManager(fname)
 
@@ -50,6 +66,18 @@ class udfrm_io(uio):
             self.convert_udf_pdb(tgtrec, _udf_, totalMol, oname)
 
     def convert_udf_pdb(self, rec: int, uobj: Any, totalMol: int, ohead: str, writef: bool = True) -> list[list[Any]]:
+        """UDFの指定レコードから分子座標・原子タイプ名を取得し、XYZファイルに出力する。
+
+        Args:
+            rec: 対象レコード番号。
+            uobj: UDFManagerオブジェクト。
+            totalMol: 対象分子数。
+            ohead: 出力ファイル名のプレフィックス。
+            writef: Trueの場合ファイルに書き出す。
+
+        Returns:
+            [原子タイプ名リスト, 座標リスト, 分子名リスト] のリスト。
+        """
         uobj.jump(rec)
         self.cell = uobj.get("Structure.Unit_Cell.Cell_Size")
         logger.debug("totalMol=%s, rec=%s", totalMol, rec)
@@ -94,6 +122,15 @@ class udfrm_io(uio):
 
 
     def moveintocell_rec(self, uobj: Any, Rec: int, totalMol: int) -> None:
+        """指定レコードの全分子をセル内に移動する。
+
+        各分子の重心がセル範囲外にある場合、セルベクトル分だけ平行移動する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            Rec: 対象レコード番号。
+            totalMol: 全分子数。
+        """
         # # Move into cell
         uobj.jump(Rec)
         cell = uobj.get("Structure.Unit_Cell.Cell_Size")
@@ -118,6 +155,15 @@ class udfrm_io(uio):
 
 
     def getmolname(self, i: int, uobj: Any) -> str:
+        """UDFから指定インデックスの分子名を取得する。
+
+        Args:
+            i: 分子のインデックス番号。
+            uobj: UDFManagerオブジェクト。
+
+        Returns:
+            str: 分子名。
+        """
         # --get used mol infomation--
         molname = uobj.get("Set_of_Molecules.molecule[" +
                            str(i) + "].Mol_Name")

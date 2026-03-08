@@ -130,6 +130,11 @@ class UdfAdapter:
     # ------------------------------------------------------------------
 
     def build(self) -> SystemModel:
+        """UDFManagerからSystemModelを構築して返す。
+
+        UDFの全データ (原子型、トポロジ、座標、シミュレーション条件) を読み取り、
+        GROMACS変換用の中間表現にまとめる。
+        """
         udf = self._udf
         udf.jump(udf.totalRecord() - 1)
         logger.info("Data output: Record number = %s", udf.totalRecord() - 1)
