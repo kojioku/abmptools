@@ -1,3 +1,4 @@
+"""ABINIT-MPログファイルを解析してCPFファイルに変換するCLIツール。"""
 import os
 import abmptools
 import argparse
@@ -7,6 +8,11 @@ import datetime
 
 
 def get_args():
+    """コマンドライン引数を解析して返す。
+
+    Returns:
+        argparse.Namespace: 入力ログファイル名、対象フラグメント、出力ファイル名等を含む引数。
+    """
     parser = argparse.ArgumentParser(
                 prog='log2cpf',
                 usage='',

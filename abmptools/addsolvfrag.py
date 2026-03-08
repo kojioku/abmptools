@@ -1,3 +1,8 @@
+"""テンプレートAJFファイルに溶媒フラグメント情報を追加してABINIT-MP入力ファイルを生成するCLIツール。
+
+PDB座標ファイルとテンプレートAJFを元に、溶媒分子（HOH, WAT, NAなど）の
+フラグメント情報を付加したAJFファイルを出力する。
+"""
 import numpy as np
 import sys
 import os

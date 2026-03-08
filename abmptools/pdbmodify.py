@@ -1,3 +1,4 @@
+"""PDBファイルの座標移動、チェーンID付与、残基名変更、ソートなどの編集を行うCLIツール。"""
 import numpy as np
 import sys
 import os

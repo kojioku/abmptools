@@ -1,3 +1,7 @@
+"""CPFファイルのバージョン変換およびフラグメント抽出を行うCLIツール。
+
+入力CPFファイルを指定バージョン（現在はver.23のみ対応）に変換して出力する。
+"""
 import abmptools
 import argparse
 import os
@@ -5,6 +9,11 @@ import datetime
 
 
 def get_args():
+    """コマンドライン引数を解析して返す。
+
+    Returns:
+        argparse.Namespace: 入力CPF名、対象フラグメント、出力バージョン、出力ファイル名を含む引数。
+    """
     parser = argparse.ArgumentParser(description="convert CPF")
 
     # Input CPF name, required

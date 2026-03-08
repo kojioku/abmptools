@@ -1,3 +1,7 @@
+"""PDB座標ファイルからABINIT-MP入力ファイル（AJF）を生成するCLIツール。
+
+フラグメント分割、計算条件（基底関数、手法、溶媒和など）を指定してAJFファイルを出力する。
+"""
 import ast
 import abmptools as ampt
 import os

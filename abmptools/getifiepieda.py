@@ -1,3 +1,7 @@
+"""ABINIT-MPログファイルからIFIE/PIEDAデータを抽出・解析してCSV出力するCLIツール。
+
+単一ログ解析、時系列マルチログ解析、フラグメント間マトリクス生成など複数の解析モードに対応する。
+"""
 import ast
 import sys
 import os

@@ -1,3 +1,4 @@
+"""テンプレートAJFファイル中の文字列を連番に置換し、複数のAJFファイルを一括生成するCLIツール。"""
 import numpy as np
 import sys
 import os

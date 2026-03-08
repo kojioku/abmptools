@@ -1,3 +1,7 @@
+"""PDB座標ファイルとsegment_data設定からABINIT-MP入力ファイル（AJF・PDBセット）を生成するCLIツール。
+
+球体・直方体・周辺カットなど複数のカットモードに対応し、FMO計算用の入力一式を出力する。
+"""
 import ast
 import numpy as np
 import sys
