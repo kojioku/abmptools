@@ -1,10 +1,13 @@
 """PDBファイルの読み書きおよび分子構造の切り出し・変換を行うモジュール。"""
 
+from __future__ import annotations
+
 import sys
 import os
 import re
 import copy
 import logging
+from typing import Any
 from .abinit_io import abinit_io as fab
 import collections
 import itertools
@@ -53,7 +56,7 @@ class pdb_io(fab):
 
         pass
 
-    def readpdb(self, fname):
+    def readpdb(self, fname: str) -> None:
         """PDBファイルを読み込み、残基ごとの原子情報をインスタンス変数に格納する。
 
         Args:
@@ -353,7 +356,7 @@ class pdb_io(fab):
         return
         # return totalRes, atmtypeRes, resnames, gatmlabRes, posRes, headRes, labRes, chainRes ,resnumRes ,codeRes ,occRes ,tempRes ,amarkRes ,chargeRes
 
-    def getpermol(self, totalRes, molnums, resnames, datas):
+    def getpermol(self, totalRes: int, molnums: dict[str, int], resnames: list[str], datas: list[Any]) -> list[list[Any]]:
         """フラットなデータリストを分子名ごとの原子数に基づいて残基単位に分割する。
 
         Args:
@@ -375,7 +378,7 @@ class pdb_io(fab):
             datamols.append(datamol)
         return datamols
 
-    def getpermol2(self, totalRes, anummols, datas):
+    def getpermol2(self, totalRes: int, anummols: list[int], datas: list[Any]) -> list[list[Any]]:
         """フラットなデータリストを各残基の原子数リストに基づいて残基単位に分割する。
 
         Args:
@@ -400,7 +403,7 @@ class pdb_io(fab):
 
 #        aobj.exportardpdbfull(opath + '/' + self.readgeom, index, posMol, atomnameMol, self.resnames, heads, labs, chains, resnums, codes, occs, temps, amarks, charges)
 
-    def devidepdb(self, iname, oname, index):
+    def devidepdb(self, iname: str, oname: str, index: int) -> None:
         ''' devide pdb file to each molecule '''
         #q 引数を残基番号にして、「その残基を除いた構造」と「その残基のみの構造」をpdbで出力したい
 
@@ -408,7 +411,7 @@ class pdb_io(fab):
 
 
 
-    def exportardpdbfull(self, out_file, mollist):
+    def exportardpdbfull(self, out_file: str, mollist: list[int]) -> None:
         """インスタンスに格納された残基情報を元にPDBファイルを出力する。
 
         Args:
@@ -514,7 +517,7 @@ class pdb_io(fab):
     #14 77 - 78 元素記号
     #15 79 - 80 原子の電荷
 
-    def exportardxyzfull(self, ifile, out_file, gatmlabRes):
+    def exportardxyzfull(self, ifile: str, out_file: str, gatmlabRes: list[list[str]]) -> None:
         """XYZファイルから原子座標を読み取り、指定された原子ラベルに基づきXYZ形式で出力する。
 
         Args:
@@ -546,7 +549,7 @@ class pdb_io(fab):
         logger.debug('%s', self.xyzstr)
         return
 
-    def exportardpdb(self, out_file, mollist, posRes, nameAtom, molnames_orig):
+    def exportardpdb(self, out_file: str, mollist: list[int], posRes: list[list[list[float]]], nameAtom: list[list[str]], molnames_orig: list[str]) -> None:
         """指定された分子リストの座標と原子名からPDBファイルを出力する。
 
         Args:
@@ -602,7 +605,7 @@ class pdb_io(fab):
 
             print("END", file=f)
 
-    def getcontact_rmapfmopdb(self, path, fname, oname):
+    def getcontact_rmapfmopdb(self, path: str, fname: str, oname: str) -> None:
         """PDBファイルから指定条件で近傍分子を切り出し、FMO計算用入力ファイルを生成する。
 
         Args:
@@ -940,7 +943,7 @@ class pdb_io(fab):
         self.make_abinput_rmap(tgtmolnames, resnames, oname, opath, atomnums)
         # monomer structure
 
-    def movemoltranspdb(self, posVec, transVec):
+    def movemoltranspdb(self, posVec: np.ndarray, transVec: np.ndarray) -> np.ndarray:
         """分子の座標を並進ベクトル分だけ平行移動する。
 
         Args:
@@ -954,7 +957,7 @@ class pdb_io(fab):
         posVec = posVec + transVec
         return posVec
 
-    def getpdbcell(self, fname):
+    def getpdbcell(self, fname: str) -> list[float]:
         """PDBファイルからCRYST1レコードのセルサイズを取得する。
 
         Args:
@@ -973,7 +976,7 @@ class pdb_io(fab):
                 break
         return cell
 
-    def moveintocellpdb(self, posMol, totalRes, cell):
+    def moveintocellpdb(self, posMol: list[list[list[float]]], totalRes: int, cell: list[float]) -> list[Any]:
         """各分子の重心がセル内に収まるように座標を周期境界条件で移動する。
 
         Args:
@@ -1009,7 +1012,7 @@ class pdb_io(fab):
         logger.info("move_done.")
         return posintoMol
 
-    def getpdbinfowrap(self, fname):
+    def getpdbinfowrap(self, fname: str) -> pdb_io:
         """PDBファイルの読み込みとセル情報の取得をまとめて行うラッパーメソッド。
 
         Args:
