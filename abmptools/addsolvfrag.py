@@ -17,8 +17,8 @@ import argparse
 # Matrix operation
 
 
-if __name__ == "__main__":
-    ## -- user setting --
+def get_args():
+    """コマンドライン引数を解析する。"""
     parser = argparse.ArgumentParser(
                 prog='addsolvfrag.py', # program name
                 usage='''e.g.)
@@ -167,6 +167,12 @@ if __name__ == "__main__":
 
     # get args
     args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    ## -- user setting --
+    args = get_args()
 
     print('coord(pdb) =', args.incoord)
     print('solv = ', args.solvation)
@@ -190,12 +196,6 @@ if __name__ == "__main__":
     print('bsse', args.bsse)
     print('mldat', args.mldat)
     print('disp', args.disp)
-
-
-    ####################################
-
-    args = parser.parse_args()
-    # print('output =', args.output)
 
     ajfname = args.template
     solvname = args.solvmol

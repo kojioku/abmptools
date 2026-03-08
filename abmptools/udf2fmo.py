@@ -12,13 +12,8 @@ import copy
 import abmptools as ampt
 import argparse
 
-if __name__ == "__main__":
-    # main
-    # argvs = sys.argv
-    # fname = str(argvs[1])
-    # oname = str(argvs[2])
-
-    # create parser
+def get_args():
+    """コマンドライン引数を解析する。"""
     parser = argparse.ArgumentParser(
                 prog='udf2fmo.py', # program name
                 usage='python udf2fmo.py -i xxx.udf -o yyy', # program usage
@@ -55,6 +50,12 @@ if __name__ == "__main__":
 
     # get args
     args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    # main
+    args = get_args()
 
     print('coord(udf) =', args.incoord)
     print('parameter = ', args.parameter)
