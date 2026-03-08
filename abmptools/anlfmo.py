@@ -1,3 +1,8 @@
+"""FMO解析モジュール。
+
+ABINITMPのログファイルからIFIE/PIEDAデータを読み込み、解析・CSV出力を行う。
+"""
+
 import sys
 import os
 import copy
@@ -26,6 +31,13 @@ except ImportError:
     pass
 
 class anlfmo(pdio):
+    """FMO解析クラス。
+
+    ABINITMPのログファイルからIFIE(フラグメント間相互作用エネルギー)および
+    PIEDA(ペアワイズ相互作用エネルギー分解解析)データを読み込み、
+    フィルタリング・集計・CSV出力を行う。
+    """
+
     def __init__(self):
         super().__init__()
         self.cpfflag = True
@@ -113,6 +125,14 @@ class anlfmo(pdio):
         pass
 
     def read_fraginfo(self, fname):
+        """フラグメント情報をログファイルから読み込む。
+
+        Args:
+            fname (str): ログファイルのパス
+
+        Returns:
+            list: フラグメント名のリスト
+        """
         frags = []
         count = 0
         with open(fname, 'r') as file:
@@ -143,6 +163,14 @@ class anlfmo(pdio):
         return frags
 
     def read_pieda(self, fname):
+        """PIEDAデータをログファイルから読み込む。
+
+        Args:
+            fname (str): ログファイルのパス
+
+        Returns:
+            list: PIEDAデータのリスト
+        """
         ifie = []
         count = 0
         with open(fname, "r") as _fh:
@@ -235,6 +263,18 @@ class anlfmo(pdio):
         return molfrags
 
     def getallmolfrags(self, logname, df, nf):
+        """全フラグメントの分子帰属を取得する。
+
+        フラグメント間距離に基づき接続を判定し、分子ごとのフラグメントリストを返す。
+
+        Args:
+            logname (str): ログファイルのパス
+            df (pandas.DataFrame): IFIEデータフレーム
+            nf (int): フラグメント数
+
+        Returns:
+            list: 分子ごとのフラグメントIDリストのリスト
+        """
         # fragment connect is judged by checking frag-frag distance
         alfrags = []
         molfragss = []
@@ -250,6 +290,15 @@ class anlfmo(pdio):
         return molfragss
 
     def getlognf(self, logname, fragmode):
+        """ログファイルからフラグメント数を取得する。
+
+        Args:
+            logname (str): ログファイルのパス
+            fragmode (str): フラグメントモード ('auto' または 'manual')
+
+        Returns:
+            int: フラグメント数
+        """
         # print('fragmode', fragmode)
         if fragmode == 'manual':
             with open(logname, "r") as _fh:
@@ -343,6 +392,15 @@ class anlfmo(pdio):
         return nf
 
     def readlog(self, logname, fragmode):
+        """ログファイルを読み込み、原子数を返す。
+
+        Args:
+            logname (str): ログファイルのパス
+            fragmode (str): フラグメントモード ('auto' または 'manual')
+
+        Returns:
+            int: 原子数
+        """
         # print('fragmode', fragmode)
         if fragmode == 'manual':
             with open(logname, "r") as _fh:
@@ -435,6 +493,14 @@ class anlfmo(pdio):
         return natom
 
     def getlognatom(self, fname):
+        """ログファイルから原子数を取得する。
+
+        Args:
+            fname (str): ログファイルのパス
+
+        Returns:
+            int: 原子数
+        """
         acount = 0
         flag = False
         with open(fname, "r") as f:
@@ -455,6 +521,15 @@ class anlfmo(pdio):
 
 
     def getlogchg(self, fname, natom):
+        """ログファイルからRESP電荷を取得する。
+
+        Args:
+            fname (str): ログファイルのパス
+            natom (int): 原子数
+
+        Returns:
+            list: 各原子の電荷値のリスト
+        """
         chgs = []
         with open(fname, "r") as f:
             text = f.readlines()
@@ -475,6 +550,16 @@ class anlfmo(pdio):
 
 
     def getlogchgall(self, fname, natom, chgtype):
+        """ログファイルから全原子の電荷情報を取得する。
+
+        Args:
+            fname (str): ログファイルのパス
+            natom (int): 原子数
+            chgtype (str): 電荷タイプ ('nbo'のみ対応)
+
+        Returns:
+            pandas.DataFrame: 原子ラベル・元素・残基・フラグメント・電荷・ポピュレーションを含むデータフレーム
+        """
         alabs = []
         elems = []
         ress = []
@@ -528,6 +613,14 @@ class anlfmo(pdio):
         '''
 
     def getlogorpdbfrag(self, ifile):
+        """ログファイルまたはPDBファイルからフラグメント情報と残基名を取得する。
+
+        Args:
+            ifile (str): ログファイルのパス
+
+        Returns:
+            tuple: (残基名リスト, PDBファイルの絶対パス)
+        """
 
         readflag = False
         autoreadflag = False
@@ -735,6 +828,14 @@ class anlfmo(pdio):
         return df
 
     def getpiedadf(self, pieda):
+        """PIEDAデータからDataFrameを生成する。
+
+        Args:
+            pieda (list): PIEDAデータのリスト
+
+        Returns:
+            pandas.DataFrame: PIEDA成分(ES, EX, CT-mix, DI(MP2), q(I=>J))を含むデータフレーム
+        """
         # print('l669', pieda[1])
         pidf = pd.DataFrame(pieda, columns=self.pcolumn)
         pidf['I'] = pidf['I'].astype(int)
@@ -749,6 +850,14 @@ class anlfmo(pdio):
         return pidf
 
     def getmomenedf(self, momene):
+        """モノマーエネルギーデータからDataFrameを生成する。
+
+        Args:
+            momene (list): モノマーエネルギーデータのリスト
+
+        Returns:
+            pandas.DataFrame: フラグメント番号・HF・MP2エネルギーを含むデータフレーム
+        """
         df = pd.DataFrame(momene, columns=['Frag.', 'HF', 'MP2'])
         df['Frag.'] = df['Frag.'].astype(int)
         df['HF'] = df['HF'].astype(float)
@@ -756,6 +865,14 @@ class anlfmo(pdio):
         return df
 
     def getdimenedf(self, dimene):
+        """ダイマーエネルギーデータからDataFrameを生成する。
+
+        Args:
+            dimene (list): ダイマーエネルギーデータのリスト
+
+        Returns:
+            pandas.DataFrame: フラグメントペア(I, J)とダイマーHF・MP2エネルギーを含むデータフレーム
+        """
         df = pd.DataFrame(dimene, columns=['I', 'J', 'DIMER-HF', 'DIMER-MP2'])
         df['I'] = df['I'].astype(int)
         df['J'] = df['J'].astype(int)
@@ -764,6 +881,14 @@ class anlfmo(pdio):
         return df
 
     def getpbpiedadf(self, pieda):
+        """PB溶媒効果を含むPIEDAデータからDataFrameを生成する。
+
+        Args:
+            pieda (list): PB-PIEDAデータのリスト
+
+        Returns:
+            pandas.DataFrame: PB-PIEDA成分を含むデータフレーム(Solv(ES)列は除去済み)
+        """
         pidf = pd.DataFrame(pieda, columns=self.pcolumnpb)
         pidf['I'] = pidf['I'].astype(int)
         pidf['J'] = pidf['J'].astype(int)
@@ -779,6 +904,14 @@ class anlfmo(pdio):
 
 
     def gettgtpidf_n2ffmatrix(self, mydf=None, is_pb=False):
+        """PIEDAデータからフラグメント-フラグメント行列(ES, EX, CT)を生成する。
+
+        結果はself.esdf, self.exdf, self.ctdfに格納される。
+
+        Args:
+            mydf (pandas.DataFrame, optional): PIEDAデータフレーム。Noneの場合はself.pidfを使用。
+            is_pb (bool): PB溶媒効果を考慮するかどうか。
+        """
         logger.info('--- generate pieda %s %s ffmatrix ---', str(self.tgt1frag), str(self.tgt2frag))
         esdf = pd.DataFrame(index=self.tgt2frag)
         exdf = pd.DataFrame(index=self.tgt2frag)
@@ -874,6 +1007,14 @@ class anlfmo(pdio):
 
 
     def gettgtdf_n2ffmatrix(self, mydf=None):
+        """IFIEデータからフラグメント-フラグメント行列を生成する。
+
+        HF, MP2相関, PR-MP2相関, MP2合計, PR-MP2合計, 距離の各行列を
+        self.hfdf, self.mp2corrdf等のインスタンス変数に格納する。
+
+        Args:
+            mydf (pandas.DataFrame, optional): IFIEデータフレーム。Noneの場合はself.ifdfを使用。
+        """
         # generate frags-frags matrix
         logger.info('--- generate ifie %s %s ffmatrix---', str(self.tgt1frag), str(self.tgt2frag))
         hfdf = pd.DataFrame(index=self.tgt2frag)
@@ -1150,6 +1291,14 @@ class anlfmo(pdio):
         return
 
     def depth(self, k):
+        """リストのネスト深さを返す。
+
+        Args:
+            k: 深さを調べるオブジェクト
+
+        Returns:
+            int: ネストの深さ(リストでない場合は0)
+        """
         if not k:
             return 0
         else:
@@ -1159,6 +1308,16 @@ class anlfmo(pdio):
                 return 0
 
     def gettgtdf_n2tfmatrix(self, i, df, f1):
+        """IFIEデータから時間-フラグメント行列を生成する。
+
+        Args:
+            i (int): 時間ステップのインデックス
+            df (pandas.DataFrame): IFIEデータフレーム
+            f1 (int): 対象フラグメントID
+
+        Returns:
+            tuple: (hfdf, mp2corrdf, prmp2corrdf, mp2tdf, prmp2tdf, distdf)の各DataFrame
+        """
         # gettgtdf_normal to times-frags
         if self.depth(self.tgt2frag) >= 2:
             tgt2frag = self.tgt2frag[i]
@@ -1227,6 +1386,17 @@ class anlfmo(pdio):
 
 
     def gettgtpidf_n2tfmatrix(self, i, df, hfdf, f1):
+        """PIEDAデータから時間-フラグメント行列を生成する。
+
+        Args:
+            i (int): 時間ステップのインデックス
+            df (pandas.DataFrame): PIEDAデータフレーム
+            hfdf (pandas.DataFrame): HF-IFIEデータフレーム(補完値用)
+            f1 (int): 対象フラグメントID
+
+        Returns:
+            tuple: (esdf, exdf, didf, ctdf)の各DataFrame
+        """
         # define tgtfrag for molname - frags
         if self.depth(self.tgt2frag) >= 2:
             tgt2frag = self.tgt2frag[i]
@@ -1309,6 +1479,14 @@ class anlfmo(pdio):
         # return hfdf, mp2corrdf, prmp2corrdf, mp2tdf, prmp2tdf
 
     def gettgtdf_fd(self, df):
+        """対象フラグメントのIFIEを距離またはDimer-ES近似でフィルタリングする。
+
+        Args:
+            df (pandas.DataFrame): IFIEデータフレーム
+
+        Returns:
+            tuple: (フィルタ前のDataFrame, フィルタ後のDataFrame)
+        """
 
         # filter tgt1frag IFIE
         tgtdf = df[(df['I'] == self.tgt1frag[0]) | (df['J'] == self.tgt1frag[0])]
@@ -1325,6 +1503,16 @@ class anlfmo(pdio):
         return tgtdf, tgtdf_filter
 
     def gettgtdf_ff(self, df, frag1, frag2):
+        """指定した2つのフラグメント間のIFIEデータを抽出する。
+
+        Args:
+            df (pandas.DataFrame): IFIEデータフレーム
+            frag1 (int): フラグメントID 1
+            frag2 (int): フラグメントID 2
+
+        Returns:
+            pandas.DataFrame: フラグメントペアに対応するIFIEデータ
+        """
         # print('--- ifie frag ', frag1, frag2, '----')
         frag1 = int(frag1)
         frag2 = int(frag2)
@@ -1334,6 +1522,16 @@ class anlfmo(pdio):
 
 
     def gettgtdf_ffs(self, df, frag1, frag2):
+        """指定フラグメントと複数フラグメント間のIFIEデータを抽出する。
+
+        Args:
+            df (pandas.DataFrame): IFIEデータフレーム
+            frag1 (int): 対象フラグメントID
+            frag2 (list): 相手フラグメントIDのリスト
+
+        Returns:
+            pandas.DataFrame: フィルタリングされたIFIEデータ
+        """
         # print('--- ifie frag ', frag1, frag2, '----')
         logger.debug('%s %s', frag1, frag2)
         tgtdf_filter = df[((df['I'] == frag1) & (df['J'].isin(frag2))) | ((df['I'].isin(frag2)) & (df['J'] == frag1))]
@@ -1342,6 +1540,16 @@ class anlfmo(pdio):
 
 
     def getifiesummol(self, df, molfrags, molid):
+        """分子単位でIFIE/PIEDAを集計し、分子間相互作用エネルギーを算出する。
+
+        Args:
+            df (pandas.DataFrame): IFIEデータフレーム
+            molfrags (list): 対象分子のフラグメントIDリスト
+            molid (int): 対象分子のID
+
+        Returns:
+            tuple: (接触分子フラグメントリスト, フラグメント間IFIEリスト, 分子間IFIE DataFrame, 分子間IFIE合計Series)
+        """
         tgtdf_filters = pd.DataFrame(columns=self.icolumn)
         logger.debug('%s', self.dist)
         tgtdf = df[df['I'].isin(molfrags) | df['J'].isin(molfrags)]
@@ -1449,6 +1657,14 @@ class anlfmo(pdio):
         return contactmolfrags, ifdf_frag_mols, ifdf_mol_mol, ifdf_molsum
 
     def getsumdf(self, df):
+        """DataFrameの各IFIE/PIEDA成分の合計値を算出する。
+
+        Args:
+            df (pandas.DataFrame): IFIE/PIEDAデータフレーム
+
+        Returns:
+            tuple: (HF-IFIE, MP2-IFIE, PR-TYPE1, GRIMME, JUNG, HILL, ES, EX, CT-mix, DI(MP2), q(I=>J))の各合計値
+        """
         HF_IFIE_sum = df['HF-IFIE'].sum()
         MP2_IFIE_sum = df['MP2-IFIE'].sum()
         PR_TYPE1_sum = df['PR-TYPE1'].sum()
@@ -1466,6 +1682,15 @@ class anlfmo(pdio):
 
 
     def getpitgtdf(self, pidf, ifdf_filter):
+        """対象フラグメント周辺のPIEDAデータを取得し、不足分をIFIEから補完する。
+
+        Args:
+            pidf (pandas.DataFrame): PIEDAデータフレーム
+            ifdf_filter (pandas.DataFrame): フィルタ済みIFIEデータフレーム
+
+        Returns:
+            pandas.DataFrame: 補完済みPIEDAデータ
+        """
         logger.info('--- pieda near tgt %s angstrom ----', self.dist)
         # print('--- pieda for tgt frag ----')
         tgt1frag = self.tgt1frag[0]
@@ -1636,6 +1861,14 @@ class anlfmo(pdio):
 
 
     def read_pbifiepieda(self, fname):
+        """PB溶媒効果を含むIFIE/PIEDAデータをログファイルから読み込む。
+
+        Args:
+            fname (str): ログファイルのパス
+
+        Returns:
+            tuple: (IFIEデータリスト, PIEDAデータリスト, 溶媒項データリスト)
+        """
         ifie = []
         count = 0
         pieda = []
@@ -1899,6 +2132,19 @@ class anlfmo(pdio):
 
 
     def getfiltifpifd(self, i, ifdf, pidf, momenedf=None, dimenedf=None, bssedf=None):
+        """距離/Dimer-ESモードでフィルタリングしたIFIE/PIEDAデータを取得する。
+
+        Args:
+            i (int): 時間ステップのインデックス
+            ifdf (pandas.DataFrame): IFIEデータフレーム
+            pidf (pandas.DataFrame): PIEDAデータフレーム
+            momenedf (pandas.DataFrame, optional): モノマーエネルギーデータフレーム
+            dimenedf (pandas.DataFrame, optional): ダイマーエネルギーデータフレーム
+            bssedf (pandas.DataFrame, optional): BSSEデータフレーム
+
+        Returns:
+            tuple: (フィルタ済みIFIE DataFrame, IFIE合計値Series)
+        """
         # in class var: tgttime
         #    local var: i, ifdf,pidf
         # out local var: tgtifdfsum, tgtdf_filter
@@ -2212,6 +2458,7 @@ class anlfmo(pdio):
             return
 
     def readmultiifie(self):
+        """複数ログファイルからIFIE/PIEDAデータを並列読み込みし、結果をインスタンス変数に格納する。"""
         # check disp(LRD)
         self.is_disp = self.getisdisp(self.tgtlogs[0])
         logger.info('## read multi mode')
@@ -2426,6 +2673,14 @@ class anlfmo(pdio):
         return self
 
     def getisdisp(self, tgtlog):
+        """ログファイルからMP2-LRD分散補正の有無を判定する。
+
+        Args:
+            tgtlog (str): ログファイルのパス
+
+        Returns:
+            bool: 分散補正(Disp)が有効な場合True
+        """
         with open(tgtlog, 'r') as f:
             for line in f:
                 Items = line.split()
@@ -2437,6 +2692,14 @@ class anlfmo(pdio):
         return False
 
     def getlogmethod(self, tgtlog):
+        """ログファイルから計算手法(HF, MP2, MP3等)を取得する。
+
+        Args:
+            tgtlog (str): ログファイルのパス
+
+        Returns:
+            str: 計算手法の文字列
+        """
         with open(tgtlog, 'r') as f:
             for line in f:
                 Items = line.split()
@@ -2447,6 +2710,11 @@ class anlfmo(pdio):
                     return Items[2]
 
     def getpbflag(self, tgtlog):
+        """ログファイルからPB溶媒効果の有効/無効を判定し、self.pbflagに設定する。
+
+        Args:
+            tgtlog (str): ログファイルのパス
+        """
         self.pbflag = False
         with open(tgtlog, 'r') as f:
             for line in f:
@@ -2711,6 +2979,17 @@ class anlfmo(pdio):
 
     ## filter section
     def filterifiewrap(self, dist=None, myifdf=None, mypidf=None, is_pb=False):
+        """読み込み済みIFIE/PIEDAデータをanlmodeとtgt2typeに応じてフィルタリングする。
+
+        Args:
+            dist (float, optional): フィルタリング距離(オングストローム)
+            myifdf (pandas.DataFrame, optional): IFIEデータフレーム。Noneの場合はself.ifdfを使用。
+            mypidf (pandas.DataFrame, optional): PIEDAデータフレーム。Noneの場合はself.pidfを使用。
+            is_pb (bool): PB溶媒効果を考慮するかどうか。
+
+        Returns:
+            anlfmo: selfオブジェクト
+        """
 
         tgt2type = self.tgt2type
         if dist is not None:

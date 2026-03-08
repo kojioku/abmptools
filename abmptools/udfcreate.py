@@ -1,4 +1,9 @@
 from __future__ import annotations
+"""COGNAC UDFファイル生成モジュール。
+
+PDBファイルや力場パラメータからCOGNAC形式のUDFファイルを生成するための
+ユーティリティクラスを提供する。
+"""
 # -*- coding: utf-8 -*-
 import ast
 import os
@@ -14,6 +19,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 class udfcreate():
+    """COGNAC UDFファイルの生成・書き出しを行うクラス。
+
+    分子構造データや力場パラメータを読み込み、COGNACシミュレーション用の
+    UDFファイルを構築・出力する機能を提供する。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.algo = ['NPT_Andersen_Kremer_Grest']
@@ -48,6 +59,11 @@ class udfcreate():
         # self.poslist=""
 
     def setudfparam(self, param_udf: dict) -> None:
+        """UDFパラメータを辞書から読み込み、インスタンス変数に設定する。
+
+        Args:
+            param_udf: アルゴリズム、セルサイズ、温度等のシミュレーション条件を含む辞書。
+        """
         # -- read for paramdata --
         self.algo = param_udf['algo']
         self.nvtalgo = param_udf.get('nvtalgo', ['NVT_Nose_Hoover'])
@@ -69,6 +85,14 @@ class udfcreate():
 
 
     def getconnectdata(self, fname: str) -> list[list]:
+        """PDBファイルからCONECTレコードを読み込み、結合情報を取得する。
+
+        Args:
+            fname: PDBファイルのパス。
+
+        Returns:
+            0始まりのインデックスに変換された結合情報のリスト。
+        """
         data = []
         # atomdata = []
         with open(fname, 'r') as _fh:
@@ -87,6 +111,14 @@ class udfcreate():
         return data
 
     def getbatdata(self, data: list) -> tuple[list, list, list]:
+        """結合情報からボンド・アングル・トーション情報を生成する。
+
+        Args:
+            data: getconnectdataで取得した結合情報リスト。
+
+        Returns:
+            (bond, angle, torsion) のタプル。
+        """
         # get bond info
         # print "connectdata",data
         bond = []
@@ -130,6 +162,18 @@ class udfcreate():
         return bond, angle, torsion
 
     def getffname(self, atom: list, xyzfile: str, fffile: str) -> list:
+        """XYZファイルからGAFF力場の原子タイプ名を取得する。
+
+        力場ファイルが存在しない場合はobminimizeで生成する。
+
+        Args:
+            atom: 原子情報リスト。
+            xyzfile: XYZファイルのパス。
+            fffile: 力場ファイルのパス。
+
+        Returns:
+            [インデックス, 力場原子タイプ名] のリスト。
+        """
         # xyzfile="monomer/pdb/" + molname + ".xyz"
         # fffile="monomer/" + molname + ".ff"
 
@@ -173,6 +217,15 @@ class udfcreate():
 #         return ffname
 
     def getbatff(self, ffname: list, bond: list) -> list:
+        """ボンド情報と力場名の対応から、各ボンドの力場タイプ名リストを取得する。
+
+        Args:
+            ffname: [インデックス, 力場名] のリスト。
+            bond: ボンドの原子インデックスペアのリスト。
+
+        Returns:
+            各ボンドに対応する力場タイプ名のリスト。
+        """
         fff=[]
         #print "bond",bond
         #print "ffname",ffname
@@ -188,6 +241,14 @@ class udfcreate():
         return fff
 
     def getfflist(self, infile: str) -> list:
+        """力場パラメータファイルを読み込みリストとして返す。
+
+        Args:
+            infile: 力場パラメータファイルのパス。
+
+        Returns:
+            力場パラメータのリスト。
+        """
         data=[]
         with open(infile, 'r') as _fh:
             for line in _fh:
@@ -197,6 +258,16 @@ class udfcreate():
 
 
     def gettorsionfflist(self, infile: str) -> list:
+        """トーション力場パラメータファイルを読み込み、4種類に分類して返す。
+
+        ワイルドカードパターン(X-@-@-X, X-@-@-@, X-X-@-@, @-@-@-@)毎に分類する。
+
+        Args:
+            infile: トーション力場パラメータファイルのパス。
+
+        Returns:
+            4種類のトーションパラメータリストを含むリスト。
+        """
         data=[]
         data1=[]
         data2=[]
@@ -230,6 +301,15 @@ class udfcreate():
 
 
     def getffid(self, batff: list, atom_list: list) -> list:
+        """力場タイプ名をatom_listのIDに変換する。
+
+        Args:
+            batff: ボンド/アングル/トーションの力場名リスト。
+            atom_list: 原子タイプ情報リスト。
+
+        Returns:
+            各結合に対応する力場IDのリスト。
+        """
         fff=[]
         for i in range(len(batff)):
             dbuf=[]
@@ -270,6 +350,15 @@ class udfcreate():
 #         return data
 
     def getljparam(self, ffname: list, atom_list: list) -> list:
+        """力場名リストからLennard-Jonesパラメータを取得する。
+
+        Args:
+            ffname: 各分子の力場名リスト（ネストしたリスト）。
+            atom_list: 原子タイプとLJパラメータを含むリスト。
+
+        Returns:
+            重複を除いたLJパラメータのリスト。
+        """
         # 1. atom_listについて、キー（atom[0]）毎に最後の要素を記録
         last_atom = {atom[0]: atom for atom in atom_list}
 
@@ -290,6 +379,19 @@ class udfcreate():
 
 
     def getbondffparam(self, bondffid: list, ff_list: list, bond: list, bondff: list) -> tuple[list, list, list, list]:
+        """ボンド力場IDから力場パラメータを取得し、重複を除去する。
+
+        必要に応じてボンドの原子順序を入れ替える。
+
+        Args:
+            bondffid: ボンドの力場IDリスト。
+            ff_list: 力場パラメータリスト。
+            bond: ボンドの原子インデックスリスト。
+            bondff: ボンドの力場名リスト。
+
+        Returns:
+            (重複除去済パラメータ, bondffid, bond, bondff) のタプル。
+        """
     #    print bondffid
         iddata=[]
         fff=[]
@@ -324,6 +426,19 @@ class udfcreate():
 
 
     def getangleffparam(self, angleffid: list, ff_list: list, angle: list, angleff: list) -> tuple[list, list, list, list]:
+        """アングル力場IDから力場パラメータを取得し、重複を除去する。
+
+        必要に応じてアングルの原子順序を入れ替える。
+
+        Args:
+            angleffid: アングルの力場IDリスト。
+            ff_list: 力場パラメータリスト。
+            angle: アングルの原子インデックスリスト。
+            angleff: アングルの力場名リスト。
+
+        Returns:
+            (重複除去済パラメータ, angleffid, angle, angleff) のタプル。
+        """
         iddata=[]
         fff=[]
         for i in range(len(angleffid)):
@@ -358,6 +473,20 @@ class udfcreate():
 
 
     def gettorsionffparam(self, torsionffid: list, ff_list: list, torsion: list, torsionff: list) -> tuple[list, list, list, list]:
+        """トーション力場IDから力場パラメータを取得し、重複を除去する。
+
+        4種類のワイルドカードパターンに対してマッチングを行い、
+        必要に応じてトーションの原子順序を入れ替える。
+
+        Args:
+            torsionffid: トーションの力場IDリスト。
+            ff_list: 4種類に分類されたトーション力場パラメータリスト。
+            torsion: トーションの原子インデックスリスト。
+            torsionff: トーションの力場名リスト。
+
+        Returns:
+            (重複除去済パラメータ, torsionffid, torsion, torsionff) のタプル。
+        """
         iddata=[]
         fff=[]
         # print ff_list[1]
@@ -453,6 +582,18 @@ class udfcreate():
 
 
     def inversetorsion(self, aaa: list, bbb: list, ccc: list) -> tuple[list, list, list]:
+        """3つのリストの要素順序を同時に反転する。
+
+        トーション角の原子順序を逆転させるために使用する。
+
+        Args:
+            aaa: 力場IDリスト。
+            bbb: 原子インデックスリスト。
+            ccc: 力場名リスト。
+
+        Returns:
+            反転後の (aaa, bbb, ccc) タプル。
+        """
         aaa[0],aaa[1],aaa[2],aaa[3] = aaa[3],aaa[2],aaa[1],aaa[0]
         bbb[0],bbb[1],bbb[2],bbb[3] = bbb[3],bbb[2],bbb[1],bbb[0]
         ccc[0],ccc[1],ccc[2],ccc[3] = ccc[3],ccc[2],ccc[1],ccc[0]
@@ -460,6 +601,14 @@ class udfcreate():
 
 
     def putatomparam(self, paramfile: list) -> str:
+        """原子タイプパラメータをUDF形式の文字列に変換する。
+
+        Args:
+            paramfile: 原子タイプ名と質量を含むパラメータリスト。
+
+        Returns:
+            UDF形式の原子タイプテーブル文字列。
+        """
         atomtable ="    ["
         for i in paramfile:
             atomtable += '{"' + i[0] + '",' + str(i[1]) + "}"
@@ -469,6 +618,16 @@ class udfcreate():
 
 
     def putljparam(self, paramfile: list) -> str:
+        """Lennard-Jonesパラメータ対をUDF形式の文字列に変換する。
+
+        Lorentz-Berthelot混合則でsigmaとepsilonを計算する。
+
+        Args:
+            paramfile: LJパラメータリスト。
+
+        Returns:
+            UDF形式のLJパラメータテーブル文字列。
+        """
         ljtable="    [\n"
         for i in range(len(paramfile)):
             for j in range(i,len(paramfile)):
@@ -506,6 +665,15 @@ class udfcreate():
 
 
     def putbondparam(self, paramfile: list, atom_list: list) -> str:
+        """ボンドパラメータをUDF形式の文字列に変換する。
+
+        Args:
+            paramfile: ボンド力場パラメータリスト。
+            atom_list: 原子タイプ情報リスト。
+
+        Returns:
+            UDF形式のボンドパラメータテーブル文字列。
+        """
     #    print "paramfile",paramfile
     #    print "atomlist",atom_list
         mol=[0,0]
@@ -533,6 +701,15 @@ class udfcreate():
 
 
     def putangleparam(self, paramfile: list, atom_list: list) -> str:
+        """アングルパラメータをUDF形式の文字列に変換する。
+
+        Args:
+            paramfile: アングル力場パラメータリスト。
+            atom_list: 原子タイプ情報リスト。
+
+        Returns:
+            UDF形式のアングルパラメータテーブル文字列。
+        """
         #print paramfile
         #print atom_list
         mol=[0,0,0]
@@ -559,6 +736,15 @@ class udfcreate():
 
 
     def puttorsionparam(self, paramfile: list, atom_list: list) -> str:
+        """トーションパラメータをUDF形式の文字列に変換する。
+
+        Args:
+            paramfile: トーション力場パラメータリスト。
+            atom_list: 原子タイプ情報リスト。
+
+        Returns:
+            UDF形式のトーションパラメータテーブル文字列。
+        """
         #print paimport numpy as npramfile
         #print atom_list
         mol=[0,0,0,0]
@@ -591,6 +777,16 @@ class udfcreate():
 
 
     def putinteractions(self, ljparam: list) -> str:
+        """InteractionsセクションをUDF形式の文字列として生成する。
+
+        LJパラメータとEwald法による点電荷相互作用を含む。
+
+        Args:
+            ljparam: Lennard-Jonesパラメータリスト。
+
+        Returns:
+            UDF形式のInteractionsセクション文字列。
+        """
 
         ljtable=self.putljparam(ljparam)
         interactions='Interactions:{\n' + str(ljtable) +'''
@@ -608,6 +804,14 @@ class udfcreate():
         return interactions
 
     def putinteractionsitetype(self, paramfile: list) -> str:
+        """相互作用サイトタイプ情報をUDF形式の文字列に変換する。
+
+        Args:
+            paramfile: LJパラメータリスト（sigmaからRangeを計算）。
+
+        Returns:
+            UDF形式の相互作用サイトタイプテーブル文字列。
+        """
         #print paramfile
         isitetable="    ["
         for i in paramfile:
@@ -620,6 +824,17 @@ class udfcreate():
 
 
     def putatom(self, atom: list, ffname: list, molname: str, tnum: int) -> tuple[int, str]:
+        """分子内の原子情報をUDF形式の文字列に変換する。
+
+        Args:
+            atom: 原子情報リスト。
+            ffname: 力場タイプ名リスト。
+            molname: 分子名。
+            tnum: 開始原子番号。
+
+        Returns:
+            (更新後の原子番号, UDF形式の原子テーブル文字列) のタプル。
+        """
         atomtable=""
         atomtable+="            [\n"
         for i in range(len(atom)):
@@ -635,6 +850,15 @@ class udfcreate():
     #            ]
 
     def putbond(self, bondff: list, bond: list) -> str:
+        """分子内のボンド情報をUDF形式の文字列に変換する。
+
+        Args:
+            bondff: ボンドの力場名リスト。
+            bond: ボンドの原子インデックスリスト。
+
+        Returns:
+            UDF形式のボンドテーブル文字列。
+        """
     #    print bondff
     #    print bond
         bondtable="            [\n"
@@ -651,6 +875,15 @@ class udfcreate():
 
 
     def putangle(self, angleff: list, angle: list) -> str:
+        """分子内のアングル情報をUDF形式の文字列に変換する。
+
+        Args:
+            angleff: アングルの力場名リスト。
+            angle: アングルの原子インデックスリスト。
+
+        Returns:
+            UDF形式のアングルテーブル文字列。
+        """
         angletable="            [\n"
         for i in range(len(angleff)):
             angletable+='                {"' + angleff[i][0] + "-" + angleff[i][1] + "-" + angleff[i][2]+ '",' + str(angle[i][0]) + ',' + str(angle[i][1]) + ',' + str(angle[i][2]) + '}\n'
@@ -665,6 +898,15 @@ class udfcreate():
     #            ]
 
     def puttorsion(self, torsionff: list, torsion: list) -> str:
+        """分子内のトーション情報をUDF形式の文字列に変換する。
+
+        Args:
+            torsionff: トーションの力場名リスト。
+            torsion: トーションの原子インデックスリスト。
+
+        Returns:
+            UDF形式のトーションテーブル文字列。
+        """
         torsiontable="            [\n"
         for i in range(len(torsionff)):
             torsiontable+='                {"' + torsionff[i][0] + "-" + torsionff[i][1] + "-" + torsionff[i][2] + "-" + torsionff[i][3] + '",' + str(torsion[i][0]) + ',' + str(torsion[i][1]) + ',' + str(torsion[i][2]) + ',' + str(torsion[i][3]) + '}\n'
@@ -678,6 +920,14 @@ class udfcreate():
     #            ]
 
     def putinteractionsite(self, ffname: list) -> str:
+        """力場名リストから相互作用サイト情報をUDF形式の文字列に変換する。
+
+        Args:
+            ffname: [インデックス, 力場タイプ名] のリスト。
+
+        Returns:
+            UDF形式の相互作用サイトテーブル文字列。
+        """
         #print paramfile
         isitetable= "            [\n"
         for i in range(len(ffname)):
@@ -692,6 +942,14 @@ class udfcreate():
     #            ]
 
     def putpointcharge(self, chg: list) -> str:
+        """点電荷情報をUDF形式の文字列に変換する。
+
+        Args:
+            chg: 各原子の部分電荷値リスト。
+
+        Returns:
+            UDF形式の点電荷テーブル文字列。
+        """
         #f =open(chgfile, "r")
         #text = f.readlines()
         chgtable= "            [\n"
@@ -708,6 +966,18 @@ class udfcreate():
     #            ]
 
     def putmolecularattributes(self, ljparam: list, bondparam: list, angleparam: list, torsionparam: list, atom_list: list) -> str:
+        """分子属性（原子タイプ、ボンド、アングル、トーション、相互作用サイト）をUDF形式に変換する。
+
+        Args:
+            ljparam: Lennard-Jonesパラメータリスト。
+            bondparam: ボンド力場パラメータリスト。
+            angleparam: アングル力場パラメータリスト。
+            torsionparam: トーション力場パラメータリスト。
+            atom_list: 原子タイプ情報リスト。
+
+        Returns:
+            UDF形式のMolecular_Attributesセクション文字列。
+        """
         atomtable=self.putatomparam(ljparam)
         bondtable=self.putbondparam(bondparam,atom_list)
         angletable=self.putangleparam(angleparam,atom_list)
@@ -719,6 +989,16 @@ class udfcreate():
         return molattr
 
     def putsetofmolecules(self, poslist: list, param: list) -> str:
+        """分子集合（Set_of_Molecules）セクションをUDF形式の文字列として生成する。
+
+        Args:
+            poslist: 各分子種の位置座標リスト。
+            param: [ファイル名, 原子情報, 力場名, 分子名, ボンド力場, ボンド,
+                    アングル力場, アングル, トーション力場, トーション, 電荷] のリスト。
+
+        Returns:
+            UDF形式のSet_of_Moleculesセクション文字列。
+        """
         fname=param[0]
         atom=param[1]
         ffname=param[2]
@@ -771,6 +1051,14 @@ class udfcreate():
     #            "molA",
 
     def putpos(self, pos: list) -> str:
+        """座標データをUDF形式の文字列に変換する。
+
+        Args:
+            pos: 分子ごとの原子座標リスト。
+
+        Returns:
+            UDF形式の座標文字列。
+        """
         #print pos
         #print len(pos)
         #print len(pos[0])
@@ -785,6 +1073,15 @@ class udfcreate():
         return postable
 
     def putstructure(self, poslist: list, cell: list) -> str:
+        """座標とセル情報からUDF形式のStructureセクション文字列を生成する。
+
+        Args:
+            poslist: 座標データのリスト。
+            cell: セルサイズ[x, y, z]。
+
+        Returns:
+            UDF形式のStructureセクション文字列。
+        """
         postable=[]
         structure='Structure:{\n'
         structure+='    {\n'
@@ -803,6 +1100,11 @@ class udfcreate():
         return structure
 
     def putheader(self) -> str:
+        """COGNAC UDFファイルのヘッダー文字列を生成する。
+
+        Returns:
+            UDF形式のヘッダー文字列。
+        """
         header=\
         '''COGNAC INPUT UDF DATA.
 
@@ -825,6 +1127,17 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
         return header
 
     def putsimulationcondition(self, totalstep: int, outstep: int, totalmass: float, algo: list) -> str:
+        """シミュレーション条件セクションをUDF形式の文字列として生成する。
+
+        Args:
+            totalstep: 総ステップ数。
+            outstep: 出力間隔ステップ数。
+            totalmass: 系の全質量。
+            algo: シミュレーションアルゴリズム名のリスト。
+
+        Returns:
+            UDF形式のSimulation_Conditionsセクション文字列。
+        """
         simucondition=\
             '''Simulation_Conditions:{
     {
@@ -873,6 +1186,14 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
         return simucondition
 
     def putinitialstructure(self, cell: list) -> str:
+        """セル情報からUDF形式のInitial_Structureセクション文字列を生成する。
+
+        Args:
+            cell: セルサイズ[x, y, z]。
+
+        Returns:
+            UDF形式のInitial_Structureセクション文字列。
+        """
         initialstructure=\
         '''Initial_Structure:{
     {0.0,{'''+ str(cell[0]) + ',' + str(cell[1]) + ',' + str(cell[2]) + ''',90.0000000000000,90.0000000000000,90.0000000000000}0.0}
@@ -914,6 +1235,14 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
 
 
     def getbondparampair(self, data: list) -> list:
+        """結合パラメータリストから重複を除去したユニークなペアを取得する。
+
+        Args:
+            data: 分子ごとの結合パラメータリスト。
+
+        Returns:
+            重複除去後の結合パラメータリスト。
+        """
         # data をフラットなリストに変換
         fff = [item for sub in data for item in sub]
 
@@ -956,6 +1285,14 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
 #        return iddata
 
     def getangleparampair(self, data: list) -> list:
+        """角度パラメータリストから重複を除去したユニークな組を取得する。
+
+        Args:
+            data: 分子ごとの角度パラメータリスト。
+
+        Returns:
+            重複除去後の角度パラメータリスト。
+        """
         # data をフラットなリストに変換
         fff = [item for sub in data for item in sub]
 
@@ -1000,6 +1337,14 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
 
 
     def gettorsionparampair(self, data: list) -> list:
+        """ねじれ角パラメータリストから重複を除去したユニークな組を取得する。
+
+        Args:
+            data: 分子ごとのねじれ角パラメータリスト。
+
+        Returns:
+            重複除去後のねじれ角パラメータリスト。
+        """
         # data をフラットなリストに変換
         fff = [item for sub in data for item in sub]
 
@@ -1023,6 +1368,15 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
 
 
     def gen_udf(self, udf_param: list, out_name: str, som_param: list) -> None:
+        """UDFパラメータからCOGNAC用UDFファイルを生成し、書き出す。
+
+        Args:
+            udf_param: [セルサイズ, LJパラメータ, ボンドパラメータ, アングルパラメータ,
+                        トーションパラメータ, 原子リスト, 総ステップ, 出力間隔,
+                        全質量, アルゴリズム, 位置座標リスト] のリスト。
+            out_name: 出力UDFファイルのパス。
+            som_param: putsetofmoleculesに渡す分子パラメータリスト。
+        """
         cellsize = udf_param[0]
         ljparam = udf_param[1]
         bondparam = udf_param[2]
@@ -1051,6 +1405,13 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
 
 
     def putclusterpos(self, uobj: object, poslist: list, molnum: int) -> None:
+        """UDFオブジェクトにクラスター構造の原子座標を書き込む。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            poslist: 全原子の座標リスト。
+            molnum: 分子数。
+        """
         #molnum= uobj.size('Set_of_Molecules.molecule[]')
         count = 0
         #print poslist
@@ -1064,6 +1425,14 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
                 count +=1
 
     def clusterfix(self, uobj: object, atomlen: int, nummol_seg: int, fix_label: list) -> None:
+        """UDFオブジェクトに指定原子の位置拘束条件を設定する。
+
+        Args:
+            uobj: UDFManagerオブジェクト。
+            atomlen: 1分子あたりの原子数。
+            nummol_seg: 拘束対象の分子数。
+            fix_label: 拘束する原子の通し番号リスト。
+        """
 
         ca_id = uobj.size("Simulation_Conditions.Constraint_Conditions.Constraint_Atom[]")
         for i in range (nummol_seg):

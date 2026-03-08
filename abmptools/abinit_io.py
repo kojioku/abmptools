@@ -1,3 +1,9 @@
+"""ABINIT-MP の入出力処理モジュール。
+
+AJFファイルの生成・読み込み、IFIE/PIEDAの解析、
+エネルギー抽出など ABINIT-MP 関連の I/O を提供する。
+"""
+
 import ast
 import sys
 import os
@@ -24,6 +30,11 @@ except ImportError:
 
 
 class abinit_io(mi):
+    """ABINIT-MP の入出力を管理するクラス。
+
+    AJFファイルの生成、フラグメント情報の読み書き、
+    FMO計算結果（エネルギー、IFIE等）の解析機能を提供する。
+    """
 
     def __init__(self):
         # print('## load abinit io')
@@ -79,6 +90,7 @@ class abinit_io(mi):
         return
 
     def chkdepth(self, k):
+        """リストのネスト深度を返す。"""
         if not k:
             return 0
         else:
@@ -88,7 +100,7 @@ class abinit_io(mi):
                 return 0
 
     def get_fragsection(self):
-
+        """フラグメント情報からAJFの&FRAGMENTセクション文字列を生成する。"""
         if self.chkdepth(self.fatomnums) == 1:
             frag_atom = [self.fatomnums]
             frag_charge = [self.fchgs]
@@ -171,6 +183,14 @@ class abinit_io(mi):
 
 
     def gen_ajf_bodywrap(self, inname):
+        """AJF本体部分を生成するラッパーメソッド。
+
+        Args:
+            inname: 入力ファイル名（拡張子付き）。writegeom未設定時のCPFファイル名生成に使用。
+
+        Returns:
+            str: AJFファイルの本体文字列。
+        """
         # i, j ,k (mol, frag, component_perfrag) dimension
         if self.autofrag :
             ajf_fragment = ""
@@ -189,6 +209,15 @@ class abinit_io(mi):
 
 
     def gen_ajf_body(self, param, fzctemp="YES"):
+        """AJFファイルの全セクション（&CNTRL, &SCF, &MP2等）を生成する。
+
+        Args:
+            param: [電荷, フラグメント文字列, フラグメント数, MOMEフラグ] のリスト。
+            fzctemp: FZC（frozen core）設定。デフォルトは'YES'。
+
+        Returns:
+            str: AJFファイル本体の文字列。
+        """
         ajf_charge, ajf_fragment, num_fragment, MOME_flag = param
 
         if self.autofrag:
@@ -556,6 +585,15 @@ MD='OFF'
 
 
     def getfraginfo(self, seg1_conf, seg2_conf):
+        """2つのセグメント設定からフラグメント番号リストを取得する。
+
+        Args:
+            seg1_conf: セグメント1の設定辞書（seg_infoキーを含む）。
+            seg2_conf: セグメント2の設定辞書（seg_infoキーを含む）。
+
+        Returns:
+            list: 各セグメントのフラグメント番号を格納した2次元リスト。
+        """
         frag1_num = len(seg1_conf['seg_info'])
         frag2_num = len(seg2_conf['seg_info'])
 
@@ -574,6 +612,13 @@ MD='OFF'
         return frag
 
     def getifie(self, target_dir, frag, skipbsse=False):
+        """ABINIT-MP出力ファイル群からIFIEを読み取り、集計結果をファイルに書き出す。
+
+        Args:
+            target_dir: 出力ファイルが格納されたディレクトリパス。
+            frag: フラグメント番号の2次元リスト。
+            skipbsse: TrueならBSSE補正をスキップする。
+        """
         ielist = []
         if not self.pbflag:
             # print "**** 1.get ifie running*****"
@@ -626,6 +671,15 @@ MD='OFF'
                             ielist[i][1][0] + ielist[i][1][1], file=f)
 
     def getifiesum(self, energy, frag):
+        """IFIEエネルギーのHFおよびMP2成分を合計し、kcal/mol単位で返す。
+
+        Args:
+            energy: IFIEエネルギーリスト。
+            frag: フラグメント番号の2次元リスト。
+
+        Returns:
+            list: [HF合計値, MP2合計値]（kcal/mol）。
+        """
         if len(energy) == 0:
             return [0, 0]
         ifiesum = []
@@ -645,6 +699,15 @@ MD='OFF'
         return [hf * 627.5095, mp2 * self.mp2fac * 627.5095]
 
     def getifiesumpb(self, energy, frag):
+        """PB溶媒和エネルギーのES項およびNP項を合計し、kcal/mol単位で返す。
+
+        Args:
+            energy: PBエネルギーリスト。
+            frag: フラグメント番号の2次元リスト。
+
+        Returns:
+            list: [ES合計値, NP合計値]（kcal/mol）。
+        """
         # print energy
         if len(energy) == 0:
             return [0, 0]
@@ -753,6 +816,14 @@ MD='OFF'
         return ifie
 
     def read_ifiepb(self, fname):
+        """ABINIT-MP出力ファイルからIFIEとPB溶媒和項を読み取る。
+
+        Args:
+            fname: 出力ファイルパス。
+
+        Returns:
+            list: [IFIEリスト, PB項リスト]。
+        """
         ifie = []
         pbterm = []
         count = 0
@@ -814,6 +885,14 @@ MD='OFF'
 
     @staticmethod
     def unpack_tar(target_dir, total_num):
+        """ディレクトリ内のout_files.tarを展開する。
+
+        出力ファイル数が期待値の90%未満の場合のみ展開を実行する。
+
+        Args:
+            target_dir: tarファイルが格納されたディレクトリパス。
+            total_num: 期待される出力ファイルの総数。
+        """
         # (前) target_dir 内の out_files.tar を展開
         out_tar = os.path.join(target_dir, 'out_files.tar')
         # outfile = os.path.join(target_dir, '*sh*.out')
@@ -834,8 +913,12 @@ MD='OFF'
         return
 
     @staticmethod
-    # (後) 展開された *.out を一括削除＆まとめて出力
     def del_out(target_dir):
+        """ディレクトリ内の出力ファイル（*.out）を一括削除する。
+
+        Args:
+            target_dir: 出力ファイルが格納されたディレクトリパス。
+        """
         out_files = [
             fn for fn in glob.glob(os.path.join(target_dir, '*.out'))
             if 'zz_submit' not in os.path.basename(fn)
@@ -854,6 +937,14 @@ MD='OFF'
         return
 
     def getTE(self, target_dir, molname, mode, fzcflag):
+        """全エネルギー（TE）を取得してファイルに書き出す。
+
+        Args:
+            target_dir: 出力ファイルが格納されたディレクトリパス。
+            molname: 分子名。
+            mode: 'batch'（複数ファイル処理）または'single'（単一ファイル処理）。
+            fzcflag: Trueの場合nofzcディレクトリから読み込む。
+        """
         elistname = target_dir + "/energylist_" + self.solvtype
         if mode == "batch":
             energies = []
@@ -914,6 +1005,11 @@ MD='OFF'
         return
 
     def captmom_single(self, target):
+        """単一ファイルからMO/FMOのMP2エネルギーを取得し、結果ファイルに書き出す。
+
+        Args:
+            target: ABINIT-MP出力ファイルのパス。
+        """
         out = os.path.splitext(target)[0]
         fmoflag = self.getmo_or_fmo(target)  # FMO計算かMO計算かの判定
         # print(target)
@@ -927,6 +1023,11 @@ MD='OFF'
             print(hf, mp2, file=f)
 
     def captpb_single(self, target):
+        """単一ファイルからPB溶媒和エネルギーを取得し、結果ファイルに書き出す。
+
+        Args:
+            target: ABINIT-MP出力ファイルのパス。
+        """
         out = os.path.splitext(target)[0]
         fmoflag = self.getmo_or_fmo(target)  # FMO計算かMO計算かの判定
         if fmoflag:
@@ -938,6 +1039,14 @@ MD='OFF'
             print(eg, cor, dg, dges, dgnp, file=f)
 
     def getmo_or_fmo(self, target):
+        """出力ファイルがFMO計算かMO計算かを判定する。
+
+        Args:
+            target: ABINIT-MP出力ファイルのパス。
+
+        Returns:
+            bool: FMO計算の場合True、MO計算の場合False。
+        """
         with open(target, "r") as f:
             text = f.readlines()
         fmoflag = False
@@ -952,6 +1061,14 @@ MD='OFF'
         return fmoflag
 
     def captfmomp2e(self, target):
+        """FMO計算出力ファイルからHFエネルギーとMP2エネルギーを抽出する。
+
+        Args:
+            target: ABINIT-MP出力ファイルのパス。
+
+        Returns:
+            list: [HFエネルギー, MP2エネルギー]。取得失敗時は[0, 0]。
+        """
         mp2 = 0
         hf = 0
         try:
@@ -1012,6 +1129,14 @@ MD='OFF'
         return [0.0, 0.0]
 
     def getmomp2ene(self, target):
+        """MO計算出力ファイルからHFエネルギーとMP2エネルギーを抽出する。
+
+        Args:
+            target: ABINIT-MP出力ファイルのパス。
+
+        Returns:
+            list: [HFエネルギー, MP2エネルギー]。取得失敗時は[0, 0]。
+        """
         mp2 = 0
         hf = 0
         try:
@@ -1048,6 +1173,15 @@ MD='OFF'
 
 
     def getfmopbenergytar(self, target):
+        """tarアーカイブ内のFMO出力ファイルからPB溶媒和エネルギーを抽出する。
+
+        Args:
+            target: tarアーカイブ内の出力ファイルパス。
+
+        Returns:
+            tuple: (気相エネルギー, 溶液中エネルギー, 溶媒和自由エネルギー, ES項, NP項)。
+                   取得失敗時は (0, 0, 0, 0, 0)。
+        """
 
         try:
             # out_files.tar のパス
@@ -1137,6 +1271,15 @@ MD='OFF'
 
 
     def getfmopbenergy(self, target):
+        """FMO出力ファイルからPB溶媒和エネルギーを抽出する。
+
+        Args:
+            target: ABINIT-MP出力ファイルのパス。
+
+        Returns:
+            tuple: (気相エネルギー, 溶液中エネルギー, 溶媒和自由エネルギー, ES項, NP項)。
+                   取得失敗時は (0, 0, 0, 0, 0)。
+        """
         try:
             with open(target, "r") as f:
                 text = f.readlines()
@@ -1233,6 +1376,15 @@ MD='OFF'
 
 
     def getmopbenergy(self, target):
+        """モノマーPB（Poisson-Boltzmann）エネルギーをログファイルから取得する。
+
+        Args:
+            target: ログファイルのパス。
+
+        Returns:
+            tuple: (気相エネルギー, 相関エネルギー, 全溶媒和自由エネルギー,
+                静電項, 非極性項) の5要素タプル。取得失敗時はすべて0。
+        """
         count = 0
         try:
             with open(target, "r") as f:
@@ -1275,6 +1427,14 @@ MD='OFF'
 
 
     def readajf(self, fname):
+        """AJFファイルを読み込み、フラグメント情報をselfに格納する。
+
+        Args:
+            fname: AJFファイルのパス。
+
+        Returns:
+            self: フラグメント原子数・電荷・BDA・原子情報・結合情報を格納したインスタンス。
+        """
         with open(fname, 'r') as _fh:
             lines = _fh.readlines()
 
@@ -1477,6 +1637,14 @@ MD='OFF'
 
 
     def modifyfragparam(self, totalMol, atomnameMol, molnames, anummols, posMol, heads, labs, chains ,resnums ,codes ,occs ,temps ,amarks ,charges, fatomnums, fchgs, fbaas, fatminfos, connects, bridgeds, doubles, nagatoms, nagmolids, nagbdas):
+        """NAG糖鎖結合に伴うフラグメントパラメータの修正を行う。
+
+        ASN残基に結合するNAG原子をフラグメントから分離し、
+        新規フラグメントとして追加する。
+
+        Returns:
+            tuple: (fatomnums, fchgs, fbaas, connects, fatminfos) の修正済みフラグメント情報。
+        """
         # modify start
         for i in range(len(nagatoms)):
             for j in range(len(fatminfos)):
@@ -1575,6 +1743,7 @@ MD='OFF'
     #     return [int(e) for inner_list in nested_list for e in inner_list]
 
     def functor(self, f, l):
+        """リストの各要素に関数を再帰的に適用する。"""
         if isinstance(l,list):
             return [self.functor(f,i) for i in l]
         else:
@@ -1582,6 +1751,12 @@ MD='OFF'
 
 
     def getfragdict(self, fnames, ofile):
+        """複数のAJFファイルからフラグメント辞書データを生成しファイルに書き出す。
+
+        Args:
+            fnames: AJFファイルパスのリスト。
+            ofile: 出力ファイルパス（segment_data形式）。
+        """
         with open(ofile, 'w') as f:
 
             print("seg_data = [", file=f)
@@ -1619,6 +1794,15 @@ MD='OFF'
         '''
 
     def config_read(self, seg_name, seg_atom=0):
+        """segment_data.datからセグメント設定を読み込む。
+
+        Args:
+            seg_name: セグメント名。
+            seg_atom: セグメントの原子数（デフォルト: 0）。
+
+        Returns:
+            dict: セグメント設定辞書（atom, charge, connect等を含む）。
+        """
         fdata = {}
         with open(self.mainpath + "/segment_data.dat", "r") as _f:
             _tree = ast.parse(_f.read())
@@ -1654,6 +1838,15 @@ MD='OFF'
         return seg_conf
 
     def getmb_frag_seclists(self, param, nameid):
+        """マルチボディ用フラグメントセクションのリストを構築しselfに格納する。
+
+        Args:
+            param: [frag_atom, frag_charge, frag_connect_num, frag_connect, seg_info] のリスト。
+            nameid: セグメント名IDのリスト。
+
+        Returns:
+            self: フラグメント情報を格納したインスタンス。
+        """
         frag_atom = param[0]
         frag_charge = param[1]
         frag_connect_num = param[2]
@@ -1727,6 +1920,15 @@ MD='OFF'
         # return frag_atoms, frag_charges, frag_baanums, frag_atmlabss, frag_connectss
 
     def writemb_frag_section(self, param, nameid):
+        """マルチボディ用AJFフラグメントセクションの文字列を生成する。
+
+        Args:
+            param: [frag_atom, frag_charge, frag_connect_num, frag_connect, seg_info] のリスト。
+            nameid: セグメント名IDのリスト。
+
+        Returns:
+            str: AJF形式のフラグメントセクション文字列。
+        """
         frag_atom = param[0]
         frag_charge = param[1]
         frag_connect_num = param[2]
@@ -1802,6 +2004,11 @@ MD='OFF'
 
 
     def saveajf(self, oname=None):
+        """AJFファイルを生成して保存する。
+
+        Args:
+            oname: 出力ファイル名。Noneの場合は自動生成される。
+        """
         if oname is None:
             oname = os.path.splitext(self.readgeom)[0] + '-' + self.ajf_method + '-' + self.ajf_basis_set.replace('*', 'd') + '.ajf'
             ohead = os.path.splitext(self.readgeom)[0] + '-' + self.ajf_method

@@ -1,3 +1,9 @@
+"""CPFファイルの読み書きを管理するモジュール。
+
+ABINIT-MPのCPFファイル形式を解析し、原子情報・フラグメント情報・
+ダイマー情報等のデータを読み書きする機能を提供する。
+"""
+
 from __future__ import annotations
 
 import math
@@ -15,6 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 class CPFManager:
+    """CPFファイルの読み書きを行うマネージャクラス。
+
+    ABINIT-MPのCPFファイルを解析し、原子情報、フラグメント情報、
+    モノマー/ダイマーエネルギー等のデータを保持・操作する。
+    """
+
     def __init__(self) -> None:
         self.cpfver = 23
         self.atominfo = {}
@@ -30,6 +42,14 @@ class CPFManager:
         return
 
     def parse(self, filepath: str) -> CPFManager:
+        """CPFファイルを解析し、各種データをインスタンス変数に格納する。
+
+        Args:
+            filepath: CPFファイルのパス（.gz圧縮にも対応）。
+
+        Returns:
+            解析済みのCPFManagerインスタンス。
+        """
         # Initialize the data structures
         natom = 0
         nfrag = 0
@@ -119,6 +139,7 @@ class CPFManager:
         return None
 
     def info(self) -> None:
+        """インスタンスの属性情報を標準出力に表示する。"""
         import pprint
 
         pprint.pprint(dir(self))
@@ -128,6 +149,14 @@ class CPFManager:
 
     @staticmethod
     def read_header(file: TextIO) -> tuple[str, int, int, dict[str, list[str]], float]:
+        """CPFファイルのヘッダ部を読み込む。
+
+        Args:
+            file: 読み込み対象のファイルオブジェクト。
+
+        Returns:
+            ヘッダ文字列、原子数、フラグメント数、ラベル辞書、CPFバージョンのタプル。
+        """
         header = file.readline().strip()
         ''' \
         CPF Open1.0 rev23
@@ -200,6 +229,18 @@ class CPFManager:
 
     @staticmethod
     def read_atominfo(file: TextIO, labels: dict[str, list[str]], natom: int, cpfver: float, tgtfrag: int | list[int]) -> dict[str, list]:
+        """CPFファイルから原子情報セクションを読み込む。
+
+        Args:
+            file: 読み込み対象のファイルオブジェクト。
+            labels: 電荷ラベル等を含む辞書。
+            natom: 原子数。
+            cpfver: CPFバージョン。
+            tgtfrag: 対象フラグメント番号（0の場合は全フラグメント）。
+
+        Returns:
+            原子情報の辞書（座標、電荷、フラグメントID等）。
+        """
 
         atominfo = {
             'alabels': [],  # 原子の番号(i10)
@@ -423,6 +464,16 @@ class CPFManager:
 
     @staticmethod
     def read_dimdist(file: TextIO, nfrag: int, tgtfrag: int | list[int]) -> tuple[dict[str, list], list[int]]:
+        """CPFファイルからフラグメント間距離データを読み込む。
+
+        Args:
+            file: 読み込み対象のファイルオブジェクト。
+            nfrag: フラグメント数。
+            tgtfrag: 対象フラグメント番号（0の場合は全フラグメント）。
+
+        Returns:
+            ダイマー距離情報の辞書と、受理されたダイマーインデックスのリスト。
+        """
         '''
             2           1  0.000000000000000E+000
             3           1   6.43498504089706
@@ -463,6 +514,17 @@ class CPFManager:
 
     @staticmethod
     def read_dipole(file: TextIO, labels: dict[str, list[str]], nfrag: int, tgtfrag: int | list[int]) -> dict[str, list]:
+        """CPFファイルから双極子モーメントデータを読み込む。
+
+        Args:
+            file: 読み込み対象のファイルオブジェクト。
+            labels: DPMラベルを含む辞書。
+            nfrag: フラグメント数。
+            tgtfrag: 対象フラグメント番号（0の場合は全フラグメント）。
+
+        Returns:
+            双極子モーメント情報の辞書。
+        """
         # read the dipole data
 
         logger.debug('dipole moment section')
@@ -500,6 +562,14 @@ class CPFManager:
 
     @staticmethod
     def read_condition(file: TextIO) -> dict[str, str | float]:
+        """CPFファイルから計算条件セクションを読み込む。
+
+        Args:
+            file: 読み込み対象のファイルオブジェクト。
+
+        Returns:
+            基底関数、電子状態、計算方法、近似パラメータ等を含む辞書。
+        """
         '''
         STO-3G
         S1
@@ -535,6 +605,18 @@ class CPFManager:
 
     @staticmethod
     def read_static(file: TextIO, natom: int, nfrag: int, atominfo: dict[str, list], tgtfrag: int | list[int]) -> dict[str, float | int]:
+        """CPFファイルからエネルギー等の静的データを読み込む。
+
+        Args:
+            file: 読み込み対象のファイルオブジェクト。
+            natom: 原子数。
+            nfrag: フラグメント数。
+            atominfo: 原子情報の辞書。
+            tgtfrag: 対象フラグメント番号（0の場合は全フラグメント）。
+
+        Returns:
+            核間反発エネルギー、電子エネルギー、全エネルギー等を含む辞書。
+        """
         static_data = {}
         static_data['nuclear_repulsion_energy'] = float(file.readline().strip())
         static_data['total_electronic_energy'] = float(file.readline().strip())
@@ -601,6 +683,21 @@ class CPFManager:
     @staticmethod
     def read_dimer(file: TextIO, diminfo: dict[str, list], labels: dict[str, list[str]], nfrag: int,
                    cpfver: float, dimaccept: list[int], static_data: dict[str, Any], tgtfrag: int | list[int]) -> tuple[dict[str, list], dict[str, Any]]:
+        """CPFファイルからダイマーIFIEデータを読み込む。
+
+        Args:
+            file: 読み込み対象のファイルオブジェクト。
+            diminfo: ダイマー距離情報を含む辞書。
+            labels: ダイマーラベルを含む辞書。
+            nfrag: フラグメント数。
+            cpfver: CPFバージョン。
+            dimaccept: 受理されたダイマーインデックスのリスト。
+            static_data: 静的データの辞書。
+            tgtfrag: 対象フラグメント番号（0の場合は全フラグメント）。
+
+        Returns:
+            更新されたダイマー情報辞書と静的データ辞書のタプル。
+        """
 
         logger.debug('dimer section')
         # Initialize the data structures
@@ -679,6 +776,17 @@ class CPFManager:
 
     @staticmethod
     def set_header(header: str, cpfver: int, static_data: dict[str, Any], labels: dict[str, list[str]]) -> str:
+        """CPF書き出し用のヘッダ文字列を生成する。
+
+        Args:
+            header: ヘッダに付加する説明文字列。
+            cpfver: CPFバージョン（23, 10, 4）。
+            static_data: 原子数・フラグメント数等を含む辞書。
+            labels: 電荷・DPM・モノマー・ダイマーのラベル辞書。
+
+        Returns:
+            フォーマット済みのヘッダ文字列。
+        """
         if cpfver == 23:
             header = 'CPF Open1.0 rev23 ' + header
         if cpfver == 10:
@@ -698,6 +806,15 @@ class CPFManager:
 
     @staticmethod
     def set_atom(labels: dict[str, list[str]], atominfo: pd.DataFrame) -> str:
+        """原子情報DataFrameをCPFファイル形式の文字列に変換する。
+
+        Args:
+            labels: 電荷ラベル等を含む辞書。
+            atominfo: 原子情報のDataFrame。
+
+        Returns:
+            CPF形式でフォーマットされた原子セクション文字列。
+        """
         # setup format dict
         formats = {
             'alabels': "{:>10}",  # 原子の番号(i10)
@@ -729,6 +846,14 @@ class CPFManager:
 
     @staticmethod
     def set_static(static_data: dict[str, Any]) -> str:
+        """エネルギー等の静的データをCPFファイル形式の文字列に変換する。
+
+        Args:
+            static_data: 核間反発エネルギー、電子エネルギー、全エネルギー等を含む辞書。
+
+        Returns:
+            CPF形式の静的データセクション文字列。
+        """
         # static section
         staticstr = ''
         staticstr += str(static_data['nuclear_repulsion_energy']) + '\n'
@@ -748,6 +873,14 @@ class CPFManager:
 
     @staticmethod
     def set_condition(condition: dict[str, str | float]) -> str:
+        """計算条件をCPFファイル形式の文字列に変換する。
+
+        Args:
+            condition: 基底関数、電子状態、計算方法、近似パラメータ等を含む辞書。
+
+        Returns:
+            CPF形式の計算条件セクション文字列。
+        """
         # condition
         conditionstr = ''
         conditionstr += "{:<20}".format(condition['basis_set']) + '\n'
@@ -772,6 +905,16 @@ class CPFManager:
 
     @staticmethod
     def set_mom(labels: dict[str, list[str]], mominfo: pd.DataFrame, static_data: dict[str, Any]) -> tuple[str, str]:
+        """双極子モーメントとモノマーエネルギー情報をCPFファイル形式の文字列に変換する。
+
+        Args:
+            labels: DPM・モノマーラベルを含む辞書。
+            mominfo: モノマー情報のDataFrame。
+            static_data: フラグメント数等を含む静的データ辞書。
+
+        Returns:
+            (双極子モーメント文字列, モノマーエネルギー文字列) のタプル。
+        """
         formats = {
             'fragi': "{:>10}",  # フラグメント番号(i10)
         }
@@ -823,6 +966,17 @@ class CPFManager:
 
     @staticmethod
     def set_dimer(diminfo: pd.DataFrame, labels: dict[str, list[str]], static_data: dict[str, Any], is_difie: bool) -> tuple[str, str]:
+        """ダイマーIFIE情報をCPFファイル形式の文字列に変換する。
+
+        Args:
+            diminfo: ダイマー情報のDataFrame。
+            labels: ダイマーラベルを含む辞書。
+            static_data: ダイマー数等を含む静的データ辞書。
+            is_difie: TrueならD-IFIE形式（平均最小距離を含む）で出力する。
+
+        Returns:
+            (距離セクション文字列, ダイマーIFIEセクション文字列) のタプル。
+        """
         formats = {
             'fragi': "{:>10}",  # フラグメント番号(i10)
             'fragj': "{:>10}",  # フラグメント番号(i10)
@@ -910,6 +1064,14 @@ class CPFManager:
 
     @staticmethod
     def setupfragstr(fraginfo: dict[str, list]) -> str:
+        """フラグメント情報辞書からAJF形式のフラグメント文字列を生成する。
+
+        Args:
+            fraginfo: natoms, baas, connectsを含むフラグメント情報辞書。
+
+        Returns:
+            str: AJF形式のフラグメントセクション文字列。
+        """
         fragstr = ''
         count = 0
         for fnatom in fraginfo['natoms']:
@@ -981,6 +1143,14 @@ class CPFManager:
 
     @staticmethod
     def selectfrag(item1: str | int) -> list[int] | int:
+        """フラグメント指定文字列を整数リストに変換する。
+
+        Args:
+            item1: フラグメント指定（例: '1-5', '1,2,3'）または整数。
+
+        Returns:
+            list[int] | int: 展開されたフラグメント番号リストまたは整数。
+        """
         if type(item1) == str:
             if '-' in item1:
                 tgt = item1.split('-')

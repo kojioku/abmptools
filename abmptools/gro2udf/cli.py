@@ -87,6 +87,10 @@ def _run_from_top(argv: list) -> None:
 
 
 def main(argv=None):
+    """gro2udfのコマンドラインエントリポイント。
+
+    通常モードとTOP変換モード (--from-top) をサポートする。
+    """
     if argv is None:
         argv = sys.argv
 

@@ -19,6 +19,12 @@ class MdpWriter:
     """Generates the content of a .mdp file."""
 
     def write(self, model: SystemModel, filepath: str) -> None:
+        """SystemModelから .mdp シミュレーションパラメータファイルを書き出す。
+
+        Args:
+            model: 中間表現のシステムモデル。
+            filepath: 出力先ファイルパス。
+        """
         content = self._build(model)
         with open(filepath, "w") as f:
             f.write(content)

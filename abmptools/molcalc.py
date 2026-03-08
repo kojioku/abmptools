@@ -1,4 +1,9 @@
 from __future__ import annotations
+"""分子計算ユーティリティモジュール。
+
+分子座標の変換、距離計算、接触判定、LJ/クーロン相互作用計算、
+LAMMPSデータの解析など、分子シミュレーションに必要な計算機能を提供する。
+"""
 # -*- coding: utf-8 -*-
 import os
 import copy
@@ -16,8 +21,22 @@ logger = logging.getLogger(__name__)
 
 
 class molcalc():
+    """分子計算のためのユーティリティクラス。
+
+    分子座標操作、距離・角度計算、相互作用エネルギー計算、
+    接触判定、ファイル入出力などの機能を提供する。
+    """
 
     def getoriginpos(self, pos: list[list[float]], cell: list[float]) -> list[list[float]]:
+        """座標群の重心を原点に移動する。
+
+        Args:
+            pos: 原子座標のリスト [[x, y, z], ...]。
+            cell: セルサイズ [x, y, z]。
+
+        Returns:
+            原点に移動した座標リスト。
+        """
         x = y = z = 0
         for i in range(len(pos)):
             x = x + float(pos[i][0])
@@ -38,14 +57,42 @@ class molcalc():
         return pos
 
     def getdist(self, p1: np.ndarray, p2: np.ndarray) -> float:
+        """2点間のユークリッド距離を計算する。
+
+        Args:
+            p1: 座標1。
+            p2: 座標2。
+
+        Returns:
+            2点間の距離。
+        """
         dist = math.sqrt(sum((p1 - p2)**2))
         return dist
 
     def getdist_list(self, p1: list[float], p2: list[float]) -> float:
+        """リスト形式の2点間のユークリッド距離を計算する。
+
+        Args:
+            p1: 座標1 [x, y, z]。
+            p2: 座標2 [x, y, z]。
+
+        Returns:
+            2点間の距離。
+        """
         dist = np.linalg.norm(np.array(p1) - np.array(p2))
         return dist
 
     def getpos(self, pos: list[list[list[float]]], molnum: list[int], cell: list[float]) -> list[list[list[list[float]]]]:
+        """セル内に分子を格子状に配置する。
+
+        Args:
+            pos: 各分子種の原子座標。
+            molnum: 各分子種の分子数。
+            cell: セルサイズ [x, y, z]。
+
+        Returns:
+            配置後の全分子座標リスト。
+        """
         # vol = getvolume(pos)
         # vol = vol * 1.2
         poslist = [[], []]
@@ -93,13 +140,30 @@ class molcalc():
         return poslist
 
     def gettranspos(self, pos: list[list[float]], vec: list[float]) -> list[list[float]]:
-            data=[]
-            for i in range(len(pos)):
-                 aaa=[pos[i][0] + vec[0] , pos[i][1] + vec[1] , pos[i][2] + vec[2] ]
-                 data.append(aaa)
-            return data
+        """座標群を並進ベクトルで移動する。
+
+        Args:
+            pos: 原子座標のリスト。
+            vec: 並進ベクトル [x, y, z]。
+
+        Returns:
+            移動後の座標リスト。
+        """
+        data=[]
+        for i in range(len(pos)):
+             aaa=[pos[i][0] + vec[0] , pos[i][1] + vec[1] , pos[i][2] + vec[2] ]
+             data.append(aaa)
+        return data
 
     def getmolradius(self, pos: list[list[float]]) -> float:
+        """原点からの最大距離（分子半径）を計算する。
+
+        Args:
+            pos: 原子座標のリスト。
+
+        Returns:
+            原点から最も遠い原子までの距離。
+        """
         aaa = 0
         data = []
         for i in range(len(pos)):
@@ -110,6 +174,14 @@ class molcalc():
         return max(data)
 
     def getvolume(self, pos: list[list[float]]) -> float:
+        """原点からの最大距離を計算する（体積の代替指標）。
+
+        Args:
+            pos: 原子座標のリスト。
+
+        Returns:
+            原点から最も遠い原子までの距離。
+        """
         aaa = 0
         data = []
         for i in range(len(pos)):
@@ -120,6 +192,16 @@ class molcalc():
         return max(data)
 
     def getchg(self, fname: str, natom: int, molchg: float) -> list[float]:
+        """RESP計算結果ファイルから原子電荷を読み込む。
+
+        Args:
+            fname: RESP出力ファイルパス。
+            natom: 原子数。
+            molchg: 分子全体の電荷。
+
+        Returns:
+            各原子の電荷リスト（COGNAC単位系）。
+        """
         chg = []
     #    print fname,natom,molname
         with open(fname, "r") as f:
@@ -150,6 +232,17 @@ class molcalc():
         return chg
 
     def getmolnum(self, dirname: str, fname: list[str], nummol_seg: list[int], repeats: list[float]) -> list[int]:
+        """molnum.datファイルから分子数を読み込み、繰り返し単位を考慮して計算する。
+
+        Args:
+            dirname: データファイルのディレクトリパス。
+            fname: ファイル名リスト。
+            nummol_seg: セグメントあたりの分子数。
+            repeats: 繰り返し単位数。
+
+        Returns:
+            各分子種の分子数リスト。
+        """
         molnum = []
 
         with open(dirname + "/" + "molnum.dat", "r") as f:
@@ -169,6 +262,15 @@ class molcalc():
         return molnum
 
     def getmolmass(self, ffname: list[list[str]], atom_list: list[list[float]]) -> list[float]:
+        """力場の原子名から各原子の質量を取得する。
+
+        Args:
+            ffname: 力場の原子名リスト。
+            atom_list: 原子名と質量の対応リスト。
+
+        Returns:
+            各原子の質量リスト [amu]。
+        """
         data = []
         for i in range(len(ffname)):
             for j in range(len(atom_list)):
@@ -178,6 +280,15 @@ class molcalc():
         return data
 
     def gettotalmass(self, mass: list[list[float]], molnum: list[int]) -> float:
+        """全分子の総質量を計算する。
+
+        Args:
+            mass: 各分子種の原子質量リスト。
+            molnum: 各分子種の分子数。
+
+        Returns:
+            総質量 [amu]。
+        """
         data = 0
         logger.info("molnum %s", molnum)
         for i in range(len(mass)):
@@ -210,6 +321,15 @@ class molcalc():
         return cellsize_in_angstrom
 
     def Exportardpos(self, path: str, iname: str, molindex: list[int], posMol: list[list[list[float]]], nameAtom: list[list[str]]) -> None:
+        """指定した分子インデックスの座標をXYZ/PDBファイルに出力する。
+
+        Args:
+            path: 出力ディレクトリパス。
+            iname: 出力ファイル名（拡張子なし）。
+            molindex: 出力対象の分子インデックスリスト。
+            posMol: 全分子の原子座標。
+            nameAtom: 全分子の原子名。
+        """
         # export molindex mol data from whole posMol
 
         os.makedirs(path, exist_ok=True)
@@ -242,6 +362,15 @@ class molcalc():
         subprocess.call(cmd.split(" "))
 
     def exportplus1pos(self, path: str, pos: list[list[list[float]]], name: str, atom: list[list[str]], molindex: list[int]) -> None:
+        """指定分子の座標をXYZ/PDBファイルに出力する（元素記号を大文字化）。
+
+        Args:
+            path: 出力ディレクトリパス。
+            pos: 全分子の原子座標。
+            name: 出力ファイル名（拡張子なし）。
+            atom: 全分子の原子名。
+            molindex: 出力対象の分子インデックスリスト。
+        """
         # # Export position of mol
         # head, ext = os.path.splitext(str(iname))
         os.makedirs(path + "/pdb", exist_ok=True)
@@ -268,6 +397,15 @@ class molcalc():
         subprocess.call(cmd.split(" "))
 
     def getatomisite(self, isitelist: list[list], typenameMol: list[str]) -> list:
+        """原子タイプ名からサイト情報を取得する。
+
+        Args:
+            isitelist: サイト情報リスト [名前リスト, 値リスト]。
+            typenameMol: 分子の原子タイプ名リスト。
+
+        Returns:
+            各原子に対応するサイト値のリスト。
+        """
         # get the position of a molecule
         isitemol = []
         # print "isitelist",isitelist
@@ -282,6 +420,13 @@ class molcalc():
         return isitemol
 
     def exportxyz(self, path: str, pos: list[list[float]], num: int) -> None:
+        """座標をXYZ/PDBファイルに出力する（全原子をHとして出力）。
+
+        Args:
+            path: 出力ディレクトリパス。
+            pos: 原子座標のリスト。
+            num: ファイル名に使用する番号。
+        """
         # # Export position of mol
         # head, ext = os.path.splitext(str(iname))
         out_head = path + "/tmp" + str(num)
@@ -303,6 +448,13 @@ class molcalc():
         subprocess.call(cmd.split(" "))
 
     def exportdata(self, path: str, oname: str, data: list) -> None:
+        """データリストを.datファイルに出力する。
+
+        Args:
+            path: 出力ディレクトリパス。
+            oname: 出力ファイル名（拡張子なし）。
+            data: 出力データのリスト。
+        """
         os.makedirs(path, exist_ok=True)
 
         out_file = path + "/" + str(oname) + ".dat"
@@ -314,6 +466,14 @@ class molcalc():
 
 
     def read_xyz(self, filename: str) -> list[list[str] | list[list[float]]]:
+        """XYZファイルを読み込み、原子名と座標を返す。
+
+        Args:
+            filename: XYZファイルパス。
+
+        Returns:
+            [原子名リスト, 座標リスト] の2要素リスト。
+        """
         with open(filename, "U") as _fh:
             lines = [l.rstrip() for l in _fh]
         atom = []
@@ -331,6 +491,16 @@ class molcalc():
 
 
     def calcLJPairInteraction(self, pos1: np.ndarray, pos2: np.ndarray, param: list[float]) -> float:
+        """2原子間のLennard-Jonesペア相互作用エネルギーを計算する。
+
+        Args:
+            pos1: 原子1の座標。
+            pos2: 原子2の座標。
+            param: LJパラメータ [sigma, epsilon]。
+
+        Returns:
+            LJ相互作用エネルギー。
+        """
 
         # return LJ r1 r2
         sigma = param[0]
@@ -352,6 +522,18 @@ class molcalc():
 
 
     def calcCoulombInteraction(self, pos1: np.ndarray, pos2: np.ndarray, q1: float, q2: float, epsilon: float) -> float:
+        """2原子間のクーロン相互作用エネルギーを計算する。
+
+        Args:
+            pos1: 原子1の座標。
+            pos2: 原子2の座標。
+            q1: 原子1の電荷。
+            q2: 原子2の電荷。
+            epsilon: 誘電率。
+
+        Returns:
+            クーロン相互作用エネルギー。
+        """
 
         VALENCE = 18.220893
         r12 = getdist(pos1, pos2)
@@ -426,6 +608,15 @@ class molcalc():
 
 
     def getrenumindex(self, index: list[int], clistall: list[list[int]]) -> tuple[list[int], list[list[int]]]:
+        """分子IDを0始まりの連番に振り直し、接触リストも更新する。
+
+        Args:
+            index: 元の分子IDリスト。
+            clistall: 接触リスト。
+
+        Returns:
+            (振り直した分子IDリスト, 更新後の接触リスト)。
+        """
         # index_renum:molid arranged
         index_renum = []
         for i in range(len(index)):
@@ -444,6 +635,16 @@ class molcalc():
 
 
     def getrenumfrag(self, index: list[int], clistall: list[list[int]], fragids: list[list[int]]) -> tuple[list[int], list[list[int]]]:
+        """フラグメントIDを連番に振り直し、接触リストも更新する。
+
+        Args:
+            index: 元の分子IDリスト。
+            clistall: 接触リスト。
+            fragids: 各分子のフラグメントIDリスト。
+
+        Returns:
+            (振り直したフラグメントIDリスト, 更新後の接触リスト)。
+        """
         flag = False
         count = 0
         aaa = []
@@ -508,6 +709,14 @@ class molcalc():
         return index_renum, clist_renum
 
     def getindex(self, clistall: list[list[int]]) -> list[int]:
+        """接触リストから使用されている分子インデックスを重複なしで取得する。
+
+        Args:
+            clistall: 接触リスト。各要素は分子IDのリスト。
+
+        Returns:
+            ソート済みの分子インデックスリスト。
+        """
         # --get used mol index --
         index = []
         for i in range(len(clistall)):
@@ -610,6 +819,14 @@ class molcalc():
         return clistall
 
     def getCenter(self, posVec: np.ndarray) -> np.ndarray:
+        """座標群の重心（平均座標）を計算する。
+
+        Args:
+            posVec: 原子座標の配列。
+
+        Returns:
+            重心座標。
+        """
         # get center coordinates
         # print "posVec",posVec
         center = np.average(posVec, 0)
@@ -617,11 +834,29 @@ class molcalc():
         return center
 
     def moveMolTrans(self, posVec: np.ndarray, transVec: np.ndarray) -> np.ndarray:
+        """座標群を並進ベクトルで平行移動する。
+
+        Args:
+            posVec: 原子座標の配列。
+            transVec: 並進ベクトル。
+
+        Returns:
+            移動後の座標配列。
+        """
         # Parallel shift
         posVec = posVec + transVec
         return posVec
 
     def moveMolEuler(self, posVec: np.ndarray, rotatRdn: np.ndarray) -> np.ndarray:
+        """オイラー角(ZXZ系)による四元数回転で座標群を回転する。
+
+        Args:
+            posVec: 原子座標の配列。
+            rotatRdn: オイラー角 [alpha, beta, gamma] (ラジアン)。
+
+        Returns:
+            回転後の座標配列。
+        """
         # ## Rotation (specify the quaternion, Euler angle ZXZ '[rad])
         a = np.cos(rotatRdn[1]/2.)*np.cos((rotatRdn[2]+rotatRdn[0])/2.)
         b = np.sin(rotatRdn[1]/2.)*np.cos((rotatRdn[2]-rotatRdn[0])/2.)
@@ -636,6 +871,15 @@ class molcalc():
         return posVec
 
     def moveMolRotat(self, posVec: np.ndarray, rotatDeg: np.ndarray) -> np.ndarray:
+        """カーダン角(XYZ)を指定して分子座標を回転させる。
+
+        Args:
+            posVec: 原子座標の配列。
+            rotatDeg: X, Y, Z軸周りの回転角度[deg]。
+
+        Returns:
+            回転後の座標配列。
+        """
         # Rotation (specify the Cardin angle XYZ [deg])
         if rotatDeg[1] == 90 or rotatDeg[1] == -90:
             a = 0
@@ -658,6 +902,15 @@ class molcalc():
         return posVec
 
     def getdummyatom(self, connect: list[list[int]], end: int) -> int | None:
+        """接続リストから末端原子に接続するダミー原子のインデックスを取得する。
+
+        Args:
+            connect: CONECT形式の接続情報リスト。
+            end: 末端原子のインデックス。
+
+        Returns:
+            ダミー原子のインデックス。見つからない場合はNone。
+        """
         logger.debug('start getdummyatom')
         # e.g.) connect: [['CONECT', 0, 6, 5, 1, 13], ['CONECT', 1, 2, 2, 0, 4]]
         for i in range(len(connect)):
@@ -676,6 +929,17 @@ class molcalc():
         return
 
     def getangle(self, p1: np.ndarray, p2: np.ndarray, p3: np.ndarray, length: list[float]) -> float:
+        """3点p1-p2-p3がなす角度を度数法で計算する。
+
+        Args:
+            p1: 点1の座標。
+            p2: 頂点の座標。
+            p3: 点3の座標。
+            length: p1-p2間およびp3-p2間の距離のリスト。
+
+        Returns:
+            角度(度)。
+        """
         # p1 - p2 - p3 angle
         p1 = p1 - p2
         p3 = p3 - p2
@@ -690,6 +954,14 @@ class molcalc():
         return theta
 
     def getnppos(self, pos: list[list[float]]) -> np.ndarray:
+        """座標リストをfloat型に変換しnumpy配列として返す。
+
+        Args:
+            pos: 座標のリスト。
+
+        Returns:
+            numpy配列に変換された座標。
+        """
         for i in range(len(pos)):
             for j in range(len(pos[i])):
                 pos[i][j] = float(pos[i][j])
@@ -698,6 +970,19 @@ class molcalc():
 
 
     def get2vec(self, pos1: np.ndarray, pos2: np.ndarray, p2l1: int, p1l2: int, p1dum2: int, plus: float) -> tuple[np.ndarray, np.ndarray]:
+        """2分子間の接続用ベクトルとダミー原子方向ベクトルを計算する。
+
+        Args:
+            pos1: 分子1の座標配列。
+            pos2: 分子2の座標配列。
+            p2l1: 分子2の接続原子インデックス。
+            p1l2: 分子1の接続原子インデックス。
+            p1dum2: 分子1のダミー原子インデックス。
+            plus: ダミー原子方向ベクトルに加算する距離。
+
+        Returns:
+            接続ベクトルとダミー原子方向ベクトルのタプル。
+        """
         vec = pos1[p1l2] - pos2[p2l1]
         vec2 = pos1[p1dum2] - pos1[p1l2]
         dist = self.getdist(pos1[p1dum2], pos1[p1l2])
@@ -706,6 +991,18 @@ class molcalc():
 
 
     def xymatch(self, pos: np.ndarray, pos2: np.ndarray, l1: int, l2: int, dum1: int) -> np.ndarray:
+        """xy平面上でダミー原子の方向を参照原子に一致させるようz軸周りに回転する。
+
+        Args:
+            pos: 参照分子の座標配列。
+            pos2: 回転対象分子の座標配列。
+            l1: 対象分子の接続原子インデックス。
+            l2: 参照分子の接続原子インデックス。
+            dum1: 対象分子のダミー原子インデックス。
+
+        Returns:
+            回転後の座標配列。
+        """
         p1 = copy.deepcopy(pos[l2])
         p2 = copy.deepcopy(pos2[l1])
         p3 = copy.deepcopy(pos2[dum1])
@@ -735,6 +1032,15 @@ class molcalc():
 
 
     def rotate_ardz(self, theta: float, pos: np.ndarray) -> np.ndarray:
+        """z軸周りに指定角度だけ座標を回転させる。
+
+        Args:
+            theta: 回転角度(度)。
+            pos: 回転対象の座標配列。
+
+        Returns:
+            回転後の座標配列。
+        """
         # ------回転角の定義------
         rot = math.pi * theta/180  # ラジアンに変換
         # ------回転行列の成分の定義---------
@@ -766,6 +1072,15 @@ class molcalc():
 
 
     def label1match(self, pos2in: np.ndarray, pos1: np.ndarray) -> np.ndarray:
+        """参照分子のラベル原子に一致するよう法線ベクトル周りに回転させる。
+
+        Args:
+            pos2in: 回転対象分子の座標配列。
+            pos1: 参照分子の座標配列。
+
+        Returns:
+            回転後の座標配列。
+        """
 
         normal = np.arange(3.0)
         normal[0] = pos2in[dum1, 1] / math.sqrt(pos2in[dum1, 0]**2 +
@@ -805,6 +1120,16 @@ class molcalc():
         return rotated
 
     def rotate_ardvec(self, theta: float, vec: np.ndarray, pos: np.ndarray) -> np.ndarray:
+        """任意のベクトル周りに指定角度だけ座標を回転させる。
+
+        Args:
+            theta: 回転角度(度)。
+            vec: 回転軸の単位ベクトル。
+            pos: 回転対象の座標配列。
+
+        Returns:
+            回転後の座標配列。
+        """
         # print ("vec", vec)
         # ------回転角の定義------
         rot = math.pi * theta/180  # ラジアンに変換
@@ -837,6 +1162,17 @@ class molcalc():
 
 
     def dihed_rotate(self, pos2in: np.ndarray, pos1: np.ndarray, l1: list[int], l2: list[int]) -> np.ndarray:
+        """二面角を合わせるよう結合軸周りに分子座標を回転させる。
+
+        Args:
+            pos2in: 回転対象分子の座標配列。
+            pos1: 参照分子の座標配列。
+            l1: 参照分子側の原子インデックスリスト。
+            l2: 対象分子側の原子インデックスリスト。
+
+        Returns:
+            回転後の座標配列。
+        """
         vec = np.arange(3.0)
 
     #   normalization vec
@@ -872,6 +1208,18 @@ class molcalc():
 
 
     def dum1_rotate(self, pos2in: np.ndarray, pos1: np.ndarray, l1: int, l2: int, dum1: int) -> np.ndarray:
+        """ダミー原子を参照原子の方向に合わせるよう外積ベクトル周りに回転させる。
+
+        Args:
+            pos2in: 回転対象分子の座標配列。
+            pos1: 参照分子の座標配列。
+            l1: 対象分子の接続原子インデックス。
+            l2: 参照分子の接続原子インデックス。
+            dum1: 対象分子のダミー原子インデックス。
+
+        Returns:
+            回転後の座標配列。
+        """
         # rotate around crossproduct of pos1[l2]-pos2in[l1]-pos2in[dum1]
         vec = np.arange(3.0)
         # get cross product
@@ -913,10 +1261,27 @@ class molcalc():
         return rotated
 
     def babelxyzpdb(self, head: str) -> None:
+        """Open Babelを使用してXYZファイルをPDB形式に変換する。
+
+        Args:
+            head: 入出力ファイルの拡張子を除いた名前。
+        """
         cmd = "obabel -ixyz " + head + ".xyz -opdb -O " + head + ".pdb"
         subprocess.call(cmd.split(" "))
 
     def writexyzpoly(self, head: str, natomsum: int, atoms: list[list[list[str]]], pos: list[np.ndarray], dums: list[list[int]], seq: list[int], cnct_count: list[int], cncted_count: list[int]) -> None:
+        """ダミー原子を除外したポリマー構造をXYZ形式で書き出す。
+
+        Args:
+            head: 出力ファイルの拡張子を除いた名前。
+            natomsum: 出力する原子の総数。
+            atoms: 各分子の原子情報リスト。
+            pos: 各分子の座標配列リスト。
+            dums: 各分子のダミー原子インデックスリスト。
+            seq: 分子種の順序リスト。
+            cnct_count: 各分子の接続回数。
+            cncted_count: 各分子の被接続回数。
+        """
         # print atoms
         logger.debug("%s", dums)
         logger.debug("%s", natomsum)
@@ -943,6 +1308,16 @@ class molcalc():
                         pos[i][j][1], pos[i][j][2], file=f)
 
     def getcrossprod(self, p1: np.ndarray, p2: np.ndarray, p3: np.ndarray) -> np.ndarray:
+        """3点から外積ベクトルを計算する。
+
+        Args:
+            p1: 点1の座標。
+            p2: 基準点の座標。
+            p3: 点3の座標。
+
+        Returns:
+            (p1-p2)と(p3-p2)の外積ベクトル。
+        """
         v1 = p1 - p2
         v2 = p3 - p2
         cross = np.arange(3.0)
@@ -953,6 +1328,19 @@ class molcalc():
         return cross
 
     def getrepeatpos(self, pos_orig: np.ndarray, l1: int, l2: int, dum1: int, dum2: int, d_plus: float) -> np.ndarray:
+        """繰り返し単位の座標を接続位置に配置して回転・整列させる。
+
+        Args:
+            pos_orig: 元の分子座標配列。
+            l1: 接続原子1のインデックス。
+            l2: 接続原子2のインデックス。
+            dum1: ダミー原子1のインデックス。
+            dum2: ダミー原子2のインデックス。
+            d_plus: 接続方向への追加距離。
+
+        Returns:
+            配置・回転後の座標配列。
+        """
         # target l1 and dum2 + 1.5 vec
         vec, vec2 = self.get2vec(pos_orig, l1, l2, dum2, d_plus)
         # print "vec2", vec2
@@ -970,6 +1358,14 @@ class molcalc():
 
     @staticmethod
     def parse_lammps_data(file_path: str) -> tuple[dict[int, float], list[list], dict[int, int]]:
+        """LAMMPSデータファイルを解析し、質量・原子・分子マップを取得する。
+
+        Args:
+            file_path: LAMMPSデータファイルのパス。
+
+        Returns:
+            (質量辞書, 原子リスト, 原子ID-分子タグ対応辞書)のタプル。
+        """
         with open(file_path, 'r') as file:
             lines = file.readlines()
 
@@ -1018,6 +1414,14 @@ class molcalc():
 
     @staticmethod
     def get_element_name(mass: float) -> str:
+        """原子質量から元素名を返す。
+
+        Args:
+            mass: 原子質量。
+
+        Returns:
+            元素記号。不明な場合は'Unknown'。
+        """
         # Define a mapping from rounded mass to element name
         element_mapping = {
             12: 'C',  # Carbon
@@ -1031,6 +1435,14 @@ class molcalc():
 
     @staticmethod
     def get_atomic_radius(element: str) -> float:
+        """元素名から原子半径の2倍(直径)を返す。
+
+        Args:
+            element: 元素記号。
+
+        Returns:
+            原子直径。不明な元素の場合は0。
+        """
         # Define a mapping from element name to atomic radius (in pm)
         radius_mapping = {
             'C': 1.926,   # Carbon
@@ -1043,6 +1455,15 @@ class molcalc():
 
     @staticmethod
     def group_atoms_by_molecule(atoms: list[list], masses: dict[int, float]) -> dict[int, list[str]]:
+        """原子リストを分子タグごとにグループ化し、元素名リストとして返す。
+
+        Args:
+            atoms: 原子情報のリスト。
+            masses: 原子タイプから質量への辞書。
+
+        Returns:
+            分子タグをキー、元素名リストを値とする辞書。
+        """
         molecules = {}
         for atom in atoms:
             atom_id, molecule_tag, atom_type, x, y, z = atom[:6]
@@ -1054,6 +1475,14 @@ class molcalc():
 
     @staticmethod
     def parse_lammps_trajectory(file_path: str) -> tuple[dict[int, list[list]], tuple[float, ...]]:
+        """LAMMPSトラジェクトリファイルを解析し、各タイムステップの原子データを取得する。
+
+        Args:
+            file_path: LAMMPSトラジェクトリファイルのパス。
+
+        Returns:
+            (タイムステップごとの原子データ辞書, ボックス境界)のタプル。
+        """
         with open(file_path, 'r') as file:
             lines = file.readlines()
 
@@ -1098,6 +1527,16 @@ class molcalc():
 
     @staticmethod
     def scale_to_real_coords(scaled_coords: list[list], box_bounds: tuple[float, ...], atom_molecule_map: dict[int, int]) -> list[list[float]]:
+        """スケーリング座標をイメージフラグを考慮した実座標に変換する。
+
+        Args:
+            scaled_coords: スケーリング座標のリスト。
+            box_bounds: シミュレーションボックスの境界値。
+            atom_molecule_map: 原子IDから分子タグへの対応辞書。
+
+        Returns:
+            実座標に変換された原子データのリスト。
+        """
         xlo, xhi, ylo, yhi, zlo, zhi = box_bounds
         real_coords = []
         for coord in scaled_coords:
@@ -1111,6 +1550,14 @@ class molcalc():
 
     @staticmethod
     def group_real_coords_by_molecule(real_coords: list[list[float]]) -> dict[int, list[list[float]]]:
+        """実座標を分子タグごとにグループ化する。
+
+        Args:
+            real_coords: 原子の実座標リスト。
+
+        Returns:
+            分子タグをキー、座標リストを値とする辞書。
+        """
         molecule_coords = {}
         for coord in real_coords:
             atom_id, molecule_tag, atom_type, x, y, z = coord
@@ -1121,6 +1568,15 @@ class molcalc():
 
     @staticmethod
     def get_radii_for_molecules(real_coords: list[list[float]], masses: dict[int, float]) -> dict[int, list[float]]:
+        """各分子に属する原子の原子直径リストを分子タグごとに取得する。
+
+        Args:
+            real_coords: 原子の実座標リスト。
+            masses: 原子タイプから質量への辞書。
+
+        Returns:
+            分子タグをキー、原子直径リストを値とする辞書。
+        """
         molecule_radii = {}
         for coord in real_coords:
             atom_id, molecule_tag, atom_type, x, y, z = coord
@@ -1133,6 +1589,15 @@ class molcalc():
 
     @staticmethod
     def wrap_to_primary_cell(coord: list[float], box_bounds: tuple[float, ...]) -> list[float]:
+        """座標を周期境界条件でプライマリセル内に折り返す。
+
+        Args:
+            coord: [x, y, z]座標。
+            box_bounds: シミュレーションボックスの境界値。
+
+        Returns:
+            プライマリセル内に折り返された座標。
+        """
         xlo, xhi, ylo, yhi, zlo, zhi = box_bounds
         lx = xhi - xlo
         ly = yhi - ylo
@@ -1145,6 +1610,15 @@ class molcalc():
 
     @staticmethod
     def shift_molecule_to_primary_cell(coords: list[list[float]], box_bounds: tuple[float, ...]) -> list[list[float]]:
+        """分子の重心をプライマリセルに移動し、全原子を同じだけシフトする。
+
+        Args:
+            coords: 分子内の原子座標リスト。
+            box_bounds: シミュレーションボックスの境界値。
+
+        Returns:
+            シフト後の原子座標リスト。
+        """
         xlo, xhi, ylo, yhi, zlo, zhi = box_bounds
         cx = sum(x for x, y, z in coords) / len(coords)
         cy = sum(y for x, y, z in coords) / len(coords)

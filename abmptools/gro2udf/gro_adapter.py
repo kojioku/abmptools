@@ -39,6 +39,14 @@ class GROAdapter:
         self,
         frame: GROFrame,
     ) -> Tuple[List[AtomPosition], CellGeometry]:
+        """GROFrameから原子座標リストとセル情報を生成する。
+
+        Args:
+            frame: パース済みのGROフレーム。
+
+        Returns:
+            (AtomPositionのリスト, CellGeometry) のタプル。
+        """
         positions = self._build_positions(frame)
         cell = self._build_cell(frame)
         return positions, cell

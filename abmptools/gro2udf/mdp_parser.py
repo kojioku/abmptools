@@ -67,6 +67,7 @@ class MdpParams:
 
     @property
     def coulombtype(self) -> str:
+        """静電相互作用アルゴリズム名 (PME, Ewald 等)。"""
         return self._raw.get("coulombtype", "PME")
 
     @property
@@ -76,10 +77,12 @@ class MdpParams:
 
     @property
     def constraints(self) -> str:
+        """拘束アルゴリズム (none, h-bonds, all-bonds 等)。"""
         return self._raw.get("constraints", "none")
 
     @property
     def integrator(self) -> str:
+        """積分アルゴリズム名 (md, md-vv, sd 等)。"""
         return self._raw.get("integrator", "md")
 
     def __repr__(self) -> str:  # pragma: no cover

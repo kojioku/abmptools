@@ -18,6 +18,10 @@ import os
 
 
 def main(argv=None):
+    """udf2groのコマンドラインエントリポイント。
+
+    UDFファイルをGROMACS形式 (gro/top/mdp) に変換する。
+    """
     if argv is None:
         argv = sys.argv
 

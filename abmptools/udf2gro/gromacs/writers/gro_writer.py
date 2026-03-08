@@ -13,6 +13,12 @@ class GroWriter:
     """Generates the content of a .gro file."""
 
     def write(self, model: SystemModel, filepath: str) -> None:
+        """SystemModelから .gro ファイルを書き出す。
+
+        Args:
+            model: 中間表現のシステムモデル。
+            filepath: 出力先ファイルパス。
+        """
         content = self._build(model)
         with open(filepath, "w") as f:
             f.write(content)

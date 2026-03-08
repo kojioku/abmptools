@@ -1,4 +1,5 @@
 from __future__ import annotations
+"""FMO（フラグメント分子軌道法）計算の設定および入力ファイル生成を行うモジュール。"""
 
 try:
     from UDFManager import *
@@ -20,6 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 class setfmo(pdio, ufc, rud):
+    """FMO計算のパラメータ設定・フラグメント分割・入力ファイル生成を行うクラス。
+
+    PDB/UDFから分子構造を読み込み、近傍分子の切り出しや
+    フラグメント情報の構築、AJFファイルの生成を提供する。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.ajf_method = 'HF'
@@ -40,6 +47,11 @@ class setfmo(pdio, ufc, rud):
         pass
 
     def setrfmoparam(self, param_rfmo: dict) -> None:
+        """FMO計算用パラメータを辞書から一括設定する。
+
+        Args:
+            param_rfmo: FMO計算パラメータの辞書。
+        """
         self.cutmode = param_rfmo.get('cutmode', 'sphere')
         self.getmode = param_rfmo.get('getmode', 'resnum')
         self.ajf_method = param_rfmo.get('ajf_method', 'HF')
@@ -60,6 +72,15 @@ class setfmo(pdio, ufc, rud):
         self.npro = param_rfmo.get('npro', 8)
 
     def getendatom(self, connect: list, term: int) -> int | None:
+        """結合情報から末端原子に接続する原子のインデックスを取得する。
+
+        Args:
+            connect: 結合情報のリスト。
+            term: 末端原子のインデックス。
+
+        Returns:
+            接続先の原子インデックス。見つからない場合はNone。
+        """
         flag = False
         for i in range(len(connect)):
             for j in range(2, len(connect[i])):
@@ -68,6 +89,15 @@ class setfmo(pdio, ufc, rud):
         return
 
     def gettermfrag(self, seg_info: list, endatom: int) -> int | None:
+        """セグメント情報から末端原子が属するフラグメントのインデックスを取得する。
+
+        Args:
+            seg_info: 各フラグメントの原子番号リスト（2次元リスト）。
+            endatom: 末端原子のインデックス（0始まり）。
+
+        Returns:
+            末端原子が属するフラグメントのインデックス。見つからない場合はNone。
+        """
         logger.debug(seg_info)
         logger.debug(endatom)
         for i in range(len(seg_info)):
@@ -77,6 +107,17 @@ class setfmo(pdio, ufc, rud):
                     return i
 
     def getpolyconf_rmapfmo(self, seg_conf: dict) -> dict:
+        """ポリマーのセグメント設定からFMO用の繰り返し構造情報を生成する。
+
+        末端フラグメントの電荷・原子数・結合情報を調整し、
+        repeat回繰り返した分子のフラグメント設定辞書を返す。
+
+        Args:
+            seg_conf: セグメント設定辞書（name, atom, charge, connect等を含む）。
+
+        Returns:
+            繰り返し構造を展開したフラグメント設定辞書。
+        """
         molname = seg_conf['name']
         seg_atom = seg_conf['atom']
         charge = seg_conf['charge']
@@ -265,6 +306,19 @@ class setfmo(pdio, ufc, rud):
         return poly_conf
 
     def getfragtable(self, molset: list | None = None, atomnums: list = [0], nameid: list = [0]) -> setfmo:
+        """分子集合からFMO用フラグメントテーブルを構築し、自身に設定する。
+
+        segment_data.datから各分子のフラグメント設定を読み込み、
+        nameidに従って多分子系のフラグメント情報を統合する。
+
+        Args:
+            molset: 分子名のリスト。
+            atomnums: 各分子の原子数リスト。
+            nameid: 各分子がmolset内のどのインデックスに対応するかのリスト。
+
+        Returns:
+            フラグメント情報が設定されたsetfmoインスタンス。
+        """
         # print make_input_param
 
         logger.info('getfragtable')
@@ -322,6 +376,18 @@ class setfmo(pdio, ufc, rud):
 
 
     def make_abinput_rmap(self, molset: list, molnamelist: list, rec: int, path: str, atomnums: list) -> None:
+        """分子集合からAJFファイルを生成し、指定パスに書き出す。
+
+        各分子のフラグメント設定を読み込み、フラグメントセクションを構築して
+        AJFファイルを出力する。
+
+        Args:
+            molset: 分子種名のリスト。
+            molnamelist: 全分子の分子名リスト（各分子がmolsetのどれに該当するか）。
+            rec: レコード番号（出力ファイル名に使用）。
+            path: 出力ディレクトリパス。
+            atomnums: 各分子種の原子数リスト。
+        """
         # print make_input_param
 
         # fragment configure reading
@@ -403,6 +469,16 @@ class setfmo(pdio, ufc, rud):
 
 
     def getcontact_rmapfmo(self, rec: int, uobj: object, totalMol: int, inmol: int, path: str, oname: str) -> None:
+        """UDFレコードから近接分子を抽出しFMO入力ファイルを生成する。
+
+        Args:
+            rec: UDFレコード番号。
+            uobj: UDFManagerオブジェクト。
+            totalMol: 系内の全分子数。
+            inmol: 入力分子数。
+            path: 出力ディレクトリパス。
+            oname: 出力ファイル名。
+        """
         molname = self.molname
         criteria = self.criteria
         tgtpos = self.tgtpos
