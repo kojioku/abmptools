@@ -1,3 +1,4 @@
+"""UDFファイル（COGNAC形式）とsegment_data設定からABINIT-MP入力ファイルを生成するCLIツール。"""
 import ast
 import numpy as np
 from UDFManager import *

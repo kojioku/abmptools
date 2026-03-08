@@ -1,3 +1,7 @@
+"""CPFファイルからIFIE/PIEDAデータを抽出し、フィルタリング済みCSVを出力するCLIツール。
+
+指定フラグメント番号範囲でIFIEデータを抽出し、単位変換（hartree→kcal/mol）を行って出力する。
+"""
 import abmptools
 import pandas as pd
 import argparse
@@ -5,7 +9,11 @@ import numpy as np
 
 
 def getargs():
+    """コマンドライン引数を解析して返す。
 
+    Returns:
+        argparse.Namespace: 入力ファイル名、出力ファイル名、フラグメント番号範囲、andフラグを含む引数。
+    """
     parser = argparse.ArgumentParser(description='引数の例')
 
     # 入力ファイル名の引数を追加

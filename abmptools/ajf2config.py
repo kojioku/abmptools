@@ -1,3 +1,4 @@
+"""ABINIT-MPフラグメント情報ファイル（AJF）からsegment_data設定ファイルを生成するCLIツール。"""
 import sys
 import math
 import os

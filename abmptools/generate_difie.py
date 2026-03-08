@@ -1,3 +1,8 @@
+"""複数CPFファイルからDIFIE（動的IFIE）の平均値・標準偏差CPFを生成するCLIツール。
+
+時系列のCPFファイルを読み込み、IFIE/PIEDAおよび電荷の平均値と標準偏差を算出して
+DIFIE-CPFファイルとして出力する。
+"""
 import abmptools.cpfmanager
 import argparse
 import pandas as pd
@@ -9,6 +14,11 @@ import sys
 
 
 def get_args():
+    """コマンドライン引数を解析して返す。
+
+    Returns:
+        argparse.Namespace: 入力CPF名、時間範囲、ゼロパディング桁数、代表構造番号等を含む引数。
+    """
     parser = argparse.ArgumentParser(description="generate DIFIE")
 
     # Input CPF name, required
@@ -69,6 +79,14 @@ def get_args():
 
 
 def getcpfobj(intime):
+    """指定時刻のCPFファイルを読み込み、CPFManagerオブジェクトを返す。
+
+    Args:
+        intime: 時刻番号（ファイル名中のxxxを置換する数値）。
+
+    Returns:
+        CPFManager: パース済みのCPFオブジェクト。
+    """
     cpf = abmptools.CPFManager()
     padded = str(intime).zfill(args.zero_padding)
     input_cpf = args.input.replace('xxx', padded)
@@ -80,6 +98,16 @@ def getcpfobj(intime):
 
 
 def setoutcpfstatic(tgtnum, args, cpfs):
+    """代表構造の静的データ（原子情報、フラグメント情報、距離など）を出力用CPFに設定する。
+
+    Args:
+        tgtnum: 代表構造のインデックス番号。
+        args: コマンドライン引数。
+        cpfs: パース済みCPFオブジェクトのリスト。
+
+    Returns:
+        tuple: (出力用CPFManager, 静的距離DataFrame, 静的原子DataFrame)。
+    """
     outcpf = abmptools.CPFManager()
     outcpf.cpfver = args.version
     outcpf.labels = cpfs[tgtnum].labels
@@ -97,6 +125,17 @@ def setoutcpfstatic(tgtnum, args, cpfs):
 
 
 def getavestddf(cpfs, staticdistdf, staticatomdf):
+    """複数CPFから電荷・IFIE/PIEDAの平均値と標準偏差のDataFrameを算出する。
+
+    Args:
+        cpfs: パース済みCPFオブジェクトのリスト。
+        staticdistdf: 代表構造のフラグメント間距離DataFrame。
+        staticatomdf: 代表構造の原子情報DataFrame（電荷列を除く）。
+
+    Returns:
+        tuple: (平均・標準偏差付き原子DataFrame, 平均・標準偏差付きダイマーDataFrame,
+                電荷ラベルリスト, ダイマーラベルリスト)。
+    """
     # set averaged and stdev diminfo and write
     atominfo = []
     diminfos = []

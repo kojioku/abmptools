@@ -1,3 +1,4 @@
+"""ABINIT-MPログファイルから指定フラグメントの原子電荷（NBO等）を抽出してCSV出力するCLIツール。"""
 import numpy as np
 import sys
 import os

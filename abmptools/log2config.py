@@ -1,3 +1,4 @@
+"""ABINIT-MPログファイルからsegment_data設定ファイルを生成するCLIツール。"""
 import os
 import abmptools
 import argparse
@@ -7,6 +8,11 @@ import argparse
 
 
 def get_args():
+    """コマンドライン引数を解析して返す。
+
+    Returns:
+        argparse.Namespace: 入力ログファイル名、並列プロセス数、出力ファイル名を含む引数。
+    """
     parser = argparse.ArgumentParser(
                 prog='log2config',
                 usage='',
