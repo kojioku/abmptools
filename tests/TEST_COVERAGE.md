@@ -9,8 +9,8 @@
 | マネージャクラス | 2 | 2 | 64 | 完了 |
 | スタンドアロン関数モジュール | 2 | 2 | 61 | 完了 |
 | サブパッケージ (core, gro2udf, udf2gro, amorphous, geomopt) | 14 | 14 | 127 | 完了 |
-| CLIスクリプト | 11 | - | - | テスト対象外 (Phase 3) |
-| **合計** | | **27** | **608** | **全PASS** |
+| CLIスクリプト (argparseテスト) | 14 | 1 | 50 | 完了 |
+| **合計** | | **28** | **658** | **全PASS** |
 
 ---
 
@@ -51,25 +51,13 @@
 
 ---
 
-## テスト対象外モジュール (Phase 3: 報告)
+### 6. CLIスクリプト (argparseテスト)
 
-以下はCLIスクリプト (`if __name__ == "__main__"`) で、テスト可能な関数を持たないため対象外。
+| # | テストファイル | 対象モジュール | テスト数 | 主要テスト対象 | ステータス |
+|---|--------------|--------------|---------|--------------|-----------|
+| 28 | `test_cli_scripts.py` | 全14 CLIスクリプト | 50 | `get_args()` / `parse_args()` のデフォルト値、必須引数、カスタム値 | [x] 完了 |
 
-| モジュール | 行数 | 理由 |
-|-----------|------|------|
-| `pdbmodify.py` | 326 | CLIスクリプト。argparse + amptオブジェクト操作 |
-| `udf2fmo.py` | 102 | CLIスクリプト。UDFManager + setfmo |
-| `generateajf.py` | 272 | CLIスクリプト。setfmoの薄いラッパー |
-| `getcharge.py` | 75 | CLIスクリプト。anlfmoの薄いラッパー |
-| `log2config.py` | 74 | CLIスクリプト。LOGManagerの薄いラッパー |
-| `ajf2config.py` | 39 | CLIスクリプト。極小 |
-| `log2cpf.py` | 117 | CLIスクリプト。LOGManager + CPFManager |
-| `cpf2ifielist.py` | 84 | CLIスクリプト。CPFManagerの薄いラッパー |
-| `ajfserial.py` | 64 | CLIスクリプト。ファイル操作中心 |
-| `addsolvfrag.py` | 321 | CLIスクリプト。setfmoベース |
-| `pdb2fmo.py` | 103 | CLIスクリプト。setfmoベース |
-| `generate_difie.py` | 250 | CLIスクリプト。CPFManagerベース + multiprocessing |
-| `convertcpf.py` | 55 | CLIスクリプト。CPFManagerの薄いラッパー |
+テスト対象CLIスクリプト: `addsolvfrag`, `ajf2config`, `ajfserial`, `convertcpf`, `cpf2ifielist`, `generate_difie`, `generateajf`, `getcharge`, `getifiepieda`, `log2config`, `log2cpf`, `pdb2fmo`, `pdbmodify`, `udf2fmo`
 
 ---
 
@@ -116,7 +104,7 @@
 ## 実行方法
 
 ```bash
-pytest tests/ -v              # 全テスト実行 (608 tests)
+pytest tests/ -v              # 全テスト実行 (658 tests)
 pytest tests/ -v -k molcalc   # molcalcのみ
 pytest tests/ -v --tb=short   # 簡潔な出力
 ```

@@ -4,16 +4,40 @@
 
 ```
 abmptools/                  ← Repository root
-├── abmptools/              ← Python package (27 modules)
+├── abmptools/              ← Python package (27+ modules)
 │   ├── __init__.py
 │   ├── *.py
+│   ├── core/               ← 共通データモデル (system_model)
+│   ├── gro2udf/            ← GROMACS → OCTA UDF 変換
+│   ├── udf2gro/            ← OCTA UDF → GROMACS 変換
+│   ├── amorphous/          ← アモルファス系構築 (packmol, OpenMM)
+│   ├── geomopt/            ← 構造最適化 (PySCF, MACE)
 │   └── f90/                ← Fortran extension
 │       ├── src/
 │       │   └── readifiepiedalib.f90
 │       └── bin/
 │           └── readifiepiedalib.so
+├── tests/                  ← pytest テストスイート (658 tests, 28 files)
+│   ├── conftest.py
+│   ├── test_cli_scripts.py ← 全14 CLIスクリプトのargparseテスト
+│   └── test_*.py           ← 各モジュールの単体テスト
 ├── docs/                   ← Documentation
-│   └── ABMPTools-user-manual.md
+│   ├── ABMPTools-user-manual.md
+│   ├── overview.md
+│   ├── architecture.md
+│   ├── directory_structure.md
+│   ├── dev_quickstart.md
+│   ├── io_spec.md
+│   ├── dataflow.md
+│   ├── dependencies.md
+│   ├── parallelization.md
+│   ├── faq.md
+│   ├── gro2udf.md
+│   ├── udf2gro.md
+│   ├── amorphous.md
+│   ├── geomopt.md
+│   ├── qmopt.md
+│   └── licenses_third_party.md
 ├── sample/                 ← Sample data & run scripts
 │   ├── convertcpf/
 │   ├── generate_difie/
@@ -98,9 +122,39 @@ abmptools/                  ← Repository root
 - **`bin/readifiepiedalib.so`** (21 KB) — Pre-compiled shared library loaded at runtime by `getifiepieda.py`.
 - Compiled via `Makefile` using `gfortran`. Falls back to pure Python if unavailable.
 
+## `tests/` — テストスイート
+
+pytest ベースのテストスイート。658テスト、28ファイル。
+
+| カテゴリ | ファイル数 | テスト数 | 概要 |
+|---------|-----------|---------|------|
+| コアクラス | 7 | 300 | molcalc, mol_io, abinit_io, pdb_io, udf_io, udfrm_io, udfcreate |
+| 複合クラス | 2 | 72 | setfmo, anlfmo |
+| マネージャ | 2 | 64 | cpfmanager, logmanager |
+| スタンドアロン | 2 | 61 | readcif, getifiepieda |
+| サブパッケージ | 14 | 127 | core, gro2udf, udf2gro, amorphous, geomopt |
+| CLIスクリプト | 1 | 50 | 全14 CLIの argparse テスト |
+
+詳細は `tests/TEST_COVERAGE.md` を参照。
+
 ## `docs/` — Documentation
 
-- `ABMPTools-user-manual.md` — Comprehensive user manual with CLI options, output examples, and workflow descriptions.
+| ファイル | 概要 |
+|---------|------|
+| `ABMPTools-user-manual.md` | ユーザーマニュアル (CLI オプション、出力例、ワークフロー) |
+| `overview.md` | プロジェクト概要 |
+| `architecture.md` | アーキテクチャ設計 (継承チェーン、データフロー) |
+| `directory_structure.md` | ディレクトリ構成 (本ファイル) |
+| `dev_quickstart.md` | 開発者向けクイックスタート |
+| `io_spec.md` | I/O仕様 (ファイルフォーマット) |
+| `dataflow.md` | データフロー図 |
+| `dependencies.md` | 依存関係 |
+| `parallelization.md` | 並列処理 |
+| `faq.md` | FAQ |
+| `gro2udf.md` / `udf2gro.md` | GROMACS ↔ OCTA 変換ドキュメント |
+| `amorphous.md` | アモルファス系構築 |
+| `geomopt.md` / `qmopt.md` | 構造最適化 |
+| `licenses_third_party.md` | サードパーティライセンス |
 
 ## `sample/` — Sample Data & Workflows
 
