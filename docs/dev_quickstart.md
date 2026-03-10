@@ -58,12 +58,17 @@ cd sample/convertcpf && bash run.sh
 
 ```
 abmptools/
-├── abmptools/          ← All source code here (27 modules)
+├── abmptools/          ← All source code here (27+ modules)
 │   ├── __init__.py     ← Package exports
 │   ├── mol_io.py       ← START HERE: base I/O class
 │   ├── cpfmanager.py   ← Central data manager (CPF files)
 │   ├── getifiepieda.py ← Primary analysis CLI
-│   └── ...
+│   ├── core/           ← 共通データモデル
+│   ├── gro2udf/        ← GROMACS → OCTA UDF 変換
+│   ├── udf2gro/        ← OCTA UDF → GROMACS 変換
+│   ├── amorphous/      ← アモルファス系構築
+│   └── geomopt/        ← 構造最適化
+├── tests/              ← pytest テストスイート (658 tests)
 ├── sample/             ← Working examples with run.sh
 ├── docs/               ← Documentation
 └── setup.py            ← Build configuration
@@ -92,7 +97,9 @@ Observations from the codebase (not formal style guide):
 - **Version detection** is common — modules auto-detect ABINIT-MP and CPF versions from file headers.
 - **Unit conversions** use constants: `627.5095` (Hartree→kcal/mol), `0.529177` (Bohr→Å).
 - Comments and variable names are a mix of English and Japanese.
-- No formal test suite exists (noted as a future plan in `CHANGELOG.md`).
+- **Docstrings** are Japanese Google-style (`Args:`, `Returns:`, `Raises:`)。全公開メソッド/クラス/モジュールに記述済み。
+- **型ヒント** は `from __future__ import annotations` + モダン構文 (`list[str]`, `X | None`) を使用。
+- **テスト** は pytest で658件。`tests/` ディレクトリに28ファイル。`monkeypatch` でCLI引数をテスト。
 
 ## Adding a New Module
 
@@ -143,10 +150,23 @@ python -m abmptools.getifiepieda -h
 python -m abmptools.getifiepieda --frag 10 -d 8.0 -i test.log -nof90
 ```
 
+## テスト
+
+```bash
+# 全テスト実行
+pytest tests/ -v              # 658 tests
+
+# 特定モジュールのみ
+pytest tests/ -v -k molcalc
+
+# 簡潔な出力
+pytest tests/ -v --tb=short
+```
+
+テストカバレッジの詳細は `tests/TEST_COVERAGE.md` を参照。
+
 ## Known Limitations & Future Plans
 
 From `CHANGELOG.md`:
-- No formal test suite yet (planned).
-- Refactoring is planned.
 - Some local ABINIT-MP output variants may not be fully supported.
 - BSSE reading functionality is under development.
