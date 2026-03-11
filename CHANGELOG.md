@@ -1,5 +1,39 @@
 # Changelog
 
+## [Unreleased]
+### Added
+- udf2gro サブパッケージ: OCTA UDF → GROMACS (gro/top/mdp/itp) 変換機能
+- gro2udf サブパッケージ: GROMACS → OCTA UDF 変換機能
+  - `--from-top` モード (topファイルからの変換、NH-Q・Ewald・デフォルトテンプレート対応)
+- geomopt サブパッケージ: 構造最適化機能
+  - MacePdbOptimizer (MACE/ASE ベースのPDB構造最適化)
+  - OpenFFOpenMMMinimizer (OpenFF力場によるPDB構造最小化)
+  - QMOptimizerPySCF (PySCF量子化学計算による構造最適化)
+- amorphous サブパッケージ: 多成分アモルファス系構造構築機能 (packmol/OpenMM)
+- core サブパッケージ: SystemModel 共通データモデル
+- 開発者向けドキュメント9件 (architecture, dataflow, dependencies, io_spec, faq 等)
+- pytest テストスイート: 658テスト、28ファイル (全モジュール + 全14 CLIスクリプト)
+- Japanese Google-style docstrings: 全公開メソッド/クラス/モジュールに追加
+- 型ヒント: abinit_io, anlfmo, pdb_io, readcif 等 (89メソッド)
+- CLIスクリプト用 `get_args()` 関数の抽出 (8スクリプト)
+
+### Changed
+- `print()` → `logging` モジュールへ置換 (コアモジュール + gro2udf/udf2gro)
+- `exec()`/`eval()` → 安全なデータ読み込みに置換
+- bare `open()` → `with` 文コンテキストマネージャに変換
+- `subprocess.call(mkdir)` → `os.makedirs()` に置換
+- `try/except KeyError` → `dict.get()` パターンに置換
+- `is True`/`is False` パターンの修正
+- 未使用 import の削除 (9モジュール)
+- `doc/` → `docs/` ディレクトリ名変更
+- ドキュメント更新: TEST_COVERAGE.md, dev_quickstart.md, directory_structure.md
+
+### Fixed
+- cooperative inheritance chain の修復 (MRO関連)
+- icflag バグの修正
+- エスケープシーケンスの修正
+- setup.py: gro2udf/default_template.udf をパッケージデータに含める
+
 ## [1.14.6] - 2025-12-21
 ### Fixed
 - log2config (logmanager) の不具合修正
@@ -80,8 +114,8 @@
 - バージョンタグ追加
 
 ### future plan
-- 機能ごとテスト作成
-- リファクタリング
+- ~~機能ごとテスト作成~~ → 完了 (658テスト)
+- ~~リファクタリング~~ → 完了 (refactor/all ブランチ)
 - 権利フリーのサンプルの一般公開
 - bsse読み込み機能(developのみ)の影響チェック
 
