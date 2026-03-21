@@ -93,7 +93,7 @@ def get_args():
     return args
 
 
-if __name__ == "__main__":
+def main():
     args = get_args()
     print('input =', args.input)
     print('mode =', args.mode)
@@ -328,6 +328,10 @@ if __name__ == "__main__":
             # write
             aobj.posRes = posintoMol
             aobj.exportardpdbfull(oname, mollist)
+
+
+if __name__ == "__main__":
+    main()
 
 
 

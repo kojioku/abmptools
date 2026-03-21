@@ -170,7 +170,7 @@ def get_args():
     return args
 
 
-if __name__ == "__main__":
+def main():
     ## -- user setting --
     args = get_args()
 
@@ -320,5 +320,9 @@ if __name__ == "__main__":
         # exportpdb
         index = [i for i in range(len(aobj.posRes))]
         aobj.exportardpdbfull(opath + '/' + ohead, index)
+
+
+if __name__ == "__main__":
+    main()
 
 

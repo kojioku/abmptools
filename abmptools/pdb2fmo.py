@@ -56,7 +56,7 @@ def get_args():
     return args
 
 
-if __name__ == "__main__":
+def main():
     # main
     args = get_args()
 
@@ -115,3 +115,7 @@ if __name__ == "__main__":
             print('ion name: ', aobj.ionname)
 
         aobj.getcontact_rmapfmopdb(path, fname, oname)
+
+
+if __name__ == "__main__":
+    main()

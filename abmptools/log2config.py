@@ -44,7 +44,7 @@ def get_args():
     return args
 
 
-if __name__ == '__main__':
+def main():
     args = get_args()
     aobj = abmptools.LOGManager()
 
@@ -78,3 +78,7 @@ if __name__ == '__main__':
     print(']', file=f)
     f.close()
     print(f'## output file: {args.output}')
+
+
+if __name__ == '__main__':
+    main()

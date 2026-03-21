@@ -53,7 +53,7 @@ def get_args():
     return args
 
 
-if __name__ == "__main__":
+def main():
     # main
     args = get_args()
 
@@ -107,3 +107,7 @@ if __name__ == "__main__":
     aobj.mainpath = '.'
     aobj.getcontact_rmapfmo(
         tgtrec, _udf_, totalMol, totalMol, path, oname)
+
+
+if __name__ == "__main__":
+    main()

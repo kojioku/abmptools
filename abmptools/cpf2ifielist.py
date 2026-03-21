@@ -44,7 +44,7 @@ def getargs():
     return args
 
 
-if __name__ == '__main__':
+def main():
     args = getargs()
     cpf = abmptools.CPFManager()
     cpf.parse(args.input)
@@ -90,3 +90,7 @@ if __name__ == '__main__':
     filtered_copy.to_csv(output, float_format='%.6f')
 
     print("Write output file finished: " + output)
+
+
+if __name__ == '__main__':
+    main()

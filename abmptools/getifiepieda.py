@@ -277,7 +277,7 @@ def setupmode(aobj):
     return tgtfrag1, tgtfrag2
 
 
-if __name__ == '__main__':
+def main():
     args = get_args()
     aobj = ampt.anlfmo()
 
@@ -322,3 +322,7 @@ if __name__ == '__main__':
     else:
         aobj = aobj.filterifiewrap()
         aobj.writecsvwrap()
+
+
+if __name__ == '__main__':
+    main()

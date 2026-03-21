@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "abmptools"
+version = "1.15.0"
+description = "Pre/post-processing and analysis toolkit for ABINIT-MP Fragment Molecular Orbital calculations"
+readme = {file = "README.md", content-type = "text/markdown"}
+license = "MIT"
+authors = [
+    {name = "Koji Okuwaki", email = "koujioku81@gmail.com"},
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "pandas",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+keywords = ["FMO", "ABINIT-MP", "IFIE", "PIEDA", "fragment molecular orbital", "computational chemistry"]
+
+[project.urls]
+Homepage = "https://github.com/kojioku/abmptools"
+Repository = "https://github.com/kojioku/abmptools"
+Documentation = "https://github.com/kojioku/abmptools/blob/main/docs/ABMPTools-user-manual.md"
+Changelog = "https://github.com/kojioku/abmptools/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+amorphous = [
+    "openff-toolkit>=0.14.0",
+    "openff-interchange>=0.3.0",
+    "openmm>=8.0",
+]
+geomopt = [
+    "pyscf",
+    "ase",
+]
+mace = [
+    "ase",
+    "mace-torch",
+    "torch",
+]
+test = [
+    "pytest",
+]
+
+[project.scripts]
+abmp-getifiepieda = "abmptools.getifiepieda:main"
+abmp-generateajf = "abmptools.generateajf:main"
+abmp-log2cpf = "abmptools.log2cpf:main"
+abmp-log2config = "abmptools.log2config:main"
+abmp-convertcpf = "abmptools.convertcpf:main"
+abmp-generate-difie = "abmptools.generate_difie:main"
+abmp-cpf2ifielist = "abmptools.cpf2ifielist:main"
+abmp-getcharge = "abmptools.getcharge:main"
+abmp-pdb2fmo = "abmptools.pdb2fmo:main"
+abmp-udf2fmo = "abmptools.udf2fmo:main"
+abmp-pdbmodify = "abmptools.pdbmodify:main"
+abmp-ajf2config = "abmptools.ajf2config:main"
+abmp-ajfserial = "abmptools.ajfserial:main"
+abmp-addsolvfrag = "abmptools.addsolvfrag:main"
+
+[tool.setuptools.packages.find]
+include = ["abmptools*"]
+exclude = ["tests*", "docs*", "sample*"]
+
+[tool.setuptools.package-data]
+abmptools = ["f90/bin/*.so", "gro2udf/default_template.udf"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
