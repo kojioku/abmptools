@@ -48,7 +48,7 @@ def get_args():
     return args
 
 
-if __name__ == "__main__":
+def main():
     ## -- user setting --
     args = get_args()
 
@@ -74,4 +74,8 @@ if __name__ == "__main__":
     head = os.path.splitext(logname)[0]
     chgfiltdf = chgdf[chgdf['Frag'].isin(frags)]
     chgfiltdf.to_csv(head + '-' + chgtype + '.csv')
+
+
+if __name__ == "__main__":
+    main()
 

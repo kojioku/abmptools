@@ -31,7 +31,7 @@ def get_args():
     return args
 
 
-if __name__ == '__main__':
+def main():
     args = get_args()
     print('input =', args.input)
     print('output =', args.output)
@@ -39,6 +39,10 @@ if __name__ == '__main__':
 
     obj = ampt.abinit_io()
     obj.getfragdict(args.input, args.output)
+
+
+if __name__ == '__main__':
+    main()
 
 
 

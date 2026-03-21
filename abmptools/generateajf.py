@@ -153,7 +153,7 @@ def get_args():
     return args
 
 
-if __name__ == "__main__":
+def main():
     args = get_args()
 
     print('coord(pdb) =', args.incoord)
@@ -215,7 +215,7 @@ if __name__ == "__main__":
         print('manual mode')
 
         # read fragment file from ajf
-        fragfile = args.manual  
+        fragfile = args.manual
         # e.g. '-ma xxxxx.ajf -ft ajf' or '-ma segment_data.dat -ft config'
 
         # write segment config file
@@ -285,3 +285,7 @@ if __name__ == "__main__":
     nbo
     esp
     '''
+
+
+if __name__ == "__main__":
+    main()

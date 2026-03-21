@@ -204,7 +204,7 @@ def getavestddf(cpfs, staticdistdf, staticatomdf):
     return avestd_atomdf, avestd_dimdf, chglabels, dimlabels
 
 
-if __name__ == "__main__":
+def main():
     start_time = time.time()
     args = get_args()
     cpfs = []
@@ -287,3 +287,7 @@ if __name__ == "__main__":
     # print('static_data\n', cpf.static_data)
     # print('mominfo\n', cpf.mominfo)
     # print('diminfo\n', cpf.diminfo)
+
+
+if __name__ == "__main__":
+    main()

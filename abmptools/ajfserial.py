@@ -46,7 +46,7 @@ def get_args():
     return args
 
 
-if __name__ == "__main__":
+def main():
     args = get_args()
     print('input =', args.input)
     print('time =', args.time)
@@ -68,4 +68,8 @@ if __name__ == "__main__":
                 line = line.replace(replaceword, str(i))
                 print(line[:-1], file=outf)
             print('finished', oname)
+
+
+if __name__ == "__main__":
+    main()
 

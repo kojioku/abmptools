@@ -1,43 +1,6 @@
 # -*- coding: utf-8 -*-
-from setuptools import setup, find_packages
-import subprocess
+# Legacy setup.py — kept for editable installs and Fortran build compatibility.
+# Metadata is defined in pyproject.toml (PEP 621).
+from setuptools import setup
 
-with open('README.md', 'r', encoding='utf-8') as f:
-    readme = f.read()
-
-try:
-    ret = subprocess.call('make')
-except Exception:
-    pass
-
-# argvs = sys.argv
-# if 'install' in argvs:
-#     try:
-#         subprocess.call('make')
-#     except:
-#         pass
-
-setup(
-    name='ABMPTools',
-    version='1.14.6',
-    description='setup tool for ABINIT-MP',
-    long_description=readme,
-    # install_requires=['numpy', 'pandas'],
-    author='Koji Okuwaki',
-    author_email='koujioku81@gmail.com',
-    # license=license,
-    packages=find_packages(exclude=('tests', 'docs', 'sample')),
-    package_data={'abmptools': ['f90/bin/*', '../*', '../tips/*', 'gro2udf/default_template.udf']},
-    extras_require={
-        'amorphous': [
-            'openff-toolkit>=0.14.0',
-            'openff-interchange>=0.3.0',
-            'openmm>=8.0',
-            'numpy',
-        ],
-        'pre_fcews': [
-            'scikit-learn',
-            'xgboost',
-        ],
-    },
-)
+setup()
