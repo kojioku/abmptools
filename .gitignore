@@ -1,6 +1,9 @@
 *bdf
 bkp
 ABMPTools.egg-info
+abmptools.egg-info
+*.egg-info
+__pycache__
 build
 dist
 tags
