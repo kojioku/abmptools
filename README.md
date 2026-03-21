@@ -1,64 +1,124 @@
-ABMPTools (ABINIT-MP Tools)
-====
+# ABMPTools (ABINIT-MP Tools)
 
-Overview
-フラグメント分子軌道計算プログラムABINIT-MPの解析支援ツールです。
+A Python toolkit for pre-processing, post-processing, and analysis of Fragment Molecular Orbital (FMO) calculations with [ABINIT-MP](https://fmodd.jp/member_contents/manual_ABINIT-MP/).
 
-## Description
+## Features
 
-- 解析支援(getifiepieda)
-    - 一点構造
-        - 対象"フラグメント"や"分子"を基準に距離を指定したIFIEテーブル出力
-        - 分子内フラグメントIDによる指定(同一分子種の分散体などを対象）
-        - 対象のフラグメント群-フラグメント群間の相互作用マトリックス出力
+### IFIE/PIEDA Analysis (`getifiepieda`, `anlfmo`, `cpf2ifielist`, `getcharge`)
 
-    - 古典MDサンプリング構造
-        - 対象フラグメント間のIFIEの時系列変化
-        - 対象フラグメント-指定した残基種間 IFIE和の時系列出力(水との相互作用を一括計算など)
-        - 対象フラグメント-フラグメント群間の時間-IFIEの相互作用マトリックス出力 (1:1, 1:N, N:1, N:Nの時間変化の一括出力）
+- Distance-filtered IFIE tables for target fragments or molecules
+- Fragment–fragment interaction matrices (1:1, 1:N, N:1, N:N)
+- Time-series IFIE from MD-FMO trajectory snapshots
+- SVD-based interaction decomposition
+- Charge extraction from ABINIT-MP logs
 
-    - SVD実行スクリプト
+### CPF Management (`cpfmanager`, `convertcpf`, `generate_difie`, `log2cpf`)
 
-- CPF parser(cpfmanager)
-    - cpf残基切り出し、バージョンコンバート(convertcpf)
-    - 動的平均cpf作成機能(generate_difie)
+- Parse and write CPF files (versions 4.201, 7.0 MIZUHO, 10, 23)
+- Version conversion between CPF formats
+- Residue-based CPF extraction
+- Dynamic IFIE (DIFIE) averaging across MD snapshots with mean/σ statistics
+- Generate CPF from ABINIT-MP log files
 
-- logからのcpf生成(log2cpf)
+### FMO Input Generation (`generateajf`, `pdb2fmo`, `udf2fmo`, `setfmo`, `addsolvfrag`)
 
-- FMO実行支援
-    - PDB読み込み(pdbread)
-    - 雛形ajf生成(generateajf)
-    - 非タンパク系のPDB, フラグメント情報の処理
-        - 一分子のフラグメント情報の全分子への割り当て: 分子集合体向け(ajf2config)
-        - 任意のサイズでの分子系の切り出し＋フラグメント割り当て(pdb2ajf)
-        - OCTA(COGNAC) MD結果のpdb化 (udf2pdb)
+- Auto-generate AJF input files from PDB structures
+- Fragment assignment for proteins and molecular assemblies
+- Solvation fragment addition
+- Support for sp2 fragmentation and various basis sets
 
-- 各種ファイル変換
-    - 結晶構造(cif)ファイルからFMO用ファイルへの変換
-    - OCTA udf ファイルからFMO用ファイルへの変換(udf2ajf, udf2pdb)
-    - 古典MD後からFMO用ファイルへの変換
+### File Format Conversion
 
-## Requirement
+- CIF → PDB/XYZ (`readcif`) with symmetry operations
+- ABINIT-MP log → fragment config (`log2config`, `ajf2config`)
+- PDB editing and serial AJF generation (`pdbmodify`, `ajfserial`)
 
-- numpy
-- pandas
-- (Optional) OCTA UDFManager
-- (Optional) gfortran
+### GROMACS ↔ OCTA COGNAC Conversion
 
-## Usage
-[Documentをご参照ください](docs/ABMPTools-user-manual.md)
+- **udf2gro**: Convert OCTA UDF files to GROMACS format (`.gro`, `.top`, `.mdp`, `.itp`)
+- **gro2udf**: Convert GROMACS files to OCTA UDF format (supports `--from-top` mode)
 
-## Install
-`pip install --user .`
+### Geometry Optimization (`geomopt`)
 
-<!--
-## Contribution
-## Licence
--->
+- **MacePdbOptimizer**: MACE/ASE-based PDB structure optimization
+- **OpenFFOpenMMMinimizer**: OpenFF force-field minimization via OpenMM
+- **QMOptimizerPySCF**: Quantum chemistry optimization with PySCF
+
+### Amorphous Structure Building (`amorphous`)
+
+- Multi-component amorphous system construction using Packmol and OpenMM
+
+## Supported ABINIT-MP Versions
+
+- ABINIT-MP v1: Rev.10–23
+- ABINIT-MP v2: Rev.4–8
+
+## Installation
+
+```bash
+pip install --user .
+```
+
+This runs `make` during install to compile the optional Fortran shared library for accelerated IFIE/PIEDA reading. If `gfortran` is not available, the install still succeeds without Fortran acceleration.
+
+### Requirements
+
+- **Required**: Python 3.8+, numpy, pandas
+- **Optional**: UDFManager (OCTA COGNAC), gfortran, OpenBabel, PySCF, ASE, OpenMM, Packmol
+
+## Quick Start
+
+```bash
+# Extract IFIE for fragment 10, within 8 Å
+python -m abmptools.getifiepieda --frag 10 -d 8.0 -i calculation.log
+
+# Generate AJF input from PDB
+python -m abmptools.generateajf -i protein.pdb -basis 6-31G* --method MP2
+
+# Convert log to CPF
+python -m abmptools.log2cpf -i calculation.log -o output.cpf
+
+# Create DIFIE-averaged CPF from trajectory
+python -m abmptools.generate_difie -i traj-xxx.cpf -t 1 10 1 -f 1-100 -np 4
+
+# Convert UDF to GROMACS
+python -m abmptools.udf2gro.cli -i system.udf -o output
+
+# Convert GROMACS to UDF
+python -m abmptools.gro2udf.cli -i system.gro -t system.top -o output.udf
+```
+
+Use `-h` with any module for full option details.
+
+## Documentation
+
+- **[User Manual](docs/ABMPTools-user-manual.md)** — CLI options, output formats, and workflow examples
+- **[Architecture](docs/architecture.md)** — Class hierarchy and design overview
+- **[Developer Quickstart](docs/dev_quickstart.md)** — Setup and code conventions
+- **[I/O Spec](docs/io_spec.md)** — File format specifications
+- **[gro2udf](docs/gro2udf.md)** / **[udf2gro](docs/udf2gro.md)** — GROMACS ↔ OCTA conversion
+- **[geomopt](docs/geomopt.md)** / **[amorphous](docs/amorphous.md)** — Optimization and structure building
+
+## Testing
+
+```bash
+pytest tests/ -v         # 658 tests
+pytest tests/ -v -k molcalc  # specific module
+```
+
+See [tests/TEST_COVERAGE.md](tests/TEST_COVERAGE.md) for details.
+
+## Samples
+
+Each `sample/` subdirectory contains input data and a `run.sh` script:
+
+```bash
+cd sample/generateajf && bash run.sh
+cd sample/log2cpf && bash run.sh
+cd sample/generate_difie/TrpCage && bash run.sh
+cd sample/convertcpf && bash run.sh
+```
 
 ## Author
-[Koji Okuwaki](koujioku81@gmail.com)
 
-## example
-- sampleディレクトリに各種サンプルを配置
-- 各ディレクトリ内run.shで実行可能
+[Koji Okuwaki](mailto:koujioku81@gmail.com)
