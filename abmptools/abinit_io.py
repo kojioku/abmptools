@@ -57,7 +57,7 @@ class abinit_io(mi):
         # abinitmp param
         self.ajf_method = "MP2"
         self.ajf_basis_set = "6-31G*"
-        self.abinit_ver = 'rev22' #rev10, 11, 15, 17, 22, 23, mizuho
+        self.abinit_ver = 'rev22' #rev10, 11, 15, 17, 22, 23, mizuho, v1dd2026
         self.pbmolrad = 'vdw'
         self.pbcnv = 1.0
         self.piedaflag = True
@@ -346,7 +346,7 @@ OPT='OFF'
 /
 
 """
-        if self.abinit_ver in ['rev22', 'rev23', 'v2rev4', 'v2rev8']:
+        if self.abinit_ver in ['rev22', 'rev23', 'v1dd2026', 'v2rev4', 'v2rev8']:
             ajf_body += """
 &MFMO
 /
@@ -362,7 +362,7 @@ OPT='OFF'
 DimerResponseTerm='NO'
 /
 """
-        if self.abinit_ver in ['rev22', 'rev23', 'v2rev4', 'v2rev8']:
+        if self.abinit_ver in ['rev22', 'rev23', 'v1dd2026', 'v2rev4', 'v2rev8']:
             ajf_body += """
 &XUFF
 /
@@ -414,7 +414,7 @@ LPRINT=2"""
 /
 """
         # define new section
-        if self.abinit_ver in ['rev15', 'rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
+        if self.abinit_ver in ['rev15', 'rev17', 'rev22', 'rev23', 'v1dd2026', 'v2rev4', 'v2rev8']:
             new_section = """
 &LRD
 """
@@ -426,7 +426,7 @@ LPRINT=2"""
         else:
             new_section = ""
 
-        if self.abinit_ver in ['rev10', 'rev11', 'rev15', 'rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8' ]:
+        if self.abinit_ver in ['rev10', 'rev11', 'rev15', 'rev17', 'rev22', 'rev23', 'v1dd2026', 'v2rev4', 'v2rev8' ]:
             new_section += """
 &DFT
 /
@@ -505,7 +505,7 @@ MAXITR=1000
 JDGCNV='RMS'
 THRCNV=1.0E-5
 """
-            if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
+            if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v1dd2026', 'v2rev4', 'v2rev8']:
                 ajf_body += "ATMRAD='" + self.pbmolrad + "'"
             else:
                 ajf_body += "MOLRAD='" + self.pbmolrad + "'"
@@ -523,7 +523,7 @@ THRCNV=1.0E-5
 /
 """
 
-        if self.abinit_ver in ['rev22', 'rev23', 'v2rev4', 'v2rev8']:
+        if self.abinit_ver in ['rev22', 'rev23', 'v1dd2026', 'v2rev4', 'v2rev8']:
             ajf_body += """
 &COUPLING
 /
@@ -534,9 +534,17 @@ THRCNV=1.0E-5
 GRID='NO'
 /
 
-&MCP
+"""
+        if self.abinit_ver in ['v1dd2026']:
+            ajf_body += """&RELPOT
 /
+"""
+        else:
+            ajf_body += """&MCP
+/
+"""
 
+        ajf_body += """
 &CIS
 /
 
@@ -557,7 +565,7 @@ LPRINT=2
 /
 """
         # new section2
-        if self.abinit_ver in ['rev11', 'rev15', 'rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
+        if self.abinit_ver in ['rev11', 'rev15', 'rev17', 'rev22', 'rev23', 'v1dd2026', 'v2rev4', 'v2rev8']:
             new_section2 = """
 &CCPT
 /
@@ -1213,7 +1221,7 @@ MD='OFF'
             logger.error("can't open %s", target)
             return 0, 0, 0, 0, 0
 
-        if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
+        if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v1dd2026', 'v2rev4', 'v2rev8']:
             pbdone =False
             getflag = False
             for line in lines:
@@ -1318,7 +1326,7 @@ MD='OFF'
                 logger.warning("can't get result: %s", target)
                 return 0, 0, 0, 0, 0
 
-        if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
+        if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v1dd2026', 'v2rev4', 'v2rev8']:
             index = 0
             pbdone =False
             getflag = False
@@ -1424,7 +1432,7 @@ MD='OFF'
                 # sys.exit()
                 return 0, 0, 0, 0, 0
 
-        if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v2rev4', 'v2rev8']:
+        if self.abinit_ver in ['rev17', 'rev22', 'rev23', 'v1dd2026', 'v2rev4', 'v2rev8']:
             a, b, c, d, e = self.getfmopbenergy(target)
             return a, b, c, d, e
 
