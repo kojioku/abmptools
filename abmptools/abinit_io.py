@@ -2015,6 +2015,133 @@ MD='OFF'
         return ajf_fragment
 
 
+    def parse_ajf_namelists(self, fname: str) -> list[dict]:
+        """AJFファイルを全namelist単位でパースする。
+
+        各namelistを {name, params, raw_lines} の辞書として返す。
+        namelistに属さないセクション（&FRAGMENT, &XYZ, &VEL, &NHC, &TYPFRAG, &TYPEFRAG）
+        は raw_lines にそのまま格納する。
+
+        Args:
+            fname: AJFファイルのパス。
+
+        Returns:
+            list[dict]: namelistのリスト。各要素は:
+                - name (str): namelist名（例: 'CNTRL', 'RELPOT'）
+                - params (dict): key=value のパラメータ辞書（namelistセクションのみ）
+                - raw_lines (list[str]): 生の行データ（non-namelistセクション用）
+        """
+        with open(fname, 'r') as fh:
+            lines = fh.readlines()
+
+        sections = []
+        current_name = None
+        current_params = {}
+        current_raw = []
+        # Sections stored as raw lines (not key=value)
+        raw_sections = {'FRAGMENT', 'XYZ', 'VEL', 'NHC', 'TYPFRAG', 'TYPEFRAG', 'FRAGPAIR'}
+
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith('&') and stripped != '/':
+                # &TYPEFRAG inside &FRAGPAIR is a known issue in old ajf files.
+                # Since & always starts a new section, it is automatically
+                # split into separate &FRAGPAIR and &TYPEFRAG sections.
+                # Save previous section
+                if current_name is not None:
+                    sections.append({
+                        'name': current_name,
+                        'params': current_params,
+                        'raw_lines': current_raw,
+                    })
+                current_name = stripped[1:].split()[0].upper()
+                current_params = {}
+                current_raw = []
+                # Check if rest of line has params (e.g., "&ANALYSIS PIEDA='YES'")
+                rest = stripped[1 + len(current_name):].strip()
+                if rest and current_name not in raw_sections:
+                    self._parse_namelist_line(rest, current_params)
+            elif stripped == '/':
+                if current_name is not None:
+                    sections.append({
+                        'name': current_name,
+                        'params': current_params,
+                        'raw_lines': current_raw,
+                    })
+                    current_name = None
+                    current_params = {}
+                    current_raw = []
+            elif current_name is not None:
+                if current_name in raw_sections:
+                    current_raw.append(line.rstrip('\n'))
+                else:
+                    self._parse_namelist_line(stripped, current_params)
+
+        return sections
+
+    def _parse_namelist_line(self, line: str, params: dict) -> None:
+        """Namelist行からkey=valueペアを抽出してparamsに追加する。"""
+        line = line.rstrip(',')
+        if not line or line.startswith('!') or line.startswith('#'):
+            return
+        # Handle multiple key=value on one line
+        # Simple approach: split by spaces, rejoin around =
+        parts = re.split(r'\s+', line)
+        current_kv = ''
+        for part in parts:
+            if '=' in current_kv and '=' in part and not current_kv.endswith('='):
+                # Previous kv is complete, this starts a new one
+                k, v = current_kv.split('=', 1)
+                params[k.strip()] = v.strip()
+                current_kv = part
+            else:
+                current_kv = (current_kv + ' ' + part).strip() if current_kv else part
+        if '=' in current_kv:
+            k, v = current_kv.split('=', 1)
+            params[k.strip()] = v.strip()
+
+    def convert_ajf(self, fname: str, target_ver: str = 'v1dd2026') -> str:
+        """AJFファイルをターゲットバージョンに変換する。
+
+        Args:
+            fname: 入力AJFファイルのパス。
+            target_ver: ターゲットバージョン（デフォルト: 'v1dd2026'）。
+
+        Returns:
+            str: 変換後のAJFファイル文字列。
+        """
+        sections = self.parse_ajf_namelists(fname)
+        raw_sections = {'FRAGMENT', 'XYZ', 'VEL', 'NHC', 'TYPFRAG', 'TYPEFRAG', 'FRAGPAIR'}
+
+        # Version-specific renaming rules
+        rename_map = {}
+        if target_ver == 'v1dd2026':
+            rename_map = {'MCP': 'RELPOT'}
+
+        output_lines = []
+        for sec in sections:
+            name = sec['name']
+            # Apply namelist renaming
+            if name in rename_map:
+                name = rename_map[name]
+
+            if name in raw_sections:
+                output_lines.append(f'&{name}')
+                for raw_line in sec['raw_lines']:
+                    output_lines.append(raw_line)
+                output_lines.append('/')
+            else:
+                if sec['params']:
+                    output_lines.append(f'&{name}')
+                    for k, v in sec['params'].items():
+                        output_lines.append(f'  {k}={v}')
+                    output_lines.append('/')
+                else:
+                    output_lines.append(f'&{name}')
+                    output_lines.append('/')
+
+        return '\n'.join(output_lines) + '\n'
+
     def saveajf(self, oname: str | None = None) -> None:
         """AJFファイルを生成して保存する。
 
