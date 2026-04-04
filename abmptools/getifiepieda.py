@@ -152,10 +152,11 @@ def get_args():
     return args
 
 
-def setupmode(aobj):
+def setupmode(aobj, args):
     '''setupmode
     Args:
-        args
+        aobj: anlfmo object
+        args: parsed command-line arguments
     Returns:
         tgtfrag1, tgtfrag2
     '''
@@ -282,7 +283,7 @@ def main():
     aobj = ampt.anlfmo()
 
     # setup mode
-    tgtfrag1, tgtfrag2 = setupmode(aobj)
+    tgtfrag1, tgtfrag2 = setupmode(aobj, args)
 
     # set zero padding
     aobj.zp = args.zp

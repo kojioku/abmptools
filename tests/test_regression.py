@@ -17,6 +17,16 @@ REF_MAIN = os.path.join(TESTS_DIR, "regression", "reference", "main")
 REF_PREREFACTOR = os.path.join(TESTS_DIR, "regression", "reference", "prerefactor")
 SAMPLE_DIR = os.path.join(TESTS_DIR, os.pardir, "sample")
 
+# External sample data (abmptools-sample repo, not bundled)
+_GETIFIE_SAMPLE = os.path.join(
+    os.path.dirname(TESTS_DIR), os.pardir, os.pardir,
+    "abmptools-sample", "sample", "getifiepieda",
+)
+_GETIFIE_SAMPLE = os.path.normpath(_GETIFIE_SAMPLE)
+_HAS_GETIFIE_DATA = os.path.isdir(
+    os.path.join(_GETIFIE_SAMPLE, "6lu7-multi-fmolog")
+)
+
 
 def _run(args, cwd):
     """Run a CLI command and return completed process."""
@@ -260,3 +270,111 @@ def test_gro2udf_from_top_mode(tmp_path):
     ref = os.path.join(REF_PREREFACTOR, "gro2udf_from_top_mode", "fromtop_out.udf")
     assert os.path.exists(gen)
     _compare_files(gen, ref, ignore_blank_lines=True)
+
+
+# ---------------------------------------------------------------------------
+# getifiepieda: IFIE/PIEDA analysis (requires external sample data)
+# ---------------------------------------------------------------------------
+_skip_getifie = pytest.mark.skipif(
+    not _HAS_GETIFIE_DATA,
+    reason="getifiepieda sample data not available",
+)
+
+_L6 = os.path.join(
+    _GETIFIE_SAMPLE,
+    "6lu7-multi-fmolog",
+    "6lu7orig_md040j8_163neu-100-hopt-ps-mod_forabmp_192n-2p-24t.log",
+)
+_LCD7 = os.path.join(
+    _GETIFIE_SAMPLE,
+    "cd7-fmolog",
+    "sbecd7_50nsdynamics_namd1700-moved-sed-around-8.0-for_abmp.log",
+)
+_LPB = os.path.join(
+    _GETIFIE_SAMPLE,
+    "6m0j-pb-fmolog",
+    "6m0j-170res_1.0_pb.log",
+)
+_ML6_JSON = (
+    '["{pfx}", "-hopt-ps-mod_forabmp_192n-2p-24t.log"]'.format(
+        pfx=os.path.join(
+            _GETIFIE_SAMPLE,
+            "6lu7-multi-fmolog",
+            "6lu7orig_md040j8_163neu-",
+        )
+    )
+)
+_MCD7_JSON = (
+    '["{pfx}", "-moved-sed-around-8.0-for_abmp.log"]'.format(
+        pfx=os.path.join(
+            _GETIFIE_SAMPLE,
+            "cd7-fmolog",
+            "sbecd7_50nsdynamics_namd",
+        )
+    )
+)
+
+GETIFIE_SINGLE_CASES = [
+    ("frag_dist-6lu7", ["--frag", "310", "-d", "8.0", "-i", _L6, "--nof90"]),
+    ("fragids-6lu7", ["--frag", "307-311", "1-306", "-i", _L6, "--nof90"]),
+    ("fraginmol-6lu7", ["--fraginmol", "1", "2", "WAT", "1", "-i", _L6, "--nof90"]),
+    ("fraginmol-cd7", ["--fraginmol", "1", "2", "WAT", "1", "-i", _LCD7, "--nof90"]),
+    ("ffmatrix-6lu7", ["--ffmatrix", "1-100", "1-100", "-i", _L6, "--nof90"]),
+    ("getpb-6m0j", ["--ffmatrix", "1-40", "41-80", "-i", _LPB, "--nof90"]),
+    ("mol_selectmid-cd7", ["--mol", "1", "-d", "3.0", "-i", _LCD7, "--nof90"]),
+    ("mol_selectmids-cd7", ["--mol", "1-4", "-i", _LCD7, "--nof90"]),
+]
+
+GETIFIE_MULTI_CASES = [
+    ("multi_fragid_dist-6lu7", ["--multi", "310", "-d", "4.5", "-t", "100", "3100", "1000", "-i", _ML6_JSON, "--nof90"]),
+    ("multi_fragid_fragid-6lu7", ["--multi", "310", "41", "-t", "100", "5100", "1000", "-i", _ML6_JSON, "--nof90"]),
+    ("multi_fragid_molname-cd7", ["--multi", "1", "--molname", "WAT", "-t", "1700", "4200", "500", "-i", _MCD7_JSON, "--nof90"]),
+    ("multi_fragid_molname-cd7-pt2", ["--multi", "2", "--molname", "WAT", "-d", "3.0", "-t", "1700", "2200", "500", "-i", _MCD7_JSON, "--nof90"]),
+    ("multi_fragid_molname_6lu7", ["--multi", "20-21", "--molname", "WAT", "-d", "10.0", "-t", "100", "2100", "1000", "-i", _ML6_JSON, "--nof90"]),
+    ("multi_fragids-tfmatrix-6lu7", ["--tfmatrix", "307-311", "1-306", "-t", "100", "1100", "1000", "-i", _ML6_JSON, "--exclude", "145", "-np", "2", "--nof90"]),
+    ("multi_wat_tfmatrix-6lu7", ["--tfmatrix", "307-311", "1700-", "-t", "100", "5100", "1000", "-i", _ML6_JSON, "--exclude", "145", "-np", "1", "--nores", "--nof90"]),
+    ("xyzfile", [
+        "--multi", "1", "-dimeres", "-zp", "5", "-t", "1", "2", "1", "-nof90",
+        "-i", '["{pfx}", "-pbe-d3-opt_pl_acclayer5-around_ar12.0_12n-2p-24t.log"]'.format(
+            pfx=os.path.join(_GETIFIE_SAMPLE, "xyzfile", "XXXI_structure_")
+        ),
+        "--noresinfo", "-momene", "1", "-dimene", "3", "1", "--nof90",
+    ]),
+]
+
+
+def _compare_csv_dir(csv_dir, ref_dir):
+    """Compare all CSVs in csv_dir against reference directory."""
+    ref_files = sorted(f for f in os.listdir(ref_dir) if f.endswith(".csv"))
+    assert ref_files, f"No reference CSVs in {ref_dir}"
+    for fname in ref_files:
+        gen = os.path.join(csv_dir, fname)
+        ref = os.path.join(ref_dir, fname)
+        assert os.path.exists(gen), f"Missing output: {fname}"
+        _compare_files(gen, ref)
+
+
+@_skip_getifie
+@pytest.mark.parametrize("case_name,cli_args", GETIFIE_SINGLE_CASES, ids=[c[0] for c in GETIFIE_SINGLE_CASES])
+def test_getifiepieda_single(tmp_path, case_name, cli_args):
+    """getifiepieda single-file mode output must match main-branch reference."""
+    result = _run(
+        ["abmptools.getifiepieda"] + cli_args,
+        cwd=str(tmp_path),
+    )
+    assert result.returncode == 0, f"getifiepieda failed:\n{result.stderr}"
+    ref_dir = os.path.join(REF_MAIN, "getifiepieda", case_name)
+    _compare_csv_dir(str(tmp_path / "csv"), ref_dir)
+
+
+@_skip_getifie
+@pytest.mark.parametrize("case_name,cli_args", GETIFIE_MULTI_CASES, ids=[c[0] for c in GETIFIE_MULTI_CASES])
+def test_getifiepieda_multi(tmp_path, case_name, cli_args):
+    """getifiepieda multi-file mode output must match main-branch reference."""
+    result = _run(
+        ["abmptools.getifiepieda"] + cli_args,
+        cwd=str(tmp_path),
+    )
+    assert result.returncode == 0, f"getifiepieda failed:\n{result.stderr}"
+    ref_dir = os.path.join(REF_MAIN, "getifiepieda", case_name)
+    _compare_csv_dir(str(tmp_path / "csv"), ref_dir)

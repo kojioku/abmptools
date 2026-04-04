@@ -14,6 +14,7 @@ import re
 import logging
 from .pdb_io import pdb_io as pdio
 import time
+from multiprocessing import Pool
 
 logger = logging.getLogger(__name__)
 
@@ -2194,7 +2195,7 @@ class anlfmo(pdio):
             momenetgtdf = momenedf[momenedf['Frag.'] == self.momfrag]
             momene_tgt = momenetgtdf['HF'][0] + momenetgtdf['MP2'][0]
             momlabel = 'MonomerEnergy(' + str(self.momfrag) + ')'
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, TypeError):
             momene_tgt = None
             momlabel = 'MonomerEnergy(' + str(self.momfrag) + ')'
 
@@ -2204,7 +2205,7 @@ class anlfmo(pdio):
             dimene_tgt = dimenetgtdf['DIMER-HF'][0] + dimenetgtdf['DIMER-MP2'][0]
             dimlabel = 'DimerEnergy(' + str(self.dimfrag1) + '-' + str(self.dimfrag2) + ')'
 
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, TypeError):
             dimene_tgt = None
             dimlabel = 'DimerEnergy(' + str(self.dimfrag1) + '-' + str(self.dimfrag2) + ')'
 
@@ -3361,7 +3362,7 @@ class anlfmo(pdio):
                     tgtid = self.tgt1frag[0]
                     try:
                         ohead = head + '-' + str(tgtid) + '-' + frags[tgtid - 1]
-                    except (IndexError, TypeError):
+                    except (IndexError, TypeError, NameError):
                         ohead = head + '-' + str(tgtid)
 
                     if self.tgt2type == 'dist':
