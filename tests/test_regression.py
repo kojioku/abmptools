@@ -18,14 +18,15 @@ REF_PREREFACTOR = os.path.join(TESTS_DIR, "regression", "reference", "prerefacto
 SAMPLE_DIR = os.path.join(TESTS_DIR, os.pardir, "sample")
 
 # External sample data (abmptools-sample repo, not bundled)
-_GETIFIE_SAMPLE = os.path.join(
+_ABMPTOOLS_SAMPLE = os.path.normpath(os.path.join(
     os.path.dirname(TESTS_DIR), os.pardir, os.pardir,
-    "abmptools-sample", "sample", "getifiepieda",
-)
-_GETIFIE_SAMPLE = os.path.normpath(_GETIFIE_SAMPLE)
+    "abmptools-sample", "sample",
+))
+_GETIFIE_SAMPLE = os.path.join(_ABMPTOOLS_SAMPLE, "getifiepieda")
 _HAS_GETIFIE_DATA = os.path.isdir(
     os.path.join(_GETIFIE_SAMPLE, "6lu7-multi-fmolog")
 )
+_HAS_EXT_SAMPLE = os.path.isdir(_ABMPTOOLS_SAMPLE)
 
 
 def _run(args, cwd):
@@ -378,3 +379,239 @@ def test_getifiepieda_multi(tmp_path, case_name, cli_args):
     assert result.returncode == 0, f"getifiepieda failed:\n{result.stderr}"
     ref_dir = os.path.join(REF_MAIN, "getifiepieda", case_name)
     _compare_csv_dir(str(tmp_path / "csv"), ref_dir)
+
+
+# ---------------------------------------------------------------------------
+# Additional tools (requires external sample data): addsolvfrag, pdb2fmo,
+# pdbmodify, setupserialpdb_ajf
+# ---------------------------------------------------------------------------
+_skip_ext = pytest.mark.skipif(
+    not _HAS_EXT_SAMPLE, reason="abmptools-sample not available",
+)
+
+
+def _compare_output_dir(out_dir, ref_dir):
+    """Compare all files in ref_dir against out_dir (exact match)."""
+    ref_files = sorted(os.listdir(ref_dir))
+    assert ref_files, f"No reference files in {ref_dir}"
+    for fname in ref_files:
+        gen = os.path.join(out_dir, fname)
+        ref = os.path.join(ref_dir, fname)
+        assert os.path.exists(gen), f"Missing output: {fname}"
+        _compare_files(gen, ref)
+
+
+@_skip_ext
+def test_pdbmodify_CyD(tmp_path):
+    """pdbmodify resnum/rename output must match main-branch reference."""
+    src = os.path.join(_ABMPTOOLS_SAMPLE, "pdbmodify", "CyD")
+    shutil.copy(os.path.join(src, "cyc.pdb.1"), tmp_path / "cyc.pdb.1")
+    shutil.copy(os.path.join(src, "run.sh"), tmp_path / "run.sh")
+    result = subprocess.run(
+        ["bash", "run.sh"], cwd=str(tmp_path),
+        capture_output=True, text=True, timeout=120,
+    )
+    assert result.returncode == 0, f"run.sh failed:\n{result.stderr}"
+    _compare_output_dir(str(tmp_path), os.path.join(REF_MAIN, "pdbmodify_CyD"))
+
+
+@_skip_ext
+def test_addsolvfrag_covneu(tmp_path):
+    """addsolvfrag (covneu) output must match main-branch reference."""
+    src = os.path.join(_ABMPTOOLS_SAMPLE, "addsolvfrag", "covneu")
+    for fname in ("6lu7-covneu-nowat-hinagata0514.ajf",
+                  "6lu7orig_md040j8_163neu-100-hopt-ps-mod.pdb",
+                  "run.sh", "segment_data.dat"):
+        shutil.copy(os.path.join(src, fname), tmp_path / fname)
+    result = subprocess.run(
+        ["bash", "run.sh"], cwd=str(tmp_path),
+        capture_output=True, text=True, timeout=300,
+    )
+    assert result.returncode == 0, f"run.sh failed:\n{result.stderr}"
+    _compare_output_dir(
+        str(tmp_path / "for_abmp"),
+        os.path.join(REF_MAIN, "addsolvfrag_covneu"),
+    )
+
+
+@_skip_ext
+def test_addsolvfrag_6lu7_covhip(tmp_path):
+    """addsolvfrag (6lu7-covhip, 3-PDB subset) output must match main-branch reference."""
+    src = os.path.join(_ABMPTOOLS_SAMPLE, "addsolvfrag", "6lu7-covhip-100ns100str-0514")
+    for fname in ("6lu7-covhip-nowat-hinagata0515.ajf",
+                  "6lu7-covhip-nowat-hinagata0515.pdb",
+                  "segment_data.dat"):
+        shutil.copy(os.path.join(src, fname), tmp_path / fname)
+    (tmp_path / "inpdbs").mkdir()
+    for t in ("100", "1100", "2100"):
+        f = f"6lu7orig_md0408_163hip-{t}-hopt-ps-mod.pdb"
+        shutil.copy(os.path.join(src, "inpdbs", f), tmp_path / "inpdbs" / f)
+    result = _run([
+        "abmptools.addsolvfrag",
+        "-temp", "6lu7-covhip-nowat-hinagata0515.ajf",
+        "-solv", "HOH", "WAT", "NA",
+        "-i",
+        str(tmp_path / "inpdbs" / "6lu7orig_md0408_163hip-100-hopt-ps-mod.pdb"),
+        str(tmp_path / "inpdbs" / "6lu7orig_md0408_163hip-1100-hopt-ps-mod.pdb"),
+        str(tmp_path / "inpdbs" / "6lu7orig_md0408_163hip-2100-hopt-ps-mod.pdb"),
+    ], cwd=str(tmp_path))
+    assert result.returncode == 0, f"addsolvfrag failed:\n{result.stderr}"
+    _compare_output_dir(
+        str(tmp_path / "for_abmp"),
+        os.path.join(REF_MAIN, "addsolvfrag_6lu7-covhip"),
+    )
+
+
+@_skip_ext
+def test_pdb2fmo_cd7(tmp_path):
+    """pdb2fmo (cd7-sample, 4 cut modes) output must match main-branch reference."""
+    src = os.path.join(_ABMPTOOLS_SAMPLE, "pdb2fmo", "cd7-sample")
+    for fname in ("CD7.frag", "MRT.frag", "NA.frag", "run.sh",
+                  "sbecd7+mzp_priz_50nsdynamics_namd40000-moved-sed.pdb"):
+        shutil.copy(os.path.join(src, fname), tmp_path / fname)
+    result = subprocess.run(
+        ["bash", "run.sh"], cwd=str(tmp_path),
+        capture_output=True, text=True, timeout=300,
+    )
+    assert result.returncode == 0, f"run.sh failed:\n{result.stderr}"
+    _compare_output_dir(
+        str(tmp_path / "for_abmp"),
+        os.path.join(REF_MAIN, "pdb2fmo_cd7"),
+    )
+
+
+@_skip_ext
+def test_pdb2fmo_cbz(tmp_path):
+    """pdb2fmo (cbz, 4 cut modes) output must match main-branch reference."""
+    src = os.path.join(_ABMPTOOLS_SAMPLE, "pdb2fmo", "cbz")
+    for fname in ("CBZ.frag", "IN-.frag", "NG-.frag", "TIN.frag", "run.sh",
+                  "50cbz-144ruting-1.pdb"):
+        shutil.copy(os.path.join(src, fname), tmp_path / fname)
+    result = subprocess.run(
+        ["bash", "run.sh"], cwd=str(tmp_path),
+        capture_output=True, text=True, timeout=300,
+    )
+    assert result.returncode == 0, f"run.sh failed:\n{result.stderr}"
+    _compare_output_dir(
+        str(tmp_path / "for_abmp"),
+        os.path.join(REF_MAIN, "pdb2fmo_cbz"),
+    )
+
+
+@_skip_ext
+def test_setupserialpdb_ajf(tmp_path):
+    """setupserialpdb_ajf pipeline (3 time points) output must match main-branch reference."""
+    src = os.path.join(_ABMPTOOLS_SAMPLE, "setupserialpdb_ajf")
+    for t in ("100000", "101000", "102000"):
+        fname = f"1eo8-ff14sb-{t}ps.pdb"
+        shutil.copy(os.path.join(src, fname), tmp_path / fname)
+    cwd = str(tmp_path)
+    # Step 1: rename CYX -> CYS
+    import glob
+    pdbs = [os.path.basename(p) for p in glob.glob(str(tmp_path / "*ps.pdb"))]
+    r1 = _run(["abmptools.pdbmodify", "-mode", "rename", "-str", "CYX", "CYS",
+               "-i"] + pdbs, cwd=cwd)
+    assert r1.returncode == 0, f"step1 failed:\n{r1.stderr}"
+    # Step 2: pdbmodify main
+    renamed = [os.path.basename(p) for p in glob.glob(str(tmp_path / "*d.pdb"))]
+    r2 = _run(["abmptools.pdbmodify", "-i"] + renamed, cwd=cwd)
+    assert r2.returncode == 0, f"step2 failed:\n{r2.stderr}"
+    # Step 3: generateajf template
+    r3 = _run([
+        "abmptools.generateajf", "-i", "1eo8-ff14sb-xxxps-renamed-mod.pdb",
+        "-ml", "-mll", "921", "-cmm", "-mem", "6000", "-np", "1",
+        "-lc", "NA", "1", "-lc", "CL", "-1",
+        "-rs", "Na", "0.0", "-rs", "Cl", "0.0",
+        "-basis", "6-31G*", "--method", "MP2", "-nocpf",
+    ], cwd=cwd)
+    assert r3.returncode == 0, f"step3 failed:\n{r3.stderr}"
+    # Step 4: ajfserial
+    r4 = _run([
+        "abmptools.ajfserial",
+        "-i", "1eo8-ff14sb-xxxps-renamed-mod-MP2-6-31Gd-nocpf-nbo.ajf",
+        "-t", "100000", "102000", "1000", "-str", "xxx",
+    ], cwd=cwd)
+    assert r4.returncode == 0, f"step4 failed:\n{r4.stderr}"
+    # Copy template to 'template.ajf' for comparison
+    shutil.copy(
+        tmp_path / "1eo8-ff14sb-xxxps-renamed-mod-MP2-6-31Gd-nocpf-nbo.ajf",
+        tmp_path / "template.ajf",
+    )
+    _compare_output_dir(cwd, os.path.join(REF_MAIN, "setupserialpdb_ajf_1eo8"))
+
+
+# ---------------------------------------------------------------------------
+# udf2fmo: requires obabel (e.g. fcewsenv) + external sample data
+# ---------------------------------------------------------------------------
+def _have_obabel():
+    from shutil import which
+    return which("obabel") is not None
+
+
+_skip_udf2fmo = pytest.mark.skipif(
+    not _HAS_EXT_SAMPLE or not _have_obabel(),
+    reason="udf2fmo requires obabel and abmptools-sample",
+)
+
+
+def _compare_ajf_only(out_dir, ref_dir):
+    """Compare only .ajf files in ref_dir against out_dir."""
+    ajfs = sorted(f for f in os.listdir(ref_dir) if f.endswith(".ajf"))
+    assert ajfs, f"No reference .ajf in {ref_dir}"
+    for fname in ajfs:
+        gen = os.path.join(out_dir, fname)
+        ref = os.path.join(ref_dir, fname)
+        assert os.path.exists(gen), f"Missing output: {fname}"
+        _compare_files(gen, ref)
+
+
+@_skip_udf2fmo
+def test_udf2fmo_nafion(tmp_path):
+    """udf2fmo (nafion) output must match main-branch reference."""
+    src = os.path.join(_ABMPTOOLS_SAMPLE, "udf2fmo", "nafion")
+    for fname in ("nafion_rmap.bdf", "run.sh", "segment_data.dat", "nafion.pdb"):
+        shutil.copy(os.path.join(src, fname), tmp_path / fname)
+    result = subprocess.run(
+        ["bash", "run.sh"], cwd=str(tmp_path),
+        capture_output=True, text=True, timeout=600,
+    )
+    assert result.returncode == 0, f"run.sh failed:\n{result.stderr}"
+    _compare_ajf_only(
+        str(tmp_path / "for_abmp"),
+        os.path.join(REF_MAIN, "udf2fmo_nafion"),
+    )
+
+
+@_skip_udf2fmo
+def test_udf2fmo_membrane(tmp_path):
+    """udf2fmo (membrane) output must match main-branch reference."""
+    src = os.path.join(_ABMPTOOLS_SAMPLE, "udf2fmo", "membrane")
+    for fname in ("mem75rev.bdf", "run.sh", "segment_data.dat"):
+        shutil.copy(os.path.join(src, fname), tmp_path / fname)
+    result = subprocess.run(
+        ["bash", "run.sh"], cwd=str(tmp_path),
+        capture_output=True, text=True, timeout=600,
+    )
+    assert result.returncode == 0, f"run.sh failed:\n{result.stderr}"
+    _compare_ajf_only(
+        str(tmp_path / "for_abmp"),
+        os.path.join(REF_MAIN, "udf2fmo_membrane"),
+    )
+
+
+@_skip_udf2fmo
+def test_udf2fmo_membrane_cholesterol(tmp_path):
+    """udf2fmo (membrane_cholesterol) output must match main-branch reference."""
+    src = os.path.join(_ABMPTOOLS_SAMPLE, "udf2fmo", "membrane_cholesterol")
+    for fname in ("dpdDOPC30-cho5_size7.1_revmap_out_last.udf",
+                  "run.sh", "segment_data.dat"):
+        shutil.copy(os.path.join(src, fname), tmp_path / fname)
+    result = subprocess.run(
+        ["bash", "run.sh"], cwd=str(tmp_path),
+        capture_output=True, text=True, timeout=600,
+    )
+    assert result.returncode == 0, f"run.sh failed:\n{result.stderr}"
+    _compare_ajf_only(
+        str(tmp_path / "for_abmp"),
+        os.path.join(REF_MAIN, "udf2fmo_membrane_cholesterol"),
+    )
