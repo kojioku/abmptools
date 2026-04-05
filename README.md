@@ -102,11 +102,35 @@ Use `-h` with any module for full option details.
 ## Testing
 
 ```bash
-pytest tests/ -v         # 658 tests
-pytest tests/ -v -k molcalc  # specific module
+pytest tests/ -v                     # 658 tests
+pytest tests/ -v -k molcalc          # specific module
+pytest tests/test_regression.py -v   # regression tests (51 bundled + 16 gated)
 ```
 
 See [tests/TEST_COVERAGE.md](tests/TEST_COVERAGE.md) for details.
+
+### Regression Tests
+
+`tests/test_regression.py` compares current CLI output against reference
+fixtures stored in `tests/regression/reference/` (generated from the
+pre-refactor state). This guards against behavior drift during refactoring.
+
+Covered tools: `generateajf`, `log2cpf`, `convertcpf`, `udf2gro`, `gro2udf`,
+and `getifiepieda`.
+
+**Developer-only tests**: the 16 `getifiepieda` regression cases require
+external sample data (the internal `abmptools-sample` repository) at:
+
+```
+../abmptools-sample/sample/getifiepieda/
+├── 6lu7-multi-fmolog/    (extracted from abmptools-fmolog-sample.tar.bz2)
+├── cd7-fmolog/
+├── 6m0j-pb-fmolog/
+└── xyzfile/
+```
+
+These tests are automatically skipped when the data is not available, so
+public CI runs are unaffected.
 
 ## Samples
 
