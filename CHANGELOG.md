@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.15.0] - 2026-04-18
 ### Added
 - udf2gro サブパッケージ: OCTA UDF → GROMACS (gro/top/mdp/itp) 変換機能
 - gro2udf サブパッケージ: GROMACS → OCTA UDF 変換機能
@@ -12,10 +12,13 @@
 - amorphous サブパッケージ: 多成分アモルファス系構造構築機能 (packmol/OpenMM)
 - core サブパッケージ: SystemModel 共通データモデル
 - 開発者向けドキュメント9件 (architecture, dataflow, dependencies, io_spec, faq 等)
-- pytest テストスイート: 658テスト、28ファイル (全モジュール + 全14 CLIスクリプト)
+- pytest テストスイート: 671テスト、30ファイル (全モジュール + 全14 CLIスクリプト + 回帰テスト)
+- リグレッションテスト (`tests/test_regression.py`): リファクタリング前の参照出力と比較
+  - 51 bundled (レポジトリ同梱) + 9 sample-based (`sample/` 配下の参照との比較) + 16 gated (外部 abmptools-sample 依存)
 - Japanese Google-style docstrings: 全公開メソッド/クラス/モジュールに追加
 - 型ヒント: abinit_io, anlfmo, pdb_io, readcif 等 (89メソッド)
 - CLIスクリプト用 `get_args()` 関数の抽出 (8スクリプト)
+- `pyproject.toml` 追加: PyPI publishing 対応 + 全 CLI スクリプトに `main()` エントリポイント
 
 ### Changed
 - `print()` → `logging` モジュールへ置換 (コアモジュール + gro2udf/udf2gro)
@@ -27,12 +30,17 @@
 - 未使用 import の削除 (9モジュール)
 - `doc/` → `docs/` ディレクトリ名変更
 - ドキュメント更新: TEST_COVERAGE.md, dev_quickstart.md, directory_structure.md
+- README.md を英語に書き換え (全機能を網羅した形に)
+- TEST_COVERAGE.md に未テスト関数インベントリを追加
+- `.gitignore` に egg-info と `__pycache__` を追加
 
 ### Fixed
 - cooperative inheritance chain の修復 (MRO関連)
 - icflag バグの修正
 - エスケープシーケンスの修正
 - setup.py: gro2udf/default_template.udf をパッケージデータに含める
+- anlfmo: `Pool` import の復旧と絞り込み過剰だった `except` 句の修正
+- amorphous/packing.py: packmol 21.2.1 (conda-forge) の stdin シークエラー対応 (`stdin=open(inp_path, "rb")` + pdb/output の絶対パス化)
 
 ## [1.14.6] - 2025-12-21
 ### Fixed
@@ -42,32 +50,32 @@
   - V2 Rev.8 で、CYS架橋がある際にテーブルがずれる例外処理に対応
 - fcewsのoutファイル数check機能の修正
 
-## [1.14.5] - 2025-9-22
+## [1.14.5] - 2025-09-22
 ### Added
 - log2configモジュール(nprint=0のログから、fragment configファイルに変換する機能)を追加
 - generateajfモジュール: configファイルからajfを生成する機能を追加
 
-## [1.14.1] - 2024-5-17
+## [1.14.1] - 2024-05-17
 ### Added
 - cpf2ifielistモジュール(cpfを読み込んで, 整形されたIFIEリストを出力する機能)を追加
 ### Fixed
 - cpfmanager: CPF Ver.10において、bda-baa 原子が5桁を超えた際の読み込みエラーを修正
 
-## [1.14.0] - 2024-5-12
+## [1.14.0] - 2024-05-12
 ### Fixed
 - [Manualの加筆](doc/ABMPTools-user-manual.md)
 - getifiepieda Pandas2系に対応するように修正(append)
 - ABINIT-MP Ver.2 Rev.8 対応の一部不具合修正(&CIS等)
 
-## [1.13.5] - 2024-3-14
+## [1.13.5] - 2024-03-14
 ### Fixed
 - 13.4のエラー対応時の二重読み込みエラーの修正
 
-## [1.13.4] - 2024-2-16
+## [1.13.4] - 2024-02-16
 ### Fixed
 - FMOPB 特定のエラー終了時の読み込みエラー対応
 
-## [1.13.3] - 2024-2-7
+## [1.13.3] - 2024-02-07
 ### Changed
 - DIFIE (DIFIE) 出力仕様変更に伴う出力変更
 
@@ -79,12 +87,12 @@
 ### Added
 - CPFmanager "CPF ver7.0 (MIZUHO)" 版への対応を追加
 
-## [1.13.1] - 2023-9-27
+## [1.13.1] - 2023-09-27
 ### Added
 - DIFIE 出力機能の並列処理機能 (-np)
 - DIFIE のサンプル追加
 
-## [1.13.0] - 2023-9-18
+## [1.13.0] - 2023-09-18
 ### Added
 - Logparser機能(LogManager)
 - Logからcpfを作成する機能(log2cpf)

@@ -55,11 +55,21 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 
 ## Installation
 
+Editable install is recommended for day-to-day use and development:
+
 ```bash
-pip install --user .
+pip install -e .
 ```
 
-This runs `make` during install to compile the optional Fortran shared library for accelerated IFIE/PIEDA reading. If `gfortran` is not available, the install still succeeds without Fortran acceleration.
+Non-editable install (e.g. for production deployment):
+
+```bash
+pip install .
+```
+
+`--user` is usually unnecessary; pip handles both virtual environments and system Python appropriately.
+
+Installation runs `make` to compile the optional Fortran shared library for accelerated IFIE/PIEDA reading. If `gfortran` is not available, the install still succeeds without Fortran acceleration.
 
 ### Requirements
 
@@ -86,6 +96,10 @@ python -m abmptools.udf2gro.cli -i system.udf -o output
 
 # Convert GROMACS to UDF
 python -m abmptools.gro2udf.cli -i system.gro -t system.top -o output.udf
+
+# Build an amorphous mixture (e.g. 50 ketoprofen molecules, density 0.8 g/cm^3)
+python -m abmptools.amorphous --smiles "OC(=O)C(C)c1cccc(C(=O)c2ccccc2)c1" \
+    --name ketoprofen --n_mol 50 --density 0.8 --output_dir ./ketoprofen
 ```
 
 Use `-h` with any module for full option details.
@@ -102,9 +116,9 @@ Use `-h` with any module for full option details.
 ## Testing
 
 ```bash
-pytest tests/ -v                     # 658 tests
+pytest tests/ -v                     # 671 tests across 30 files
 pytest tests/ -v -k molcalc          # specific module
-pytest tests/test_regression.py -v   # regression tests (51 bundled + 16 gated)
+pytest tests/test_regression.py -v   # regression tests (60 bundled + 16 gated)
 ```
 
 See [tests/TEST_COVERAGE.md](tests/TEST_COVERAGE.md) for details.
