@@ -127,21 +127,25 @@ def run_packmol(
     packmol_bin = _find_packmol(packmol_path)
     os.makedirs(build_dir, exist_ok=True)
 
+    abs_pdb_paths = [str(Path(p).resolve()) for p in pdb_paths]
+    abs_output_pdb = str(Path(output_pdb).resolve())
+
     inp_text = generate_packmol_input(
-        pdb_paths, counts, box_size_nm, output_pdb,
+        abs_pdb_paths, counts, box_size_nm, abs_output_pdb,
         tolerance=tolerance, seed=seed,
     )
     inp_path = os.path.join(build_dir, "packmol.inp")
     Path(inp_path).write_text(inp_text)
     logger.info("Packmol input written to %s", inp_path)
 
-    result = subprocess.run(
-        [packmol_bin],
-        input=inp_text,
-        capture_output=True,
-        text=True,
-        cwd=build_dir,
-    )
+    with open(inp_path, "rb") as inp_fh:
+        result = subprocess.run(
+            [packmol_bin],
+            stdin=inp_fh,
+            capture_output=True,
+            text=True,
+            cwd=build_dir,
+        )
 
     log_path = os.path.join(build_dir, "packmol.log")
     Path(log_path).write_text(result.stdout + "\n" + result.stderr)
