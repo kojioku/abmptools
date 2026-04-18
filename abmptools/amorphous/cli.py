@@ -152,3 +152,4 @@ def main(argv: Optional[List[str]] = None) -> None:
     print(f"  Box size   : {result['box_nm']:.4f} nm")
     print(f"  Counts     : {result['counts']}")
     print(f"  Run script : {result['run_script']}")
+    print(f"  Wrap script: {result['wrap_script']}")

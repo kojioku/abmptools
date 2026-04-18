@@ -25,7 +25,7 @@ from .molecule_prep import (
 )
 from .packing import run_packmol
 from .parameterizer import create_interchange, export_gromacs
-from .mdp_protocol import write_all_mdp, write_run_script
+from .mdp_protocol import write_all_mdp, write_run_script, write_wrap_script
 from .ndx_writer import write_ndx
 
 logger = logging.getLogger(__name__)
@@ -110,6 +110,7 @@ class AmorphousBuilder:
         tc_grps = self._tc_grps_string()
         mdp_files = write_all_mdp(protocol, str(md_dir), tc_grps=tc_grps)
         run_script = write_run_script(str(md_dir))
+        wrap_script = write_wrap_script(str(md_dir))
 
         logger.info("=== Build complete: %s ===", cfg.output_dir)
         return {
@@ -119,6 +120,7 @@ class AmorphousBuilder:
             "ndx": str(Path(ndx_path).resolve()),
             "mdp_files": mdp_files,
             "run_script": run_script,
+            "wrap_script": wrap_script,
             "config_json": config_json,
             "box_nm": self._box_nm,
             "counts": list(self._counts),
