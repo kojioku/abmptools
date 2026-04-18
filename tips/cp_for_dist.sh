@@ -14,7 +14,8 @@ mkdir $1
 cp -r ../abmptools $1/
 rm -rf $1/abmptools/build
 rm -rf $1/abmptools/dist
-rm -rf $1/abmptools/ABMPTools.egg-info
+rm -rf $1/abmptools/abmptools.egg-info
 rm -rf $1/abmptools/abmptools/f90/src
 rm -rf $1/abmptools/Makefile
 rm -rf $1/abmptools/.git
+
