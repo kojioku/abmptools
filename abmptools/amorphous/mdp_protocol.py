@@ -256,3 +256,58 @@ def write_run_script(output_dir: str, gro: str = "system.gro",
     Path(script_path).write_text("\n".join(lines) + "\n")
     os.chmod(script_path, 0o755)
     return script_path
+
+
+def write_wrap_script(output_dir: str,
+                      ndx: Optional[str] = "system.ndx") -> str:
+    """Write a PBC-wrap script (wrap_pbc.sh) for VMD-friendly trajectories.
+
+    Applies ``gmx trjconv -pbc mol -ur compact`` to every produced .xtc and
+    to the final .gro, writing ``<stage>_pbc.xtc`` / ``05_npt_final_pbc.gro``.
+
+    Parameters
+    ----------
+    output_dir : str
+        Directory to write the script into (typically the md/ directory).
+    ndx : str or None
+        Relative path (from md/ perspective) to the system index file.
+        If ``None``, no ``-n`` flag is used; group 0 (System) is selected.
+
+    Returns
+    -------
+    str
+        Path to the generated script.
+    """
+    build = "../build"
+    ndx_flag = f' -n "{build}/{ndx}"' if ndx else ""
+    lines = [
+        "#!/bin/bash",
+        "# Post-processing: wrap trajectories for visualization (e.g. VMD).",
+        "#",
+        "#   -pbc mol    : wrap by molecules (fix molecules broken at box edges)",
+        "#   -ur compact : compact unit-cell representation",
+        "#",
+        "# Run this after run_all.sh finishes.",
+        "set -e",
+        "",
+        'STAGES=(02_nvt_highT 03_npt_highT 04_anneal 05_npt_final)',
+        "",
+        'for stage in "${STAGES[@]}"; do',
+        '    [ -f "${stage}.xtc" ] || continue',
+        '    echo "Wrapping ${stage}.xtc ..."',
+        f'    echo 0 | gmx trjconv -s "${{stage}}.tpr" -f "${{stage}}.xtc" -o "${{stage}}_pbc.xtc" -pbc mol -ur compact{ndx_flag}',
+        "done",
+        "",
+        "# Wrap the final structure (useful as the VMD initial frame).",
+        'if [ -f "05_npt_final.gro" ]; then',
+        f'    echo 0 | gmx trjconv -s 05_npt_final.tpr -f 05_npt_final.gro -o 05_npt_final_pbc.gro -pbc mol -ur compact{ndx_flag}',
+        "fi",
+        "",
+        'echo ""',
+        'echo "PBC wrap complete. Example VMD usage:"',
+        'echo "  vmd 05_npt_final_pbc.gro -xtc 05_npt_final_pbc.xtc"',
+    ]
+    script_path = os.path.join(output_dir, "wrap_pbc.sh")
+    Path(script_path).write_text("\n".join(lines) + "\n")
+    os.chmod(script_path, 0o755)
+    return script_path
