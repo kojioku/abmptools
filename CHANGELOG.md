@@ -1,6 +1,21 @@
 # Changelog
 
-## [1.15.0] - 2026-04-18
+## [1.15.1] - 2026-04-18
+### Fixed
+- amorphous/packing.py: packmol 21.2.1 (conda-forge) の stdin シークエラー対応 (`stdin=open(inp_path, "rb")` + pdb/output の絶対パス化)
+- anlfmo: `Pool` import の復旧と絞り込み過剰だった `except` 句の修正
+
+### Added
+- リグレッションテスト (`tests/test_regression.py`): リファクタリング前の参照出力との比較で挙動ドリフトを検出
+  - 51 bundled (`tests/regression/reference/prerefactor/` 同梱) + 9 sample-based (`sample/` 配下の参照との比較) + 16 gated (外部 `abmptools-sample` 依存のため通常は skip)
+  - 対象ツール: generateajf, log2cpf, convertcpf, udf2gro, gro2udf, getifiepieda
+- `tips/cp_for_dist.sh` の配布物更新
+
+### Changed
+- README.md: 回帰テストの説明および developer-only gated テストのセクションを追記、インストール手順を editable (`pip install -e .`) 推奨に変更、Quick Start に amorphous 使用例を追加、テスト件数を 671/30 に更新
+- CHANGELOG.md: リリースバージョン毎に整理し直し、旧リリース日付のゼロパディングを統一
+
+## [1.15.0] - 2026-03-21
 ### Added
 - udf2gro サブパッケージ: OCTA UDF → GROMACS (gro/top/mdp/itp) 変換機能
 - gro2udf サブパッケージ: GROMACS → OCTA UDF 変換機能
@@ -12,9 +27,7 @@
 - amorphous サブパッケージ: 多成分アモルファス系構造構築機能 (packmol/OpenMM)
 - core サブパッケージ: SystemModel 共通データモデル
 - 開発者向けドキュメント9件 (architecture, dataflow, dependencies, io_spec, faq 等)
-- pytest テストスイート: 671テスト、30ファイル (全モジュール + 全14 CLIスクリプト + 回帰テスト)
-- リグレッションテスト (`tests/test_regression.py`): リファクタリング前の参照出力と比較
-  - 51 bundled (レポジトリ同梱) + 9 sample-based (`sample/` 配下の参照との比較) + 16 gated (外部 abmptools-sample 依存)
+- pytest テストスイート: 28ファイル (全モジュール + 全14 CLIスクリプト、約620テスト)
 - Japanese Google-style docstrings: 全公開メソッド/クラス/モジュールに追加
 - 型ヒント: abinit_io, anlfmo, pdb_io, readcif 等 (89メソッド)
 - CLIスクリプト用 `get_args()` 関数の抽出 (8スクリプト)
@@ -39,8 +52,6 @@
 - icflag バグの修正
 - エスケープシーケンスの修正
 - setup.py: gro2udf/default_template.udf をパッケージデータに含める
-- anlfmo: `Pool` import の復旧と絞り込み過剰だった `except` 句の修正
-- amorphous/packing.py: packmol 21.2.1 (conda-forge) の stdin シークエラー対応 (`stdin=open(inp_path, "rb")` + pdb/output の絶対パス化)
 
 ## [1.14.6] - 2025-12-21
 ### Fixed
