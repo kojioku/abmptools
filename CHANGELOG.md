@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [1.15.3] - 2026-04-19
 ### Added
 - `abmptools.amorphous.pubchem` モジュール: PubChem PUG REST API ラッパー
   - `fetch_3d_sdf(query, by)` / `fetch_smiles(query, by)` / `download_3d_sdf(query, path, by)`
