@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [1.15.4] - 2026-04-19
 ### Added
 - `tests/test_builder_mocked.py` (8 tests): `AmorphousBuilder.build()` の 6 stage フローと返り値 dict 構造 (`wrap_script` キー含む)、`config.json` 書き出し、MDP/ndx 生成順序を mock ベースで検証。OpenFF/Packmol/Interchange なしで CI 可
 - `tests/test_builder_integration.py` (12 tests, `@pytest.mark.slow`): methane ×10 / box 2 nm の小系で `AmorphousBuilder.build()` を実際に走らせ、成果物 (gro/top/ndx/5 MDP/2 scripts/config.json) を spot check。OpenFF + Packmol + AmberTools + RDKit が揃ったときのみ実行、足りない依存は `pytest.importorskip` / `shutil.which` で自動 skip
