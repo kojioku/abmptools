@@ -7,6 +7,7 @@ but provided for extensibility).
 """
 from __future__ import annotations
 from ....core.system_model import SystemModel
+from ._validator import raise_if_cognac_only
 
 
 class ItpWriter:
@@ -18,5 +19,9 @@ class ItpWriter:
         Args:
             model: 中間表現のシステムモデル。
             prefix: 出力ファイル名のプレフィクス。
+
+        Raises:
+            ValueError: ``model.ensemble_family == 'cognac_only'`` のとき。
         """
+        raise_if_cognac_only(model, kind="itp")
         raise NotImplementedError("ItpWriter is not yet implemented.")

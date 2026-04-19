@@ -1,6 +1,25 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- `abmptools.core.system_model` に COGNAC 固有情報を保持するデータクラスを追加:
+  - `ClusterData` (cluster 配置 xyz / n_per_cluster / cluster_file)
+  - `FixedLabel` (固定原子 atom_indices / label)
+  - `SystemModel.cluster_data` / `fixed_labels` / `ensemble_family` フィールド
+  - 判定ヘルパー `classify_ensemble(algorithm)` と `COGNAC_ONLY_ALGOS` 定数
+    (既定: `NPT_Andersen_Kremer_Grest` / `NPT_Andersen_Nose_Hoover`)
+- `abmptools.amorphous.system_model_adapter.from_interchange(interchange, ...)` を新設:
+  OpenFF Interchange → (一時 .gro/.top 経由) TopModel → SystemModel の最小充填。
+  `ensemble_family="gromacs_ok"` を付与して返す。`mol_topologies` は意図的に空のまま
+  (GROMACS .top 出力は `interchange.to_top()` を直接使う想定)
+- テスト 23 件追加 (`tests/test_system_model_extensions.py` / `tests/test_interchange_adapter.py`、
+  integration は `@pytest.mark.slow`)
+
+### Changed
+- `abmptools.udf2gro.gromacs.writers` の GroWriter / TopWriter / MdpWriter / ItpWriter で
+  `ensemble_family == "cognac_only"` を検出した場合に `ValueError` を送出
+  (共有ヘルパー `_validator.raise_if_cognac_only`)。COGNAC 固有アンサンブル
+  (`NPT_Andersen_Kremer_Grest` 等) を GROMACS 形式で誤って書き出すことを防ぐ
 
 ## [1.15.4] - 2026-04-19
 ### Added

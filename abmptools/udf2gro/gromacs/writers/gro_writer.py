@@ -7,6 +7,7 @@ Writes the GROMACS .gro structure file from a SystemModel.
 from __future__ import annotations
 import math
 from ....core.system_model import SystemModel, CellGeometry
+from ._validator import raise_if_cognac_only
 
 
 class GroWriter:
@@ -18,7 +19,13 @@ class GroWriter:
         Args:
             model: 中間表現のシステムモデル。
             filepath: 出力先ファイルパス。
+
+        Raises:
+            ValueError: ``model.ensemble_family == 'cognac_only'`` のとき。
+                COGNAC 固有アンサンブル (NPT_Andersen_Kremer_Grest 等) は
+                GROMACS 形式に書き出せないため。
         """
+        raise_if_cognac_only(model, kind="gro")
         content = self._build(model)
         with open(filepath, "w") as f:
             f.write(content)

@@ -7,6 +7,7 @@ Writes the GROMACS .mdp simulation parameter file from a SystemModel.
 from __future__ import annotations
 import logging
 from ....core.system_model import SystemModel, SimulationParams
+from ._validator import raise_if_cognac_only
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,11 @@ class MdpWriter:
         Args:
             model: 中間表現のシステムモデル。
             filepath: 出力先ファイルパス。
+
+        Raises:
+            ValueError: ``model.ensemble_family == 'cognac_only'`` のとき。
         """
+        raise_if_cognac_only(model, kind="mdp")
         content = self._build(model)
         with open(filepath, "w") as f:
             f.write(content)

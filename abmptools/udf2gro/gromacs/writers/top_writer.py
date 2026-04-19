@@ -9,6 +9,7 @@ is contained here.
 """
 from __future__ import annotations
 from ....core.system_model import SystemModel, MoleculeTopology, DihedralRecord
+from ._validator import raise_if_cognac_only
 
 
 # ---------------------------------------------------------------------------
@@ -43,7 +44,11 @@ class TopWriter:
         Args:
             model: 中間表現のシステムモデル。
             filepath: 出力先ファイルパス。
+
+        Raises:
+            ValueError: ``model.ensemble_family == 'cognac_only'`` のとき。
         """
+        raise_if_cognac_only(model, kind="top")
         with open(filepath, "w") as f:
             f.write(self._build_header(model))
             for topo in model.mol_topologies:
