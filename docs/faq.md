@@ -150,6 +150,33 @@ python -m abmptools.generate_difie -i traj-xxx.cpf -t 1 50 1 -np 8
 
 This uses Python's `multiprocessing.Pool` to read and process log/CPF files in parallel. See [parallelization.md](parallelization.md) for details.
 
+## Amorphous builder: Packmol fails with `Fortran runtime error: Illegal seek`?
+
+This happens with `packmol 21.2.1` from conda-forge when its input is piped through a non-seekable `stdin`. Fixed in `abmptools/amorphous/packing.py` (1.15.1+) by passing the input file via a real file descriptor and resolving PDB / output paths to absolute paths. If you are on an older abmptools, upgrade (`pip install -U abmptools`) or manually patch `run_packmol()` to use `stdin=open(inp_path, "rb")`.
+
+## Amorphous builder: `ModuleNotFoundError: No module named 'pkg_resources'`?
+
+Triggered by `openff.amber_ff_ports` (used indirectly via `openff-toolkit`) on setuptools 82+, where `pkg_resources` has been spun out. Pin setuptools below 81 until the upstream migration lands:
+
+```bash
+pip install "setuptools<81"
+```
+
+This applies to any environment that mixes OpenFF (Amber-style ports) with a recent setuptools.
+
+## Amorphous MD on WSL2: GROMACS does not detect my NVIDIA GPU?
+
+conda-forge's `gromacs` is typically built with OpenCL for GPU support, but WSL2 does not ship a NVIDIA OpenCL ICD (`libcuda.so` is present, but `/etc/OpenCL/vendors/nvidia.icd` is not). The mdrun log will say `GPU detection failed: No valid OpenCL driver found`.
+
+Options:
+
+1. **Run on CPU** — for small systems (~a few thousand atoms) 8 CPU cores are often enough (our ketoprofen ×50 / 1.3 ns test finished in ~10 minutes).
+2. **Install a CUDA-enabled GROMACS** via conda-forge:
+   ```bash
+   micromamba create -n gmxcuda -c conda-forge gromacs=2025.4=mpi_openmpi_cuda_*
+   ```
+   Requires a working CUDA driver inside WSL2 (already the case with recent `libcuda.so`).
+
 ## What is the `tips/` directory?
 
 The `tips/` directory contains auxiliary scripts for MD post-processing workflows with AMBER, GROMACS, and NAMD. These are standalone helper scripts, not part of the core `abmptools` package.

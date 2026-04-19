@@ -7,6 +7,14 @@
 
 ### Changed
 - README.md: amorphous 機能セクションを拡充 (SMILES/SDF 両対応、Packmol + OpenFF + AM1-BCC、5-stage annealing、`wrap_pbc.sh` 言及)、Quick Start に SDF 入力例を追加、Samples セクションに amorphous サンプル (pentane_benzene / ketoprofen_pubchem) への導線を追加
+- docs/:
+  - `amorphous.md`: 出力ファイル一覧に `wrap_pbc.sh` / `*_pbc.xtc` / `05_npt_final_pbc.gro` を追加、ビルド後のワークフロー (run_all.sh → wrap_pbc.sh → VMD) セクションと同梱サンプル一覧を新設
+  - `dependencies.md`: `abmptools.amorphous` 専用の Optional Dependencies セクションを追加 (必須ランタイム + 電荷バックエンド + `setuptools<81` 注記 + 後処理外部ツール)、Dependency Summary ツリーにも amorphous 行を追加
+  - `faq.md`: amorphous ビルダー向けトラブルシュート 3 件を追加 (Packmol `Illegal seek`、`pkg_resources` 消失、WSL2 の NVIDIA OpenCL ICD 不在)
+  - `overview.md`: Key Capabilities 表に `Structure Optimization` と `Amorphous Builder`、MD Integration に gro2udf/udf2gro を追記
+  - `architecture.md`: サブパッケージ (gro2udf/udf2gro/geomopt/amorphous/core) を紹介する Subpackages セクションを追加
+  - `dataflow.md`: Amorphous Build Pipeline の ASCII フロー図を追加
+  - `ABMPTools-user-manual.md`: Overview 部に gro2udf/udf2gro、geomopt、amorphous の概要を追加
 
 ## [1.15.1] - 2026-04-18
 ### Fixed

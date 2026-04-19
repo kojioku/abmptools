@@ -210,6 +210,34 @@ PDB ──→ pdbmodify.py  ──→ PDB (edited: renamed, moved, re-numbered)
 AJF ──→ ajfserial.py  ──→ Numbered AJF series (for trajectory FMO)
 ```
 
+## Amorphous Build Pipeline (SMILES/SDF → GROMACS MD)
+
+```
+SMILES / SDF  ──→ molecule_prep.py     ──→ OpenFF Molecule + single-mol PDB
+                      │
+                      ↓
+                 density.py             ──→ count & cubic-box size from target density
+                      │
+                      ↓
+                 packing.py (packmol)   ──→ mixture.pdb (multi-component packed)
+                      │
+                      ↓
+                 parameterizer.py       ──→ system.gro / system.top (OpenFF + AM1-BCC)
+                      │                    via openff-interchange
+                      ↓
+                 ndx_writer.py          ──→ system.ndx  (per-component index groups)
+                      │
+                      ↓
+                 mdp_protocol.py        ──→ 01_em.mdp / 02_nvt / 03_npt / 04_anneal /
+                      │                    05_npt_final.mdp  + run_all.sh + wrap_pbc.sh
+                      ↓
+                 (run_all.sh)           ──→ 5-stage GROMACS MD
+                      ↓
+                 (wrap_pbc.sh)          ──→ *_pbc.xtc / 05_npt_final_pbc.gro (VMD ready)
+```
+
+Orchestrated end-to-end by `abmptools.amorphous.builder.AmorphousBuilder.build()`.
+
 ## Internal Data Structures
 
 All modules converge on **pandas DataFrames** for structured data:

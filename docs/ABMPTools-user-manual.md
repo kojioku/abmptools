@@ -27,6 +27,16 @@ Author: Koji Okuwaki
     - 結晶構造(cif)ファイルからFMO用ファイルへの変換
     - OCTA udf ファイルからFMO用ファイルへの変換(udf2ajf, udf2pdb)
     - 古典MD後からFMO用ファイルへの変換
+    - GROMACS ↔ OCTA COGNAC UDF の相互変換 (gro2udf, udf2gro) — 詳細: [gro2udf.md](gro2udf.md) / [udf2gro.md](udf2gro.md)
+
+- 構造最適化 (geomopt)
+    - MACE (ML potential) / OpenFF-OpenMM 古典力場 / PySCF DFT の 3 バックエンドで PDB を最適化 — 詳細: [geomopt.md](geomopt.md) / [qmopt.md](qmopt.md)
+
+- 多成分アモルファス系構築 (amorphous / build_amorphous.py)
+    - SMILES または 3D SDF/MOL から非晶質構造を構築 (Packmol + OpenFF + AM1-BCC)
+    - 5-stage GROMACS アニーリングプロトコル (EM → 高温 NVT/NPT → SA → 最終 NPT) を自動生成
+    - MD 後の VMD 用 PBC 後処理スクリプト (wrap_pbc.sh) も同時生成
+    - 詳細: [amorphous.md](amorphous.md)
 
 
 ### 各種IFIE情報の取得(getifiepieda)
