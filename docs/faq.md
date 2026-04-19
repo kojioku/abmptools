@@ -150,6 +150,20 @@ python -m abmptools.generate_difie -i traj-xxx.cpf -t 1 50 1 -np 8
 
 This uses Python's `multiprocessing.Pool` to read and process log/CPF files in parallel. See [parallelization.md](parallelization.md) for details.
 
+## Amorphous builder: can I fetch 3D SDFs automatically from PubChem?
+
+Yes, from `abmptools 1.15.3+`. Use `--pubchem_cid` / `--pubchem_name` on `build_amorphous.py`, or import the helpers directly:
+
+```python
+from abmptools.amorphous import fetch_3d_sdf, fetch_smiles, PubChemNo3DError
+sdf = fetch_3d_sdf(3825)                    # by CID
+sdf = fetch_3d_sdf("ketoprofen", by="name") # by name
+```
+
+If the compound has no 3D conformer on PubChem (common for polymers, salts, metal complexes), `PubChemNo3DError` is raised. In that case, fall back to `fetch_smiles(...)` and let OpenFF generate a conformer from SMILES, or prepare a 3D SDF locally (RDKit/OpenBabel + AddHs/Embed).
+
+Network access to `https://pubchem.ncbi.nlm.nih.gov` is required. No extra Python dependency is needed — `urllib` is used.
+
 ## Amorphous builder: Packmol fails with `Fortran runtime error: Illegal seek`?
 
 This happens with `packmol 21.2.1` from conda-forge when its input is piped through a non-seekable `stdin`. Fixed in `abmptools/amorphous/packing.py` (1.15.1+) by passing the input file via a real file descriptor and resolving PDB / output paths to absolute paths. If you are on an older abmptools, upgrade (`pip install -U abmptools`) or manually patch `run_packmol()` to use `stdin=open(inp_path, "rb")`.

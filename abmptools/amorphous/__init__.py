@@ -23,4 +23,37 @@ Public API::
 from .models import BuildConfig, ComponentSpec
 from .builder import AmorphousBuilder
 
-__all__ = ["AmorphousBuilder", "BuildConfig", "ComponentSpec"]
+__all__ = [
+    "AmorphousBuilder",
+    "BuildConfig",
+    "ComponentSpec",
+    # Lazily-exposed PubChem helpers (via module __getattr__):
+    "fetch_3d_sdf",
+    "fetch_smiles",
+    "download_3d_sdf",
+    "PubChemError",
+    "PubChemNotFoundError",
+    "PubChemNo3DError",
+]
+
+_PUBCHEM_NAMES = {
+    "fetch_3d_sdf",
+    "fetch_smiles",
+    "download_3d_sdf",
+    "PubChemError",
+    "PubChemNotFoundError",
+    "PubChemNo3DError",
+}
+
+
+def __getattr__(name):
+    """Lazy re-export of pubchem helpers.
+
+    Keeping these out of the eager import list avoids the
+    ``RuntimeWarning: ... found in sys.modules`` when the module is
+    invoked as ``python -m abmptools.amorphous.pubchem``.
+    """
+    if name in _PUBCHEM_NAMES:
+        from . import pubchem as _pc
+        return getattr(_pc, name)
+    raise AttributeError(f"module 'abmptools.amorphous' has no attribute {name!r}")

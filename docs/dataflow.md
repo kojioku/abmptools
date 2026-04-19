@@ -213,6 +213,9 @@ AJF ──→ ajfserial.py  ──→ Numbered AJF series (for trajectory FMO)
 ## Amorphous Build Pipeline (SMILES/SDF → GROMACS MD)
 
 ```
+PubChem CID / name ──→ amorphous.pubchem ──→ 3D SDF (local cache)
+                                  │
+                                  ↓   (or direct SMILES / SDF input)
 SMILES / SDF  ──→ molecule_prep.py     ──→ OpenFF Molecule + single-mol PDB
                       │
                       ↓

@@ -47,7 +47,7 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 ### Amorphous Structure Building (`amorphous`, `build_amorphous.py`)
 
 - Multi-component amorphous system construction (API + polymer / API + API / binary mixture)
-- Initial structures from either **SMILES** (OpenFF conformer generation) or external **3D SDF/MOL files** (`--mol`)
+- Initial structures from either **SMILES** (OpenFF conformer generation), external **3D SDF/MOL files** (`--mol`), or **PubChem CID / name** (`--pubchem_cid` / `--pubchem_name`, auto-downloads MMFF94 3D SDF; raises `PubChemNo3DError` when no 3D conformer exists)
 - Packmol-based packing + OpenFF force field parameterization + AM1-BCC charges
 - Auto-generates GROMACS inputs and a 5-stage annealing protocol
   (EM → high-T NVT → high-T NPT → simulated annealing → low-T NPT equilibration)
@@ -110,6 +110,10 @@ python -m abmptools.amorphous --smiles "OC(=O)C(C)c1cccc(C(=O)c2ccccc2)c1" \
 
 # Or use an external 3D SDF (e.g. from PubChem) as the initial conformer
 python -m abmptools.amorphous --mol ketoprofen_pubchem_cid3825.sdf \
+    --name ketoprofen --n_mol 50 --density 0.8 --output_dir ./ketoprofen_pubchem
+
+# Or let abmptools fetch the 3D SDF straight from PubChem (1.15.3+)
+python -m abmptools.amorphous --pubchem_cid 3825 \
     --name ketoprofen --n_mol 50 --density 0.8 --output_dir ./ketoprofen_pubchem
 ```
 

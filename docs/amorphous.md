@@ -43,6 +43,15 @@ python build_amorphous.py \
     --box 6.0 \
     --temperature 300
 
+# PubChem 3D SDF を直接取得 (abmptools >= 1.15.3)
+python build_amorphous.py \
+    --pubchem_cid 3825 \
+    --name ketoprofen \
+    --n_mol 50 --density 0.8 \
+    --output_dir ./ketoprofen_pubchem
+# 同様に名前指定も可能 (--pubchem_name "aspirin")
+# ダウンロードした SDF は <output_dir>/input/pubchem_cid3825.sdf にキャッシュ
+
 # 重量分率モード
 python build_amorphous.py \
     --mol api.sdf polymer.sdf \
@@ -162,6 +171,52 @@ vmd 04_anneal.tpr -xtc 04_anneal_pbc.xtc
 
 `wrap_pbc.sh` は `gmx trjconv -pbc mol -ur compact` を各 xtc と最終 gro に適用し、
 箱境界で分断された分子を修復したうえで compact box 表示に揃えます。
+
+## PubChem 自動ダウンロード (`abmptools.amorphous.pubchem`)
+
+`abmptools.amorphous.pubchem` モジュールは PubChem PUG REST API を叩いて、
+3D SDF (MMFF94 最適化済み、水素込み) や canonical SMILES を取得します。
+`requests` などの追加依存なし (`urllib` 標準ライブラリのみ)。
+
+```python
+from abmptools.amorphous import fetch_3d_sdf, fetch_smiles, PubChemNo3DError
+
+# CID から
+sdf_text = fetch_3d_sdf(3825)
+smi      = fetch_smiles(3825)
+
+# 名前から
+sdf_text = fetch_3d_sdf("ketoprofen", by="name")
+
+# 3D が無いケース
+try:
+    fetch_3d_sdf("some_polymer", by="name")
+except PubChemNo3DError as e:
+    print(e)   # → 見つからない旨とメッセージ
+```
+
+CLI:
+
+```bash
+# SDF を DL
+python -m abmptools.amorphous.pubchem --cid 3825 -o ketoprofen.sdf
+python -m abmptools.amorphous.pubchem --name aspirin -o aspirin.sdf
+# SMILES だけ取得 (標準出力)
+python -m abmptools.amorphous.pubchem --cid 3825 --smiles-only
+```
+
+戻り値 / 例外:
+
+| ケース | 動作 |
+|---|---|
+| 3D SDF あり | SDF テキストを返す / ファイルに保存 |
+| 3D なし (or CID 不在) | `PubChemNo3DError` を送出 (CLI は exit code 3) |
+| CID 形式不正 (例: 桁超過) | HTTP 400 → `PubChemError` (CLI exit 1) |
+| ネットワーク不通 | `PubChemError` (URLError 起因) |
+
+`build_amorphous.py` からは `--pubchem_cid` / `--pubchem_name` で直接利用でき、
+解決済み SDF は `<output_dir>/input/` にキャッシュされます (`--pubchem_cache_dir`
+で場所を上書き可)。
 
 ## 同梱サンプル
 

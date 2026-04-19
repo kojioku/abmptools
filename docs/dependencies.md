@@ -137,6 +137,13 @@ pip install "setuptools<81"
 | `gromacs` (2020+ 推奨、2025.4 で動作確認) | `md/run_all.sh` の実行 + `wrap_pbc.sh` の `gmx trjconv` |
 | `vmd` | 生成された `*_pbc.xtc` / `05_npt_final_pbc.gro` の可視化 |
 
+### 追加依存 (`abmptools.amorphous.pubchem`)
+
+PubChem から 3D SDF や SMILES を取得する補助モジュール。
+Python 追加依存は **なし** (`urllib` 標準ライブラリのみ) ですが、使用時には
+`https://pubchem.ncbi.nlm.nih.gov` への HTTPS アクセスが必要です。オフライン
+環境では事前に SDF をダウンロードしておくか `--mol` で指定してください。
+
 ## Optional Dependencies — abmptools.geomopt
 
 `abmptools.geomopt` はすべての重い依存を実行時まで遅延インポートするため、

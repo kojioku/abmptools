@@ -33,7 +33,8 @@ Author: Koji Okuwaki
     - MACE (ML potential) / OpenFF-OpenMM 古典力場 / PySCF DFT の 3 バックエンドで PDB を最適化 — 詳細: [geomopt.md](geomopt.md) / [qmopt.md](qmopt.md)
 
 - 多成分アモルファス系構築 (amorphous / build_amorphous.py)
-    - SMILES または 3D SDF/MOL から非晶質構造を構築 (Packmol + OpenFF + AM1-BCC)
+    - SMILES / 3D SDF / **PubChem CID または化合物名** のいずれからも入力可 (Packmol + OpenFF + AM1-BCC)
+    - PubChem からの自動取得は `abmptools.amorphous.pubchem` モジュール (urllib 標準のみ、追加依存なし)、3D 未提供時は `PubChemNo3DError` を送出
     - 5-stage GROMACS アニーリングプロトコル (EM → 高温 NVT/NPT → SA → 最終 NPT) を自動生成
     - MD 後の VMD 用 PBC 後処理スクリプト (wrap_pbc.sh) も同時生成
     - 詳細: [amorphous.md](amorphous.md)
