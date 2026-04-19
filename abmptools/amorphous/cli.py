@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from pathlib import Path
 from typing import List, Optional
 
 from .models import BuildConfig, ComponentSpec
@@ -28,6 +29,16 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                      help="SMILES strings for each component")
     inp.add_argument("--name", nargs="+", metavar="NAME",
                      help="Names for each component (optional)")
+    inp.add_argument("--pubchem_cid", nargs="+", metavar="CID",
+                     help="PubChem CIDs; each CID is resolved to a 3D SDF "
+                          "and treated as --mol input for that component. "
+                          "Raises an error if PubChem has no 3D conformer.")
+    inp.add_argument("--pubchem_name", nargs="+", metavar="NAME",
+                     help="PubChem compound names; resolved to 3D SDF like "
+                          "--pubchem_cid. Useful when the CID is unknown.")
+    inp.add_argument("--pubchem_cache_dir", type=str, default=None,
+                     help="Directory to cache downloaded PubChem SDFs "
+                          "(default: <output_dir>/input/)")
 
     # --- Composition ---
     comp = p.add_argument_group("Composition")
@@ -80,18 +91,57 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+def _resolve_pubchem_inputs(args: argparse.Namespace) -> List[str]:
+    """Download PubChem 3D SDFs requested via --pubchem_cid / --pubchem_name.
+
+    Returns a list of local SDF paths, in the order they should be
+    appended to the mol/smiles input lists.
+    """
+    cids = args.pubchem_cid or []
+    names = args.pubchem_name or []
+    if not cids and not names:
+        return []
+
+    from .pubchem import download_3d_sdf  # lazy import
+
+    cache_dir = args.pubchem_cache_dir
+    if cache_dir is None:
+        # Default: <output_dir>/input/
+        cache_dir = str(Path(args.output_dir) / "input")
+    Path(cache_dir).mkdir(parents=True, exist_ok=True)
+
+    resolved: List[str] = []
+    for cid in cids:
+        out = str(Path(cache_dir) / f"pubchem_cid{cid}.sdf")
+        path = download_3d_sdf(cid, out, by="cid")
+        resolved.append(path)
+    for name in names:
+        safe = "".join(c if c.isalnum() else "_" for c in name)
+        out = str(Path(cache_dir) / f"pubchem_name_{safe}.sdf")
+        path = download_3d_sdf(name, out, by="name")
+        resolved.append(path)
+    return resolved
+
+
 def _build_config_from_args(args: argparse.Namespace) -> BuildConfig:
     """Build a BuildConfig from parsed CLI args."""
     if args.config:
         return BuildConfig.from_json(args.config)
 
+    # Resolve PubChem queries (if any) to local SDF paths and prepend /
+    # append them to --mol inputs.
+    pubchem_sdfs = _resolve_pubchem_inputs(args)
+
     # Determine number of components
-    n_mol_inputs = args.mol or []
-    n_smiles_inputs = args.smiles or []
+    n_mol_inputs = list(args.mol or []) + pubchem_sdfs
+    n_smiles_inputs = list(args.smiles or [])
     n_components = max(len(n_mol_inputs), len(n_smiles_inputs))
 
     if n_components == 0:
-        raise ValueError("Provide --mol or --smiles for at least one component.")
+        raise ValueError(
+            "Provide --mol, --smiles, --pubchem_cid, or --pubchem_name for "
+            "at least one component."
+        )
 
     names = args.name or []
     n_mol_list = args.n_mol or []

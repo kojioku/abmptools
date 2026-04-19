@@ -1,6 +1,28 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- `abmptools.amorphous.pubchem` モジュール: PubChem PUG REST API ラッパー
+  - `fetch_3d_sdf(query, by)` / `fetch_smiles(query, by)` / `download_3d_sdf(query, path, by)`
+  - `by` は `cid`, `name`, `smiles`, `inchi`, `inchikey`
+  - 3D conformer が無い場合は `PubChemNo3DError` を明示的に送出
+  - `urllib` 標準ライブラリのみ使用 (追加依存なし)
+  - CLI: `python -m abmptools.amorphous.pubchem --cid 3825 -o out.sdf` / `--name aspirin --smiles-only`
+- `build_amorphous.py` に `--pubchem_cid` / `--pubchem_name` / `--pubchem_cache_dir` オプションを追加
+  - 指定された CID/名前から 3D SDF を取得し、そのまま `--mol` 入力として扱う
+  - ダウンロード済み SDF はデフォルトで `<output_dir>/input/` にキャッシュ
+- `tests/test_pubchem.py`: 11 テスト (network をモックした HTTP 挙動検証)
+
+### Changed
+- README.md: Amorphous Features / Quick Start に PubChem 入力 (`--pubchem_cid`) の記述を追加
+- docs/:
+  - `amorphous.md`: PubChem 自動ダウンロード節を新設、CLI クイックスタートに `--pubchem_cid` 例を追加
+  - `dependencies.md`: amorphous セクション末尾に PubChem 追加依存の記述 (urllib 標準のみ、ただし `pubchem.ncbi.nlm.nih.gov` への HTTPS アクセス必須)
+  - `faq.md`: "Can I fetch 3D SDFs automatically from PubChem?" を追加
+  - `overview.md`: Amorphous Builder 行に PubChem CID 入力を併記
+  - `architecture.md`: Subpackages の amorphous 説明に `amorphous.pubchem` の位置づけを追記
+  - `dataflow.md`: Amorphous Build Pipeline 図の入力部に PubChem 分岐を追加
+  - `ABMPTools-user-manual.md`: amorphous 節に PubChem 入力対応を追記
 
 ## [1.15.2] - 2026-04-19
 ### Added

@@ -25,7 +25,7 @@ ABMPTools is a Python toolkit for pre-processing, post-processing, and analysis 
 | File Conversion | `log2config`, `ajf2config`, `readcif`, `pdbmodify`, `ajfserial` | Format conversion and PDB editing utilities |
 | MD Integration | `udf_io`, `udfrm_io`, `udfcreate`, `gro2udf`, `udf2gro` | OCTA COGNAC UDF file handling and GROMACS ↔ OCTA conversion |
 | Structure Optimization | `geomopt.{MacePdbOptimizer, OpenFFOpenMMMinimizer, QMOptimizerPySCF}` | MACE / OpenFF / PySCF-DFT driven geometry optimization for PDB inputs |
-| Amorphous Builder | `amorphous` (`build_amorphous.py`) | SMILES / SDF multi-component amorphous builder (Packmol + OpenFF + AM1-BCC), auto-generates 5-stage GROMACS annealing protocol and VMD-friendly trajectory post-processing |
+| Amorphous Builder | `amorphous` (`build_amorphous.py`) | SMILES / SDF / PubChem CID (via `amorphous.pubchem`) multi-component amorphous builder (Packmol + OpenFF + AM1-BCC), auto-generates 5-stage GROMACS annealing protocol and VMD-friendly trajectory post-processing |
 
 ## Supported ABINIT-MP Versions
 
