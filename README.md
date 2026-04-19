@@ -44,9 +44,16 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 - **OpenFFOpenMMMinimizer**: OpenFF force-field minimization via OpenMM
 - **QMOptimizerPySCF**: Quantum chemistry optimization with PySCF
 
-### Amorphous Structure Building (`amorphous`)
+### Amorphous Structure Building (`amorphous`, `build_amorphous.py`)
 
-- Multi-component amorphous system construction using Packmol and OpenMM
+- Multi-component amorphous system construction (API + polymer / API + API / binary mixture)
+- Initial structures from either **SMILES** (OpenFF conformer generation) or external **3D SDF/MOL files** (`--mol`)
+- Packmol-based packing + OpenFF force field parameterization + AM1-BCC charges
+- Auto-generates GROMACS inputs and a 5-stage annealing protocol
+  (EM → high-T NVT → high-T NPT → simulated annealing → low-T NPT equilibration)
+- Bundled `md/run_all.sh` drives the MD run; `md/wrap_pbc.sh` post-processes
+  trajectories with `gmx trjconv -pbc mol -ur compact` for VMD-friendly
+  `*_pbc.xtc` / `_pbc.gro` outputs
 
 ## Supported ABINIT-MP Versions
 
@@ -97,9 +104,13 @@ python -m abmptools.udf2gro.cli -i system.udf -o output
 # Convert GROMACS to UDF
 python -m abmptools.gro2udf.cli -i system.gro -t system.top -o output.udf
 
-# Build an amorphous mixture (e.g. 50 ketoprofen molecules, density 0.8 g/cm^3)
+# Build an amorphous mixture from SMILES (50 ketoprofen molecules, density 0.8 g/cm^3)
 python -m abmptools.amorphous --smiles "OC(=O)C(C)c1cccc(C(=O)c2ccccc2)c1" \
     --name ketoprofen --n_mol 50 --density 0.8 --output_dir ./ketoprofen
+
+# Or use an external 3D SDF (e.g. from PubChem) as the initial conformer
+python -m abmptools.amorphous --mol ketoprofen_pubchem_cid3825.sdf \
+    --name ketoprofen --n_mol 50 --density 0.8 --output_dir ./ketoprofen_pubchem
 ```
 
 Use `-h` with any module for full option details.
@@ -148,14 +159,21 @@ public CI runs are unaffected.
 
 ## Samples
 
-Each `sample/` subdirectory contains input data and a `run.sh` script:
+Each `sample/` subdirectory contains input data and a `run.sh` / `run_sample.sh` script:
 
 ```bash
-cd sample/generateajf && bash run.sh
-cd sample/log2cpf && bash run.sh
+# FMO / IFIE / CPF samples
+cd sample/generateajf            && bash run.sh
+cd sample/log2cpf                && bash run.sh
 cd sample/generate_difie/TrpCage && bash run.sh
-cd sample/convertcpf && bash run.sh
+cd sample/convertcpf             && bash run.sh
+
+# Amorphous structure builder samples
+cd sample/amorphous                    && bash run_sample.sh   # pentane / benzene mixture (SMILES)
+cd sample/amorphous/ketoprofen_pubchem && bash run_sample.sh   # ketoprofen via PubChem 3D SDF (CID 3825)
 ```
+
+See [`sample/amorphous/ketoprofen/README.md`](sample/amorphous/ketoprofen/README.md) for a step-by-step walk-through of the ketoprofen amorphous workflow (SMILES input + 5-stage MD + VMD post-processing).
 
 ## Author
 
