@@ -81,3 +81,6 @@ abmptools = ["f90/bin/*.so", "gro2udf/default_template.udf"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow: marks tests that exercise heavy scientific stacks (OpenFF, Packmol, AmberTools). Skipped if deps are absent; can be filtered with `-m 'not slow'`.",
+]
