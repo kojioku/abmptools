@@ -226,6 +226,29 @@ python -m abmptools.amorphous.pubchem --cid 3825 --smiles-only
 | [`sample/amorphous/ketoprofen/`](../sample/amorphous/ketoprofen/) | SMILES | ケトプロフェン 50 分子の詳細手順書 (`README.md`) |
 | [`sample/amorphous/ketoprofen_pubchem/`](../sample/amorphous/ketoprofen_pubchem/) | SDF | PubChem 3D SDF (CID 3825) を `--mol` で読み込む例 (`run_sample.sh` + 入力 SDF 同梱) |
 
+## テスト
+
+amorphous ビルダーには 2 層のテストが用意されています:
+
+| テスト | 件数 | 依存 |
+|---|---|---|
+| `tests/test_builder_mocked.py` | 8 | なし (標準ライブラリのみ)。OpenFF/Packmol/Interchange をすべて mock して `AmorphousBuilder.build()` の 6-stage フロー、返り値 dict、`config.json` 書き出しを検証。CI で常時走らせる層 |
+| `tests/test_builder_integration.py` | 12 | OpenFF + Packmol + AmberTools (sqm) + RDKit。methane ×10, box 2 nm の小系を実際に build 、gro/top/ndx/5 MDP/2 scripts/config.json の構造・整合を spot check。依存が欠けると自動 skip (`@pytest.mark.slow`) |
+
+部品単体のテスト (`test_amorphous_models.py` / `test_density.py` / `test_mdp_protocol.py` / `test_ndx_writer.py` / `test_pubchem.py`) と合わせて 50+ 件で amorphous 機能をカバー。
+
+```bash
+# 常時走る軽量テストだけ
+pytest tests/test_builder_mocked.py tests/test_pubchem.py -v
+
+# 実ビルドまで含めた統合テスト (abmptoolsenv など依存込みの環境で)
+pytest tests/test_builder_integration.py -v
+
+# slow だけ除外 / 実行
+pytest -m "not slow" tests/
+pytest -m slow tests/
+```
+
 ## JSON 設定ファイル例
 
 ```json
