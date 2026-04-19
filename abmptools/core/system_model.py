@@ -25,8 +25,37 @@ __all__ = [
     "NdxData",
     "SimulationParams",
     "AnnealProtocol",
+    "ClusterData",
+    "FixedLabel",
     "SystemModel",
+    "COGNAC_ONLY_ALGOS",
+    "classify_ensemble",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Ensemble / algorithm classification
+# ---------------------------------------------------------------------------
+
+#: Algorithms that exist only in COGNAC and have no GROMACS equivalent.
+#: A SystemModel carrying any of these in ``sim_params.algorithm`` cannot
+#: be serialised as .gro/.top/.mdp; only UDF output is valid.
+COGNAC_ONLY_ALGOS = frozenset({
+    "NPT_Andersen_Kremer_Grest",
+    "NPT_Andersen_Nose_Hoover",
+})
+
+
+def classify_ensemble(algorithm: str) -> str:
+    """Return ``"cognac_only"`` or ``"gromacs_ok"`` for an algorithm name.
+
+    The classification is purely string-based: if the algorithm appears
+    in :data:`COGNAC_ONLY_ALGOS` it is COGNAC-specific, otherwise it is
+    assumed to be representable in GROMACS.
+    """
+    if algorithm in COGNAC_ONLY_ALGOS:
+        return "cognac_only"
+    return "gromacs_ok"
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +268,48 @@ class SimulationParams:
 
 
 # ---------------------------------------------------------------------------
+# COGNAC-specific: cluster placement and per-atom fix labels
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ClusterData:
+    """Cluster-placement information carried alongside the system topology.
+
+    Used when a specific group of molecules needs to be placed as a pre-built
+    cluster (e.g. a water tetramer) rather than distributed by Packmol.
+    Consumed by the COGNAC UDF writer only — ignored by GROMACS writers.
+
+    Attributes
+    ----------
+    xyz : list of (x, y, z) tuples
+        Atom positions of one cluster template (Angstrom).
+    n_per_cluster : int
+        Number of molecules contained in one cluster unit.
+    cluster_file : str
+        Source filename, kept for reproducibility / debugging.
+    """
+    xyz: List[Tuple[float, float, float]] = field(default_factory=list)
+    n_per_cluster: int = 1
+    cluster_file: str = ""
+
+
+@dataclass
+class FixedLabel:
+    """Atoms that should be kept fixed during COGNAC MD.
+
+    Attributes
+    ----------
+    atom_indices : list of int
+        0-based atom indices (within the full topology) to constrain.
+    label : str
+        COGNAC fix label (e.g. ``"fixed"``). Written into the UDF by the
+        COGNAC writer; ignored by GROMACS writers.
+    """
+    atom_indices: List[int] = field(default_factory=list)
+    label: str = "fixed"
+
+
+# ---------------------------------------------------------------------------
 # Annealing protocol (for amorphous builder)
 # ---------------------------------------------------------------------------
 
@@ -300,3 +371,16 @@ class SystemModel:
 
     # --- constraint index (for .ndx, None if no constraints) ---
     ndx_data: Optional[NdxData] = None
+
+    # --- COGNAC-specific extensions (ignored by GROMACS writers) ---
+    cluster_data: Optional[ClusterData] = None
+    fixed_labels: List[FixedLabel] = field(default_factory=list)
+
+    # --- ensemble family flag -------------------------------------------
+    # ``"gromacs_ok"`` : the algorithm in ``sim_params.algorithm`` has a
+    #   GROMACS equivalent → .gro/.top/.mdp can be emitted.
+    # ``"cognac_only"``: COGNAC-specific algorithm (see
+    #   :data:`COGNAC_ONLY_ALGOS`) → GROMACS writers will raise ValueError.
+    # The writer layer checks this; adapters set it via
+    # :func:`classify_ensemble` when building the SystemModel.
+    ensemble_family: str = "gromacs_ok"
