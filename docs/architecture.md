@@ -168,6 +168,17 @@ AJF  ──→ ajfserial  ──→ Numbered AJF files
 PDB  ──→ pdbmodify  ──→ PDB (edited)
 ```
 
+## Subpackages
+
+In addition to the flat `abmptools/*.py` layer described above, the package ships three subpackages that each encapsulate a self-contained workflow:
+
+- **`abmptools.gro2udf` / `abmptools.udf2gro`** — bidirectional conversion between GROMACS (`.gro / .top / .mdp / .itp`) and OCTA COGNAC UDF. See [`gro2udf.md`](gro2udf.md) / [`udf2gro.md`](udf2gro.md).
+- **`abmptools.geomopt`** — pluggable geometry optimization (MACE / OpenFF-OpenMM / PySCF-DFT). Each backend is a lazy-imported class under `geomopt/`. See [`geomopt.md`](geomopt.md) and [`qmopt.md`](qmopt.md).
+- **`abmptools.amorphous`** — multi-component amorphous builder (SMILES / SDF → Packmol packing → OpenFF parameterization with AM1-BCC → GROMACS 5-stage annealing protocol + VMD-friendly PBC wrap script). See [`amorphous.md`](amorphous.md).
+- **`abmptools.core`** — shared `SystemModel` / `AnnealProtocol` dataclasses used by the subpackages above.
+
+All subpackages use lazy imports for heavy scientific dependencies (OpenMM, RDKit, PySCF, etc.), so `import abmptools` remains cheap even if those optional stacks are not installed.
+
 ## Fortran Extension Integration
 
 `abmptools/f90/src/readifiepiedalib.f90` (219 lines) provides a fast log file parser for IFIE/PIEDA data. It is:

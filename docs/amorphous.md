@@ -120,7 +120,19 @@ print(result["box_nm"])     # ボックスサイズ [nm]
     ├── 03_npt_highT.mdp    # 高温NPT
     ├── 04_anneal.mdp       # シミュレーテッドアニーリング
     ├── 05_npt_final.mdp    # 最終NPT平衡化
-    └── run_all.sh          # GROMACS実行スクリプト
+    ├── run_all.sh          # GROMACS実行スクリプト (5-stage 順次)
+    └── wrap_pbc.sh         # PBC ラップ後処理 (VMD 向け, 1.15.2+)
+```
+
+ビルド後に MD を走らせ、`wrap_pbc.sh` を実行すると以下も生成されます:
+
+```
+md/
+├── 02_nvt_highT_pbc.xtc    # 分子単位でラップした xtc (-pbc mol -ur compact)
+├── 03_npt_highT_pbc.xtc
+├── 04_anneal_pbc.xtc
+├── 05_npt_final_pbc.xtc
+└── 05_npt_final_pbc.gro    # 最終構造 (VMD 初期フレーム用)
 ```
 
 ## MDP プロトコル（5段階）
@@ -132,6 +144,32 @@ print(result["box_nm"])     # ボックスサイズ [nm]
 | 3 | 03_npt_highT.mdp | NPT | 600K | 1bar | 200000 | 高温 NPT (P-R) |
 | 4 | 04_anneal.mdp | NPT | 600→300K | 1bar | 500000 | SA: annealing=single |
 | 5 | 05_npt_final.mdp | NPT | 300K | 1bar | 500000 | 最終平衡化 |
+
+## ビルド後のワークフロー
+
+```bash
+# 1. ビルド (SMILES または SDF 入力)
+python build_amorphous.py --smiles "..." --name ... --n_mol ... --output_dir ./run1
+# 2. MD 実行 (GROMACS 必須、CPU 8 コアで 1.3 ns 系なら ~10 分)
+cd run1/md && bash run_all.sh
+# 3. PBC ラップ (VMD 向けトラジェクトリ生成)
+bash wrap_pbc.sh
+# 4. VMD で可視化
+vmd 05_npt_final_pbc.gro -xtc 05_npt_final_pbc.xtc
+# アニーリング過程を見たい場合:
+vmd 04_anneal.tpr -xtc 04_anneal_pbc.xtc
+```
+
+`wrap_pbc.sh` は `gmx trjconv -pbc mol -ur compact` を各 xtc と最終 gro に適用し、
+箱境界で分断された分子を修復したうえで compact box 表示に揃えます。
+
+## 同梱サンプル
+
+| パス | 入力形式 | 説明 |
+|---|---|---|
+| [`sample/amorphous/`](../sample/amorphous/) | SMILES | pentane / benzene 二成分混合 (`run_sample.sh`) |
+| [`sample/amorphous/ketoprofen/`](../sample/amorphous/ketoprofen/) | SMILES | ケトプロフェン 50 分子の詳細手順書 (`README.md`) |
+| [`sample/amorphous/ketoprofen_pubchem/`](../sample/amorphous/ketoprofen_pubchem/) | SDF | PubChem 3D SDF (CID 3825) を `--mol` で読み込む例 (`run_sample.sh` + 入力 SDF 同梱) |
 
 ## JSON 設定ファイル例
 

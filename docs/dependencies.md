@@ -96,6 +96,47 @@ The library is loaded via `ctypes` at runtime and provides significant speedup f
 - MP3/MP4 extraction → requires Fortran module (`readifiepiedalib.so`).
 - PB-IFIE, BSSE-IFIE, monomer/dimer energies → requires pure Python mode (`-nof90`).
 
+## Optional Dependencies — abmptools.amorphous
+
+`abmptools.amorphous` もすべての重い依存を実行時まで遅延インポートするため、
+未インストールでも `import abmptools` は成功します。amorphous ビルダーを動かすには以下が必要です。
+
+### 必須ランタイム
+
+| パッケージ | 用途 | インストール |
+|---|---|---|
+| `openff-toolkit` | 分子準備・力場適用 (SMILES / SDF) | `conda install -c conda-forge openff-toolkit` |
+| `openff-interchange` | GROMACS 形式 (gro/top) への書き出し | `conda install -c conda-forge openff-interchange` |
+| `openmm` | バックエンド (Interchange が内部で使用) | `conda install -c conda-forge openmm` |
+| `rdkit` | SDF 読み込みと化学的サニタイズ | `conda install -c conda-forge rdkit` |
+| `packmol` | 初期配置 (外部バイナリ、CLI で呼ばれる) | `conda install -c conda-forge packmol` |
+
+### 電荷バックエンド (どちらか一方)
+
+| パッケージ | 特徴 |
+|---|---|
+| `ambertools` (AM1-BCC、**推奨**) | `conda install -c conda-forge ambertools` |
+| `openff-nagl` (ML 電荷、AmberTools 不要) | `pip install openff-nagl` |
+
+### 既知の制約: `setuptools<81`
+
+`openff.amber_ff_ports` は `pkg_resources` を `import` するため、
+setuptools 82+ (2025 以降デフォルト) では `ModuleNotFoundError: No module named 'pkg_resources'` が発生します。
+対処:
+
+```bash
+pip install "setuptools<81"
+```
+
+(この注意は geomopt の `pyberny` と同じく、将来的に上流が対応したら不要になります)
+
+### 外部ツール (任意、後処理)
+
+| ツール | 用途 |
+|---|---|
+| `gromacs` (2020+ 推奨、2025.4 で動作確認) | `md/run_all.sh` の実行 + `wrap_pbc.sh` の `gmx trjconv` |
+| `vmd` | 生成された `*_pbc.xtc` / `05_npt_final_pbc.gro` の可視化 |
+
 ## Optional Dependencies — abmptools.geomopt
 
 `abmptools.geomopt` はすべての重い依存を実行時まで遅延インポートするため、
@@ -146,9 +187,13 @@ ABMPTools
 ├── [optional] UDFManager       (OCTA COGNAC MD workflows)
 ├── [optional] gfortran         (build-time, Fortran acceleration)
 ├── [optional] OpenBabel/obabel (XYZ→PDB conversion)
+├── [optional/amorphous]      openff-toolkit, openff-interchange, openmm,
+│                             rdkit, packmol (binary),
+│                             ambertools (AM1-BCC) or openff-nagl (ML)
+│                             + gromacs (for run_all.sh / wrap_pbc.sh)
 ├── [optional/geomopt-mace]   ase, mace-torch, torch
 ├── [optional/geomopt-openff] openmm, openff-toolkit, rdkit
 ├── [optional/geomopt-qm]     pyscf + geometric (or pyberny)
 │                             + simple-dftd3 (or dftd3)  [D3 dispersion]
-└── [build]    setuptools
+└── [build]    setuptools (<81 if using openff.amber_ff_ports)
 ```
