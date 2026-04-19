@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+### Added
+- amorphous: 自動生成される `md/wrap_pbc.sh` (`gmx trjconv -pbc mol -ur compact` を各 xtc / 最終 gro に適用、VMD で開きやすい `*_pbc.xtc` を生成)
+- サンプル `sample/amorphous/ketoprofen_pubchem/`: PubChem 3D SDF (CID 3825, MMFF94 最適化済、水素込み) を `--mol` で読み込む SDF 入力のサンプル一式 (README, run_sample.sh, input SDF 同梱)
+
 ## [1.15.1] - 2026-04-18
 ### Fixed
 - amorphous/packing.py: packmol 21.2.1 (conda-forge) の stdin シークエラー対応 (`stdin=open(inp_path, "rb")` + pdb/output の絶対パス化)
