@@ -65,6 +65,7 @@ class TopExporter:
         model: TopModel,
         template_path: str,
         out_path: str,
+        frames: Optional[List[GROFrameData]] = None,
     ) -> None:
         """
         Write *model* into a new UDF at *out_path* using *template_path* as schema.
@@ -73,10 +74,24 @@ class TopExporter:
         1. copy template → out_path
         2. erase existing dynamic records
         3. write Set_of_Molecules (common record)
-        4. append one Structure record per GRO frame
+        4. append one Structure record per frame in *frames* (or ``model.frames``)
         5. set_default_condition  (electrostatic flag)
         6. write Molecular_Attributes (atom types, potentials)
         7. write Interactions (LJ pair potentials)
+
+        Parameters
+        ----------
+        model : TopModel
+            Topology + FF type definitions. ``model.frames`` is used when
+            ``frames`` is not provided.
+        template_path, out_path : str
+            Template COGNAC UDF (schema source) and destination path.
+        frames : list of GROFrameData, optional
+            Override the structure records. Intended for callers that want
+            the topology from a static build but coordinates from a longer
+            trajectory (e.g. fcewsmb's ``setupgetcontact_gromacs`` injects
+            xtc-sourced frames here via
+            :func:`abmptools.amorphous.trajectory_ingest.frames_from_xtc`).
         """
         from UDFManager import UDFManager
 
@@ -90,7 +105,8 @@ class TopExporter:
 
         self._write_set_of_molecules(uobj, model)
 
-        for frame in model.frames:
+        frames_to_write = frames if frames is not None else model.frames
+        for frame in frames_to_write:
             self._append_structure(uobj, model, frame)
 
         self._set_default_condition(uobj, model)
