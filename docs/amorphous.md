@@ -3,6 +3,11 @@
 API + 短鎖ポリマー（オリゴマー）混合系のアモルファス構造ビルダー。
 OpenFF でパラメータ化 → Packmol で初期配置 → GROMACS アニーリング MD 用ファイル一式を生成。
 
+> **初めて使う方へ**: [amorphous_tutorial.md](amorphous_tutorial.md) の
+> hands-on チュートリアル (同梱サンプル→自前系統→PubChem→JSON の 4 パターン
+> + 出力の歩き方 + つまずきポイント対処) を先に読むのがおすすめ。
+> 本ドキュメントは CLI/API のリファレンスです。
+
 ## インストール
 
 ```bash
