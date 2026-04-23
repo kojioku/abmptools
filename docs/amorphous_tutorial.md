@@ -35,10 +35,10 @@
 ```bash
 micromamba install -n abmptoolsenv -c conda-forge -y \
     openff-toolkit openff-interchange openmm rdkit packmol ambertools
-
-# setuptools を 80.x に固定 (openff.amber_ff_ports の pkg_resources 互換のため)
-~/.local/share/mamba/envs/abmptoolsenv/bin/pip install "setuptools<81"
 ```
+
+これで通常は動きます。もし Stage 4 で `pkg_resources` 関連の ImportError が
+出たら §8-2 を参照 (setuptools の固定)。
 
 ### 1-2. abmptools をインストール
 
