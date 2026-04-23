@@ -8,5 +8,5 @@
   "T_high": 600,
   "seed": 42,
   "forcefield": "openff_unconstrained-2.1.0.offxml",
-  "output_dir": "./pentane_benzene"
+  "output_dir": "."
 }
