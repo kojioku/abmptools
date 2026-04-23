@@ -172,12 +172,14 @@ cd sample/log2cpf                && bash run.sh
 cd sample/generate_difie/TrpCage && bash run.sh
 cd sample/convertcpf             && bash run.sh
 
-# Amorphous structure builder samples
-cd sample/amorphous                    && bash run_sample.sh   # pentane / benzene mixture (SMILES)
-cd sample/amorphous/ketoprofen_pubchem && bash run_sample.sh   # ketoprofen via PubChem 3D SDF (CID 3825)
+# Amorphous structure builder samples — see sample/amorphous/README.md for the full index
+cd sample/amorphous/pentane_benzene     && bash run_sample.sh   # pentane / benzene mixture (SMILES)
+cd sample/amorphous/ketoprofen          && bash run_sample.sh   # ketoprofen (SMILES)
+cd sample/amorphous/ketoprofen_pubchem  && bash run_sample.sh   # ketoprofen via PubChem 3D SDF (CID 3825)
+cd sample/amorphous/mixture_json        && bash run_sample.sh   # multi-component via JSON config
 ```
 
-See [`sample/amorphous/ketoprofen/README.md`](sample/amorphous/ketoprofen/README.md) for a step-by-step walk-through of the ketoprofen amorphous workflow (SMILES input + 5-stage MD + VMD post-processing).
+See [`docs/amorphous_tutorial.md`](docs/amorphous_tutorial.md) for the hands-on walk-through and [`sample/amorphous/ketoprofen/README.md`](sample/amorphous/ketoprofen/README.md) for an annotated run log of the ketoprofen build.
 
 ## Author
 

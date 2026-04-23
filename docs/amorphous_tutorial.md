@@ -68,49 +68,49 @@ python -c "from abmptools.amorphous.cli import main; print('OK')"
 
 ## 2. チュートリアル A: 同梱サンプル (pentane/benzene 混合)
 
-一番手軽。`sample/amorphous/run_sample.sh` が全パラメータ指定済み。
+一番手軽。`sample/amorphous/pentane_benzene/` に全パラメータ指定済み。
 
 ```bash
-cd ~/llm-project/fcews-workspace/abmptools/sample/amorphous
+cd ~/llm-project/fcews-workspace/abmptools/sample/amorphous/pentane_benzene
 bash run_sample.sh
 ```
 
-内部コマンド (参考):
+スクリプトの中身 (参考、同ディレクトリ内で ./input ./build ./md を生成):
 
 ```bash
-python ../../build_amorphous.py \
+python ../../../build_amorphous.py \
     --smiles "CCCCC" "c1ccccc1" \
     --name pentane benzene \
     --n_mol 200 50 \
     --density 0.8 \
     --temperature 300 \
     --seed 42 \
-    --output_dir ./pentane_benzene \
+    --output_dir . \
     -v
 ```
 
 **期待される出力** (末尾):
 
 ```
-=== Build complete: ./pentane_benzene ===
+=== Build complete: . ===
 
 Output files:
-./pentane_benzene/build/mixture.pdb
-./pentane_benzene/build/packmol.inp
-./pentane_benzene/build/packmol.log
-./pentane_benzene/build/system.gro
-./pentane_benzene/build/system.ndx
-./pentane_benzene/build/system.top
-./pentane_benzene/input/component_0.pdb
-./pentane_benzene/input/component_1.pdb
-./pentane_benzene/input/config.json
-./pentane_benzene/md/01_em.mdp
-./pentane_benzene/md/02_nvt_highT.mdp
-./pentane_benzene/md/03_npt_highT.mdp
-./pentane_benzene/md/04_anneal.mdp
-./pentane_benzene/md/05_npt_final.mdp
-./pentane_benzene/md/run_all.sh
-./pentane_benzene/md/wrap_pbc.sh
+./build/mixture.pdb
+./build/packmol.inp
+./build/packmol.log
+./build/system.gro
+./build/system.ndx
+./build/system.top
+./input/component_0.pdb
+./input/component_1.pdb
+./input/config.json
+./md/01_em.mdp
+./md/02_nvt_highT.mdp
+./md/03_npt_highT.mdp
+./md/04_anneal.mdp
+./md/05_npt_final.mdp
+./md/run_all.sh
+./md/wrap_pbc.sh
 ```
 
 所要時間: 200+50 = 250 分子、AM1-BCC 電荷計算含めて **約 2-3 分**。
@@ -119,21 +119,30 @@ Output files:
 
 ## 3. チュートリアル B: 自分の分子を SMILES から作る (ketoprofen)
 
-単成分 50 分子、密度 0.8 g/cm³ の非晶質を作る例。
+単成分 50 分子、密度 0.8 g/cm³ の非晶質を作る例。同梱の `ketoprofen/` を
+そのまま走らせる:
 
 ```bash
-cd ~/llm-project/fcews-workspace/abmptools
+cd ~/llm-project/fcews-workspace/abmptools/sample/amorphous/ketoprofen
+bash run_sample.sh
+```
 
-python build_amorphous.py \
+スクリプト中身:
+
+```bash
+python ../../../build_amorphous.py \
     --smiles "OC(=O)C(C)c1cccc(C(=O)c2ccccc2)c1" \
     --name ketoprofen \
     --n_mol 50 \
     --density 0.8 \
     --temperature 300 \
     --seed 42 \
-    --output_dir ./my_ketoprofen \
+    --output_dir . \
     -v
 ```
+
+自分の分子を作る場合は `--smiles` と `--name` を置換えれば同じフォーマットで
+使える (`--output_dir` は任意のパスで)。
 
 **6 ステージの進行ログ (参考、所要約 80 秒)**:
 
@@ -149,12 +158,12 @@ python build_amorphous.py \
 ### 確認ポイント
 
 ```bash
-cat ./my_ketoprofen/input/config.json
+cat input/config.json
 # 再現用に全パラメータが保存されている
 ```
 
 ```bash
-head ./my_ketoprofen/build/system.gro
+head build/system.gro
 # 1 行目: title、2 行目: 原子数 (50×33=1650)、末尾: box 3 値 (nm)
 ```
 
@@ -211,9 +220,14 @@ except PubChemNo3DError:
 
 ## 5. チュートリアル D: JSON 設定で多成分系
 
-パラメータが多い場合は JSON にまとめる方が楽。
+パラメータが多い場合は JSON にまとめる方が楽。同梱の `mixture_json/` を使う:
 
-`sample/amorphous/mixture.json`:
+```bash
+cd ~/llm-project/fcews-workspace/abmptools/sample/amorphous/mixture_json
+bash run_sample.sh
+```
+
+`mixture.json` の中身:
 
 ```json
 {
@@ -226,18 +240,12 @@ except PubChemNo3DError:
   "T_high": 600,
   "seed": 42,
   "forcefield": "openff_unconstrained-2.1.0.offxml",
-  "output_dir": "./pentane_benzene"
+  "output_dir": "."
 }
 ```
 
-実行:
-
-```bash
-cd ~/llm-project/fcews-workspace/abmptools
-python build_amorphous.py --config sample/amorphous/mixture.json
-```
-
 SDF 入力もサポート: `"sdf": "path/to/mol.sdf"` を components に書く。
+ファイルパスは `mixture.json` からの相対パスで解決される。
 
 ---
 
@@ -405,7 +413,7 @@ python build_amorphous.py ... \
 - `--density` を下げる (0.8 → 0.6)
 - Packmol は配置結果を出す (`mixture.pdb` は生成される) ので、そのまま MD で
   緩和すれば多くの場合解決
-- どうしても駄目なら `sample/amorphous/run_sample.sh` の pentane/benzene
+- どうしても駄目なら `sample/amorphous/pentane_benzene/run_sample.sh`
   (density 0.8) で試して環境が壊れていないかだけ確認
 
 ---
