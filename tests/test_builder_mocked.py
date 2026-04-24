@@ -52,7 +52,9 @@ def _stubbed_builder(tmp_path, monkeypatch):
     )
 
     # prepare_molecule -> returns a FakeMol; no SMILES -> 3D work happens.
-    def _prepare_molecule(smiles="", sdf_path="", name="MOL"):
+    # Accept arbitrary kwargs so future signature additions (e.g.
+    # charge_method) don't force test churn.
+    def _prepare_molecule(smiles="", sdf_path="", name="MOL", **_kw):
         return _FakeMol(name=name, n_atoms=5, mw=16.0)
 
     def _get_molecular_weight(mol):
@@ -69,9 +71,9 @@ def _stubbed_builder(tmp_path, monkeypatch):
         Path(output_pdb).write_text("REMARK fake mixture\nEND\n")
         return str(Path(output_pdb).resolve())
 
-    # parameterizer stubs
+    # parameterizer stubs (accept arbitrary kwargs for forward-compat)
     def _create_interchange(molecules, counts, box_size_nm,
-                            mixture_pdb, forcefield_name):
+                            mixture_pdb, forcefield_name, **_kw):
         return SimpleNamespace(_fake="interchange")
 
     def _export_gromacs(interchange, gro_path, top_path):
@@ -219,7 +221,7 @@ def test_build_requires_n_mol_or_weight_fraction(tmp_path, monkeypatch):
         output_dir=str(tmp_path / "bad"),
     )
 
-    def _prep(smiles="", sdf_path="", name="MOL"):
+    def _prep(smiles="", sdf_path="", name="MOL", **_kw):
         return _FakeMol(name=name)
 
     monkeypatch.setattr(

@@ -46,6 +46,17 @@ class BuildConfig:
     seed: Optional[int] = None
     output_dir: str = "."
 
+    # Charge assignment backend:
+    #   ""         -> Interchange default (AM1-BCC via AmberTools' sqm;
+    #                 requires AmberTools, which has no Windows-native build)
+    #   "am1bcc"   -> same as "" (explicit default)
+    #   "nagl"     -> pre-assign with openff-nagl's ML AM1-BCC approximation,
+    #                 then pass charge_from_molecules to Interchange (works on
+    #                 Windows where sqm is unavailable)
+    #   "gasteiger"-> pre-assign Gasteiger charges (fast, lower fidelity)
+    charge_method: str = ""
+    nagl_model: str = "openff-gnn-am1bcc-0.1.0-rc.3.pt"
+
     # --- MDP overrides ---
     em_steps: int = 50000
     em_tol: float = 1000.0

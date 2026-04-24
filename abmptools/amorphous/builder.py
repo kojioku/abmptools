@@ -135,6 +135,8 @@ class AmorphousBuilder:
                 smiles=comp.smiles,
                 sdf_path=comp.sdf_path,
                 name=comp.name or f"comp_{i}",
+                charge_method=self.config.charge_method,
+                nagl_model=self.config.nagl_model,
             )
             mw = get_molecular_weight(mol)
             comp.molecular_weight = mw
@@ -192,12 +194,17 @@ class AmorphousBuilder:
 
     def _parameterize(self, mixture_pdb: str,
                       gro_path: str, top_path: str) -> Dict[str, str]:
+        # When the user opted into nagl / gasteiger we pre-assigned charges
+        # on each molecule; tell Interchange to reuse them instead of
+        # invoking AM1-BCC via sqm (which has no Windows build).
+        use_precomputed = self.config.charge_method in ("nagl", "gasteiger")
         interchange = create_interchange(
             molecules=self._molecules,
             counts=self._counts,
             box_size_nm=self._box_nm,
             mixture_pdb=mixture_pdb,
             forcefield_name=self.config.forcefield,
+            use_precomputed_charges=use_precomputed,
         )
         return export_gromacs(interchange, gro_path, top_path)
 
