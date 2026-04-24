@@ -732,11 +732,17 @@ MD='OFF'
     def read_ifie(self, fname: str, skipbsse: bool = False, debug: bool = False) -> list[list[Any]]:
         '''
         read ifie from abinitmp output file
+
         Args:
             fname: file name
             skipbsse: skip bsse term
         Returns:
-            ifie: ifie list
+            ifie: ifie list, column layout aligned to the MP2-IFIE format
+                  (``[frag_i, frag_j, DIST, flag, HF/Hartree, MP2/Hartree, ...]``).
+                  For HF-only outputs (``Method='HF'``) the MP2 column is
+                  filled with ``0.0`` so downstream Hartree → kcal/mol
+                  conversion (``x * 627.5095``) and HF+MP2 summation give
+                  a pure-HF IFIE in kcal/mol.
         '''
 
         ifie = []
@@ -751,6 +757,18 @@ MD='OFF'
         except IOError:
             logger.error("can't open %s", fname)
             return ifie
+
+        # One-pass scan: prefer ``## MP2-IFIE``. If not present, fall back
+        # to ``## HF-IFIE`` and rewrite columns so downstream code (which
+        # expects [HF/Hartree, MP2/Hartree] in cols 4-5) sees
+        # [HF/Hartree, 0.0, 0.0]. The HF-only section lists HF three times
+        # (Hartree / kcal/mol / kJ/mol), so the raw cols 5-6 are *not*
+        # the MP2 contribution and must be zeroed.
+        hf_only = not any(
+            (line[:-1].split()[1:2] == ['MP2-IFIE']) for line in text
+            if len(line[:-1].split()) >= 2
+        )
+
         flag = False
         # print text
         for i in range(len(text)):
@@ -763,6 +781,11 @@ MD='OFF'
                 readflag = True
                 # head.append(itemList)
                 # print('READ IFIE start!')
+                continue
+            # HF-only fallback: start reading the ``## HF-IFIE`` table.
+            if hf_only and itemList[1] == 'HF-IFIE':
+                flag = True
+                readflag = True
                 continue
             if itemList[1] in ['PIEDA']:
                 flag = False
@@ -790,7 +813,17 @@ MD='OFF'
             if flag:
                 count += 1
             if flag and count > 2:
-                ifie.append(itemList)
+                if hf_only:
+                    # Normalise to MP2-IFIE column layout: keep HF Hartree
+                    # in col 4, zero out cols 5-6 (were HF/kcal, HF/kJ).
+                    row = list(itemList)
+                    while len(row) < 7:
+                        row.append("0.0")
+                    row[5] = "0.0"
+                    row[6] = "0.0"
+                    ifie.append(row)
+                else:
+                    ifie.append(itemList)
                 if debug:
                     logger.debug(itemList)
         if not readflag:
