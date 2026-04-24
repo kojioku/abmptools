@@ -45,13 +45,15 @@ def create_interchange(
     box_size_nm: float,
     mixture_pdb: str,
     forcefield_name: str = "openff_unconstrained-2.1.0.offxml",
+    use_precomputed_charges: bool = False,
 ) -> Any:
     """Build an OpenFF Interchange for a packed mixture.
 
     Parameters
     ----------
     molecules : list of openff.toolkit.Molecule
-        One OpenFF Molecule per component (with conformer and charges).
+        One OpenFF Molecule per component (with conformer, optionally
+        with pre-assigned partial charges — see *use_precomputed_charges*).
     counts : list of int
         Number of molecules for each component.
     box_size_nm : float
@@ -60,6 +62,13 @@ def create_interchange(
         Path to the Packmol-generated mixture PDB.
     forcefield_name : str
         OpenFF force field OFFXML name.
+    use_precomputed_charges : bool
+        When ``True``, pass *molecules* as ``charge_from_molecules`` to
+        :meth:`Interchange.from_smirnoff`, telling Interchange to reuse
+        the pre-assigned ``partial_charges`` on each Molecule instead of
+        invoking AM1-BCC via ``sqm``. Required for the
+        ``charge_method='nagl'`` / ``'gasteiger'`` path (Windows-native
+        support, since AmberTools' ``sqm`` has no Windows build).
 
     Returns
     -------
@@ -87,11 +96,12 @@ def create_interchange(
     box_vectors = np.eye(3) * box_nm * off_unit.nanometer
     topology.box_vectors = box_vectors
 
-    logger.info("Creating Interchange with %s ...", forcefield_name)
-    interchange = Interchange.from_smirnoff(
-        force_field=ff,
-        topology=topology,
-    )
+    logger.info("Creating Interchange with %s (precomputed charges=%s) ...",
+                forcefield_name, use_precomputed_charges)
+    kwargs = {"force_field": ff, "topology": topology}
+    if use_precomputed_charges:
+        kwargs["charge_from_molecules"] = molecules
+    interchange = Interchange.from_smirnoff(**kwargs)
 
     return interchange
 

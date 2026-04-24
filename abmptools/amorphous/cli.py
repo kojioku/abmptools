@@ -67,6 +67,17 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     md.add_argument("--forcefield", type=str,
                     default="openff_unconstrained-2.1.0.offxml",
                     help="OpenFF force field (default: openff_unconstrained-2.1.0.offxml)")
+    md.add_argument("--charge_method", type=str, default="",
+                    choices=["", "am1bcc", "nagl", "gasteiger"],
+                    help="Partial charge backend: '' / 'am1bcc' (default; "
+                         "Interchange's AM1-BCC via AmberTools sqm — requires "
+                         "Linux/macOS), 'nagl' (ML AM1-BCC via openff-nagl; "
+                         "Windows-compatible), or 'gasteiger' (fast fallback).")
+    md.add_argument("--nagl_model", type=str,
+                    default="openff-gnn-am1bcc-0.1.0-rc.3.pt",
+                    help="openff-nagl model file (used only with "
+                         "--charge_method nagl). Check available models via "
+                         "openff.nagl_models.list_available_nagl_models().")
 
     # --- Packmol ---
     pk = p.add_argument_group("Packmol")
@@ -175,6 +186,8 @@ def _build_config_from_args(args: argparse.Namespace) -> BuildConfig:
         packmol_tolerance=args.packmol_tolerance,
         packmol_path=args.packmol_path,
         output_dir=args.output_dir,
+        charge_method=args.charge_method,
+        nagl_model=args.nagl_model,
     )
 
 
