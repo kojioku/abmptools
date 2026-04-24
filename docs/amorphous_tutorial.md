@@ -12,6 +12,10 @@
 4. MD を走らせて最終構造を得られる
 5. つまずきポイントを回避できる
 
+> **Windows ユーザーへ**: AmberTools (AM1-BCC 用 `sqm`) は Windows native
+> には無い。WSL2 経路 or `openff-nagl` 経路の手順は
+> [amorphous_tutorial_windows.md](amorphous_tutorial_windows.md) を参照。
+
 ---
 
 ## 0. このチュートリアルで作るもの
