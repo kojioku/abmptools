@@ -752,7 +752,11 @@ MD='OFF'
         bsse = []
         readflag = False
         try:
-            with open(fname, "r") as f:
+            # ABINIT-MP occasionally emits non-UTF8 bytes (e.g. a stray
+            # NBSP 0xA0 from memory/time printouts on some builds). Use
+            # latin-1 which accepts any byte and preserves ASCII, since
+            # read_ifie only cares about numeric + ASCII label tokens.
+            with open(fname, "r", encoding="latin-1") as f:
                 text = f.readlines()
         except IOError:
             logger.error("can't open %s", fname)
