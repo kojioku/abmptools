@@ -117,10 +117,12 @@ abmptools 本体 (main, 2026-04-24 以降) には `--charge_method` フラグが
 ### B-4. 実行
 
 ```powershell
+mamba activate abmptoolsenv
+
 cd sample\amorphous\ketoprofen
 
 # run_sample.sh は Linux 向け (AM1-BCC 想定)。Windows では直接 Python 実行:
-mamba run -n abmptoolsenv python ..\..\..\build_amorphous.py `
+python ..\..\..\build_amorphous.py `
     --smiles "OC(=O)C(C)c1cccc(C(=O)c2ccccc2)c1" `
     --name ketoprofen --n_mol 50 --density 0.8 `
     --temperature 300 --seed 42 `
@@ -130,6 +132,25 @@ mamba run -n abmptoolsenv python ..\..\..\build_amorphous.py `
 
 サンプルの `run_sample.sh` を Windows でもそのまま使いたい場合は、スクリプトを
 コピーして末尾の `build_amorphous.py ...` 行に `--charge_method nagl` を足す。
+
+#### 補足: `activate` が使えない環境の場合
+
+企業 PC などで `mamba activate` が PowerShell の ExecutionPolicy 等で
+使えない場合、`micromamba run -n <env> <command>` でその都度起動する形でも
+同じ効果が得られる (env の PATH が CMD プロセスに注入され、`packmol` 等も
+自動的に見つかる):
+
+```powershell
+cd sample\amorphous\ketoprofen
+micromamba run -n abmptoolsenv python ..\..\..\build_amorphous.py `
+    --smiles "OC(=O)C(C)c1cccc(C(=O)c2ccccc2)c1" `
+    --name ketoprofen --n_mol 50 --density 0.8 `
+    --charge_method nagl `
+    --output_dir . -v
+```
+
+動作確認 (B-2) も同様に `micromamba run -n abmptoolsenv python -c ...` /
+`micromamba run -n abmptoolsenv where packmol` で代替できる。
 
 MD:
 
