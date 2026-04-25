@@ -33,6 +33,26 @@ _CHARGE_UNIT = 18.224159264
 # Helpers (ported from udf2gro.py, but now pure functions / instance methods)
 # ---------------------------------------------------------------------------
 
+def _sanitize_gromacs_molname(ss: str) -> str:
+    """Sanitize a UDF Mol_Name into a string usable as GROMACS
+    ``[ moleculetype ] Name``.
+
+    GROMACS doesn't enforce a strict length on mol type names, but the
+    name must not contain whitespace or commenting characters. We
+    replace anything outside ``[A-Za-z0-9_]`` with ``_`` and avoid
+    leading-digit names by prepending ``M_`` if needed. Empty or all-
+    underscore inputs fall back to ``MOL``.
+    """
+    if not ss:
+        return "MOL"
+    out = "".join(c if (c.isalnum() or c == "_") else "_" for c in ss)
+    if out and out[0].isdigit():
+        out = "M_" + out
+    if not out.replace("_", ""):
+        return "MOL"
+    return out
+
+
 def _shorten_molname(ss: str) -> str:
     if len(ss) > 5:
         ss = ss[0] + ss[1] + ss[len(ss)-3] + ss[len(ss)-2] + ss[len(ss)-1]
@@ -289,13 +309,24 @@ class UdfAdapter:
             else:
                 map_molname_atypes[molname] = atypelist
 
+        # GROMACS [ moleculetype ] Name は記号や空白を避ければ長さ制限は
+        # 実質ない。元の UDF Mol_Name をそのまま使い、不正文字だけ '_' に
+        # 置換する (これにより fcewsmb 等の下流が UDF Mol_Name と top の
+        # mol type 名を直接一致させられる)。
+        # 旧挙動 ("M0000", "M0001", ...) は同名ぶつかり時の自動 dedup と、
+        # 5 chars 想定の古いツール用に残す形でフォールバック。
         molname_map = {}
         mol_name = []
+        used = set()
         for j, molname in enumerate(mol_name_list):
             if molname in mol_name:
                 continue
-            molname_gromacs = "M{:04d}".format(j)
-            molname_map[molname] = molname_gromacs
+            sanitized = _sanitize_gromacs_molname(molname)
+            if sanitized in used:
+                # collision (元の名前が衝突する稀ケース) → "M{:04d}" にフォールバック
+                sanitized = "M{:04d}".format(j)
+            used.add(sanitized)
+            molname_map[molname] = sanitized
             mol_name.append(molname)
 
         return mol_name_list, molname_map, mol_name
@@ -369,7 +400,12 @@ class UdfAdapter:
         for m in range(mol_type_num):
             udf_name = mol_name[m]
             gro_raw  = molname_map[udf_name]
-            gro_name = _shorten_molname(gro_raw)
+            # [ moleculetype ] Name は長さ制限が実質ない (whitespace と
+            # コメント文字だけ避ければ良い)。`_sanitize_gromacs_molname`
+            # で既に GROMACS-safe にしてあるのでそのまま使う。
+            # ``_shorten_molname`` (5 chars) は .gro 残基列向けで、
+            # AtomPosition 構築時に別途適用される (lines 678-688 参照)。
+            gro_name = gro_raw
             logger.info("moltype %d %s", m, gro_name)
 
             # find representative molecule index
@@ -657,6 +693,10 @@ class UdfAdapter:
     # ------------------------------------------------------------------
 
     def _build_mol_sequence(self, mol_num, mol_name_list, molname_map):
+        # [ molecules ] section の mol 名は [ moleculetype ] Name と一致させる
+        # 必要があるため、ここでは shorten しない (moleculetype 側も
+        # _build_mol_topologies で full name を使うようにした)。
+        # ``_shorten_molname`` は .gro 残基列 (5 chars) 専用に残してある。
         sequence = []
         if mol_num > 1:
             ncount = 1
@@ -664,17 +704,17 @@ class UdfAdapter:
                 if mol_name_list[i] == mol_name_list[i - 1]:
                     ncount += 1
                     if i == mol_num - 1:
-                        gn = _shorten_molname(molname_map[mol_name_list[i]])
+                        gn = molname_map[mol_name_list[i]]
                         sequence.append((gn, ncount))
                 else:
-                    gn = _shorten_molname(molname_map[mol_name_list[i - 1]])
+                    gn = molname_map[mol_name_list[i - 1]]
                     sequence.append((gn, ncount))
                     ncount = 1
                     if i == mol_num - 1:
-                        gn = _shorten_molname(molname_map[mol_name_list[i]])
+                        gn = molname_map[mol_name_list[i]]
                         sequence.append((gn, ncount))
         else:
-            gn = _shorten_molname(molname_map[mol_name_list[0]])
+            gn = molname_map[mol_name_list[0]]
             sequence.append((gn, 1))
         return sequence
 

@@ -139,7 +139,14 @@ class TopExporter:
                 uobj.put(ncount,
                          "Set_of_Molecules.molecule[].atom[].Atom_ID",
                          [imol, iatom])
-                uobj.put(atom.atom_name,
+                # Atom_Name は element symbol を書く (元素記号として ABINIT-MP
+                # の read_pdb / obabel の xyz→pdb 変換で解釈される)。
+                # GROMACS 由来の atom 名 (e.g. "c30", "hc1") は GAFF 型名
+                # 形式で、obabel が atom type を `*` に変換し、ABINIT-MP が
+                # "Atom type * is not supported" で失敗するため使えない。
+                # 元素は MolAtomSpec.element (TopAdapter が mass から決定済み)。
+                # GAFF 型名は Atom_Type_Name (下の column) に残る。
+                uobj.put(atom.element,
                          "Set_of_Molecules.molecule[].atom[].Atom_Name",
                          [imol, iatom])
                 uobj.put(atom.type_name,
