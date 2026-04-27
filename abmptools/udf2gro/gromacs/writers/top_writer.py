@@ -31,6 +31,60 @@ def _f2s(value: float, ndigit: int) -> str:
     return "{:.15f}".format(value)[:ndigit]
 
 
+def _dedup_angles(angles):
+    """Remove self-angles (ai == ak) and duplicate angle tuples.
+
+    Two angles are equivalent if they share atom2 (vertex) and the
+    end-atom pair {atom1, atom3} matches. We canonicalize by sorting
+    (atom1, atom3) and key on (atom2, sorted-pair). Self-angles where
+    atom1 == atom3 are silently dropped — they are never physically
+    meaningful.
+
+    Some COGNAC UDFs (notably for molecules with sp2/double-bond
+    centers like the C=O in acetone) contain such invalid entries due
+    to an upstream gen_udf quirk; passing them to gmx grompp triggers
+    "Duplicate atom index in angles". This helper guarantees the
+    written topology is grompp-clean regardless of UDF input.
+    """
+    seen = set()
+    out = []
+    for ang in angles:
+        a1, a2, a3 = ang.atom1, ang.atom2, ang.atom3
+        if a1 == a3:
+            continue
+        key = (a2, tuple(sorted((a1, a3))))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(ang)
+    return out
+
+
+def _dedup_dihedrals(dihedrals):
+    """Remove self-dihedrals and duplicate dihedral tuples.
+
+    A dihedral i-j-k-l is invariant under reversal (l-k-j-i defines the
+    same torsion). We dedup by the canonical form
+    ``min((i,j,k,l), (l,k,j,i))``. Any tuple with a repeated atom is a
+    structural impossibility and is dropped.
+
+    Same rationale as :func:`_dedup_angles` — keeps the .top
+    grompp-clean even if the UDF source has spurious entries.
+    """
+    seen = set()
+    out = []
+    for dih in dihedrals:
+        atoms = (dih.atom1, dih.atom2, dih.atom3, dih.atom4)
+        if len(set(atoms)) < 4:
+            continue
+        key = min(atoms, atoms[::-1])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(dih)
+    return out
+
+
 # ---------------------------------------------------------------------------
 # TopWriter
 # ---------------------------------------------------------------------------
@@ -214,7 +268,7 @@ class TopWriter:
         s += "\n"
         f.write(s)
 
-        for ang in topo.angles:
+        for ang in _dedup_angles(topo.angles):
             s = ""
             s = _strr(s, str(ang.atom1),         11)
             s = _strr(s, str(ang.atom2),         11)
@@ -268,7 +322,7 @@ class TopWriter:
         s += "\n"
         f.write(s)
 
-        for dih in topo.dihedrals:
+        for dih in _dedup_dihedrals(topo.dihedrals):
             s = ""
             s = _strr(s, str(dih.atom1), 12)
             s = _strr(s, str(dih.atom2), 12)
