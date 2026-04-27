@@ -258,12 +258,21 @@ def write_run_script(output_dir: str, gro: str = "system.gro",
     return script_path
 
 
+_DEFAULT_OPENFF_STAGES = (
+    "02_nvt_highT", "03_npt_highT", "04_anneal", "05_npt_final",
+)
+_DEFAULT_OPENFF_FINAL_STAGE = "05_npt_final"
+
+
 def write_wrap_script(output_dir: str,
-                      ndx: Optional[str] = "system.ndx") -> str:
+                      ndx: Optional[str] = "system.ndx",
+                      stages: Optional[List[str]] = None,
+                      final_stage: Optional[str] = None) -> str:
     """Write a PBC-wrap script (wrap_pbc.sh) for VMD-friendly trajectories.
 
     Applies ``gmx trjconv -pbc mol -ur compact`` to every produced .xtc and
-    to the final .gro, writing ``<stage>_pbc.xtc`` / ``05_npt_final_pbc.gro``.
+    to the chosen final stage's .gro, writing ``<stage>_pbc.xtc`` /
+    ``<final>_pbc.gro``.
 
     Parameters
     ----------
@@ -272,14 +281,34 @@ def write_wrap_script(output_dir: str,
     ndx : str or None
         Relative path (from md/ perspective) to the system index file.
         If ``None``, no ``-n`` flag is used; group 0 (System) is selected.
+    stages : list of str, optional
+        Stage basenames (each yielding ``<stage>.tpr/.xtc``) to wrap.
+        Defaults to the OpenFF amorphous protocol stages
+        ``02_nvt_highT, 03_npt_highT, 04_anneal, 05_npt_final``. Pass the
+        4-stage hybrid-route stages
+        (``01_nvt_eq, 02_npt_high, 03_npt_low, 04_nvt_sampling``) when
+        wrapping that protocol.
+    final_stage : str, optional
+        Stage whose ``.gro`` is also wrapped (for use as the VMD initial
+        frame). Defaults to ``05_npt_final`` for the OpenFF protocol or
+        the last entry of ``stages`` when ``stages`` is provided.
 
     Returns
     -------
     str
         Path to the generated script.
     """
+    if stages is None:
+        stage_list = list(_DEFAULT_OPENFF_STAGES)
+    else:
+        stage_list = list(stages)
+    if final_stage is None:
+        final_stage = (
+            _DEFAULT_OPENFF_FINAL_STAGE if stages is None else stage_list[-1]
+        )
     build = "../build"
     ndx_flag = f' -n "{build}/{ndx}"' if ndx else ""
+    stage_array = " ".join(stage_list)
     lines = [
         "#!/bin/bash",
         "# Post-processing: wrap trajectories for visualization (e.g. VMD).",
@@ -290,7 +319,7 @@ def write_wrap_script(output_dir: str,
         "# Run this after run_all.sh finishes.",
         "set -e",
         "",
-        'STAGES=(02_nvt_highT 03_npt_highT 04_anneal 05_npt_final)',
+        f'STAGES=({stage_array})',
         "",
         'for stage in "${STAGES[@]}"; do',
         '    [ -f "${stage}.xtc" ] || continue',
@@ -299,13 +328,13 @@ def write_wrap_script(output_dir: str,
         "done",
         "",
         "# Wrap the final structure (useful as the VMD initial frame).",
-        'if [ -f "05_npt_final.gro" ]; then',
-        f'    echo 0 | gmx trjconv -s 05_npt_final.tpr -f 05_npt_final.gro -o 05_npt_final_pbc.gro -pbc mol -ur compact{ndx_flag}',
+        f'if [ -f "{final_stage}.gro" ]; then',
+        f'    echo 0 | gmx trjconv -s {final_stage}.tpr -f {final_stage}.gro -o {final_stage}_pbc.gro -pbc mol -ur compact{ndx_flag}',
         "fi",
         "",
         'echo ""',
         'echo "PBC wrap complete. Example VMD usage:"',
-        'echo "  vmd 05_npt_final_pbc.gro -xtc 05_npt_final_pbc.xtc"',
+        f'echo "  vmd {final_stage}_pbc.gro -xtc {final_stage}_pbc.xtc"',
     ]
     script_path = os.path.join(output_dir, "wrap_pbc.sh")
     Path(script_path).write_text("\n".join(lines) + "\n")

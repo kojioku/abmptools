@@ -14,6 +14,7 @@ from abmptools.amorphous.mdp_protocol import (
     generate_anneal_mdp,
     generate_npt_final_mdp,
     write_all_mdp,
+    write_wrap_script,
 )
 
 
@@ -83,3 +84,59 @@ def test_format_mdp_bool_conversion():
     text = _format_mdp({"gen-vel": True, "continuation": False})
     assert "yes" in text
     assert "no" in text
+
+
+# ---------------------------------------------------------------------------
+# write_wrap_script: stages override (hybrid 4-stage protocol)
+# ---------------------------------------------------------------------------
+
+def test_write_wrap_script_default_uses_openff_stages(tmp_path):
+    path = write_wrap_script(str(tmp_path))
+    text = Path(path).read_text()
+    assert "STAGES=(02_nvt_highT 03_npt_highT 04_anneal 05_npt_final)" in text
+    assert "05_npt_final.gro" in text
+    assert "05_npt_final.tpr" in text
+
+
+def test_write_wrap_script_supports_4stage_hybrid(tmp_path):
+    """fcews-manybody の 4-stage protocol で stages を上書きできる。"""
+    path = write_wrap_script(
+        str(tmp_path),
+        ndx=None,
+        stages=["01_nvt_eq", "02_npt_high",
+                "03_npt_low", "04_nvt_sampling"],
+        final_stage="04_nvt_sampling",
+    )
+    text = Path(path).read_text()
+    assert "STAGES=(01_nvt_eq 02_npt_high 03_npt_low 04_nvt_sampling)" in text
+    assert "04_nvt_sampling.gro" in text
+    assert "04_nvt_sampling_pbc.gro" in text
+    # default OpenFF final stage shouldn't leak in
+    assert "05_npt_final" not in text
+
+
+def test_write_wrap_script_final_stage_defaults_to_last(tmp_path):
+    """final_stage を省略すると stages の末尾が使われる。"""
+    path = write_wrap_script(
+        str(tmp_path),
+        ndx=None,
+        stages=["a", "b", "c"],
+    )
+    text = Path(path).read_text()
+    assert 'if [ -f "c.gro" ]' in text
+    assert "c_pbc.gro" in text
+
+
+def test_write_wrap_script_omits_ndx_when_none(tmp_path):
+    """ndx=None なら -n flag が出ない。"""
+    path = write_wrap_script(str(tmp_path), ndx=None)
+    text = Path(path).read_text()
+    assert " -n " not in text
+
+
+def test_write_wrap_script_includes_ndx_when_given(tmp_path):
+    """ndx 指定があれば -n flag が出る。"""
+    path = write_wrap_script(str(tmp_path), ndx="system.ndx")
+    text = Path(path).read_text()
+    assert "-n " in text
+    assert "system.ndx" in text
