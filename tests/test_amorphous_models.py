@@ -107,3 +107,41 @@ class TestBuildConfig:
         assert cfg.npt_high_nsteps == 200000
         assert cfg.anneal_nsteps == 500000
         assert cfg.npt_low_nsteps == 500000
+
+    def test_forcefield_default_is_openff_organic(self):
+        """forcefield default = openff_unconstrained-2.1.0.offxml (organic only)。"""
+        cfg = BuildConfig()
+        assert cfg.forcefield == "openff_unconstrained-2.1.0.offxml"
+
+    def test_forcefield_accepts_list_for_water_override(self):
+        """forcefield に list[str] を渡すと stacked FF として扱われる。
+
+        典型的用途: water に TIP3P を後ろから上書き。
+        """
+        cfg = BuildConfig(
+            forcefield=[
+                "openff_unconstrained-2.1.0.offxml",
+                "tip3p.offxml",
+            ],
+        )
+        assert isinstance(cfg.forcefield, list)
+        assert len(cfg.forcefield) == 2
+        assert cfg.forcefield[0] == "openff_unconstrained-2.1.0.offxml"
+        assert cfg.forcefield[1] == "tip3p.offxml"
+
+    def test_forcefield_list_round_trips_via_json(self, tmp_path):
+        """list[str] forcefield も to_json / from_json で round-trip する。"""
+        cfg = BuildConfig(
+            forcefield=[
+                "openff_unconstrained-2.1.0.offxml",
+                "tip3p.offxml",
+            ],
+        )
+        json_path = str(tmp_path / "cfg.json")
+        cfg.to_json(json_path)
+        with open(json_path) as f:
+            data = json.load(f)
+        assert data["forcefield"] == [
+            "openff_unconstrained-2.1.0.offxml",
+            "tip3p.offxml",
+        ]
