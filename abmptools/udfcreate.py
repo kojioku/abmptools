@@ -1370,6 +1370,13 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
     def gen_udf(self, udf_param: list, out_name: str, som_param: list) -> None:
         """UDFパラメータからCOGNAC用UDFファイルを生成し、書き出す。
 
+        .. deprecated:: 1.16
+            Use :func:`abmptools.udfcreate_v2.gen_udf_v2` instead, which
+            uses ``UDFManager.put`` + a UDF template instead of Python-string
+            concatenation. ``gen_udf`` will be removed once fcewsmb call
+            sites are migrated and byte-equivalence is verified
+            (Phase 2c-E / D-4 phase 2).
+
         Args:
             udf_param: [セルサイズ, LJパラメータ, ボンドパラメータ, アングルパラメータ,
                         トーションパラメータ, 原子リスト, 総ステップ, 出力間隔,
@@ -1377,6 +1384,15 @@ Action:"cognac_draw.act;cognac_info.act;cognac_plot.act;cognac_anal.act;cognac_e
             out_name: 出力UDFファイルのパス。
             som_param: putsetofmoleculesに渡す分子パラメータリスト。
         """
+        import warnings
+        warnings.warn(
+            "abmptools.udfcreate.udfcreate.gen_udf is deprecated; "
+            "use abmptools.udfcreate_v2.gen_udf_v2 (template-based, "
+            "UDFManager.put-driven). gen_udf will be removed once fcewsmb "
+            "call sites are migrated and byte-equivalence is verified.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         cellsize = udf_param[0]
         ljparam = udf_param[1]
         bondparam = udf_param[2]

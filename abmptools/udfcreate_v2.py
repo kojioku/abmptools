@@ -695,6 +695,170 @@ def molspec_from_legacy(*,
     return spec
 
 
+# ---------------------------------------------------------------------------
+# D-4: Drop-in gen_udf_v2 — same signature as legacy gen_udf
+# ---------------------------------------------------------------------------
+
+
+def gen_udf_v2(udf_param: Sequence,
+               out_name: str,
+               som_param: Sequence,
+               *,
+               template_path: Optional[str] = None) -> str:
+    """Drop-in successor of :meth:`abmptools.udfcreate.udfcreate.gen_udf`.
+
+    Same signature as the legacy ``gen_udf`` for easy call-site
+    migration. Builds the UDF using template + UDFManager.put
+    internally instead of text concatenation.
+
+    Parameters
+    ----------
+    udf_param : sequence (matches legacy layout)
+        ``[cellsize, ljparam, bondparam, angleparam, torsionparam,
+           atom_list, totalstep, outstep, totalmass, algo, poslist]``
+    out_name : str
+        Destination UDF path.
+    som_param : sequence (matches legacy layout)
+        ``[fname, atom, ffname, molname, bondff, bond, angleff, angle,
+           torsionff, torsion, chg]`` (per-molecule-type, length-2 lists
+        because gen_udf supports binary mixtures only).
+    template_path : str, optional
+        UDF template; defaults to bundled ``default_template.udf``.
+
+    Returns
+    -------
+    str
+        Absolute path of the written UDF.
+
+    Notes
+    -----
+    Behaviour parity with legacy ``gen_udf`` is **not yet byte-verified**.
+    Use this only after running a head-to-head ``diff`` against the
+    legacy output for a representative system. fcewsmb's setmbparam
+    call sites have not been switched to v2 — that's a separate
+    verification step (planned in D-4 phase 2).
+    """
+    try:
+        from UDFManager import UDFManager  # type: ignore
+    except ImportError as e:
+        raise RuntimeError(
+            "UDFManager is required by udfcreate_v2.gen_udf_v2 "
+            "(install OCTA / UDFManager Python bindings)."
+        ) from e
+
+    # unpack legacy lists ---------------------------------------------------
+    cellsize    = udf_param[0]
+    ljparam     = udf_param[1]
+    bondparam   = udf_param[2]
+    angleparam  = udf_param[3]
+    torsionparam = udf_param[4]
+    atom_list   = udf_param[5]
+    totalstep   = udf_param[6]
+    outstep     = udf_param[7]
+    # totalmass = udf_param[8]  # not propagated to v2 yet (lives only in
+    #                              the templated default values for now)
+    # algo      = udf_param[9]  # likewise
+    poslist     = udf_param[10]
+
+    fname     = som_param[0]
+    atom      = som_param[1]
+    ffname    = som_param[2]
+    molname   = som_param[3]
+    bondff    = som_param[4]
+    bond      = som_param[5]
+    angleff   = som_param[6]
+    angle     = som_param[7]
+    torsionff = som_param[8]
+    torsion   = som_param[9]
+    chg       = som_param[10]
+
+    # convert raw lists → dataclass form -----------------------------------
+    atom_types     = atom_types_from_legacy(ljparam)
+    bond_types     = bond_types_from_legacy(bondparam, atom_list)
+    angle_types    = angle_types_from_legacy(angleparam, atom_list)
+    torsion_types  = torsion_types_from_legacy(torsionparam, atom_list)
+
+    # Build a MolSpec per molecule type (legacy supports max 2 types). The
+    # adapter assembles per-atom names / type names / charges plus the
+    # bond / angle / torsion connectivity arrays.
+    n_types = min(len(atom), len(ffname), len(molname))
+    mol_specs: List[MolSpec] = []
+    mol_type_names: List[str] = []
+    for k in range(n_types):
+        # atom[k] is gen_udf's per-mol [name, ?, type_name, ...] rows;
+        # we reuse the same column conventions as in the *_from_legacy
+        # adapters (column 0 = display name, column 2 = type name).
+        atom_names_k      = [row[0] for row in atom[k]]
+        atom_type_names_k = [row[2] for row in atom[k]]
+        elements_k        = [row[0][0] for row in atom[k]]  # first letter
+        charges_k         = list(chg[k]) if k < len(chg) else [0.0] * len(atom[k])
+
+        spec = molspec_from_legacy(
+            atom_names=atom_names_k,
+            atom_type_names=atom_type_names_k,
+            elements=elements_k,
+            charges=charges_k,
+            bonds=bond[k] if k < len(bond) else (),
+            bond_potential_names=bondff[k] if k < len(bondff) else (),
+            angles=angle[k] if k < len(angle) else (),
+            angle_potential_names=angleff[k] if k < len(angleff) else (),
+            torsions=torsion[k] if k < len(torsion) else (),
+            torsion_potential_names=torsionff[k] if k < len(torsionff) else (),
+            mol_name=str(molname[k]) if k < len(molname) else f"Mol{k}",
+        )
+        mol_specs.append(spec)
+        mol_type_names.append(str(molname[k]) if k < len(molname)
+                              else f"Mol{k}")
+
+    # Build instance list from poslist (one entry per molecule).
+    # poslist[k] is a list of per-mol coord-arrays for type k.
+    mol_instance_list: List[str] = []
+    flat_coords: List[Sequence[float]] = []
+    for k, per_type in enumerate(poslist):
+        for mol_coords in per_type:
+            mol_instance_list.append(mol_type_names[k])
+            for atom_xyz in mol_coords:
+                flat_coords.append([float(atom_xyz[0]),
+                                    float(atom_xyz[1]),
+                                    float(atom_xyz[2])])
+
+    # write UDF -------------------------------------------------------------
+    template = template_path or _default_template_path()
+    if not os.path.isfile(template):
+        raise FileNotFoundError(f"UDF template not found: {template}")
+
+    out_path = os.path.abspath(out_name)
+    shutil.copy(template, out_path)
+
+    uobj = UDFManager(out_path)
+    uobj.jump(-1)
+
+    set_simulation_time(uobj,
+                        dt=2.04584957182253e-02,  # legacy default; not
+                                                  # yet wired through
+                                                  # udf_param
+                        totalstep=int(totalstep),
+                        outstep=int(outstep))
+    set_initial_cell(uobj, cellsize_nm=cellsize)
+    set_molecular_attributes(uobj,
+                             atom_types=atom_types,
+                             bond_types=bond_types,
+                             angle_types=angle_types,
+                             torsion_types=torsion_types)
+    set_molecules(uobj,
+                  mol_instance_list=mol_instance_list,
+                  mol_type_names=mol_type_names,
+                  mol_specs=mol_specs)
+    set_initial_positions(uobj,
+                          mol_instance_list=mol_instance_list,
+                          mol_type_names=mol_type_names,
+                          mol_specs=mol_specs,
+                          coord_list=flat_coords,
+                          cellsize_nm=cellsize)
+    uobj.write()
+    return out_path
+
+
 def write_skeleton_udf(out_path: str, *,
                        dt: float = 2.04584957182253e-02,
                        totalstep: int = 10000,
