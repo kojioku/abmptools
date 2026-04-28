@@ -413,3 +413,174 @@ def test_write_skeleton_udf_still_works(patched_udfmanager, tmp_path):
         cellsize_nm=[2.0, 2.0, 2.0],
     )
     assert os.path.isfile(out)
+
+
+# ---------------------------------------------------------------------------
+# D-3: Set_of_Molecules + Structure
+# ---------------------------------------------------------------------------
+
+def _make_water_spec():
+    """Tiny MolSpec for tests: 3-atom water (no bonds/angles for simplicity)."""
+    from abmptools.gro2udf.top_model import (
+        MolSpec, MolAtomSpec, MolBondSpec, MolAngleSpec,
+    )
+    spec = MolSpec(name="HOH")
+    spec.atoms = [
+        MolAtomSpec(index_1based=1, atom_name="O", element="O",
+                    type_name="ow", charge=-0.834, global_atom_id=0),
+        MolAtomSpec(index_1based=2, atom_name="H", element="H",
+                    type_name="hw", charge=0.417, global_atom_id=1),
+        MolAtomSpec(index_1based=3, atom_name="H", element="H",
+                    type_name="hw", charge=0.417, global_atom_id=2),
+    ]
+    spec.bonds = [
+        MolBondSpec(atom1=1, atom2=2, type_index=0, potential_name="ow-hw-0"),
+        MolBondSpec(atom1=1, atom2=3, type_index=0, potential_name="ow-hw-0"),
+    ]
+    spec.angles = [
+        MolAngleSpec(atom1=2, atom2=1, atom3=3, type_index=0,
+                     potential_name="hw-ow-hw-0"),
+    ]
+    return spec
+
+
+class TestSetMolecules:
+    def test_writes_per_instance_records(self):
+        from abmptools.udfcreate_v2 import set_molecules
+        u = _StubUDFManager("/tmp/x.udf")
+        spec = _make_water_spec()
+        set_molecules(u,
+                      mol_instance_list=["HOH", "HOH"],
+                      mol_type_names=["HOH"],
+                      mol_specs=[spec])
+        # Mol_Name written for each of 2 instances
+        names = [c for c in u.calls
+                 if c[1] == "Set_of_Molecules.molecule[].Mol_Name"]
+        assert len(names) == 2
+        # Atom_ID is global counter (0..5 for 2× 3-atom water)
+        atom_ids = [c[0] for c in u.calls
+                    if c[1] == "Set_of_Molecules.molecule[].atom[].Atom_ID"]
+        assert atom_ids == [0, 1, 2, 3, 4, 5]
+
+    def test_charge_scaled_by_e2Q(self):
+        from abmptools.udfcreate_v2 import set_molecules, _E2Q
+        u = _StubUDFManager("/tmp/x.udf")
+        set_molecules(u,
+                      mol_instance_list=["HOH"],
+                      mol_type_names=["HOH"],
+                      mol_specs=[_make_water_spec()])
+        chg_calls = [c for c in u.calls
+                     if c[1] ==
+                     "Set_of_Molecules.molecule[].electrostatic_Site[].ES_Element"]
+        # First atom: O charge -0.834 → -0.834 × E2Q
+        assert chg_calls[0][0] == pytest.approx(-0.834 * _E2Q)
+
+    def test_bonds_indexed_0based(self):
+        """gen_udf and TopExporter both write 0-based atom indices in
+        Set_of_Molecules.bond[].atom1/2 even though MolBondSpec stores
+        1-based — we verify the off-by-1 conversion."""
+        from abmptools.udfcreate_v2 import set_molecules
+        u = _StubUDFManager("/tmp/x.udf")
+        set_molecules(u,
+                      mol_instance_list=["HOH"],
+                      mol_type_names=["HOH"],
+                      mol_specs=[_make_water_spec()])
+        # MolBondSpec(atom1=1, atom2=2) → UDF atom1=0, atom2=1
+        a1_calls = [c[0] for c in u.calls
+                    if c[1] == "Set_of_Molecules.molecule[].bond[].atom1"]
+        a2_calls = [c[0] for c in u.calls
+                    if c[1] == "Set_of_Molecules.molecule[].bond[].atom2"]
+        assert a1_calls[0] == 0  # atom1=1 → 0
+        assert a2_calls[0] == 1  # atom2=2 → 1
+
+    def test_angles_indexed_0based(self):
+        from abmptools.udfcreate_v2 import set_molecules
+        u = _StubUDFManager("/tmp/x.udf")
+        set_molecules(u,
+                      mol_instance_list=["HOH"],
+                      mol_type_names=["HOH"],
+                      mol_specs=[_make_water_spec()])
+        a2 = [c[0] for c in u.calls
+              if c[1] == "Set_of_Molecules.molecule[].angle[].atom2"]
+        # Angle(2,1,3) → atom2 = 0
+        assert a2[0] == 0
+
+
+class TestSetInitialPositions:
+    def test_writes_xyz_per_atom(self):
+        from abmptools.udfcreate_v2 import set_initial_positions
+        u = _StubUDFManager("/tmp/x.udf")
+        spec = _make_water_spec()
+        coords = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]]
+        set_initial_positions(
+            u,
+            mol_instance_list=["HOH"],
+            mol_type_names=["HOH"],
+            mol_specs=[spec],
+            coord_list=coords,
+            cellsize_nm=[2.0, 2.0, 2.0],
+        )
+        # 3 atoms × 3 coordinates = 9 position puts
+        pos_calls = [c for c in u.calls
+                     if c[1].startswith("Structure.Position.mol[].atom[].")]
+        assert len(pos_calls) == 9
+
+    def test_writes_cell_size(self):
+        from abmptools.udfcreate_v2 import set_initial_positions
+        u = _StubUDFManager("/tmp/x.udf")
+        set_initial_positions(
+            u,
+            mol_instance_list=["HOH"],
+            mol_type_names=["HOH"],
+            mol_specs=[_make_water_spec()],
+            coord_list=[[0, 0, 0]] * 3,
+            cellsize_nm=[2.5, 2.5, 2.5],
+        )
+        a = next(c for c in u.calls
+                 if c[1] == "Structure.Unit_Cell.Cell_Size.a")
+        assert a[0] == 2.5
+
+    def test_rejects_wrong_cell_shape(self):
+        from abmptools.udfcreate_v2 import set_initial_positions
+        u = _StubUDFManager("/tmp/x.udf")
+        with pytest.raises(ValueError, match="cellsize_nm"):
+            set_initial_positions(
+                u, mol_instance_list=[], mol_type_names=[],
+                mol_specs=[], coord_list=[],
+                cellsize_nm=[1.0, 1.0],
+            )
+
+
+class TestMolspecFromLegacy:
+    def test_atoms_charges_bonds_round_trip(self):
+        from abmptools.udfcreate_v2 import molspec_from_legacy
+        spec = molspec_from_legacy(
+            atom_names=["O", "H", "H"],
+            atom_type_names=["ow", "hw", "hw"],
+            elements=["O", "H", "H"],
+            charges=[-0.834, 0.417, 0.417],
+            bonds=[[1, 2], [1, 3]],
+            bond_potential_names=["ow-hw-0", "ow-hw-0"],
+            angles=[[2, 1, 3]],
+            angle_potential_names=["hw-ow-hw-0"],
+            mol_name="HOH",
+        )
+        assert spec.name == "HOH"
+        assert len(spec.atoms) == 3
+        assert spec.atoms[0].element == "O"
+        assert spec.atoms[0].charge == -0.834
+        assert len(spec.bonds) == 2
+        assert spec.bonds[0].atom1 == 1
+        assert spec.bonds[0].potential_name == "ow-hw-0"
+        assert len(spec.angles) == 1
+        assert spec.angles[0].atom2 == 1
+
+    def test_rejects_mismatched_lengths(self):
+        from abmptools.udfcreate_v2 import molspec_from_legacy
+        with pytest.raises(ValueError, match="atom-list"):
+            molspec_from_legacy(
+                atom_names=["O", "H"],
+                atom_type_names=["ow", "hw", "hw"],  # wrong length
+                elements=["O", "H"],
+                charges=[-1, 1],
+            )
