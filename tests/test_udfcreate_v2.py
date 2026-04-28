@@ -584,3 +584,153 @@ class TestMolspecFromLegacy:
                 elements=["O", "H"],
                 charges=[-1, 1],
             )
+
+
+# ---------------------------------------------------------------------------
+# D-4: gen_udf_v2 drop-in + legacy DeprecationWarning
+# ---------------------------------------------------------------------------
+
+def _legacy_param_for_one_water():
+    """Build minimal udf_param + som_param for a 2-water system.
+
+    Layout matches gen_udf input contracts (per the unpacker comments
+    inside ``udfcreate.gen_udf``).
+    """
+    cellsize = [2.5, 2.5, 2.5]
+    # ljparam[i] = [name, mass, ?, epsilon, sigma_raw, ...]
+    ljparam = [
+        ["ow", 15.999, 0.0, 0.65, 0.316, 0.0, 0.0],
+        ["hw", 1.008,  0.0, 0.0,  0.0,   0.0, 0.0],
+    ]
+    # bondparam[i] = [type1, type2, k_half, R0]
+    bondparam = [["ow", "hw", 2.25e5, 0.0957]]
+    # angleparam[i] = [type1, type2, type3, k, theta0_deg]
+    angleparam = [["hw", "ow", "hw", 400.0, 104.5]]
+    torsionparam = []  # no torsions in water
+    # atom_list[i] = [global_name, ?, type_name, ...]
+    atom_list = [["O1", 0, "ow"], ["H1", 0, "hw"], ["H2", 0, "hw"]]
+    totalstep = 10000
+    outstep = 100
+    totalmass = 18.015
+    algo = ["NVT_Nose_Hoover"]
+    # poslist[mol_type_idx][mol_instance][atom] = [x, y, z]
+    poslist = [
+        [
+            [[0.5, 0.5, 0.5], [0.6, 0.5, 0.5], [0.5, 0.6, 0.5]],
+            [[1.5, 1.5, 1.5], [1.6, 1.5, 1.5], [1.5, 1.6, 1.5]],
+        ],
+        [],  # second mol type empty (single-component water)
+    ]
+    udf_param = [
+        cellsize, ljparam, bondparam, angleparam, torsionparam,
+        atom_list, totalstep, outstep, totalmass, algo, poslist,
+    ]
+
+    # som_param: per-mol-type lists (length-2 because gen_udf expects so)
+    fname    = ["water.xyz", ""]
+    atom     = [
+        # rows: [name, ?, type_name, ...]
+        [["O", 0, "ow"], ["H1", 0, "hw"], ["H2", 0, "hw"]],
+        [],
+    ]
+    ffname   = [["ow", "hw", "hw"], []]
+    molname  = ["HOH", "HOH2"]
+    bondff   = [["ow-hw", "ow-hw"], []]
+    bond     = [[[1, 2], [1, 3]], []]
+    angleff  = [["hw-ow-hw"], []]
+    angle    = [[[2, 1, 3]], []]
+    torsionff = [[], []]
+    torsion  = [[], []]
+    chg      = [[-0.834, 0.417, 0.417], []]
+    som_param = [fname, atom, ffname, molname,
+                 bondff, bond, angleff, angle,
+                 torsionff, torsion, chg]
+
+    return udf_param, som_param
+
+
+def test_legacy_gen_udf_emits_deprecation_warning(tmp_path):
+    """Calling abmptools.udfcreate.udfcreate.gen_udf raises DeprecationWarning.
+
+    We only need to verify the warning is emitted at the entry of the
+    method; whether the legacy text-builder ultimately succeeds or
+    fails downstream isn't relevant to the deprecation contract.
+    """
+    import warnings as _warnings
+    from abmptools.udfcreate import udfcreate
+
+    obj = udfcreate()
+    udf_param, som_param = _legacy_param_for_one_water()
+    out = str(tmp_path / "legacy.udf")
+
+    with _warnings.catch_warnings(record=True) as recorded:
+        _warnings.simplefilter("always")
+        try:
+            obj.gen_udf(udf_param, out, som_param)
+        except Exception:
+            # Legacy path may fail on this stub data after emitting the
+            # warning — that's fine for this test.
+            pass
+
+    dep_warnings = [
+        w for w in recorded if issubclass(w.category, DeprecationWarning)
+    ]
+    assert any("gen_udf_v2" in str(w.message) for w in dep_warnings)
+
+
+def test_gen_udf_v2_writes_file_via_real_udfmanager(tmp_path):
+    """End-to-end: gen_udf_v2 with real UDFManager produces a parseable UDF.
+
+    Skipped when UDFManager isn't installed (CI without OCTA).
+    """
+    udfm = pytest.importorskip("UDFManager")
+    from abmptools.udfcreate_v2 import gen_udf_v2
+
+    udf_param, som_param = _legacy_param_for_one_water()
+    out = str(tmp_path / "v2.udf")
+    written = gen_udf_v2(udf_param, out, som_param)
+    assert os.path.isfile(written)
+
+    # Round-trip key fields
+    u = udfm.UDFManager(written)
+    u.jump(-1)
+    assert u.get(
+        "Simulation_Conditions.Dynamics_Conditions.Time.Total_Steps"
+    ) == 10000
+    assert u.get(
+        "Initial_Structure.Initial_Unit_Cell.Cell_Size.a"
+    ) == 2.5
+    assert u.get(
+        "Molecular_Attributes.Atom_Type[].Name", [0]
+    ) == "ow"
+    # bond[0].atom1 → 0-based (1-1=0)
+    assert u.get(
+        "Set_of_Molecules.molecule[].bond[].atom1", [0, 0]
+    ) == 0
+    # 2 mol instances written (HOH, HOH)
+    assert u.get(
+        "Set_of_Molecules.molecule[].Mol_Name", [0]
+    ) == "HOH"
+    assert u.get(
+        "Set_of_Molecules.molecule[].Mol_Name", [1]
+    ) == "HOH"
+
+
+def test_gen_udf_v2_without_udfmanager_raises(tmp_path):
+    """Lazy import of UDFManager → RuntimeError when missing."""
+    from abmptools.udfcreate_v2 import gen_udf_v2
+
+    udf_param, som_param = _legacy_param_for_one_water()
+    with patch.dict(sys.modules, {"UDFManager": None}):
+        sys.modules.pop("UDFManager", None)
+        orig_import = __builtins__["__import__"] if isinstance(
+            __builtins__, dict) else __builtins__.__import__
+
+        def _forbid(name, *a, **kw):
+            if name == "UDFManager":
+                raise ImportError("simulated missing UDFManager")
+            return orig_import(name, *a, **kw)
+
+        with patch("builtins.__import__", side_effect=_forbid):
+            with pytest.raises(RuntimeError, match="UDFManager is required"):
+                gen_udf_v2(udf_param, str(tmp_path / "x.udf"), som_param)
