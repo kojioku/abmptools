@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field, asdict
+from typing import Any, List, Optional
 from pathlib import Path
-from typing import List, Optional
 
 
 @dataclass
@@ -40,7 +40,16 @@ class BuildConfig:
     temperature: float = 300.0
     T_high: float = 600.0
     pressure: float = 1.0
-    forcefield: str = "openff_unconstrained-2.1.0.offxml"
+    # OpenFF force field OFFXML name(s).
+    # str: 単一 FF (default、organic 全般を openff_unconstrained-2.1.0 で扱う)
+    # List[str]: stacked FFs。後ろが前を override する SMIRKS-overlay 機構で、
+    #   typical 用途は water に専用モデルを当てること:
+    #   ['openff_unconstrained-2.1.0.offxml', 'tip3p.offxml']
+    #   GAFF water の repulsive σ/ε で純 water 系が膨張する問題
+    #   (1.0→0.26 g/cm³) の解決策。OpenFF 標準の 'tip3p.offxml' /
+    #   'tip3p_fb.offxml' / 'spce.offxml' 等を最後に追加すれば water
+    #   分子に SMIRKS マッチして上書きされる。
+    forcefield: Any = "openff_unconstrained-2.1.0.offxml"
     packmol_tolerance: float = 2.0
     packmol_path: str = "packmol"
     seed: Optional[int] = None
