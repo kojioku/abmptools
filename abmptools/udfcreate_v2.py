@@ -69,7 +69,17 @@ from .gro2udf.top_model import (
     BondTypeSpec,
     AngleTypeSpec,
     TorsionTypeSpec,
+    MolSpec,
+    MolAtomSpec,
+    MolBondSpec,
+    MolAngleSpec,
+    MolTorsionSpec,
 )
+
+
+# Conversion factor: gen_udf's putpointcharge writes charge × e2Q; we keep
+# the same constant so v2 is byte-equivalent on the electrostatic side.
+_E2Q = 18.224159264
 
 logger = logging.getLogger(__name__)
 
@@ -414,6 +424,275 @@ def torsion_types_from_legacy(paramfile: Sequence,
                                    funct=funct, improper=improper,
                                    params=[float(p) for p in params]))
     return out
+
+
+# ---------------------------------------------------------------------------
+# D-3: Set_of_Molecules + Structure.Position
+# ---------------------------------------------------------------------------
+
+
+def set_molecules(uobj,
+                  mol_instance_list: Sequence[str],
+                  mol_type_names: Sequence[str],
+                  mol_specs: Sequence[MolSpec]) -> None:
+    """Populate ``Set_of_Molecules`` (per-molecule atoms / bonds / angles / torsions).
+
+    Equivalent to the ``putsetofmolecules`` text helper. Each entry in
+    ``mol_instance_list`` is a molecule type name; we look up the spec
+    via ``mol_type_names`` and emit one ``molecule[]`` record per
+    instance.
+
+    Parameters
+    ----------
+    uobj : UDFManager instance, jumped to the common record (-1).
+    mol_instance_list : sequence of str
+        Per-instance type name (one entry per individual molecule).
+        E.g. ``["MolA", "MolA", "MolB"]`` for 2× MolA + 1× MolB.
+    mol_type_names : sequence of str
+        Unique molecule type names (order matters for index lookup).
+    mol_specs : sequence of :class:`MolSpec`
+        Topology per molecule type, indexed by ``mol_type_names``.
+    """
+    ncount = 0
+    # --- atom / electrostatic / interaction site per molecule instance ---
+    for imol, mol_name in enumerate(mol_instance_list):
+        mol_idx = mol_type_names.index(mol_name)
+        spec = mol_specs[mol_idx]
+
+        uobj.put(mol_name, "Set_of_Molecules.molecule[].Mol_Name", [imol])
+
+        for iatom, atom in enumerate(spec.atoms):
+            uobj.put(ncount,
+                     "Set_of_Molecules.molecule[].atom[].Atom_ID",
+                     [imol, iatom])
+            uobj.put(atom.element,
+                     "Set_of_Molecules.molecule[].atom[].Atom_Name",
+                     [imol, iatom])
+            uobj.put(atom.type_name,
+                     "Set_of_Molecules.molecule[].atom[].Atom_Type_Name",
+                     [imol, iatom])
+            uobj.put(0,
+                     "Set_of_Molecules.molecule[].atom[].Chirality",
+                     [imol, iatom])
+            uobj.put(1,
+                     "Set_of_Molecules.molecule[].atom[].Main_Chain",
+                     [imol, iatom])
+
+            uobj.put("POINT_CHARGE",
+                     "Set_of_Molecules.molecule[].electrostatic_Site[].Type_Name",
+                     [imol, iatom])
+            uobj.put(atom.charge * _E2Q,
+                     "Set_of_Molecules.molecule[].electrostatic_Site[].ES_Element",
+                     [imol, iatom])
+            uobj.put(iatom,
+                     "Set_of_Molecules.molecule[].electrostatic_Site[].atom[]",
+                     [imol, iatom, 0])
+
+            uobj.put(atom.type_name,
+                     "Set_of_Molecules.molecule[].interaction_Site[].Type_Name",
+                     [imol, iatom])
+            uobj.put(iatom,
+                     "Set_of_Molecules.molecule[].interaction_Site[].atom[]",
+                     [imol, iatom, 0])
+            ncount += 1
+
+    # --- bonds / angles / torsions per molecule instance ---
+    for imol, mol_name in enumerate(mol_instance_list):
+        mol_idx = mol_type_names.index(mol_name)
+        spec = mol_specs[mol_idx]
+
+        for idat, bond in enumerate(spec.bonds):
+            uobj.put(bond.potential_name,
+                     "Set_of_Molecules.molecule[].bond[].Potential_Name",
+                     [imol, idat])
+            uobj.put(bond.atom1 - 1,
+                     "Set_of_Molecules.molecule[].bond[].atom1",
+                     [imol, idat])
+            uobj.put(bond.atom2 - 1,
+                     "Set_of_Molecules.molecule[].bond[].atom2",
+                     [imol, idat])
+            uobj.put(1.0,
+                     "Set_of_Molecules.molecule[].bond[].Order",
+                     [imol, idat])
+
+        for idat, ang in enumerate(spec.angles):
+            uobj.put(ang.potential_name,
+                     "Set_of_Molecules.molecule[].angle[].Potential_Name",
+                     [imol, idat])
+            uobj.put(ang.atom1 - 1,
+                     "Set_of_Molecules.molecule[].angle[].atom1",
+                     [imol, idat])
+            uobj.put(ang.atom2 - 1,
+                     "Set_of_Molecules.molecule[].angle[].atom2",
+                     [imol, idat])
+            uobj.put(ang.atom3 - 1,
+                     "Set_of_Molecules.molecule[].angle[].atom3",
+                     [imol, idat])
+
+        for idat, tors in enumerate(spec.torsions):
+            uobj.put(tors.potential_name,
+                     "Set_of_Molecules.molecule[].torsion[].Potential_Name",
+                     [imol, idat])
+            uobj.put(tors.atom1 - 1,
+                     "Set_of_Molecules.molecule[].torsion[].atom1",
+                     [imol, idat])
+            uobj.put(tors.atom2 - 1,
+                     "Set_of_Molecules.molecule[].torsion[].atom2",
+                     [imol, idat])
+            uobj.put(tors.atom3 - 1,
+                     "Set_of_Molecules.molecule[].torsion[].atom3",
+                     [imol, idat])
+            uobj.put(tors.atom4 - 1,
+                     "Set_of_Molecules.molecule[].torsion[].atom4",
+                     [imol, idat])
+
+
+def set_initial_positions(uobj,
+                          mol_instance_list: Sequence[str],
+                          mol_type_names: Sequence[str],
+                          mol_specs: Sequence[MolSpec],
+                          coord_list: Sequence[Sequence[float]],
+                          cellsize_nm: Sequence[float],
+                          unit: str = "[nm]") -> None:
+    """Populate the initial frame's ``Structure.Position`` + cell.
+
+    Equivalent to the ``putstructure`` text helper. Writes ONE frame
+    (the initial structure) into the common record. Trajectory frames
+    are appended separately by callers via ``uobj.newRecord()`` —
+    matching :class:`TopExporter._append_structure` semantics.
+
+    Parameters
+    ----------
+    uobj : UDFManager instance, jumped to common record (-1) or after
+        a freshly opened newRecord() for trajectory appending.
+    mol_instance_list, mol_type_names, mol_specs : same as
+        :func:`set_molecules`.
+    coord_list : sequence of [x, y, z]
+        One entry per atom in the same order as the flattened
+        ``mol_instance_list × mol_specs.atoms``. Units controlled by
+        ``unit`` (default ``[nm]``).
+    cellsize_nm : sequence of 3 floats
+        Box edge lengths.
+    unit : str
+        UDFManager unit tag for positions; default "[nm]".
+    """
+    if len(cellsize_nm) != 3:
+        raise ValueError(
+            f"cellsize_nm must have 3 elements, got {len(cellsize_nm)}"
+        )
+    ncount = 0
+    for imol, mol_name in enumerate(mol_instance_list):
+        mol_idx = mol_type_names.index(mol_name)
+        spec = mol_specs[mol_idx]
+        for iatom in range(len(spec.atoms)):
+            x, y, z = coord_list[ncount]
+            uobj.put(x, "Structure.Position.mol[].atom[].x",
+                     [imol, iatom], unit)
+            uobj.put(y, "Structure.Position.mol[].atom[].y",
+                     [imol, iatom], unit)
+            uobj.put(z, "Structure.Position.mol[].atom[].z",
+                     [imol, iatom], unit)
+            ncount += 1
+
+    # cell on the same record
+    base = "Structure.Unit_Cell.Cell_Size"
+    uobj.put(float(cellsize_nm[0]), f"{base}.a", unit)
+    uobj.put(float(cellsize_nm[1]), f"{base}.b", unit)
+    uobj.put(float(cellsize_nm[2]), f"{base}.c", unit)
+    uobj.put(90.0, f"{base}.alpha")
+    uobj.put(90.0, f"{base}.beta")
+    uobj.put(90.0, f"{base}.gamma")
+
+
+# ---------------------------------------------------------------------------
+# Legacy-list adapter for Set_of_Molecules
+# ---------------------------------------------------------------------------
+
+
+def molspec_from_legacy(*,
+                        atom_names: Sequence[str],
+                        atom_type_names: Sequence[str],
+                        elements: Sequence[str],
+                        charges: Sequence[float],
+                        bonds: Sequence[Sequence[int]] = (),
+                        bond_potential_names: Sequence[str] = (),
+                        angles: Sequence[Sequence[int]] = (),
+                        angle_potential_names: Sequence[str] = (),
+                        torsions: Sequence[Sequence[int]] = (),
+                        torsion_potential_names: Sequence[str] = (),
+                        mol_name: str = "MolA") -> MolSpec:
+    """Build a :class:`MolSpec` from gen_udf's flat Python lists.
+
+    The original ``putsetofmolecules`` takes per-molecule arrays for
+    atoms / bonds / angles / torsions / point-charges. This adapter
+    converts that flat shape into the dataclass form so :func:`set_molecules`
+    can consume it.
+
+    Parameters
+    ----------
+    atom_names : per-atom display name (typically equals atom_type_name
+        in gen_udf)
+    atom_type_names : per-atom GAFF type
+    elements : per-atom element symbol (used for Atom_Name in UDF)
+    charges : per-atom partial charge [e]
+    bonds : list of [atom1_1based, atom2_1based]
+    bond_potential_names : per-bond potential type name
+    angles : list of [atom1, atom2, atom3] (1-based)
+    angle_potential_names : per-angle potential type name
+    torsions : list of [atom1, atom2, atom3, atom4] (1-based)
+    torsion_potential_names : per-torsion potential type name
+    mol_name : molecule type name (becomes ``MolSpec.name``)
+
+    Returns
+    -------
+    MolSpec
+    """
+    n_atoms = len(atom_names)
+    if not (len(atom_type_names) == n_atoms
+            and len(elements) == n_atoms
+            and len(charges) == n_atoms):
+        raise ValueError("atom-list inputs must all have the same length")
+
+    spec = MolSpec(name=mol_name)
+    for i in range(n_atoms):
+        spec.atoms.append(MolAtomSpec(
+            index_1based=i + 1,
+            atom_name=str(atom_names[i]),
+            element=str(elements[i]),
+            type_name=str(atom_type_names[i]),
+            charge=float(charges[i]),
+            global_atom_id=i,
+        ))
+    for i, b in enumerate(bonds):
+        spec.bonds.append(MolBondSpec(
+            atom1=int(b[0]),
+            atom2=int(b[1]),
+            type_index=0,
+            potential_name=str(bond_potential_names[i])
+            if i < len(bond_potential_names) else "",
+        ))
+    for i, a in enumerate(angles):
+        spec.angles.append(MolAngleSpec(
+            atom1=int(a[0]),
+            atom2=int(a[1]),
+            atom3=int(a[2]),
+            type_index=0,
+            potential_name=str(angle_potential_names[i])
+            if i < len(angle_potential_names) else "",
+        ))
+    for i, t in enumerate(torsions):
+        spec.torsions.append(MolTorsionSpec(
+            atom1=int(t[0]),
+            atom2=int(t[1]),
+            atom3=int(t[2]),
+            atom4=int(t[3]),
+            funct=1,
+            improper=False,
+            n_params=3,
+            potential_name=str(torsion_potential_names[i])
+            if i < len(torsion_potential_names) else "",
+        ))
+    return spec
 
 
 def write_skeleton_udf(out_path: str, *,
