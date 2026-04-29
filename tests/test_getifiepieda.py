@@ -156,13 +156,21 @@ class TestSetupmode:
         return types.SimpleNamespace()
 
     def _call_setupmode(self, args_overrides):
-        """Patch module-level `args` and call setupmode."""
+        """Build a fake args namespace and call setupmode(aobj, args).
+
+        ``setupmode`` was refactored to take ``args`` as a positional
+        parameter rather than reading a module-level global, so tests
+        now pass ``fake_args`` directly. The legacy
+        ``mod.args = fake_args`` patching still happens as a defence
+        in case any helper inside ``setupmode`` falls back to the
+        module-level reference (none currently do, but the assignment
+        is cheap and keeps the test resilient if that changes).
+        """
         import abmptools.getifiepieda as mod
         fake_args = self._make_args(**args_overrides)
-        # setupmode reads the module-global `args`
         mod.args = fake_args
         aobj = self._make_aobj()
-        result = mod.setupmode(aobj)
+        result = mod.setupmode(aobj, fake_args)
         return aobj, result
 
     # -- frag mode, single target ----
