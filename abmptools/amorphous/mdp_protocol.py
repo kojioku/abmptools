@@ -222,6 +222,13 @@ def write_run_script(output_dir: str, gro: str = "system.gro",
     """
     build = "../build"
     ndx_flag = f" -n {build}/{ndx}" if ndx else ""
+    # ``-ntmpi 1`` forces a single MPI rank → no domain decomposition.
+    # Without this, the cooling phase (anneal / npt_final) can shrink
+    # the box below ``rlist × DD-cells`` and crash with
+    # ``box size in direction X is too small for a cut-off`` once the
+    # liquid re-condenses. Single rank still gets full multi-thread
+    # speed via OpenMP, so the slowdown is negligible for the small
+    # systems amorphous build typically targets.
     lines = [
         "#!/bin/bash",
         "set -e",
@@ -229,26 +236,27 @@ def write_run_script(output_dir: str, gro: str = "system.gro",
         f'BUILD="{build}"',
         f'GRO="$BUILD/{gro}"',
         f'TOP="$BUILD/{top}"',
+        'MDRUN_OPTS="${MDRUN_OPTS:--ntmpi 1}"',
         "",
         "# Stage 1: Energy minimisation",
         f'gmx grompp -f 01_em.mdp -c "$GRO" -p "$TOP"{ndx_flag} -o 01_em.tpr -maxwarn 2',
-        "gmx mdrun -deffnm 01_em",
+        'gmx mdrun $MDRUN_OPTS -deffnm 01_em',
         "",
         "# Stage 2: NVT high-T",
         f'gmx grompp -f 02_nvt_highT.mdp -c 01_em.gro -p "$TOP"{ndx_flag} -o 02_nvt_highT.tpr -maxwarn 2',
-        "gmx mdrun -deffnm 02_nvt_highT",
+        'gmx mdrun $MDRUN_OPTS -deffnm 02_nvt_highT',
         "",
         "# Stage 3: NPT high-T",
         f'gmx grompp -f 03_npt_highT.mdp -c 02_nvt_highT.gro -p "$TOP"{ndx_flag} -o 03_npt_highT.tpr -maxwarn 2',
-        "gmx mdrun -deffnm 03_npt_highT",
+        'gmx mdrun $MDRUN_OPTS -deffnm 03_npt_highT',
         "",
         "# Stage 4: Simulated annealing",
         f'gmx grompp -f 04_anneal.mdp -c 03_npt_highT.gro -p "$TOP"{ndx_flag} -o 04_anneal.tpr -maxwarn 2',
-        "gmx mdrun -deffnm 04_anneal",
+        'gmx mdrun $MDRUN_OPTS -deffnm 04_anneal',
         "",
         "# Stage 5: NPT final equilibration",
         f'gmx grompp -f 05_npt_final.mdp -c 04_anneal.gro -p "$TOP"{ndx_flag} -o 05_npt_final.tpr -maxwarn 2',
-        "gmx mdrun -deffnm 05_npt_final",
+        'gmx mdrun $MDRUN_OPTS -deffnm 05_npt_final',
         "",
         'echo "All stages completed successfully."',
     ]

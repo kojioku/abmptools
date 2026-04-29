@@ -45,7 +45,13 @@ def write_ndx(
         Absolute path to the written file.
     """
     all_indices: List[int] = []
+    # Aggregate by name so pure-component pairs (e.g. ["B_water", "B_water"])
+    # collapse into a single group covering all that component's atoms.
+    # Otherwise the second occurrence's slice would shadow the first,
+    # leaving only half the atoms in the group, and grompp's tc-grps
+    # would mismatch ref-t / tau-t cardinality.
     groups: Dict[str, List[int]] = {}
+    name_order: List[str] = []
 
     atom_id = 1
     for comp_name, n_atoms, n_mol in zip(component_names, atom_counts_per_mol, mol_counts):
@@ -54,11 +60,15 @@ def write_ndx(
             for _ in range(n_atoms):
                 comp_indices.append(atom_id)
                 atom_id += 1
-        groups[comp_name] = comp_indices
+        if comp_name in groups:
+            groups[comp_name].extend(comp_indices)
+        else:
+            groups[comp_name] = comp_indices
+            name_order.append(comp_name)
         all_indices.extend(comp_indices)
 
     sections = [_format_index_group("System", all_indices)]
-    for comp_name in component_names:
+    for comp_name in name_order:
         sections.append(_format_index_group(comp_name, groups[comp_name]))
 
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)

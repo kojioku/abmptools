@@ -228,7 +228,18 @@ class AmorphousBuilder:
         )
 
     def _tc_grps_string(self) -> str:
-        """Build the tc-grps string for MDP (e.g. 'API Polymer')."""
-        names = [c.name or f"comp_{i}"
-                 for i, c in enumerate(self.config.components)]
-        return " ".join(names)
+        """Build the tc-grps string for MDP (e.g. 'API Polymer').
+
+        Names are deduplicated while preserving first-seen order so that
+        pure-component pairs (e.g. ``ComponentSpec(name='B_water', ...)``
+        × 2) emit a single group, matching the single ``ref-t`` /
+        ``tau-t`` value emitted by :func:`mdp_protocol._thermostat_block`.
+        Without dedup, grompp rejects the mdp with
+        ``Invalid T coupling input: 2 groups, 1 ref-t values``.
+        """
+        seen: dict[str, None] = {}
+        for i, c in enumerate(self.config.components):
+            name = c.name or f"comp_{i}"
+            if name not in seen:
+                seen[name] = None
+        return " ".join(seen.keys())
