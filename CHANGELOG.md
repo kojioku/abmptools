@@ -14,12 +14,40 @@
   (GROMACS .top 出力は `interchange.to_top()` を直接使う想定)
 - テスト 23 件追加 (`tests/test_system_model_extensions.py` / `tests/test_interchange_adapter.py`、
   integration は `@pytest.mark.slow`)
+- **`abmptools.amorphous` で stacked force fields (water FF override)** (`9e4ee46`)
+  - `BuildConfig.forcefield: Any` (旧 `str`)。`str` 単一 FF または `list[str] | tuple[str]`
+    で SMIRKS-overlay (後ろが前を上書き) として `OpenFF ForceField(*names)` に展開
+  - `create_interchange.forcefield_name` 引数も同様に `str | Sequence[str]` 受付
+  - 典型用途: `['openff_unconstrained-2.1.0.offxml', 'tip3p.offxml']` で organic は
+    OpenFF organic、water 分子のみ TIP3P。GAFF/openff-water の repulsive σ/ε で
+    純 water 系が 1.0 → 0.26 g/cm³ に膨張する問題への根本対策
+  - 実機検証: pure water (200 TIP3P) anneal stage で density=0.991 g/cm³
+    (literature ~0.99 g/cm³ at 298 K) を 2026-04-29 確認
+  - tests/test_parameterizer.py (新規、5 件): str / list / tuple / 空 list / default 単一 FF
+  - tests/test_amorphous_models.py: BuildConfig roundtrip with list[str] forcefield (3 件追加)
 
 ### Changed
 - `abmptools.udf2gro.gromacs.writers` の GroWriter / TopWriter / MdpWriter / ItpWriter で
   `ensemble_family == "cognac_only"` を検出した場合に `ValueError` を送出
   (共有ヘルパー `_validator.raise_if_cognac_only`)。COGNAC 固有アンサンブル
   (`NPT_Andersen_Kremer_Grest` 等) を GROMACS 形式で誤って書き出すことを防ぐ
+
+### Fixed
+- **pure-component pair (同名 component 2 個) で発生していた 3 件の runtime bug** (`d385fb3`)
+  - `builder._tc_grps_string()`: component name が dedup されず `tc-grps = B_water B_water`
+    (2 group) を出していた。`mdp_protocol` は `ref-t` / `tau-t` を 1 値しか書かないため
+    grompp が `Invalid T coupling input: 2 groups, 1 ref-t values` で fatal。
+    first-seen-order を保つ dict dedup で修正
+  - `ndx_writer.write_ndx()`: `groups[comp_name] = comp_indices` という上書き書きで、
+    pure-pair の 2 周目が 1 周目を silently overwrite していた。例: 200 H2O が
+    `[ B_water ]` group には atom 301..600 しか入らず、grompp の `tc-grps`
+    と atom 数で整合しない。aggregate-by-name (`groups[name].extend(...)`) に修正
+  - `mdp_protocol.write_run_script()`: 既定で `gmx mdrun` (= 3 tMPI ranks) を発行。
+    凝縮系 (water 等) は NPT-high の 600 K で気化 → anneal 冷却で液相に再凝集 →
+    box が ~1.8 nm まで縮み、`box size in direction X is too small for a cut-off
+    of 1.214 nm with 3 domain decomposition cells` で停止。`MDRUN_OPTS="${MDRUN_OPTS:--ntmpi 1}"`
+    を default に変更し DD 自体を無効化 (OpenMP は引き続き効くので速度低下なし)。
+    ユーザー側で `MDRUN_OPTS=...` で override 可能
 
 ## [1.15.4] - 2026-04-19
 ### Added
