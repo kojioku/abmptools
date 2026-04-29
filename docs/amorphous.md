@@ -87,6 +87,56 @@ print(result["top"])        # system.top のパス
 print(result["box_nm"])     # ボックスサイズ [nm]
 ```
 
+### Force field override (water 等の専用 FF)
+
+`BuildConfig.forcefield` は `str` (単一 FF) または `list[str] | tuple[str]`
+(stacked FF) を受け付ける。後者は OpenFF ForceField の SMIRKS-overlay 機構で、
+**後ろの FF が前を上書き** する。water 含む系で OpenFF/GAFF organic FF の
+σ/ε が repulsive 過剰になり、純 water box が 1.0 → 0.26 g/cm³ に膨張する
+既知問題への根本対策に使う:
+
+```python
+from abmptools.amorphous import AmorphousBuilder, BuildConfig, ComponentSpec
+
+config = BuildConfig(
+    components=[
+        ComponentSpec(smiles="CO", name="A_methanol", n_mol=100),
+        ComponentSpec(smiles="O",  name="B_water",    n_mol=100),
+    ],
+    density_g_cm3=0.6,
+    temperature=300,
+    forcefield=[
+        "openff_unconstrained-2.1.0.offxml",  # organic 全般
+        "tip3p.offxml",                       # water 分子のみ上書き
+    ],
+    output_dir="./output_meoh_water",
+)
+result = AmorphousBuilder(config).build()
+```
+
+利用可能な OpenFF 公式 water FF (`openff-forcefields` パッケージ同梱):
+- `tip3p.offxml` — 古典 TIP3P
+- `tip3p_fb.offxml` — TIP3P-FB (refit)
+- `spce.offxml` — SPC/E
+
+実機検証 (2026-04-29): pure water (200 TIP3P, 300 K, 5-stage MD) の anneal
+stage で **density = 0.991 g/cm³**、TIP3P literature (~0.99 g/cm³ at 298 K)
+と完全一致。同条件の OpenFF organic 単独だと 0.26 g/cm³ に縮む。
+
+### Pure-component pair (同名 component 2 個) の動作
+
+`ComponentSpec(name="X")` を 2 個並べた場合 (例: A-B χ 計算で A=B にする
+self-pair)、内部で以下が自動 dedup される:
+
+- `mdp` の `tc-grps` は `"X"` (1 group) → `ref-t` / `tau-t` の単一値と整合
+- `system.ndx` の `[ X ]` group は **両方の component の atom を集約** (片方
+  だけ書かれて atom 半分が抜ける fail mode は v?? で修正済)
+- `run_all.sh` は default で `MDRUN_OPTS="${MDRUN_OPTS:--ntmpi 1}"` を使う
+  (DD 無効化)。凝縮系で box が cooling 中に縮んだ際の `box size ... is too
+  small for a cut-off ... with 3 domain decomposition cells` を回避。
+  override したい場合は `MDRUN_OPTS="-nt 8" bash run_all.sh` のように環境
+  変数で渡す
+
 ## CLI 引数
 
 | 引数 | 説明 | デフォルト |
