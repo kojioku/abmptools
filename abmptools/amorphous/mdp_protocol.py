@@ -152,11 +152,18 @@ def generate_anneal_mdp(protocol: AnnealProtocol,
     params.update(_barostat_block(protocol))
     params["continuation"] = "yes"
     params["gen-vel"] = "no"
-    # annealing schedule
-    params["annealing"] = "single"
-    params["annealing-npoints"] = 2
-    params["annealing-time"] = f"0 {anneal_time_ps:.1f}"
-    params["annealing-temp"] = f"{protocol.T_high} {protocol.T_low}"
+    # GROMACS annealing parameters are per-group, mirroring tc-grps
+    # cardinality: ``annealing`` / ``annealing-npoints`` give one
+    # token per group, ``annealing-time`` / ``annealing-temp`` give
+    # (group × npoints) values total. With 1 group the legacy single
+    # schedule still applies (the loop emits exactly one copy).
+    n_groups = max(1, len(tc_grps.split()))
+    params["annealing"] = " ".join(["single"] * n_groups)
+    params["annealing-npoints"] = " ".join(["2"] * n_groups)
+    params["annealing-time"] = " ".join([f"0 {anneal_time_ps:.1f}"] * n_groups)
+    params["annealing-temp"] = " ".join(
+        [f"{protocol.T_high} {protocol.T_low}"] * n_groups
+    )
     return _format_mdp(params, title="Simulated annealing")
 
 
