@@ -47,11 +47,19 @@ def _common_mdp(protocol: AnnealProtocol) -> dict:
 
 def _thermostat_block(protocol: AnnealProtocol, ref_t: float,
                       tc_grps: str = "System") -> dict:
+    # GROMACS requires the cardinality of ref-t / tau-t to match the
+    # number of tokens in tc-grps. With multiple components in the
+    # system the builder emits e.g. ``tc-grps = A_methanol B_water``,
+    # so the single-valued ref-t / tau-t below would trigger
+    # ``Invalid T coupling input: 2 groups, 1 ref-t values``. Repeat
+    # the scalars to match the group count — uniform thermostat across
+    # components is what amorphous-build runs want anyway.
+    n_groups = max(1, len(tc_grps.split()))
     return {
         "tcoupl": "V-rescale",
         "tc-grps": tc_grps,
-        "tau-t": protocol.tau_t,
-        "ref-t": ref_t,
+        "tau-t": " ".join([str(protocol.tau_t)] * n_groups),
+        "ref-t": " ".join([str(ref_t)] * n_groups),
     }
 
 
