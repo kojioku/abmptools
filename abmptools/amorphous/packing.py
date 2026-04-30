@@ -150,7 +150,27 @@ def run_packmol(
     log_path = os.path.join(build_dir, "packmol.log")
     Path(log_path).write_text(result.stdout + "\n" + result.stderr)
 
-    if result.returncode != 0 or not os.path.isfile(output_pdb):
+    # Packmol exit-code 173 means "ENDED WITHOUT PERFECT PACKING": the
+    # solver couldn't satisfy the tolerance everywhere but still wrote
+    # the best-found mixture.pdb to disk. That's a usable starting
+    # configuration — the downstream EM stage in the 5-stage protocol
+    # cleans up residual close contacts within the first few hundred
+    # steps. Treat it as a warning and continue, only failing on
+    # ``returncode > 0 and missing output_pdb`` or on hard exit codes
+    # (segfaults, file errors, etc.). Exit code 0 is the "perfect
+    # packing achieved" path; 173 is the "best found" path; anything
+    # else is genuinely fatal.
+    output_ok = os.path.isfile(output_pdb)
+    if result.returncode == 0 and output_ok:
+        pass
+    elif result.returncode == 173 and output_ok:
+        logger.warning(
+            "Packmol returned 173 (ENDED WITHOUT PERFECT PACKING) but "
+            "wrote %s. Continuing with the best-found configuration; "
+            "the EM stage typically resolves any residual overlap. "
+            "If you need a tighter pack, raise tolerance or nloop. "
+            "Log: %s", output_pdb, log_path)
+    else:
         raise RuntimeError(
             f"Packmol failed (returncode={result.returncode}).\n"
             f"See log: {log_path}\n"
