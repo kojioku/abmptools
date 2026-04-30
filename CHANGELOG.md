@@ -25,6 +25,16 @@
     (literature ~0.99 g/cm³ at 298 K) を 2026-04-29 確認
   - tests/test_parameterizer.py (新規、5 件): str / list / tuple / 空 list / default 単一 FF
   - tests/test_amorphous_models.py: BuildConfig roundtrip with list[str] forcefield (3 件追加)
+- **`ComponentSpec.pdb_path`** (Phase 9-a、2026-04-30): SMILES / SDF に加えて
+  pre-built oligomer PDB を直接 component 入力にできる経路を追加。
+  `smiles` / `sdf_path` / `pdb_path` は exactly one を `__post_init__` で
+  validation。`prepare_molecule` は pdb_path 経路で
+  `Molecule.from_polymer_pdb` → `Molecule.from_file` fallback で OpenFF
+  Molecule を構築 (simple sp3/sp2 oligomer がターゲット、複雑 polymer
+  は FF assignment が fail する可能性あり)。fcews-manybody 側の
+  `_setup_amorphous_gromacs` から polymer/pdb/<label>.pdb を流す経路で利用
+  - tests/test_amorphous_models.py: pdb_path / 二重指定エラー / 全 empty
+    エラーの 3 件追加
 
 ### Changed
 - `abmptools.udf2gro.gromacs.writers` の GroWriter / TopWriter / MdpWriter / ItpWriter で

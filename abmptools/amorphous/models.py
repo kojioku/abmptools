@@ -16,18 +16,43 @@ from pathlib import Path
 class ComponentSpec:
     """Specification for a single molecular component.
 
-    Provide exactly one of *smiles* or *sdf_path*.
+    Provide exactly one of *smiles*, *sdf_path*, or *pdb_path*.
+
+    *pdb_path* (Phase 9-a): for pre-built oligomer / polymer structures
+    that the caller already constructed (e.g. fcewsmb's
+    ``getpolymer()`` writes ``polymer/pdb/<name>.pdb`` for ``repeat > 1``
+    segments). The PDB is fed to OpenFF Topology directly via
+    ``Topology.from_pdb``; the OpenFF Toolkit must be able to assign
+    parameters to the resulting molecule (works for simple sp3/sp2
+    organics, may fail for complex polymers — fall back to the legacy
+    UDF route in that case).
     """
     name: str = ""
     smiles: str = ""
     sdf_path: str = ""
+    pdb_path: str = ""
     n_mol: int = 0
     weight_fraction: float = 0.0
     molecular_weight: float = 0.0  # filled at runtime
 
     def __post_init__(self) -> None:
-        if not self.smiles and not self.sdf_path:
-            raise ValueError("ComponentSpec requires either 'smiles' or 'sdf_path'.")
+        sources = [self.smiles, self.sdf_path, self.pdb_path]
+        non_empty = [s for s in sources if s]
+        if not non_empty:
+            raise ValueError(
+                "ComponentSpec requires one of 'smiles', 'sdf_path', or 'pdb_path'."
+            )
+        if len(non_empty) > 1:
+            raise ValueError(
+                "ComponentSpec accepts exactly one of 'smiles', 'sdf_path', "
+                "or 'pdb_path'; got: "
+                + ", ".join(
+                    name for name, val in
+                    [('smiles', self.smiles), ('sdf_path', self.sdf_path),
+                     ('pdb_path', self.pdb_path)]
+                    if val
+                )
+            )
 
 
 @dataclass
