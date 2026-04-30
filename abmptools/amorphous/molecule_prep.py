@@ -107,33 +107,85 @@ def prepare_molecule(
 
 
 def _load_molecule_from_pdb(pdb_path: str, name: str = "") -> Any:
-    """Load an OpenFF Molecule from a PDB file (oligomer / polymer)."""
+    """Load an OpenFF Molecule from a PDB file (oligomer / polymer).
+
+    OpenFF Toolkit's PDB support is uneven:
+
+    1. ``Molecule.from_polymer_pdb`` works for biopolymers covered by
+       the bundled substructure library (proteins, DNA), not for
+       generic chain oligomers like propane×3.
+    2. ``Molecule.from_file`` for ``.pdb`` raises NotImplementedError
+       in current releases — RDKit can't safely infer bond orders
+       from a PDB alone.
+    3. ``Molecule.from_pdb_and_smiles`` works but needs an oligomer
+       SMILES the caller would have to construct.
+
+    The reliable path for generic oligomer PDBs is OpenBabel: it
+    perceives bonds from CONECT + chemistry, writes an SDF with the
+    *same atom order*, and OpenFF Toolkit reads SDF natively. We
+    therefore try (1) first, then route through SDF.
+    """
     from openff.toolkit import Molecule
 
-    # Try the polymer-aware loader first; fall back to the generic
-    # Molecule.from_file when from_polymer_pdb refuses (e.g. small
-    # oligomers that aren't recognised as biopolymers).
-    mol = None
+    # 1. Polymer-aware loader (biopolymer chemistry only).
     try:
         mol = Molecule.from_polymer_pdb(pdb_path)
+        if name:
+            mol.name = name
+        return mol
     except Exception:
-        # OpenFF Toolkit raises various subclasses depending on version;
-        # we explicitly catch broadly here and keep the failure message
-        # readable on the next attempt.
-        mol = None
-    if mol is None:
-        try:
-            mol = Molecule.from_file(pdb_path)
-        except Exception as e:
-            raise RuntimeError(
-                f"OpenFF Toolkit could not load '{pdb_path}'. "
-                "Both Molecule.from_polymer_pdb and Molecule.from_file "
-                "failed. For complex polymers, fall back to the legacy "
-                "UDF route (backend='udf')."
-            ) from e
-    if name:
-        mol.name = name
+        pass
+
+    # 2. OpenBabel PDB → SDF round-trip preserves atom order and adds
+    #    bond-order information that OpenFF Toolkit needs.
+    sdf_path = _pdb_to_sdf_via_openbabel(pdb_path)
+    try:
+        mol = _load_molecule_from_sdf(sdf_path, name)
+    except Exception as e:
+        raise RuntimeError(
+            f"OpenFF Toolkit could not load '{pdb_path}' even after "
+            f"OpenBabel-assisted SDF conversion ({sdf_path}). "
+            "For complex polymers, fall back to the legacy UDF route "
+            "(backend='udf')."
+        ) from e
     return mol
+
+
+def _pdb_to_sdf_via_openbabel(pdb_path: str) -> str:
+    """Convert ``pdb_path`` to ``<pdb_path>.sdf`` using OpenBabel.
+
+    OpenBabel preserves the input atom order and adds inferred
+    bond-order information so OpenFF Toolkit can ingest the result.
+    Raises ``RuntimeError`` if the ``obabel`` binary is missing or
+    fails.
+    """
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    if shutil.which("obabel") is None:
+        raise RuntimeError(
+            "obabel (OpenBabel CLI) was not found on PATH. It is "
+            "required to convert oligomer PDBs into a form OpenFF "
+            "Toolkit can ingest. Install via "
+            "'micromamba install -c conda-forge openbabel'."
+        )
+
+    pdb = Path(pdb_path)
+    sdf = pdb.with_suffix(".sdf")
+    cmd = ["obabel", str(pdb), "-O", str(sdf)]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(
+            f"obabel failed to convert {pdb_path} → {sdf}: "
+            f"{e.stderr.strip() or e.stdout.strip() or 'no diagnostic'}"
+        ) from e
+    if not sdf.is_file():
+        raise RuntimeError(
+            f"obabel returned 0 but {sdf} was not produced."
+        )
+    return str(sdf)
 
 
 def _molecular_weight(mol: Any) -> float:
