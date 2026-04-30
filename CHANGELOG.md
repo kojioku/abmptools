@@ -48,6 +48,18 @@
     of 1.214 nm with 3 domain decomposition cells` で停止。`MDRUN_OPTS="${MDRUN_OPTS:--ntmpi 1}"`
     を default に変更し DD 自体を無効化 (OpenMP は引き続き効くので速度低下なし)。
     ユーザー側で `MDRUN_OPTS=...` で override 可能
+- **mixed-component pair の thermostat / annealing schedule cardinality 不整合** (`c443b12` + `a66cf6e`)
+  - `mdp_protocol._thermostat_block`: 多成分系 (例: `tc-grps = A_methanol B_water`、
+    2 group) でも `ref-t` / `tau-t` が単一値で書かれており grompp が
+    `Invalid T coupling input: 2 groups, 1 ref-t values and 1 tau-t values` で
+    fatal していた。`tc-grps.split()` の token 数に合わせて scalar を複製。
+    Pure-pair (1 group) は従来通り単一値出力で挙動不変
+  - `mdp_protocol.generate_anneal_mdp`: `annealing` / `annealing-npoints` /
+    `annealing-time` / `annealing-temp` が GROMACS の per-group 仕様に従わず
+    1 group 想定で書かれていた。多成分系では stage 4 (anneal) の grompp で
+    `Inconsistent number of components in annealing-time and annealing-temp`
+    が出て stop。これも `n_groups` 倍に複製。1 group の場合は token 単一で
+    legacy 互換
 
 ## [1.15.4] - 2026-04-19
 ### Added

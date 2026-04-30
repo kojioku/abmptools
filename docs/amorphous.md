@@ -123,19 +123,44 @@ result = AmorphousBuilder(config).build()
 stage で **density = 0.991 g/cm³**、TIP3P literature (~0.99 g/cm³ at 298 K)
 と完全一致。同条件の OpenFF organic 単独だと 0.26 g/cm³ に縮む。
 
-### Pure-component pair (同名 component 2 個) の動作
+### Multi-component pair の thermostat / annealing 動作
 
-`ComponentSpec(name="X")` を 2 個並べた場合 (例: A-B χ 計算で A=B にする
-self-pair)、内部で以下が自動 dedup される:
+複数 `ComponentSpec` の組み合わせ (mixed pair) と同名 component の重複
+(pure-component pair) の両方で、`mdp` / `ndx` / `run_all.sh` が GROMACS の
+per-group 仕様に整合するよう自動補正される:
 
-- `mdp` の `tc-grps` は `"X"` (1 group) → `ref-t` / `tau-t` の単一値と整合
-- `system.ndx` の `[ X ]` group は **両方の component の atom を集約** (片方
-  だけ書かれて atom 半分が抜ける fail mode は v?? で修正済)
-- `run_all.sh` は default で `MDRUN_OPTS="${MDRUN_OPTS:--ntmpi 1}"` を使う
-  (DD 無効化)。凝縮系で box が cooling 中に縮んだ際の `box size ... is too
-  small for a cut-off ... with 3 domain decomposition cells` を回避。
-  override したい場合は `MDRUN_OPTS="-nt 8" bash run_all.sh` のように環境
-  変数で渡す
+#### Pure-component pair (同名 component 2 個、例: B_water-B_water)
+
+`ComponentSpec(name="X")` を 2 個並べた場合 (A-B χ 計算で A=B にする
+self-pair) は内部で dedup:
+
+- `mdp` の `tc-grps` は `"X"` (1 group) → `ref-t` / `tau-t` も単一値で整合
+- `system.ndx` の `[ X ]` group は両 component の atom を集約 (前 fix まで
+  片方が overwrite されて atom 半分しか group 化されない fail mode あり)
+
+#### Mixed-component pair (例: A_methanol-B_water)
+
+異なる name の 2 component では dedup されず `tc-grps = "A_methanol B_water"`
+(2 group) になるため、GROMACS の per-group 仕様に従って以下が自動で n 倍に
+複製される:
+
+- `tau-t` / `ref-t` (`_thermostat_block` 内): `"0.1"` → `"0.1 0.1"`、
+  `"600.0"` → `"600.0 600.0"`
+- `annealing` / `annealing-npoints` / `annealing-time` / `annealing-temp`
+  (stage 4 の `generate_anneal_mdp`): 例として 2 group では
+  `annealing = single single`、`annealing-temp = 600.0 300.0 600.0 300.0`
+  のように複製。各 group は同じ 600 K → 300 K cooling schedule
+
+これらは `tc-grps.split()` の token 数 (`n_groups`) で機械的に決まる。
+1 group (legacy "System" or 単成分) では token 単一で従来出力と byte-identical。
+
+#### MD ランチャー (`run_all.sh`)
+
+default で `MDRUN_OPTS="${MDRUN_OPTS:--ntmpi 1}"` を使う (DD 無効化、OpenMP
+は維持)。凝縮系で box が cooling 中に縮んだ際の
+`box size ... is too small for a cut-off ... with 3 domain decomposition
+cells` を回避するため。override したい場合は
+`MDRUN_OPTS="-nt 8" bash run_all.sh` のように環境変数で渡す。
 
 ## CLI 引数
 
