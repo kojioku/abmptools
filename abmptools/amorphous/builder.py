@@ -134,6 +134,7 @@ class AmorphousBuilder:
             mol = prepare_molecule(
                 smiles=comp.smiles,
                 sdf_path=comp.sdf_path,
+                pdb_path=comp.pdb_path,
                 name=comp.name or f"comp_{i}",
             )
             mw = get_molecular_weight(mol)

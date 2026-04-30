@@ -52,7 +52,8 @@ def _stubbed_builder(tmp_path, monkeypatch):
     )
 
     # prepare_molecule -> returns a FakeMol; no SMILES -> 3D work happens.
-    def _prepare_molecule(smiles="", sdf_path="", name="MOL"):
+    # pdb_path was added in Phase 9-a (oligomer support); accept and ignore.
+    def _prepare_molecule(smiles="", sdf_path="", pdb_path="", name="MOL"):
         return _FakeMol(name=name, n_atoms=5, mw=16.0)
 
     def _get_molecular_weight(mol):
@@ -219,7 +220,7 @@ def test_build_requires_n_mol_or_weight_fraction(tmp_path, monkeypatch):
         output_dir=str(tmp_path / "bad"),
     )
 
-    def _prep(smiles="", sdf_path="", name="MOL"):
+    def _prep(smiles="", sdf_path="", pdb_path="", name="MOL"):
         return _FakeMol(name=name)
 
     monkeypatch.setattr(

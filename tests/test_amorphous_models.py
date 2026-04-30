@@ -26,10 +26,22 @@ class TestComponentSpec:
         assert spec.sdf_path == "/tmp/mol.sdf"
         assert spec.smiles == ""
 
-    def test_raises_when_both_empty(self):
-        """Raises ValueError if neither smiles nor sdf_path is provided."""
-        with pytest.raises(ValueError, match="smiles.*sdf_path"):
+    def test_valid_with_pdb_path(self):
+        """ComponentSpec accepts a PDB path (Phase 9-a oligomer)."""
+        spec = ComponentSpec(name="oligo", pdb_path="/tmp/poly.pdb")
+        assert spec.pdb_path == "/tmp/poly.pdb"
+        assert spec.smiles == ""
+        assert spec.sdf_path == ""
+
+    def test_raises_when_all_three_empty(self):
+        """Raises ValueError when none of smiles / sdf_path / pdb_path set."""
+        with pytest.raises(ValueError, match="smiles.*sdf_path.*pdb_path"):
             ComponentSpec(name="empty")
+
+    def test_raises_when_two_sources_set(self):
+        """Setting both smiles and pdb_path is not allowed (must be exclusive)."""
+        with pytest.raises(ValueError, match="exactly one"):
+            ComponentSpec(name="ambig", smiles="O", pdb_path="/tmp/x.pdb")
 
 
 # ---------------------------------------------------------------------------

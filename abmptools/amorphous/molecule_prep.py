@@ -55,16 +55,27 @@ def _load_molecule_from_sdf(sdf_path: str, name: str = "") -> Any:
 def prepare_molecule(
     smiles: str = "",
     sdf_path: str = "",
+    pdb_path: str = "",
     name: str = "",
 ) -> Any:
-    """Load or create an OpenFF Molecule from SMILES or SDF.
+    """Load or create an OpenFF Molecule from SMILES, SDF, or PDB.
 
     Parameters
     ----------
     smiles : str
-        SMILES string (mutually exclusive with *sdf_path*).
+        SMILES string (mutually exclusive with the other two).
     sdf_path : str
-        Path to an SDF/MOL file (mutually exclusive with *smiles*).
+        Path to an SDF/MOL file.
+    pdb_path : str
+        Path to a PDB file (Phase 9-a; use for pre-built oligomer /
+        polymer structures). The OpenFF Toolkit's
+        ``Molecule.from_polymer_pdb`` is tried first so chains that
+        match its supported chemistry get proper bond perception;
+        otherwise ``Molecule.from_file`` (legacy path) is the fallback.
+        OpenFF Toolkit's polymer support is improving but still limited
+        for arbitrary chemistries — if FF assignment fails downstream,
+        either supply a SMILES-derived monomer instead or use the legacy
+        UDF route.
     name : str
         Optional molecule name.
 
@@ -73,21 +84,55 @@ def prepare_molecule(
     openff.toolkit.Molecule
         The prepared molecule (with at least one conformer).
     """
-    if smiles and sdf_path:
-        raise ValueError("Provide either 'smiles' or 'sdf_path', not both.")
-    if not smiles and not sdf_path:
-        raise ValueError("Either 'smiles' or 'sdf_path' must be provided.")
+    sources = [bool(smiles), bool(sdf_path), bool(pdb_path)]
+    n_sources = sum(sources)
+    if n_sources == 0:
+        raise ValueError("One of 'smiles', 'sdf_path', or 'pdb_path' must be provided.")
+    if n_sources > 1:
+        raise ValueError("Provide exactly one of 'smiles', 'sdf_path', or 'pdb_path'.")
 
     if smiles:
         mol = _load_molecule_from_smiles(smiles, name)
-    else:
+    elif sdf_path:
         mol = _load_molecule_from_sdf(sdf_path, name)
+    else:
+        mol = _load_molecule_from_pdb(pdb_path, name)
 
     if not name:
         mol.name = mol.name or "MOL"
     logger.info("Prepared molecule '%s': %d atoms, MW=%.2f g/mol",
                 mol.name, mol.n_atoms,
                 _molecular_weight(mol))
+    return mol
+
+
+def _load_molecule_from_pdb(pdb_path: str, name: str = "") -> Any:
+    """Load an OpenFF Molecule from a PDB file (oligomer / polymer)."""
+    from openff.toolkit import Molecule
+
+    # Try the polymer-aware loader first; fall back to the generic
+    # Molecule.from_file when from_polymer_pdb refuses (e.g. small
+    # oligomers that aren't recognised as biopolymers).
+    mol = None
+    try:
+        mol = Molecule.from_polymer_pdb(pdb_path)
+    except Exception:
+        # OpenFF Toolkit raises various subclasses depending on version;
+        # we explicitly catch broadly here and keep the failure message
+        # readable on the next attempt.
+        mol = None
+    if mol is None:
+        try:
+            mol = Molecule.from_file(pdb_path)
+        except Exception as e:
+            raise RuntimeError(
+                f"OpenFF Toolkit could not load '{pdb_path}'. "
+                "Both Molecule.from_polymer_pdb and Molecule.from_file "
+                "failed. For complex polymers, fall back to the legacy "
+                "UDF route (backend='udf')."
+            ) from e
+    if name:
+        mol.name = name
     return mol
 
 
