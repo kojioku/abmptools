@@ -1,6 +1,15 @@
 # Changelog
 
 ## [Unreleased]
+
+(no changes yet — this section accumulates work-in-progress between releases)
+
+## [1.16.0] - 2026-05-01
+
+(release commit lives on `develop` only; not yet merged to `main` /
+tagged / uploaded to PyPI. Per the user, the next release window
+will pick this up after additional integration testing.)
+
 ### Added
 - `abmptools.core.system_model` に COGNAC 固有情報を保持するデータクラスを追加:
   - `ClusterData` (cluster 配置 xyz / n_per_cluster / cluster_file)
