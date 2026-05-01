@@ -160,6 +160,28 @@ def frames_from_xtc(
         if apply_make_whole:
             for fragment in universe.atoms.fragments:
                 make_whole(fragment)
+            # After make_whole each fragment is intact, but its centre-of-mass
+            # can still sit many cells away from the simulation box if the
+            # MD trajectory was unwrapped (GROMACS xtc default). Downstream
+            # contact analysis in fcewsmb's getcontactstructure uses COM
+            # distances against (radius_i + radius_j) * 2, so a fragment that
+            # drifted to coords ~150 Å in a 22 Å box is silently dropped from
+            # the neighbour list. Wrap fragment-by-fragment so each COM
+            # lands in [0, box_size) and intra-fragment bonds stay intact.
+            try:
+                universe.atoms.wrap(
+                    compound="fragments", center="com", inplace=True,
+                )
+            except (TypeError, ValueError, AttributeError) as e:
+                # Older MDAnalysis releases (< 2.0) don't accept compound=
+                # 'fragments' or center='com'. Log once and continue —
+                # caller can pre-process the xtc with `gmx trjconv -pbc mol`
+                # to get the same effect on disk.
+                logger.warning(
+                    "MDAnalysis wrap failed (%s); fragment COMs will remain "
+                    "unwrapped. Pre-process the xtc with "
+                    "'gmx trjconv -pbc mol -ur compact' to recover.", e,
+                )
         # MDAnalysis positions are Å — convert to nm (GROMACS convention)
         coords_nm = (universe.atoms.positions / 10.0).tolist()
         # universe.dimensions: [a, b, c, alpha, beta, gamma] in Å / deg
