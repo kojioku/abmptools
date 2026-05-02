@@ -113,10 +113,14 @@ class USProtocol:
     # Pull-coord definitions.
     pull_group1: str = "Bilayer"
     pull_group2: str = "Peptide"
-    # ``direction-periodic`` gives a *signed* z coordinate (peptide_z -
-    # bilayer_z) that smoothly handles PBC. ``distance`` returns |z|
-    # (always positive) and is unsuitable for two-sided US.
-    pull_geometry: str = "direction-periodic"
+    # ``direction`` gives a *signed* projection along ``pull_vec``
+    # (peptide_z - bilayer_z when vec=0 0 1) and is compatible with
+    # semiisotropic pressure coupling (which scales z dynamically).
+    # ``direction-periodic`` is incompatible: GROMACS rejects it with
+    # "Can not have dynamic box while using pull geometry
+    # 'direction-periodic' (dim z)". ``distance`` returns |z| (always
+    # positive) and is unsuitable for two-sided US.
+    pull_geometry: str = "direction"
     pull_vec: str = "0 0 1"             # pulling direction (lab frame)
     pull_dim: str = "N N Y"             # only z (for COM calc)
 
