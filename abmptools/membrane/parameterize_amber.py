@@ -6,19 +6,12 @@ AMBER backend: ff19SB + Lipid21 + TIP3P → GROMACS top/gro via parmed.
 
 Pipeline
 --------
-1. Run *tleap* on the bilayer+peptide PDB:
-     - load force fields (leaprc.protein.ff19SB, leaprc.lipid21,
-       leaprc.water.tip3p, ions1lm_iod_tip3p)
-     - solvate (already done by packmol-memgen, so just charge-balance)
-     - save AMBER prmtop + inpcrd
-2. Convert to GROMACS top/gro via *parmed*::
-
-     parm = parmed.load_file(prmtop, inpcrd)
-     parm.save("system.top", format="gromacs")
-     parm.save("system.gro")
-
-3. Generate index (.ndx) groups: ``Bilayer``, ``Peptide``, ``Solvent``,
-   ``Ions``, ``System``.
+1. Render and run a tleap script that loads ff19SB / lipid21 / water.tip3p
+   force fields and the bilayer+peptide PDB, saving Amber prmtop +
+   inpcrd.
+2. parmed-convert prmtop+inpcrd → GROMACS system.top + system.gro.
+3. Generate a GROMACS index (.ndx) with five groups:
+   ``System`` / ``Bilayer`` / ``Peptide`` / ``Solvent`` / ``Ions``.
 
 License
 -------
@@ -28,13 +21,65 @@ including redistribution. No CGenFF, no CHARMM-GUI.
 from __future__ import annotations
 
 import logging
+import os
+import subprocess
 from pathlib import Path
-from typing import Tuple
+from typing import Dict, List, Tuple
 
 from .models import MembraneConfig
+from .bilayer import _resolve_amberhome
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# Residue classification used for index-file generation
+# ---------------------------------------------------------------------------
+
+#: Three Lipid21 residues per POPC/POPE/POPG/etc., split into head + tails.
+LIPID21_RESNAMES = frozenset({
+    "PC", "PE", "PG", "PS", "PA", "PH-",   # head groups
+    "OL", "PA", "AR", "DH", "ST", "PA",    # tails (some duplicate intentionally)
+    "MY", "LAL", "LA", "OL2",
+    "CHL", "CHL1",                         # cholesterol
+})
+
+PROTEIN_CAP_RESNAMES = frozenset({"ACE", "NME", "NHE"})
+
+#: Standard 20 amino-acid 3-letter codes plus AMBER variants
+PROTEIN_AA_RESNAMES = frozenset({
+    "ALA", "ARG", "ASN", "ASP", "ASH", "CYS", "CYM", "CYX",
+    "GLN", "GLU", "GLH", "GLY", "HIS", "HID", "HIE", "HIP",
+    "ILE", "LEU", "LYS", "LYN", "MET", "PHE", "PRO", "SER",
+    "THR", "TRP", "TYR", "VAL",
+})
+
+WATER_RESNAMES = frozenset({"WAT", "HOH", "TIP", "TP3", "T3P"})
+
+ION_RESNAMES = frozenset({
+    "Na+", "Cl-", "K+", "Mg2+", "Ca2+",     # AMBER conventions
+    "NA", "CL", "K", "MG", "CA",            # GROMACS-style fallbacks
+    "NA+", "CL-",
+})
+
+
+def classify_residue(resname: str) -> str:
+    """Return one of: 'lipid', 'peptide', 'solvent', 'ion', 'other'."""
+    r = resname.strip()
+    if r in LIPID21_RESNAMES:
+        return "lipid"
+    if r in PROTEIN_AA_RESNAMES or r in PROTEIN_CAP_RESNAMES:
+        return "peptide"
+    if r in WATER_RESNAMES:
+        return "solvent"
+    if r in ION_RESNAMES:
+        return "ion"
+    return "other"
+
+
+# ---------------------------------------------------------------------------
+# Stage entry points
+# ---------------------------------------------------------------------------
 
 def parameterize(
     *, config: MembraneConfig, input_pdb: str, build_dir: str,
@@ -55,31 +100,179 @@ def parameterize(
     (top, gro, ndx) : tuple[str, str, str]
         Absolute paths to system.top, system.gro, system.ndx.
     """
-    raise NotImplementedError(
-        "Phase A: AMBER parameterisation not yet implemented. "
-        "Phase B will: (a) write tleap input, (b) run tleap, "
-        "(c) parmed-convert prmtop/inpcrd to GROMACS, "
-        "(d) generate index groups."
+    bd = Path(build_dir).resolve()
+    bd.mkdir(parents=True, exist_ok=True)
+
+    prmtop = str(bd / "system.prmtop")
+    inpcrd = str(bd / "system.inpcrd")
+
+    tleap_in = str(bd / "system.tleap")
+    write_tleap_input(
+        config=config, input_pdb=input_pdb,
+        prmtop=prmtop, inpcrd=inpcrd, tleap_in=tleap_in,
     )
+
+    run_tleap(tleap_input=tleap_in, build_dir=str(bd),
+              tleap_path=config.tleap_path)
+
+    if not Path(prmtop).is_file() or not Path(inpcrd).is_file():
+        raise RuntimeError(
+            f"tleap completed but did not produce {prmtop} / {inpcrd}. "
+            f"Check {bd}/leap.log for details."
+        )
+
+    top_path = str(bd / "system.top")
+    gro_path = str(bd / "system.gro")
+    amber_to_gromacs(prmtop=prmtop, inpcrd=inpcrd,
+                     top_out=top_path, gro_out=gro_path)
+
+    ndx_path = str(bd / "system.ndx")
+    write_index_from_gro(gro_path=gro_path, ndx_path=ndx_path)
+
+    return top_path, gro_path, ndx_path
 
 
 def write_tleap_input(
-    *, config: MembraneConfig, input_pdb: str, build_dir: str,
+    *, config: MembraneConfig, input_pdb: str,
+    prmtop: str, inpcrd: str, tleap_in: str,
 ) -> str:
-    """Write a tleap input script to *build_dir*/tleap.in.
+    """Write a tleap input script and return its path."""
+    lines: List[str] = [
+        "# Auto-generated by abmptools.membrane.parameterize_amber",
+        f"source {config.amber_protein_ff}",
+        f"source {config.amber_lipid_ff}",
+        f"source {config.amber_water_ff}",
+        # ions are loaded via leaprc.water.tip3p in modern AmberTools;
+        # explicit re-load is harmless and makes the script self-documenting.
+        "loadAmberParams frcmod.ionsjc_tip3p",
+        f"system = loadpdb {input_pdb}",
+        # report charges to leap.log so we can audit neutralisation
+        "charge system",
+        f"saveAmberParm system {prmtop} {inpcrd}",
+        "quit",
+        "",
+    ]
+    Path(tleap_in).write_text("\n".join(lines))
+    return tleap_in
 
-    Returns the path to the script.
-    """
-    raise NotImplementedError("Phase B")
 
+def run_tleap(*, tleap_input: str, build_dir: str,
+              tleap_path: str = "tleap") -> Tuple[str, str]:
+    """Run tleap and return (stdout, stderr)."""
+    env = os.environ.copy()
+    amberhome = _resolve_amberhome(tleap_path)
+    if amberhome:
+        env["AMBERHOME"] = amberhome
 
-def run_tleap(*, tleap_input: str, tleap_path: str = "tleap") -> Tuple[str, str]:
-    """Run tleap, returning (prmtop_path, inpcrd_path)."""
-    raise NotImplementedError("Phase B")
+    cmd = [tleap_path, "-f", tleap_input]
+    logger.info("running tleap: %s", " ".join(cmd))
+    result = subprocess.run(
+        cmd, cwd=build_dir, env=env,
+        capture_output=True, text=True,
+    )
+    log_path = Path(build_dir) / "system_tleap.log"
+    log_path.write_text(
+        f"=== argv ===\n{' '.join(cmd)}\n\n"
+        f"=== stdout ===\n{result.stdout}\n"
+        f"=== stderr ===\n{result.stderr}\n"
+        f"=== returncode ===\n{result.returncode}\n"
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"tleap failed (rc={result.returncode}). See {log_path}."
+        )
+    return result.stdout, result.stderr
 
 
 def amber_to_gromacs(
     *, prmtop: str, inpcrd: str, top_out: str, gro_out: str,
 ) -> None:
     """Convert AMBER prmtop/inpcrd to GROMACS top/gro via parmed."""
-    raise NotImplementedError("Phase B")
+    import parmed as pmd
+    logger.info("parmed: loading %s + %s", prmtop, inpcrd)
+    parm = pmd.load_file(prmtop, xyz=inpcrd)
+    logger.info("parmed: saving %s (gromacs)", top_out)
+    parm.save(top_out, format="gromacs", overwrite=True)
+    logger.info("parmed: saving %s", gro_out)
+    parm.save(gro_out, overwrite=True)
+
+
+# ---------------------------------------------------------------------------
+# Index file generation (no gmx make_ndx — fully Python)
+# ---------------------------------------------------------------------------
+
+def parse_gro_residues(gro_path: str) -> List[Tuple[int, str, str]]:
+    """Parse a .gro file → list of (atom_index_1based, residue_name, atom_name).
+
+    .gro layout (fixed-column, 5 chars each for resnr/resname/atomname/atomnr):
+        residueNNNNRESNAMEATMNAME ATMNUM x y z [vx vy vz]
+        12345    5    5    5     5
+    """
+    out: List[Tuple[int, str, str]] = []
+    with open(gro_path) as f:
+        f.readline()                # title
+        n_atoms = int(f.readline())
+        for _ in range(n_atoms):
+            line = f.readline()
+            # cols: 0-5 resnr, 5-10 resname, 10-15 atomname, 15-20 atomnr
+            resname = line[5:10].strip()
+            atomname = line[10:15].strip()
+            atom_idx = int(line[15:20])
+            out.append((atom_idx, resname, atomname))
+    return out
+
+
+def write_index_from_gro(*, gro_path: str, ndx_path: str) -> str:
+    """Write a GROMACS .ndx with five groups derived from residue names.
+
+    Groups:
+      ``System``   — all atoms (1..N)
+      ``Bilayer``  — Lipid21 residues (PC/OL/PA/...)
+      ``Peptide``  — protein residues + caps (ACE/NME)
+      ``Solvent``  — WAT (or aliases)
+      ``Ions``     — Na+/Cl-/...
+
+    Returns the absolute path to the written .ndx.
+    """
+    atoms = parse_gro_residues(gro_path)
+    groups: Dict[str, List[int]] = {
+        "System":  [],
+        "Bilayer": [],
+        "Peptide": [],
+        "Solvent": [],
+        "Ions":    [],
+    }
+    other_residues: set[str] = set()
+    for idx, resname, _atomname in atoms:
+        groups["System"].append(idx)
+        cls = classify_residue(resname)
+        if cls == "lipid":
+            groups["Bilayer"].append(idx)
+        elif cls == "peptide":
+            groups["Peptide"].append(idx)
+        elif cls == "solvent":
+            groups["Solvent"].append(idx)
+        elif cls == "ion":
+            groups["Ions"].append(idx)
+        else:
+            other_residues.add(resname)
+
+    if other_residues:
+        logger.warning(
+            "write_index_from_gro: unclassified residues will be in System "
+            "but no specific group: %s",
+            sorted(other_residues),
+        )
+
+    out = []
+    for name, indices in groups.items():
+        if not indices:
+            continue
+        out.append(f"[ {name} ]")
+        # GROMACS .ndx convention: 15 indices per line
+        for i in range(0, len(indices), 15):
+            chunk = indices[i:i + 15]
+            out.append(" ".join(f"{j:>5d}" for j in chunk))
+        out.append("")
+    Path(ndx_path).write_text("\n".join(out))
+    return str(Path(ndx_path).resolve())
