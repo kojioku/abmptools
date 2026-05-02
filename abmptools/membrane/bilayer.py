@@ -252,6 +252,15 @@ def assemble_packmol_memgen_cmd(
         "--noprogress",
     ]
 
+    if config.backend == "charmm36":
+        # Bundle's charmmlipid2amber.py runs in reverse to convert lipid
+        # residue / atom names to CHARMM convention (POPC → split into
+        # CHARMM POPC residue with atom names like P, O11, etc.).
+        # Note: the solute peptide is *passed through* unchanged by
+        # packmol-memgen, so we still need to translate it ourselves —
+        # see parameterize_charmm._translate_pdb_amber_to_charmm.
+        cmd.append("--charmm")
+
     if config.seed is not None:
         cmd += ["--leapline", f"# seed={config.seed}"]
 

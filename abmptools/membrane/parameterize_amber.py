@@ -36,30 +36,55 @@ logger = logging.getLogger(__name__)
 # Residue classification used for index-file generation
 # ---------------------------------------------------------------------------
 
-#: Three Lipid21 residues per POPC/POPE/POPG/etc., split into head + tails.
+# Residue-class tables used by both AMBER (Lipid21 split) and CHARMM36
+# (whole-lipid) backends. write_index_from_gro reads them via
+# classify_residue() so it works for either backend's GROMACS .gro.
+
+#: Lipid residue names (Lipid21 split + CHARMM36 whole-lipid).
 LIPID21_RESNAMES = frozenset({
-    "PC", "PE", "PG", "PS", "PA", "PH-",   # head groups
-    "OL", "PA", "AR", "DH", "ST", "PA",    # tails (some duplicate intentionally)
+    # AMBER Lipid21 split residues (head + tails)
+    "PC", "PE", "PG", "PS", "PH-",
+    "OL", "AR", "DH", "ST", "PA",
     "MY", "LAL", "LA", "OL2",
-    "CHL", "CHL1",                         # cholesterol
+    # CHARMM36 whole-lipid residues (single residue per phospholipid)
+    "POPC", "POPE", "POPG", "POPS", "POPA",
+    "DOPC", "DOPE", "DOPG", "DOPS",
+    "DPPC", "DPPE", "DPPG", "DPPS",
+    "DMPC", "DLPC", "DSPC",
+    # cholesterol (same name in both)
+    "CHL", "CHL1", "CLOL",
 })
 
-PROTEIN_CAP_RESNAMES = frozenset({"ACE", "NME", "NHE"})
+PROTEIN_CAP_RESNAMES = frozenset({
+    "ACE", "NME", "NHE",      # AMBER caps
+    "CT3",                    # CHARMM N-methyl cap
+})
 
-#: Standard 20 amino-acid 3-letter codes plus AMBER variants
+#: Standard 20 amino-acid 3-letter codes plus AMBER and CHARMM variants
 PROTEIN_AA_RESNAMES = frozenset({
-    "ALA", "ARG", "ASN", "ASP", "ASH", "CYS", "CYM", "CYX",
-    "GLN", "GLU", "GLH", "GLY", "HIS", "HID", "HIE", "HIP",
-    "ILE", "LEU", "LYS", "LYN", "MET", "PHE", "PRO", "SER",
-    "THR", "TRP", "TYR", "VAL",
+    # standard 20 (same in both)
+    "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS",
+    "ILE", "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP",
+    "TYR", "VAL",
+    # AMBER protomers
+    "ASH", "CYM", "CYX", "GLH", "HID", "HIE", "HIP", "LYN",
+    # CHARMM protomers
+    "ASPP", "GLUP", "HSD", "HSE", "HSP", "LSN",
 })
 
-WATER_RESNAMES = frozenset({"WAT", "HOH", "TIP", "TP3", "T3P"})
+WATER_RESNAMES = frozenset({
+    "WAT", "HOH", "TIP", "TP3", "T3P",   # AMBER + generic
+    "TIP3", "TIPS3",                      # CHARMM
+})
 
 ION_RESNAMES = frozenset({
-    "Na+", "Cl-", "K+", "Mg2+", "Ca2+",     # AMBER conventions
-    "NA", "CL", "K", "MG", "CA",            # GROMACS-style fallbacks
+    # AMBER conventions (with charge sign)
+    "Na+", "Cl-", "K+", "Mg2+", "Ca2+",
     "NA+", "CL-",
+    # GROMACS-style 1-2 char fallbacks
+    "NA", "CL", "K", "MG", "CA",
+    # CHARMM conventions
+    "SOD", "CLA", "POT", "CAL",
 })
 
 
