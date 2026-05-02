@@ -2,7 +2,35 @@
 
 ## [Unreleased]
 
-(no changes yet — this section accumulates work-in-progress between releases)
+### Added
+
+- **`abmptools.membrane` — peptide-bilayer umbrella-sampling builder** (新サブパッケージ、Phase A〜D)。
+  ペプチドの脂質膜透過 PMF 計算用の GROMACS 入力一式を生成する end-to-end ビルダー。
+  - `MembraneUSBuilder.build()` で 6 stage を 1 呼び出し:
+    bilayer 構築 (packmol-memgen) → AMBER パラメータ化 (tleap + parmed) → 平衡化 MDP
+    (em / nvt / npt-semiisotropic、2-group thermostat) → 反応座標生成 pulling
+    MDP → US window MDP 一括 → top-level `run.sh`
+  - 生成された `run.sh` で `gmx grompp + mdrun` をシーケンシャル実行し、最終的に
+    `gmx wham` で `analysis/pmf.xvg` (PMF[z]、kJ/mol) を出力
+  - データクラス: `MembraneConfig` / `LipidSpec` / `PeptideSpec` / `IonSpec` /
+    `USProtocol` / `EquilibrationProtocol` / `PullingProtocol` (JSON 往復可)
+  - **商用利用可な力場のみ**: AMBER ff19SB + Lipid21 + TIP3P + Joung-Cheatham ions
+    (AmberTools 配布、free incl. commercial)。CGenFF Web server / CHARMM-GUI に
+    依存しない設計
+  - CHARMM36 backend (Klauda lab GROMACS port、CGenFF 不使用) も
+    `parameterize_charmm.py` の interface stub として skeleton 配置済み
+    (Phase C で本実装予定)
+  - smoke test: `tests/integration/run_membrane_us_smoke.sh`
+    (poly-Ala 5-mer + POPC 32/leaflet + 7 windows × 1 ns)。
+    16 ファイル生成 + 11 MDP すべて `gmx grompp` 通過を ~30 秒で検証
+  - 詳細: [`docs/membrane.md`](docs/membrane.md)
+
+### Notes
+
+- **packmol-memgen 2023.2.24 + NumPy ≥ 1.24 互換性パッチ**: bundle 内
+  `pdbremix/v3numpy.py` が削除済 `np.float` を参照しているため、env 内で
+  `np.float` → `float` の 2 行 sed パッチが必要。詳細は
+  [`docs/membrane.md`](docs/membrane.md) のインストールセクション
 
 ## [1.16.0] - 2026-05-01
 

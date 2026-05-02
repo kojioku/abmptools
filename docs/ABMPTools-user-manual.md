@@ -39,6 +39,13 @@ Author: Koji Okuwaki
     - MD 後の VMD 用 PBC 後処理スクリプト (wrap_pbc.sh) も同時生成
     - 詳細: [amorphous.md](amorphous.md)
 
+- ペプチド膜透過 Umbrella Sampling 系構築 (membrane)
+    - packmol-memgen で脂質 bilayer + ペプチド + 水 + イオンを配置 → tleap + parmed で AMBER (ff19SB + Lipid21 + TIP3P) → GROMACS top/gro を生成
+    - 半等方 NPT 平衡化 → z-pulling で反応座標生成 → 各 window の MDP + run.sh を一括生成 → `gmx wham` で PMF 出力
+    - **企業利用 OK な権利のみ**で構成: CGenFF Web server / CHARMM-GUI に依存しない設計 (商用ライセンス不要)
+    - CHARMM36 backend (MacKerell 公式 / Klauda port 経由、CGenFF 不使用) を Phase C で追加予定
+    - 詳細: [membrane.md](membrane.md)
+
 
 ### 各種IFIE情報の取得(getifiepieda)
 log ファイルから各種IFIE情報を取得するモジュール

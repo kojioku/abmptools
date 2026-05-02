@@ -11,6 +11,7 @@ abmptools/                  ← Repository root
 │   ├── gro2udf/            ← GROMACS → OCTA UDF 変換
 │   ├── udf2gro/            ← OCTA UDF → GROMACS 変換
 │   ├── amorphous/          ← アモルファス系構築 (packmol, OpenMM)
+│   ├── membrane/           ← 膜透過 PMF 用 US ビルダー (packmol-memgen, AMBER/CHARMM36)
 │   ├── geomopt/            ← 構造最適化 (PySCF, MACE)
 │   └── f90/                ← Fortran extension
 │       ├── src/
@@ -35,6 +36,7 @@ abmptools/                  ← Repository root
 │   ├── gro2udf.md
 │   ├── udf2gro.md
 │   ├── amorphous.md
+│   ├── membrane.md
 │   ├── geomopt.md
 │   ├── qmopt.md
 │   └── licenses_third_party.md

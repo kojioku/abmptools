@@ -2,6 +2,10 @@
 
 Lipid-bilayer umbrella-sampling (US) system builder.
 
+> **Detailed documentation:** see [`docs/membrane.md`](../../docs/membrane.md)
+> for the full tutorial, configuration reference, and troubleshooting guide.
+> This README is a quick orientation only.
+
 ## Scope
 
 Build GROMACS-ready systems for peptide–membrane PMF calculations:
