@@ -454,8 +454,14 @@ PMF 収束チェック:
 | B-5 | umbrella.py (window MDPs + run.sh) | `2efaff1` |
 | B-6 | pmf.py (gmx wham wrapper + CLI) | `eeb57d1` |
 | B-7 | smoke test + builder fix | `907c040` |
-| C | CHARMM36 backend (Klauda port + pdb2gmx) | _pending_ |
-| D | tutorial doc + cross-references (this doc) | _in progress_ |
+| D | tutorial doc + cross-references (this doc) | `a01fdda` `21dd567` |
+| C | CHARMM36 backend (Klauda port + pdb2gmx) | `5d28034` |
+
+**Phase C end-to-end smoke** はユーザー側で `CHARMM36_FF_DIR` を整えた上で
+`bash tests/integration/run_membrane_us_charmm_smoke.sh` を実行すると検証
+される。未設定なら自動 SKIP (exit 0)、translation ユニットテストは
+.ff dir 不要で実行可能 (`pytest tests/test_membrane_charmm_translate.py`、
+25 tests / <1 秒)。
 
 Phase B 動作確認 (smoke、~30 秒、4-core local):
 

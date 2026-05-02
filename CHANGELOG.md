@@ -17,9 +17,20 @@
   - **商用利用可な力場のみ**: AMBER ff19SB + Lipid21 + TIP3P + Joung-Cheatham ions
     (AmberTools 配布、free incl. commercial)。CGenFF Web server / CHARMM-GUI に
     依存しない設計
-  - CHARMM36 backend (Klauda lab GROMACS port、CGenFF 不使用) も
-    `parameterize_charmm.py` の interface stub として skeleton 配置済み
-    (Phase C で本実装予定)
+  - **CHARMM36 backend** (Klauda lab GROMACS port、CGenFF 不使用) を
+    `parameterize_charmm.py` で実装済 (Phase C):
+    - `--charmm` フラグで packmol-memgen に lipid/water/ion を CHARMM 命名で
+      出力させ、peptide は `translate_pdb_amber_to_charmm` で AMBER→CHARMM
+      残基/原子名翻訳 (HIE→HSE / NME→CT3 / 末端 cap atom names / 標準 AA の
+      amide H→HN 等) を当ててから `gmx pdb2gmx -ff charmm36-jul2022 -water
+      tip3p` で top/gro を生成
+    - **ion auto-translate**: `IonSpec(cation='Na+', anion='Cl-')` を AMBER
+      形式で書けば CHARMM backend が内部で `SOD`/`CLA` 等にマップ
+    - 25 ユニットテスト (`tests/test_membrane_charmm_translate.py`) で
+      翻訳ロジックを検証
+    - Klauda 研の `charmm36-jul2022.ff` 配布を `MembraneConfig.charmm_ff_dir`
+      で参照する形 (本パッケージは未同梱、license 配布元の差し替えを許容)。
+      取得手順は `docs/membrane.md` の "CHARMM36 GROMACS port の取得" 参照
   - smoke test: `tests/integration/run_membrane_us_smoke.sh`
     (poly-Ala 5-mer + POPC 32/leaflet + 7 windows × 1 ns)。
     16 ファイル生成 + 11 MDP すべて `gmx grompp` 通過を ~30 秒で検証
