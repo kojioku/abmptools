@@ -257,10 +257,7 @@ def _override_mdp_field(mdp_text: str, field: str, value: str) -> str:
         stripped = line.lstrip()
         if stripped.startswith(f"{field} ") or stripped.startswith(f"{field}="):
             indent = line[:len(line) - len(stripped)]
-            # Preserve column alignment by looking for the existing '='
-            eq_pos = line.find("=")
             new_line = f"{indent}{field:<15s} = {value}"
-            # Try to keep similar formatting
             out_lines.append(new_line)
             replaced = True
         else:
@@ -268,3 +265,36 @@ def _override_mdp_field(mdp_text: str, field: str, value: str) -> str:
     if not replaced:
         out_lines.append(f"{field} = {value}")
     return "\n".join(out_lines) + ("\n" if mdp_text.endswith("\n") else "")
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point (used by run.sh)
+# ---------------------------------------------------------------------------
+
+def _main() -> None:
+    """``python -m abmptools.membrane.pulling`` — extract window frames."""
+    import argparse
+    from .models import MembraneConfig
+
+    parser = argparse.ArgumentParser(
+        description="Extract per-window starting frames from a pulling run.",
+    )
+    parser.add_argument("--pull-tpr", required=True)
+    parser.add_argument("--pull-xtc", required=True)
+    parser.add_argument("--pull-xvg", required=True)
+    parser.add_argument("--config", required=True,
+                        help="Path to MembraneConfig JSON.")
+    parser.add_argument("--windows-dir", required=True)
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(name)s | %(message)s")
+    cfg = MembraneConfig.from_json(args.config)
+    extract_window_frames(
+        pull_tpr=args.pull_tpr, pull_xtc=args.pull_xtc,
+        pullx_xvg=args.pull_xvg,
+        config=cfg, out_dir=args.windows_dir,
+    )
+
+
+if __name__ == "__main__":
+    _main()
