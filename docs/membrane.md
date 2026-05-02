@@ -65,6 +65,40 @@ sed -i 's/np\.array(args, dtype=np\.float, copy=True)/np.array(args, dtype=float
 `packmol-memgen` バイナリのパスから自動推定するので、conda env を activate
 しているか、`MembraneConfig.packmol_memgen_path` にフルパスを渡せば追加設定不要。
 
+### GPU 加速 (NVIDIA / CUDA)
+
+本パッケージの `run.sh` は `MDRUN_OPTS` 環境変数で `gmx mdrun` の追加引数を
+受け付ける。NVIDIA GPU + CUDA 環境では下記で大幅に加速できる
+(18k 原子規模で 10-30× 程度):
+
+```bash
+MDRUN_OPTS="-nb gpu -pme gpu -pmefft gpu -bonded gpu -update gpu -pin on" \
+    bash run.sh
+```
+
+#### bioconda gmx (OpenCL build) を使っている場合の注意
+
+`bioconda::gromacs=2021.3` などの**OpenCL ビルド**は WSL2 環境では NVIDIA GPU
+を見つけられない (NVIDIA は WSL2 で OpenCL ICD を提供しないため、CUDA は
+動くが OpenCL は動かない)。下記を満たす別 env を併設するのが確実:
+
+```bash
+# CUDA build の GROMACS だけを別 env に install (~5 min)
+micromamba create -n gmxcudaenv -c conda-forge 'gromacs[build=nompi_cuda*]' -y
+
+# 既存 abmptoolsenv を python / tleap / packmol-memgen 用に維持しつつ、
+# gmx だけ CUDA env のものを使う:
+PATH=~/.local/share/mamba/envs/abmptoolsenv/bin:$PATH \
+    AMBERHOME=~/.local/share/mamba/envs/abmptoolsenv \
+    GMX=~/.local/share/mamba/envs/gmxcudaenv/bin/gmx \
+    MDRUN_OPTS="-nb gpu -pme gpu -pmefft gpu -bonded gpu -update gpu -pin on" \
+    NT=4 \
+    bash run.sh
+```
+
+`gmx grompp` も同じ `$GMX` で実行される (run.sh 内で統一) ため、
+.tpr の version mismatch 問題は起きない。
+
 ### CHARMM36 GROMACS port の取得 (Phase C 用)
 
 `backend="charmm36"` を使う場合、CHARMM36 力場ファイル一式 (Klauda lab の
