@@ -65,6 +65,78 @@ sed -i 's/np\.array(args, dtype=np\.float, copy=True)/np.array(args, dtype=float
 `packmol-memgen` バイナリのパスから自動推定するので、conda env を activate
 しているか、`MembraneConfig.packmol_memgen_path` にフルパスを渡せば追加設定不要。
 
+### CHARMM36 GROMACS port の取得 (Phase C 用)
+
+`backend="charmm36"` を使う場合、CHARMM36 力場ファイル一式 (Klauda lab の
+GROMACS port) を別途ダウンロードして配置する必要がある。**力場パラメータ値
+そのもの**は MacKerell 研の公式 stance 「free of charge to academic and
+**industrial** researchers」により商用利用 OK。CGenFF Web server や
+CHARMM-GUI のような **サービス** (商用ライセンス必要) には依存しない。
+
+#### ダウンロード手順
+
+1. **MacKerell 研公式ページ**にアクセス:
+   <http://mackerell.umaryland.edu/charmm_ff.shtml>
+
+2. **"Force fields available in formats other than CHARMM"** セクションの
+   GROMACS port (例: `charmm36-jul2022.ff.tgz` または最新版) をダウンロード。
+   ファイルサイズは ~10 MB 程度。
+
+3. **配置先 (推奨)**: `~/llm-project/charmm36-jul2022.ff/`
+
+   ```bash
+   cd ~/llm-project
+   # ブラウザでダウンロードしたファイルをここに置いてから:
+   tar -xzf charmm36-jul2022.ff.tgz
+   # → ~/llm-project/charmm36-jul2022.ff/  ディレクトリができる
+   ```
+
+   ディレクトリ内に `forcefield.itp`, `ffnonbonded.itp`, `ffbonded.itp`,
+   `*.rtp`, `lipids.rtp`, `merged.rtp` 等が含まれていることを確認。
+
+4. **`MembraneConfig.charmm_ff_dir`** に絶対パスを渡す:
+
+   ```python
+   cfg = MembraneConfig(
+       backend='charmm36',
+       charmm_ff_dir='/home/<user>/llm-project/charmm36-jul2022.ff',
+       lipids=[LipidSpec(resname='POPC', n_per_leaflet=64)],
+       peptide=PeptideSpec(name='aa5', sequence='AAAAA'),
+       output_dir='./run01',
+   )
+   ```
+
+5. **論文引用の義務**: ライセンスは citation 要求あり。論文発表時は
+   MacKerell 研の指定文献 (Best 2012 *J. Chem. Theory Comput.*、
+   Klauda 2010 *J. Phys. Chem. B*、Pastor 2011 *Chem. Phys. Lett.*、
+   タンパク・脂質・水で各々) を引用する。
+
+#### 商用利用での注意
+
+- **使ってよい**: 上記公式ページの zip / Klauda 研の GROMACS port (parameter values)
+- **使ってはいけない**: CGenFF Web server (`cgenff.umaryland.edu`) の出力 — 商用は
+  Silcsbio 経由のサブスク必須。新規小分子のパラメータ化は AMBER (GAFF2 +
+  antechamber) ルートに切り替えること
+- **使ってはいけない**: CHARMM-GUI の自動生成 (Membrane Builder, Topology
+  Generator など) — 商用は別契約必要。本パッケージは bilayer 構築を
+  packmol-memgen で代替
+
+#### ion 名の自動切替
+
+`IonSpec(cation='Na+', anion='Cl-')` のように **AMBER 形式**で書けば、
+CHARMM36 backend が内部で CHARMM の標準残基名 (`SOD` / `CLA` 等) に
+翻訳するため、ユーザーは backend を切替えるごとにイオン名を書き換える
+必要はない。明示的に CHARMM 名を書いた場合 (`IonSpec(cation='SOD')`) は
+そのまま尊重する。マップ:
+
+| AMBER 形式 | CHARMM36 形式 |
+|---|---|
+| `Na+` | `SOD` |
+| `Cl-` | `CLA` |
+| `K+`  | `POT` |
+| `Mg2+` | `MG`  |
+| `Ca2+` | `CAL` |
+
 ## クイックスタート (smoke)
 
 ```python
