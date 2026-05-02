@@ -46,6 +46,8 @@ from .models import (
     PeptideSpec,
     IonSpec,
     USProtocol,
+    EquilibrationProtocol,
+    PullingProtocol,
     Backend,
 )
 from .builder import MembraneUSBuilder
@@ -56,6 +58,8 @@ __all__ = [
     "PeptideSpec",
     "IonSpec",
     "USProtocol",
+    "EquilibrationProtocol",
+    "PullingProtocol",
     "Backend",
     "MembraneUSBuilder",
 ]

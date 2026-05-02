@@ -57,6 +57,10 @@ class MembraneUSBuilder:
         self._pull_dir: Path = Path()
         self._windows_dir: Path = Path()
         self._analysis_dir: Path = Path()
+        # Stage-2 outputs cached for downstream stages.
+        self._top: str = ""
+        self._gro: str = ""
+        self._ndx: str = ""
 
     # ------------------------------------------------------------------
     # Public API
@@ -81,6 +85,7 @@ class MembraneUSBuilder:
         logger.info("=== Stage 2: force-field parameterisation (%s) ===",
                     self.config.backend)
         top, gro, ndx = self._stage2_parameterize(bilayer_pdb)
+        self._top, self._gro, self._ndx = top, gro, ndx
 
         logger.info("=== Stage 3: equilibration MDPs ===")
         equil_mdps = self._stage3_equilibration_mdps()
@@ -173,8 +178,20 @@ class MembraneUSBuilder:
 
     def _stage4_pulling_mdp(self) -> str:
         from . import pulling
+        # Estimate the initial pull-coord from the *unequilibrated* system.
+        # Equilibration typically shifts the peptide by < 0.5 nm; if the
+        # post-NPT shift is significant, regenerate pull.mdp before stage 4
+        # via pulling.estimate_initial_pull_coord(equil/npt.gro, ...).
+        init_z = pulling.estimate_initial_pull_coord(
+            gro_path=self._gro,
+            ndx_path=self._ndx,
+            pull_group1=self.config.umbrella.pull_group1,
+            pull_group2=self.config.umbrella.pull_group2,
+        )
+        logger.info("estimated initial pull-coord: %+.3f nm", init_z)
         return pulling.write_pulling_mdp(
             config=self.config, pull_dir=str(self._pull_dir),
+            pull_init_nm=init_z,
         )
 
     def _stage5_window_mdps(self) -> Dict[int, str]:
