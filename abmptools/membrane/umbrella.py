@@ -16,7 +16,7 @@ import logging
 import os
 import stat
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from .models import MembraneConfig
 from .mdp_us_protocol import render_npt_mdp, render_pull_block
@@ -27,11 +27,19 @@ logger = logging.getLogger(__name__)
 
 def write_window_mdps(
     *, config: MembraneConfig, windows_dir: str,
+    pbc_atom_g1: Optional[int] = None,
 ) -> Dict[int, str]:
     """Write per-window MDPs (one per umbrella window).
 
     Each window MDP is the NPT-semiisotropic template + a pull block
     with ``rate=0`` and ``init = z_min + i * dz``.
+
+    Parameters
+    ----------
+    pbc_atom_g1 : int or None
+        Bilayer group's PBC reference atom (1-based). Required when
+        the Bilayer diameter exceeds half the shortest box vector;
+        compute with :func:`pulling.find_pbc_center_atom`.
 
     Returns
     -------
@@ -65,6 +73,7 @@ def write_window_mdps(
             pull_rate_nm_per_ps=0.0,
             pull_k=u.force_constant_kj_mol_nm2,
             nst_pull_xf=u.window_nstxtcout,
+            pbc_atom_g1=pbc_atom_g1,
         )
 
         text = (

@@ -29,6 +29,8 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+from typing import Optional
+
 from .models import MembraneConfig
 from .mdp_us_protocol import render_npt_mdp, render_pull_block
 from .bilayer import _resolve_amberhome
@@ -39,6 +41,7 @@ logger = logging.getLogger(__name__)
 def write_pulling_mdp(
     *, config: MembraneConfig, pull_dir: str,
     pull_init_nm: float,
+    pbc_atom_g1: Optional[int] = None,
 ) -> str:
     """Write pull.mdp combining NPT-semiisotropic + pull-code block.
 
@@ -54,13 +57,29 @@ def write_pulling_mdp(
         the end of the npt-equilibration step (use
         :func:`estimate_initial_pull_coord` to compute this from the
         equilibrated .gro).
+    pbc_atom_g1 : int or None
+        1-based atom index for the Bilayer group's PBC reference atom.
+        Required when the Bilayer diameter exceeds half the shortest
+        box vector (typical). Compute via :func:`find_pbc_center_atom`.
     """
     pd = Path(pull_dir).resolve()
     pd.mkdir(parents=True, exist_ok=True)
 
-    # Override the NPT body's nsteps with the pulling-stage nsteps.
+    # Pulling stage uses **NVT** (no pressure coupling) with
+    # direction-periodic. Rationale:
+    # - During pulling, the peptide traverses the water layer → bilayer →
+    #   opposite water layer. The peptide-bilayer COM-z separation
+    #   transiently exceeds 0.49 × shortest-box-vector, which only
+    #   ``direction-periodic`` handles cleanly.
+    # - GROMACS rejects ``direction-periodic`` with **any** dynamic box
+    #   (semiisotropic AND isotropic Pcoupl), so the box must be static.
+    # - The window stages re-introduce semiisotropic Pcoupl and
+    #   geometry=direction; the box is allowed to relax there.
+    # - The pulling MD is short (~ns) and the bilayer barely deforms
+    #   without Pcoupl over that timescale, so this NVT-pull / NPT-window
+    #   split is a standard membrane US convention.
     p = config.pulling
-    npt_body = render_npt_mdp(config=config, pcoupl="c-rescale")
+    npt_body = render_npt_mdp(config=config, pcoupl="no")
     npt_body = _override_mdp_field(npt_body, "nsteps", str(p.nsteps))
     npt_body = _override_mdp_field(npt_body, "dt", f"{config.equilibration.dt_ps:.3f}")
     npt_body = _override_mdp_field(npt_body, "nstxout-compressed",
@@ -72,6 +91,8 @@ def write_pulling_mdp(
         pull_rate_nm_per_ps=p.pull_rate_nm_per_ps,
         pull_k=p.pull_force_constant,
         nst_pull_xf=max(50, p.nstxout_compressed // 10),
+        pbc_atom_g1=pbc_atom_g1,
+        geometry_override="direction-periodic",
     )
 
     out = (
@@ -113,6 +134,44 @@ def estimate_initial_pull_coord(
     z1 = sum(pos[i - 1][2] for i in groups[pull_group1]) / len(groups[pull_group1])
     z2 = sum(pos[i - 1][2] for i in groups[pull_group2]) / len(groups[pull_group2])
     return z2 - z1
+
+
+def find_pbc_center_atom(
+    *, gro_path: str, ndx_path: str, group_name: str,
+) -> int:
+    """Return the 1-based atom index in *group_name* closest to the group COM.
+
+    Required for ``pull-group1-pbcatom`` when the pull group spans more
+    than half the (shortest) box vector — typical for a lipid bilayer,
+    where GROMACS errors out without an explicit central atom:
+
+        ERROR: When the maximum distance from a pull group reference
+        atom to other atoms in the group is larger than 0.5 times half
+        the box size a centrally placed atom should be chosen as pbcatom.
+
+    Uses unweighted mean position (atom count COM); good enough for
+    selecting *which* atom is most central.
+    """
+    pos = _read_gro_positions(gro_path)
+    groups = _read_ndx_groups(ndx_path)
+    if group_name not in groups:
+        raise KeyError(
+            f"index group {group_name!r} not found in {ndx_path}; "
+            f"available: {sorted(groups)}"
+        )
+    indices = groups[group_name]
+    com_x = sum(pos[i - 1][0] for i in indices) / len(indices)
+    com_y = sum(pos[i - 1][1] for i in indices) / len(indices)
+    com_z = sum(pos[i - 1][2] for i in indices) / len(indices)
+    best_idx = indices[0]
+    best_d2 = float("inf")
+    for i in indices:
+        x, y, z = pos[i - 1]
+        d2 = (x - com_x) ** 2 + (y - com_y) ** 2 + (z - com_z) ** 2
+        if d2 < best_d2:
+            best_d2 = d2
+            best_idx = i
+    return best_idx
 
 
 def extract_window_frames(

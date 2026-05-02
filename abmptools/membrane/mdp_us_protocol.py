@@ -226,6 +226,9 @@ def render_pull_block(
     pull_rate_nm_per_ps: float,
     pull_k: Optional[float] = None,
     nst_pull_xf: int = 50,
+    pbc_atom_g1: Optional[int] = None,
+    pbc_atom_g2: Optional[int] = None,
+    geometry_override: Optional[str] = None,
 ) -> str:
     """Render the [pull] / [pull-coord*] block for membrane US.
 
@@ -243,15 +246,26 @@ def render_pull_block(
         ``config.umbrella.force_constant_kj_mol_nm2``.
     nst_pull_xf : int
         Output stride for ``pullx.xvg`` / ``pullf.xvg``.
+    pbc_atom_g1, pbc_atom_g2 : int or None
+        1-based atom indices that override GROMACS' auto-selected
+        reference atom for PBC handling within each pull group.
+        REQUIRED for the bilayer group when its diameter exceeds half
+        the box (otherwise grompp errors with "should be chosen as
+        pbcatom"). Compute via :func:`pulling.find_pbc_center_atom`.
     """
     if pull_k is None:
         pull_k = config.umbrella.force_constant_kj_mol_nm2
 
-    geom = config.umbrella.pull_geometry
+    geom = geometry_override or config.umbrella.pull_geometry
     vec_line = (
         f"pull-coord1-vec            = {config.umbrella.pull_vec}\n"
         if geom.startswith("direction") else ""
     )
+    pbc_lines = ""
+    if pbc_atom_g1 is not None:
+        pbc_lines += f"pull-group1-pbcatom        = {pbc_atom_g1:d}\n"
+    if pbc_atom_g2 is not None:
+        pbc_lines += f"pull-group2-pbcatom        = {pbc_atom_g2:d}\n"
     return _strip("""
     ; pull-code (signed z-distance via {geom:s})
     pull                       = yes
@@ -259,13 +273,16 @@ def render_pull_block(
     pull-ncoords               = 1
     pull-group1-name           = {g1:s}
     pull-group2-name           = {g2:s}
+    """).format(
+        g1=config.umbrella.pull_group1,
+        g2=config.umbrella.pull_group2,
+        geom=geom,
+    ) + pbc_lines + _strip("""
     pull-coord1-type           = umbrella
     pull-coord1-geometry       = {geom:s}
     pull-coord1-groups         = 1 2
     pull-coord1-dim            = {dim:s}
     """).format(
-        g1=config.umbrella.pull_group1,
-        g2=config.umbrella.pull_group2,
         geom=geom,
         dim=config.umbrella.pull_dim,
     ) + vec_line + _strip("""

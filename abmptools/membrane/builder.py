@@ -189,15 +189,25 @@ class MembraneUSBuilder:
             pull_group2=self.config.umbrella.pull_group2,
         )
         logger.info("estimated initial pull-coord: %+.3f nm", init_z)
+        # Bilayer always needs an explicit pbcatom (group spans most of
+        # the box xy); pre-compute the atom closest to the bilayer COM.
+        pbc_g1 = pulling.find_pbc_center_atom(
+            gro_path=self._gro, ndx_path=self._ndx,
+            group_name=self.config.umbrella.pull_group1,
+        )
+        logger.info("pbc-atom for %s: %d",
+                    self.config.umbrella.pull_group1, pbc_g1)
+        self._pbc_atom_g1 = pbc_g1
         return pulling.write_pulling_mdp(
             config=self.config, pull_dir=str(self._pull_dir),
-            pull_init_nm=init_z,
+            pull_init_nm=init_z, pbc_atom_g1=pbc_g1,
         )
 
     def _stage5_window_mdps(self) -> Dict[int, str]:
         from . import umbrella
         return umbrella.write_window_mdps(
             config=self.config, windows_dir=str(self._windows_dir),
+            pbc_atom_g1=getattr(self, "_pbc_atom_g1", None),
         )
 
     def _write_run_script(
