@@ -171,10 +171,15 @@ def _main() -> None:
                         help="Number of bootstrap samples (0 = disable).")
     parser.add_argument("--temperature", type=float, default=None,
                         help="Override the temperature [K].")
+    parser.add_argument("--gmx-path", default=None,
+                        help="Override config.gmx_path (must match the gmx "
+                             "that produced the per-window .tpr files).")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(name)s | %(message)s")
     cfg = MembraneConfig.from_json(args.config)
+    if args.gmx_path is not None:
+        cfg.gmx_path = args.gmx_path
     out = run_wham(
         windows_dir=args.windows_dir,
         analysis_dir=args.analysis_dir,

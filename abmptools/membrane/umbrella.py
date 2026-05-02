@@ -180,11 +180,14 @@ mkdir -p pull
     -px pull/pullx.xvg -pf pull/pullf.xvg
 
 # ---------- Stage 5: extract per-window starting frames ----------
+# Pass --gmx-path so trjconv reads .tpr with the same gmx version that
+# produced it (.tpr files are version-locked).
 python -m abmptools.membrane.pulling \\
     --pull-tpr pull/pull.tpr --pull-xtc pull/pull.xtc \\
     --pull-xvg pull/pullx.xvg \\
     --config input/config.json \\
-    --windows-dir windows
+    --windows-dir windows \\
+    --gmx-path "$GMX"
 
 # ---------- Stage 6: per-window MD ----------
 for i in $(seq -f '%03g' 0 {n_windows - 1}); do
@@ -200,7 +203,8 @@ done
 python -m abmptools.membrane.pmf \\
     --windows-dir windows \\
     --config input/config.json \\
-    --analysis-dir analysis
+    --analysis-dir analysis \\
+    --gmx-path "$GMX"
 
 echo "=== run.sh complete ==="
 """

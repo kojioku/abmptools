@@ -344,10 +344,16 @@ def _main() -> None:
     parser.add_argument("--config", required=True,
                         help="Path to MembraneConfig JSON.")
     parser.add_argument("--windows-dir", required=True)
+    parser.add_argument("--gmx-path", default=None,
+                        help="Override config.gmx_path (must match the gmx "
+                             "that produced --pull-tpr; .tpr files are "
+                             "version-locked).")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(name)s | %(message)s")
     cfg = MembraneConfig.from_json(args.config)
+    if args.gmx_path is not None:
+        cfg.gmx_path = args.gmx_path
     extract_window_frames(
         pull_tpr=args.pull_tpr, pull_xtc=args.pull_xtc,
         pullx_xvg=args.pull_xvg,
