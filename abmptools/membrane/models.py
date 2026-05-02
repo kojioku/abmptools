@@ -113,8 +113,12 @@ class USProtocol:
     # Pull-coord definitions.
     pull_group1: str = "Bilayer"
     pull_group2: str = "Peptide"
-    pull_geometry: str = "distance"     # "distance" or "direction-periodic"
-    pull_dim: str = "N N Y"             # only z
+    # ``direction-periodic`` gives a *signed* z coordinate (peptide_z -
+    # bilayer_z) that smoothly handles PBC. ``distance`` returns |z|
+    # (always positive) and is unsuitable for two-sided US.
+    pull_geometry: str = "direction-periodic"
+    pull_vec: str = "0 0 1"             # pulling direction (lab frame)
+    pull_dim: str = "N N Y"             # only z (for COM calc)
 
     @property
     def n_windows(self) -> int:

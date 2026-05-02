@@ -223,24 +223,29 @@ def parse_gro_residues(gro_path: str) -> List[Tuple[int, str, str]]:
 
 
 def write_index_from_gro(*, gro_path: str, ndx_path: str) -> str:
-    """Write a GROMACS .ndx with five groups derived from residue names.
+    """Write a GROMACS .ndx with six groups derived from residue names.
 
     Groups:
-      ``System``   — all atoms (1..N)
-      ``Bilayer``  — Lipid21 residues (PC/OL/PA/...)
-      ``Peptide``  — protein residues + caps (ACE/NME)
-      ``Solvent``  — WAT (or aliases)
-      ``Ions``     — Na+/Cl-/...
+      ``System``       — all atoms (1..N)
+      ``Bilayer``      — Lipid21 residues (PC/OL/PA/...)
+      ``Peptide``      — protein residues + caps (ACE/NME)
+      ``Solvent``      — WAT (or aliases)
+      ``Ions``         — Na+/Cl-/...
+      ``Non_Bilayer``  — System minus Bilayer (= Peptide + Solvent + Ions
+                         + any 'other'). Convenient for 2-group
+                         thermostatting where lipid and water-side
+                         relaxation timescales are decoupled.
 
     Returns the absolute path to the written .ndx.
     """
     atoms = parse_gro_residues(gro_path)
     groups: Dict[str, List[int]] = {
-        "System":  [],
-        "Bilayer": [],
-        "Peptide": [],
-        "Solvent": [],
-        "Ions":    [],
+        "System":      [],
+        "Bilayer":     [],
+        "Peptide":     [],
+        "Solvent":     [],
+        "Ions":        [],
+        "Non_Bilayer": [],
     }
     other_residues: set[str] = set()
     for idx, resname, _atomname in atoms:
@@ -248,19 +253,21 @@ def write_index_from_gro(*, gro_path: str, ndx_path: str) -> str:
         cls = classify_residue(resname)
         if cls == "lipid":
             groups["Bilayer"].append(idx)
-        elif cls == "peptide":
+        else:
+            groups["Non_Bilayer"].append(idx)
+        if cls == "peptide":
             groups["Peptide"].append(idx)
         elif cls == "solvent":
             groups["Solvent"].append(idx)
         elif cls == "ion":
             groups["Ions"].append(idx)
-        else:
+        elif cls != "lipid":
             other_residues.add(resname)
 
     if other_residues:
         logger.warning(
             "write_index_from_gro: unclassified residues will be in System "
-            "but no specific group: %s",
+            "and Non_Bilayer but no specific group: %s",
             sorted(other_residues),
         )
 
