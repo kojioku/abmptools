@@ -142,6 +142,14 @@ NT="${{NT:-4}}"            # total threads (single-rank OpenMP)
 # Constrain OpenMP to NT to avoid mismatches with auto-detected CPU.
 export OMP_NUM_THREADS="$NT"
 
+# --- mdrun extra options (e.g. GPU offload) ---
+# Default empty (CPU only). To use GPU offload (NVIDIA via CUDA / OpenCL,
+# or AMD via OpenCL):
+#     MDRUN_OPTS="-nb gpu -pme gpu -pmefft gpu -bonded gpu -update gpu" bash run.sh
+# Conservative GPU (PME on GPU, bonded on CPU; works with older drivers):
+#     MDRUN_OPTS="-nb gpu -pme gpu" bash run.sh
+MDRUN_OPTS="${{MDRUN_OPTS:-}}"
+
 # --- file paths (relative to this script) ---
 TOP="{top_rel}"
 GRO0="{gro_rel}"           # initial structure (post-packmol-memgen + parmed)
@@ -151,23 +159,24 @@ NDX="{ndx_rel}"
 mkdir -p equil
 "$GMX" grompp -f {em_mdp} -p "$TOP" -c "$GRO0" -n "$NDX" \\
     -o equil/em.tpr -po equil/em.mdp_out -maxwarn 1
+# em is steepest-descent — keep on CPU; GPU offload doesn't speed up SD.
 "$GMX" mdrun -deffnm equil/em -ntmpi 1 -ntomp "$NT"
 
 # ---------- Stage 2: NVT ----------
 "$GMX" grompp -f {nvt_mdp} -p "$TOP" -c equil/em.gro -n "$NDX" \\
     -o equil/nvt.tpr -po equil/nvt.mdp_out -maxwarn 1
-"$GMX" mdrun -deffnm equil/nvt -ntmpi 1 -ntomp "$NT"
+"$GMX" mdrun -deffnm equil/nvt -ntmpi 1 -ntomp "$NT" $MDRUN_OPTS
 
 # ---------- Stage 3: NPT-semiisotropic ----------
 "$GMX" grompp -f {npt_mdp} -p "$TOP" -c equil/nvt.gro -n "$NDX" \\
     -o equil/npt.tpr -po equil/npt.mdp_out -maxwarn 1
-"$GMX" mdrun -deffnm equil/npt -ntmpi 1 -ntomp "$NT"
+"$GMX" mdrun -deffnm equil/npt -ntmpi 1 -ntomp "$NT" $MDRUN_OPTS
 
 # ---------- Stage 4: pulling (steered MD along z) ----------
 mkdir -p pull
 "$GMX" grompp -f {pull_mdp_rel} -p "$TOP" -c equil/npt.gro -n "$NDX" \\
     -o pull/pull.tpr -po pull/pull.mdp_out -maxwarn 1
-"$GMX" mdrun -deffnm pull/pull -ntmpi 1 -ntomp "$NT" \\
+"$GMX" mdrun -deffnm pull/pull -ntmpi 1 -ntomp "$NT" $MDRUN_OPTS \\
     -px pull/pullx.xvg -pf pull/pullf.xvg
 
 # ---------- Stage 5: extract per-window starting frames ----------
@@ -183,7 +192,7 @@ for i in $(seq -f '%03g' 0 {n_windows - 1}); do
     "$GMX" grompp -f "$WIN/window.mdp" -p "$TOP" -c "$WIN/start.gro" \\
         -n "$NDX" -o "$WIN/window.tpr" -po "$WIN/window.mdp_out" \\
         -maxwarn 1
-    "$GMX" mdrun -deffnm "$WIN/window" -ntmpi 1 -ntomp "$NT" \\
+    "$GMX" mdrun -deffnm "$WIN/window" -ntmpi 1 -ntomp "$NT" $MDRUN_OPTS \\
         -px "$WIN/pullx.xvg" -pf "$WIN/pullf.xvg"
 done
 
