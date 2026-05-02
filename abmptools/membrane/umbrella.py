@@ -129,7 +129,9 @@ cd "$(dirname "$0")"
 
 # --- tool paths (override via env if needed) ---
 GMX="${{GMX:-{config.gmx_path}}}"
-NT="${{NT:-4}}"           # OpenMP threads / GPU offload as appropriate
+NT="${{NT:-4}}"            # total threads (single-rank OpenMP)
+# Constrain OpenMP to NT to avoid mismatches with auto-detected CPU.
+export OMP_NUM_THREADS="$NT"
 
 # --- file paths (relative to this script) ---
 TOP="{top_rel}"
@@ -140,23 +142,23 @@ NDX="{ndx_rel}"
 mkdir -p equil
 "$GMX" grompp -f {em_mdp} -p "$TOP" -c "$GRO0" -n "$NDX" \\
     -o equil/em.tpr -po equil/em.mdp_out -maxwarn 1
-"$GMX" mdrun -deffnm equil/em -nt "$NT"
+"$GMX" mdrun -deffnm equil/em -ntmpi 1 -ntomp "$NT"
 
 # ---------- Stage 2: NVT ----------
 "$GMX" grompp -f {nvt_mdp} -p "$TOP" -c equil/em.gro -n "$NDX" \\
     -o equil/nvt.tpr -po equil/nvt.mdp_out -maxwarn 1
-"$GMX" mdrun -deffnm equil/nvt -nt "$NT"
+"$GMX" mdrun -deffnm equil/nvt -ntmpi 1 -ntomp "$NT"
 
 # ---------- Stage 3: NPT-semiisotropic ----------
 "$GMX" grompp -f {npt_mdp} -p "$TOP" -c equil/nvt.gro -n "$NDX" \\
     -o equil/npt.tpr -po equil/npt.mdp_out -maxwarn 1
-"$GMX" mdrun -deffnm equil/npt -nt "$NT"
+"$GMX" mdrun -deffnm equil/npt -ntmpi 1 -ntomp "$NT"
 
 # ---------- Stage 4: pulling (steered MD along z) ----------
 mkdir -p pull
 "$GMX" grompp -f {pull_mdp_rel} -p "$TOP" -c equil/npt.gro -n "$NDX" \\
     -o pull/pull.tpr -po pull/pull.mdp_out -maxwarn 1
-"$GMX" mdrun -deffnm pull/pull -nt "$NT" \\
+"$GMX" mdrun -deffnm pull/pull -ntmpi 1 -ntomp "$NT" \\
     -px pull/pullx.xvg -pf pull/pullf.xvg
 
 # ---------- Stage 5: extract per-window starting frames ----------
@@ -172,7 +174,7 @@ for i in $(seq -f '%03g' 0 {n_windows - 1}); do
     "$GMX" grompp -f "$WIN/window.mdp" -p "$TOP" -c "$WIN/start.gro" \\
         -n "$NDX" -o "$WIN/window.tpr" -po "$WIN/window.mdp_out" \\
         -maxwarn 1
-    "$GMX" mdrun -deffnm "$WIN/window" -nt "$NT" \\
+    "$GMX" mdrun -deffnm "$WIN/window" -ntmpi 1 -ntomp "$NT" \\
         -px "$WIN/pullx.xvg" -pf "$WIN/pullf.xvg"
 done
 
