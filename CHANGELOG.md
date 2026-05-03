@@ -4,6 +4,38 @@
 
 (no changes yet — this section accumulates work-in-progress between releases)
 
+## [1.17.1] - 2026-05-03
+
+### Added
+
+- **`abmptools.membrane` で混合脂質をサポート**。`MembraneConfig.lipids` に
+  複数の `LipidSpec` を並べるだけで、packmol-memgen に
+  `--lipids POPC:CHL1 --ratio 4:1` のような mole-ratio (gcd 約分) と
+  `--distxy_fix sqrt(sum(n × APL))` の per-lipid 面積総和に基づく box
+  サイズが自動で渡されるようになった。
+  - `LipidSpec` に `apl_angstrom2: float = 0.0` フィールド追加。0.0 なら
+    `bilayer.DEFAULT_LIPID_APL` テーブルから自動 lookup
+    (POPC=67 / DOPC=72 / DPPC=63 / POPE=56 / CHL1=38 等、共通 14 種)、
+    explicit に値を指定すれば override (低温 gel 相での DPPC=49 等)。
+  - `bilayer.estimate_distxy_angstrom` を per-lipid 計算に変更。引数
+    `apl_angstrom2: float = 65.0` は **未知残基への fallback** として
+    残るが、`DEFAULT_LIPID_APL` に載っている脂質では参照されない。
+  - 22 ユニットテスト追加 (`tests/test_membrane_mixed_lipid.py`):
+    table coverage、`_resolve_apl` precedence (explicit > table >
+    fallback)、binary / ternary mixture の `estimate_distxy_angstrom`、
+    multi-lipid `assemble_packmol_memgen_cmd` の `--lipids` /
+    `--ratio` / `--distxy_fix` 出力。
+  - 実機 build smoke (POPC 24 + CHL1 6 / leaflet、4:1) で
+    52 POPC + 12 CHL + ~3000 water + 16 ions の bilayer が
+    packmol-memgen で作成できることを確認。
+
+### Documentation
+
+- `docs/membrane.md` の `LipidSpec` セクションに混合脂質の例 (binary /
+  ternary) と `DEFAULT_LIPID_APL` の脂質→APL 対応表を追加。
+- `docs/tutorial_membrane_us.md` §2.1 の config 例に混合脂質テンプレートを
+  コメントブロックで追加。
+
 ## [1.17.0] - 2026-05-03
 
 ### Added

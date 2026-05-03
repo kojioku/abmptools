@@ -32,11 +32,24 @@ class LipidSpec:
         ``DPPC``, ``POPE``, ``POPG``, ``CHL1``, …) and let the backend
         handle the split via packmol-memgen / charmmlipid2amber.
     n_per_leaflet : int
-        Number of lipids of this species per leaflet (top / bottom).
+        Target number of lipids of this species per leaflet (top / bottom).
         Total in box is ``2 * n_per_leaflet``.
+    apl_angstrom2 : float
+        Area per lipid (Å²) at the simulation temperature. Used by the
+        packmol-memgen wrapper to size the bilayer patch
+        (``--distxy_fix = sqrt(sum(n_per_leaflet × apl))``).
+
+        Default ``0.0`` triggers an auto-lookup against
+        :data:`abmptools.membrane.bilayer.DEFAULT_LIPID_APL` (covers POPC,
+        POPE, POPG, DOPC, DPPC, CHL1, …); residues not in that table fall
+        back to a generic 65 Å² liquid-disordered phospholipid value.
+        Set explicitly when the simulation temperature or known lipid
+        condensation requires a different value (e.g. cholesterol-rich
+        leaflets, gel-phase DPPC at 280 K).
     """
     resname: str
     n_per_leaflet: int
+    apl_angstrom2: float = 0.0
 
 
 @dataclass

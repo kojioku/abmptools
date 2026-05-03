@@ -333,13 +333,51 @@ run01/
 ### LipidSpec
 
 ```python
+# 単成分
 LipidSpec(resname='POPC', n_per_leaflet=64)
-LipidSpec(resname='CHL1', n_per_leaflet=16)   # cholesterol mix
+
+# 混合膜 (POPC:CHL1 = 4:1 raft 模型)
+LipidSpec(resname='POPC', n_per_leaflet=80)
+LipidSpec(resname='CHL1', n_per_leaflet=20)
+
+# 三成分混合 (PC:PE:CHL = 4:2:1、内膜状)
+LipidSpec(resname='POPC', n_per_leaflet=40)
+LipidSpec(resname='POPE', n_per_leaflet=20)
+LipidSpec(resname='CHL1', n_per_leaflet=10)
+
+# 明示的 APL (低温 gel-phase 等で実測値を使う場合)
+LipidSpec(resname='DPPC', n_per_leaflet=64, apl_angstrom2=49.0)
 ```
 
 `resname` は packmol-memgen の `--available_lipids` で確認可。Lipid21 では
-POPC / POPE / POPG / DOPC / DPPC / CHL1 等の主要種をサポート。複数指定で
-混合膜 (e.g. POPC:CHL1 = 4:1)。
+POPC / POPE / POPG / DOPC / DPPC / CHL1 等の主要種をサポート。
+
+#### `apl_angstrom2`: 脂質ごとの area-per-lipid
+
+複数の `LipidSpec` を並べると混合膜になり、`packmol-memgen --ratio` には
+n_per_leaflet を gcd 約分した整数比が、`--distxy_fix` には
+`sqrt(sum(n × APL))` が自動で渡される。`apl_angstrom2` は **省略 (default
+0.0) で `DEFAULT_LIPID_APL` テーブル (下記) から自動 lookup** する。
+T や cholesterol 凝縮の効果で表内値が合わない場合のみ明示指定する。
+
+| 脂質 | APL (Å²、~310 K Lα) | 備考 |
+|---|---|---|
+| POPC | 67 | 標準的な液晶相 phospholipid |
+| DOPC | 72 | 二重不飽和、より広い |
+| DPPC | 63 | 飽和、Lα 相 (Tm 314 K 以上); gel 相 ~49 |
+| DMPC | 60 | 短鎖飽和 |
+| DLPC | 63 | 短鎖飽和 |
+| DSPC | 65 | 長鎖飽和 |
+| POPE | 56 | PE 頭部、PC より小さい |
+| DOPE | 65 | |
+| POPG | 64 | アニオン性 |
+| DOPG | 67 | |
+| POPS | 60 | アニオン性 |
+| POPA | 62 | アニオン性、最小 |
+| CHL1 / CHL / CHOL | 38 | コレステロール、ステロール環で小さい |
+
+テーブルにない残基名は `apl_angstrom2` 省略時 65 Å² (汎用 Lα 値) を fallback。
+`abmptools.membrane.bilayer.DEFAULT_LIPID_APL` を直接参照すれば編集も可能。
 
 ### PeptideSpec
 

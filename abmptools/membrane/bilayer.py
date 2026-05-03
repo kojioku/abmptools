@@ -185,16 +185,82 @@ def _gcd_list(values: List[int]) -> int:
     return out or 1
 
 
+#: Default area-per-lipid (Å²) for common bilayer species at ~310 K.
+#:
+#: Sources: experimental SAXS / NMR averages (see e.g. Kučerka 2011 *BBA*
+#: 1808, Marsh 2013 *BBA* 1828). Values are biological-membrane "fluid
+#: phase" averages and may need adjustment at low T (gel phase) or in
+#: cholesterol-rich systems where condensation effects shrink APL by
+#: 5-15 Å². Override per-lipid via :attr:`LipidSpec.apl_angstrom2`.
+#:
+#: Residues not in this table fall back to a generic 65 Å² liquid-
+#: disordered phospholipid value via :func:`_resolve_apl`.
+DEFAULT_LIPID_APL: dict[str, float] = {
+    # PC head (phosphocholine) — most common
+    "POPC": 67.0,    # 1-palmitoyl-2-oleoyl
+    "DOPC": 72.0,    # 1,2-dioleoyl
+    "DPPC": 63.0,    # 1,2-dipalmitoyl (Lα phase ≥ 314 K; gel ~49 below Tm)
+    "DMPC": 60.0,    # 1,2-dimyristoyl
+    "DLPC": 63.0,    # 1,2-dilauroyl
+    "DSPC": 65.0,    # 1,2-distearoyl
+    # PE head (phosphoethanolamine) — usually smaller than PC
+    "POPE": 56.0,
+    "DOPE": 65.0,
+    "DPPE": 56.0,
+    # PG head (phosphoglycerol) — anionic
+    "POPG": 64.0,
+    "DOPG": 67.0,
+    # PS head (phosphoserine) — anionic
+    "POPS": 60.0,
+    "DOPS": 65.0,
+    # PA head (phosphatidic acid) — anionic
+    "POPA": 62.0,
+    # cholesterol — much smaller, sterol ring
+    "CHL1": 38.0,
+    "CHOL": 38.0,
+    "CHL":  38.0,
+}
+
+
+def _resolve_apl(lipid: "LipidSpec", fallback: float = 65.0) -> float:
+    """Resolve area-per-lipid for a LipidSpec.
+
+    Precedence:
+      1. explicit non-zero ``LipidSpec.apl_angstrom2`` (user override)
+      2. lookup from :data:`DEFAULT_LIPID_APL` by residue name
+      3. *fallback* (generic liquid-disordered phospholipid, 65 Å²)
+    """
+    if lipid.apl_angstrom2 > 0.0:
+        return lipid.apl_angstrom2
+    return DEFAULT_LIPID_APL.get(lipid.resname, fallback)
+
+
 def estimate_distxy_angstrom(config: MembraneConfig,
                              apl_angstrom2: float = 65.0) -> float:
     """Estimate lipid-patch xy edge length (Å) from per-leaflet counts.
 
-    Uses ``area = sum(n_per_leaflet * APL)``; default APL = 65 Å² is a
-    middle-of-the-road value for liquid-disordered phospholipids near
-    physiological temperature. Override via *apl_angstrom2* for
-    saturated lipids (~50 Å²) or cholesterol-rich mixtures.
+    Uses ``area = sum_i (n_per_leaflet[i] × APL[i])`` where ``APL[i]`` is
+    resolved per lipid via :func:`_resolve_apl`. The *apl_angstrom2*
+    parameter is the **fallback** for residues that are neither in
+    :data:`DEFAULT_LIPID_APL` nor have an explicit
+    :attr:`LipidSpec.apl_angstrom2` value.
+
+    Examples
+    --------
+    Pure POPC (single lipid type, table lookup → 67):
+
+    >>> cfg.lipids = [LipidSpec("POPC", n_per_leaflet=64)]
+    >>> estimate_distxy_angstrom(cfg)
+    65.5  # sqrt(64 * 67) ≈ 65.5 Å
+
+    POPC + cholesterol mixture (per-lipid APL):
+
+    >>> cfg.lipids = [LipidSpec("POPC", 50), LipidSpec("CHL1", 20)]
+    >>> estimate_distxy_angstrom(cfg)
+    63.4  # sqrt(50*67 + 20*38)
     """
-    total_area = sum(l.n_per_leaflet * apl_angstrom2 for l in config.lipids)
+    total_area = sum(l.n_per_leaflet * _resolve_apl(l, apl_angstrom2)
+                     for l in config.lipids)
     return total_area ** 0.5
 
 

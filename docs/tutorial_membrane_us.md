@@ -157,6 +157,27 @@ cfg = MembraneConfig(
     equilibration=eq, pulling=pull, umbrella=us,
 )
 
+# --- 混合脂質の例 (v1.17.1+) ---
+# POPC + CHL1 4:1 (lipid raft 模型) の場合は LipidSpec を並べるだけ:
+#
+# cfg = MembraneConfig(
+#     backend="amber",
+#     lipids=[
+#         LipidSpec(resname="POPC", n_per_leaflet=80),
+#         LipidSpec(resname="CHL1", n_per_leaflet=20),
+#     ],
+#     peptide=PeptideSpec(name="aa5", sequence="AAAAA"),
+#     ...
+# )
+#
+# 内部処理:
+#   --lipids POPC:CHL1 --ratio 4:1   (n_per_leaflet を gcd 約分)
+#   --distxy_fix sqrt(80*67 + 20*38) ≈ 78.2  (per-lipid APL)
+# APL は LipidSpec.apl_angstrom2 を省略すると DEFAULT_LIPID_APL から
+# 自動取得 (POPC=67, CHL1=38, POPE=56, DOPC=72, DPPC=63, ... 詳細は
+# membrane.md の表を参照)。低温 gel 相など特殊な条件では explicit に:
+#   LipidSpec(resname="DPPC", n_per_leaflet=64, apl_angstrom2=49.0)
+
 result = MembraneUSBuilder(cfg).build()
 print(f"\nbuild OK")
 print(f"  output_dir : {result['output_dir']}")
