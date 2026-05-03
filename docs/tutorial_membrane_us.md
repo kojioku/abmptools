@@ -451,6 +451,45 @@ Total          81 ns      ~3 hours
 
 CPU 4-core 比 ~4-5×。1 core 比 ~15×。
 
+## 付録 A.2: 実例 PMF (run02、2026-05-03)
+
+上記 §2 の設定 (本番より、13 windows × 5 ns、pull rate=0.001 nm/ps × 10 ns、
+合計 81 ns) を実際に実行した結果:
+
+```
+=== analysis/pmf.xvg サンプル ===
+  z = -1.50 nm  →  E =  -3.0 kJ/mol   (下側 headgroup well)
+  z = -1.00 nm  →  E =   6.5 kJ/mol
+  z = -0.50 nm  →  E =  47.1 kJ/mol
+  z =  0.00 nm  →  E =  83.7 kJ/mol   ← 膜中心 barrier
+  z = +0.50 nm  →  E = 107.6 kJ/mol
+  z = +1.00 nm  →  E = 122.1 kJ/mol
+  z = +1.50 nm  →  E = 130.1 kJ/mol   (上側、sampling 不足で過大)
+
+  PMF range:  z = -1.65..+1.65 nm  /  E = -3.8..+131.0 kJ/mol
+  Pull traversed: z = -4.82..+5.43 nm (target 範囲を完全カバー)
+  Histogram: 各 window 2476 samples
+```
+
+### 物理解釈
+
+- ✅ **膜中心 z=0 で free-energy barrier の極大** (~84 kJ/mol)
+- ✅ **z=-1.36 nm の headgroup 領域で well** (-3.8 kJ/mol、溶媒和シェル)
+- ⚠ **対称性は不完全** (上下で 30 kJ/mol 差)
+  - 5 ns/window では peptide 側鎖配向の thermalize が不十分
+  - pull が一方向だったので後半 windows の初期構造が緩和不足
+  - 本番 PMF は 20-50 ns/window + 双方向 pull + bootstrap 推奨 (§5.1)
+
+### 完全データの保管場所
+
+| Tier | サイズ | 場所 |
+|---|---|---|
+| **Light** (input + analysis) | ~13 MB | `abmptools-sample/sample/membrane_us/peptide-polyAla5_POPC32_us_20260503_13win5ns/` の analysis/ 部分 |
+| **Medium** (上記 + tpr/gro/log) | ~85 MB | 同 sample dir 全体 (再 wham 解析可、軌跡解析不可) |
+| **Full** (上記 + .xtc + .edr + .cpt) | ~3 GB | `OneDrive/abmptools-dump/membrane-us/peptide-polyAla5_POPC32_us_20260503_13win5ns/` |
+
+軌跡解析 (RDF / 配向 / contact map 等) は OneDrive のフルデータから .xtc を取得して実施。
+
 ## 付録 B: 詳細リファレンス
 
 - [`membrane.md`](membrane.md) — 全 API / config field / 設計判断
