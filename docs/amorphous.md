@@ -3,6 +3,11 @@
 API + 短鎖ポリマー（オリゴマー）混合系のアモルファス構造ビルダー。
 OpenFF でパラメータ化 → Packmol で初期配置 → GROMACS アニーリング MD 用ファイル一式を生成。
 
+> **Sister subpackage**: [`abmptools.membrane`](membrane.md) は 2D 周期の脂質
+> 二重膜系 (peptide-bilayer Umbrella Sampling / PMF) 向け。本モジュールは
+> 3D ランダムボックス系 (アモルファス・混合溶媒) 向け。両者とも
+> `abmptools.core.SystemModel` を共有するが、stage 構成と Pcoupl 規約が異なる。
+
 ## インストール
 
 ```bash

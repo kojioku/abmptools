@@ -42,7 +42,7 @@ micromamba create -n abmptoolsenv -c conda-forge \
     python=3.10 gromacs=2021 ambertools=23 parmed openff-toolkit numpy
 
 # pip extras
-pip install abmptools[membrane]   # (Phase D 時点では amorphous extras に同梱)
+pip install abmptools[membrane]   # parmed (gromacs / ambertools は conda 経由で別途)
 ```
 
 ### packmol-memgen + NumPy ≥ 1.24 互換性パッチ (env 一回限り)
@@ -109,7 +109,7 @@ GPU 加速比は **~4-5×** 程度 (この系サイズで 4 core 並列との比
 1 core 換算なら ~15× 前後。系が大きくなる (50k+ atoms) ほど GPU の優位
 は大きくなる (10× 超)。
 
-### CHARMM36 GROMACS port の取得 (Phase C 用)
+### CHARMM36 GROMACS port の取得
 
 `backend="charmm36"` を使う場合、CHARMM36 力場ファイル一式 (Klauda lab の
 GROMACS port) を別途ダウンロードして配置する必要がある。**力場パラメータ値

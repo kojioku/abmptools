@@ -1,4 +1,4 @@
-# Tutorial: peptide-bilayer Umbrella Sampling (PMF) パイプライン
+# Tutorial: Peptide-Bilayer Umbrella Sampling (PMF) Pipeline
 
 ペプチドの脂質膜透過 PMF を `abmptools.membrane` で計算するための step-by-step
 チュートリアル。全コマンド実行例と実測データ付き。
@@ -405,7 +405,7 @@ cfg = MembraneConfig(
 )
 ```
 
-CHARMM36 force-field の取得方法は [`membrane.md`](membrane.md#charmm36-gromacs-port-の取得-phase-c-用) を参照。
+CHARMM36 force-field の取得方法は [`membrane.md`](membrane.md#charmm36-gromacs-port-の取得) を参照。
 
 商用利用 OK な手順 (CGenFF / CHARMM-GUI 経由は不可) を厳守。
 

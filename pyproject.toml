@@ -43,6 +43,14 @@ amorphous = [
     "openff-interchange>=0.3.0",
     "openmm>=8.0",
 ]
+membrane = [
+    "parmed>=4.0",
+    # External tools (conda-only — install via micromamba):
+    #   gromacs (>=2021)  — gmx grompp / mdrun / wham / trjconv
+    #   ambertools (>=22) — tleap, packmol-memgen, antechamber, parmchk2
+    # Optional: gromacs[build=nompi_cuda*] for GPU offload (separate env).
+    # See docs/dependencies.md for the full recipe.
+]
 geomopt = [
     "pyscf",
     "ase",

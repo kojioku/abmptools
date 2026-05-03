@@ -74,13 +74,22 @@ GAFF2/antechamber instead of CGenFF).
 
 ## Status
 
-- Phase A (skeleton) — done (commit `a0d2bb9`)
-- Phase B (AMBER end-to-end) — in progress
-  - B-1 (bilayer.py) — done (smoke verified)
-  - B-2 (parameterize_amber.py) — pending
-  - B-3..B-7 — pending
-- Phase C (CHARMM36 backend) — pending
-- Phase D (tutorial doc + integration test) — pending
+All four implementation phases are complete (latest commit `f10f791`):
+
+- **Phase A** — package skeleton (commit `a0d2bb9`)
+- **Phase B** — AMBER end-to-end pipeline, smoke + production-leaning runs verified
+  (commits `f1d49c7` … `907c040`)
+- **Phase C** — CHARMM36 backend (commits `5d28034` / `8c8bc1b`).
+  End-to-end smoke gated on the user dropping a Klauda-port `charmm36-jul2022.ff`
+  directory in place; translation unit tests (`tests/test_membrane_charmm_translate.py`)
+  pass independently of the .ff dir.
+- **Phase D** — documentation: [`docs/membrane.md`](../../docs/membrane.md) (reference)
+  + [`docs/tutorial_membrane_us.md`](../../docs/tutorial_membrane_us.md) (step-by-step
+  ops tutorial) + cross-references in `architecture.md` / `directory_structure.md` /
+  `ABMPTools-user-manual.md` / `dependencies.md` / `licenses_third_party.md`.
+
+GPU acceleration support added on top: `MDRUN_OPTS` env hook in `run.sh`,
+plus side-env CUDA gmx pattern documented in tutorial §1.3 / §3.2.
 
 ## Environment requirements
 
