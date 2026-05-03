@@ -4,7 +4,7 @@
 
 (no changes yet — this section accumulates work-in-progress between releases)
 
-## [1.17.1] - 2026-05-03
+## [1.17.0] - 2026-05-03
 
 ### Added
 
@@ -63,12 +63,11 @@
     gromacs / ambertools は conda)
   - その他陳腐化表記 (Phase 計画形 → 実装済) を解消
 
-## [1.17.0] - 2026-05-01
+## [1.16.0] - 2026-05-01
 
-(originally tagged as 1.16.0 internally on `develop`; renumbered to 1.17.0
-when the release window opened. release commit lives on `develop` only;
-not yet merged to `main` / tagged / uploaded to PyPI. Per the user, the
-next release window will pick this up after additional integration testing.)
+(release commit lives on `develop` only; not yet merged to `main` /
+tagged / uploaded to PyPI. Per the user, the next release window
+will pick this up after additional integration testing.)
 
 ### Added
 - `abmptools.core.system_model` に COGNAC 固有情報を保持するデータクラスを追加:
