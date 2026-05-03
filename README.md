@@ -55,6 +55,16 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
   trajectories with `gmx trjconv -pbc mol -ur compact` for VMD-friendly
   `*_pbc.xtc` / `_pbc.gro` outputs
 
+### Peptide-Bilayer Umbrella Sampling (`membrane`)
+
+- End-to-end PMF builder for peptide membrane permeation: bilayer + peptide + water + ions → AMBER (`ff19SB` + `Lipid21` + TIP3P / Joung-Cheatham) or CHARMM36 backend → semiisotropic NPT equilibration → z-pulling → per-window umbrella MDPs → `gmx wham` PMF
+- packmol-memgen lipid placement (no CHARMM-GUI dependency); peptide built from one-letter sequence via `tleap`, capped with ACE/NME by default
+- Two parameterisation routes:
+  - `backend="amber"` — fully commercial-OK (`tleap` + `parmed` → GROMACS top/gro)
+  - `backend="charmm36"` — MacKerell-free CHARMM36 parameter values via Klauda lab GROMACS port (`pdb2gmx`); CGenFF / CHARMM-GUI **forbidden by design** to keep the route commercial-clean
+- GPU acceleration hook in the generated `run.sh` (`MDRUN_OPTS` env var)
+- Bundled tutorial walks through poly-Ala 5-mer + POPC bilayer end-to-end
+
 ## Supported ABINIT-MP Versions
 
 - ABINIT-MP v1: Rev.10–23
@@ -115,6 +125,20 @@ python -m abmptools.amorphous --mol ketoprofen_pubchem_cid3825.sdf \
 # Or let abmptools fetch the 3D SDF straight from PubChem (1.15.3+)
 python -m abmptools.amorphous --pubchem_cid 3825 \
     --name ketoprofen --n_mol 50 --density 0.8 --output_dir ./ketoprofen_pubchem
+
+# Build a peptide-bilayer Umbrella Sampling system (AMBER backend)
+python - <<'PY'
+from abmptools.membrane import (MembraneConfig, MembraneUSBuilder,
+    LipidSpec, PeptideSpec, USProtocol)
+cfg = MembraneConfig(
+    backend="amber",
+    lipids=[LipidSpec(resname="POPC", n_per_leaflet=32)],
+    peptide=PeptideSpec(name="aa5", sequence="AAAAA"),
+    output_dir="./membrane_run", seed=42,
+    umbrella=USProtocol(z_min_nm=-1.5, z_max_nm=+1.5, window_spacing_nm=0.25),
+)
+print(MembraneUSBuilder(cfg).build()["run_script"])
+PY
 ```
 
 Use `-h` with any module for full option details.
@@ -127,6 +151,7 @@ Use `-h` with any module for full option details.
 - **[I/O Spec](docs/io_spec.md)** — File format specifications
 - **[gro2udf](docs/gro2udf.md)** / **[udf2gro](docs/udf2gro.md)** — GROMACS ↔ OCTA conversion
 - **[geomopt](docs/geomopt.md)** / **[amorphous](docs/amorphous.md)** — Optimization and structure building
+- **[membrane](docs/membrane.md)** / **[tutorial_membrane_us](docs/tutorial_membrane_us.md)** — Peptide-bilayer umbrella-sampling PMF (reference + step-by-step ops tutorial)
 
 ## Testing
 

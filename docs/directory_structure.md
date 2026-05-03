@@ -135,7 +135,7 @@ pytest ベースのテストスイート。658テスト、28ファイル。
 | 複合クラス | 2 | 72 | setfmo, anlfmo |
 | マネージャ | 2 | 64 | cpfmanager, logmanager |
 | スタンドアロン | 2 | 61 | readcif, getifiepieda |
-| サブパッケージ | 14 | 127 | core, gro2udf, udf2gro, amorphous, geomopt |
+| サブパッケージ | 14+ | 127+ | core, gro2udf, udf2gro, amorphous, geomopt, **membrane** (membrane backend translator + integration smoke は separate count) |
 | CLIスクリプト | 1 | 50 | 全14 CLIの argparse テスト |
 
 詳細は `tests/TEST_COVERAGE.md` を参照。
@@ -156,6 +156,8 @@ pytest ベースのテストスイート。658テスト、28ファイル。
 | `faq.md` | FAQ |
 | `gro2udf.md` / `udf2gro.md` | GROMACS ↔ OCTA 変換ドキュメント |
 | `amorphous.md` | アモルファス系構築 |
+| `membrane.md` | 膜透過 PMF 用 US ビルダー (reference) |
+| `tutorial_membrane_us.md` | 同上の step-by-step 操作チュートリアル |
 | `geomopt.md` / `qmopt.md` | 構造最適化 |
 | `licenses_third_party.md` | サードパーティライセンス |
 

@@ -2,8 +2,12 @@
 
 ## Project Name & Version
 
-**ABMPTools** (ABINIT-MP Tools) — v1.14.6
+**ABMPTools** (ABINIT-MP Tools)
 Author: Koji Okuwaki
+
+> Latest released version on PyPI: v1.15.4 (refactor/all line).
+> v1.16.0 is staged on `develop` (not yet released to `main` / PyPI).
+> See [`CHANGELOG.md`](../CHANGELOG.md) for the per-version detail.
 
 ## What is ABMPTools?
 
@@ -26,6 +30,7 @@ ABMPTools is a Python toolkit for pre-processing, post-processing, and analysis 
 | MD Integration | `udf_io`, `udfrm_io`, `udfcreate`, `gro2udf`, `udf2gro` | OCTA COGNAC UDF file handling and GROMACS ↔ OCTA conversion |
 | Structure Optimization | `geomopt.{MacePdbOptimizer, OpenFFOpenMMMinimizer, QMOptimizerPySCF}` | MACE / OpenFF / PySCF-DFT driven geometry optimization for PDB inputs |
 | Amorphous Builder | `amorphous` (`build_amorphous.py`) | SMILES / SDF / PubChem CID (via `amorphous.pubchem`) multi-component amorphous builder (Packmol + OpenFF + AM1-BCC), auto-generates 5-stage GROMACS annealing protocol and VMD-friendly trajectory post-processing |
+| Membrane Builder | `membrane` (`MembraneUSBuilder`) | Lipid-bilayer + peptide umbrella-sampling PMF builder (packmol-memgen + AMBER `ff19SB`/`Lipid21`/TIP3P or CHARMM36 backend → semiisotropic NPT → z-pulling → per-window US → `gmx wham`). GPU-aware `run.sh`. Designed commercial-license-clean (no CGenFF / CHARMM-GUI). |
 
 ## Supported ABINIT-MP Versions
 
@@ -72,3 +77,5 @@ For new developers approaching this codebase:
 4. **`abmptools/getifiepieda.py`** — Primary analysis CLI; shows how modules compose together.
 5. **`docs/ABMPTools-user-manual.md`** — Comprehensive user manual with option descriptions and output examples.
 6. **`sample/`** — Working examples with `run.sh` scripts for each workflow.
+7. **`docs/tutorial_membrane_us.md`** — Step-by-step ops tutorial for the
+   `membrane` subpackage (peptide-bilayer Umbrella Sampling).
