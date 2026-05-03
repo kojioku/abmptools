@@ -68,8 +68,7 @@ sed -i 's/np\.array(args, dtype=np\.float, copy=True)/np.array(args, dtype=float
 ### GPU 加速 (NVIDIA / CUDA)
 
 本パッケージの `run.sh` は `MDRUN_OPTS` 環境変数で `gmx mdrun` の追加引数を
-受け付ける。NVIDIA GPU + CUDA 環境では下記で大幅に加速できる
-(18k 原子規模で 10-30× 程度):
+受け付ける。NVIDIA GPU + CUDA 環境で以下を設定:
 
 ```bash
 MDRUN_OPTS="-nb gpu -pme gpu -pmefft gpu -bonded gpu -update gpu -pin on" \
@@ -98,6 +97,17 @@ PATH=~/.local/share/mamba/envs/abmptoolsenv/bin:$PATH \
 
 `gmx grompp` も同じ `$GMX` で実行される (run.sh 内で統一) ため、
 .tpr の version mismatch 問題は起きない。
+
+#### 実測パフォーマンス (参考)
+
+|    | system | core / GPU | 実測 ns/day |
+|---|---|---|---|
+| CPU only | poly-Ala 5 + POPC 32/leaflet (~18k atoms) | 4 cores (Ryzen WSL2) | ~140 |
+| GPU offload | 同上 | RTX 4070 Ti + 4 CPU cores | ~640 |
+
+GPU 加速比は **~4-5×** 程度 (この系サイズで 4 core 並列との比較)。
+1 core 換算なら ~15× 前後。系が大きくなる (50k+ atoms) ほど GPU の優位
+は大きくなる (10× 超)。
 
 ### CHARMM36 GROMACS port の取得 (Phase C 用)
 
