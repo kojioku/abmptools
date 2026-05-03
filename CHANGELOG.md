@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+(no changes yet — this section accumulates work-in-progress between releases)
+
+## [1.17.1] - 2026-05-03
+
 ### Added
 
 - **`abmptools.membrane` — peptide-bilayer umbrella-sampling builder** (新サブパッケージ、Phase A〜D)。
@@ -34,7 +38,11 @@
   - smoke test: `tests/integration/run_membrane_us_smoke.sh`
     (poly-Ala 5-mer + POPC 32/leaflet + 7 windows × 1 ns)。
     16 ファイル生成 + 11 MDP すべて `gmx grompp` 通過を ~30 秒で検証
-  - 詳細: [`docs/membrane.md`](docs/membrane.md)
+  - GPU 加速対応: `MDRUN_OPTS` env hook を `run.sh` に追加。NVIDIA + CUDA
+    で 18k atom 系 ~640 ns/day (CPU 4-core 比 ~4-5×)。WSL2 環境では
+    side-env (`gmxcudaenv`) パターンを `docs/tutorial_membrane_us.md` で案内
+  - 詳細: [`docs/membrane.md`](docs/membrane.md) (reference) /
+    [`docs/tutorial_membrane_us.md`](docs/tutorial_membrane_us.md) (step-by-step ops)
 
 ### Notes
 
@@ -43,11 +51,24 @@
   `np.float` → `float` の 2 行 sed パッチが必要。詳細は
   [`docs/membrane.md`](docs/membrane.md) のインストールセクション
 
-## [1.16.0] - 2026-05-01
+### Documentation
 
-(release commit lives on `develop` only; not yet merged to `main` /
-tagged / uploaded to PyPI. Per the user, the next release window
-will pick this up after additional integration testing.)
+- 横断ドキュメント監査の結果を反映 (commit `60faa43`):
+  - `README.md` に membrane の Features / Quick Start / Documentation 追加
+  - `docs/dependencies.md` / `docs/licenses_third_party.md` に
+    `amorphous` / `membrane` 専用セクション新設
+  - `docs/overview.md` / `docs/architecture.md` / `docs/directory_structure.md`
+    の subpackage / 機能リストを membrane に対応
+  - `pyproject.toml` に `membrane` extras を追加 (`parmed` 等の pip 依存のみ;
+    gromacs / ambertools は conda)
+  - その他陳腐化表記 (Phase 計画形 → 実装済) を解消
+
+## [1.17.0] - 2026-05-01
+
+(originally tagged as 1.16.0 internally on `develop`; renumbered to 1.17.0
+when the release window opened. release commit lives on `develop` only;
+not yet merged to `main` / tagged / uploaded to PyPI. Per the user, the
+next release window will pick this up after additional integration testing.)
 
 ### Added
 - `abmptools.core.system_model` に COGNAC 固有情報を保持するデータクラスを追加:
