@@ -189,6 +189,32 @@ class MembraneUSBuilder:
             pull_group2=self.config.umbrella.pull_group2,
         )
         logger.info("estimated initial pull-coord: %+.3f nm", init_z)
+
+        # Sanity-check pull rate × time covers the window range.
+        # Pulling drags peptide along +z; it must reach z_max for window
+        # frame extraction to find a frame near every window's target.
+        p = self.config.pulling
+        u = self.config.umbrella
+        pull_total_nm = abs(p.pull_rate_nm_per_ps) * p.nsteps * self.config.equilibration.dt_ps
+        target_displacement_nm = u.z_max_nm - init_z
+        if pull_total_nm < target_displacement_nm:
+            logger.warning(
+                "Pull range may not cover all windows!\n"
+                "  initial peptide z (rel. bilayer): %+.3f nm\n"
+                "  z_max (last window):              %+.3f nm\n"
+                "  required displacement:             %.3f nm\n"
+                "  configured displacement:           %.3f nm "
+                "(rate=%g nm/ps × %d steps × %g ps/step)\n"
+                "  windows above z = %.3f nm will start from the pull "
+                "trajectory's final frame, leading to non-equilibrium "
+                "umbrella sampling and a spurious monotonic PMF.\n"
+                "  Fix: increase PullingProtocol.pull_rate_nm_per_ps or "
+                ".nsteps so rate × nsteps × dt > %.3f nm.",
+                init_z, u.z_max_nm, target_displacement_nm, pull_total_nm,
+                p.pull_rate_nm_per_ps, p.nsteps,
+                self.config.equilibration.dt_ps,
+                init_z + pull_total_nm, target_displacement_nm,
+            )
         # Bilayer always needs an explicit pbcatom (group spans most of
         # the box xy); pre-compute the atom closest to the bilayer COM.
         pbc_g1 = pulling.find_pbc_center_atom(
