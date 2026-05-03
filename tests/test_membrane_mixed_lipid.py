@@ -28,9 +28,11 @@ from abmptools.membrane import (
 )
 from abmptools.membrane.bilayer import (
     DEFAULT_LIPID_APL,
+    _classify_lipid_head,
     _resolve_apl,
     assemble_packmol_memgen_cmd,
     estimate_distxy_angstrom,
+    list_known_lipids,
 )
 
 
@@ -201,6 +203,62 @@ class TestAssembleCmdMultiLipid:
         # expected: sqrt(80*67 + 20*38) ≈ sqrt(6120) ≈ 78.23 Å
         expected = sqrt(80 * 67 + 20 * 38)
         assert abs(distxy - expected) < 0.5  # within 0.5 Å of the formula
+
+    def test_table_size_v1172(self):
+        """v1.17.2 expanded the table to ~60 entries (Lipid21 PE/PG/PS/PA + SM)."""
+        # Sanity: at least 50 entries (PC ~11, PE ~10, PG ~10, PS ~10, PA ~9, SM ~7, sterol ~3)
+        assert len(DEFAULT_LIPID_APL) >= 50
+        # All known head groups represented
+        heads = {_classify_lipid_head(r) for r in DEFAULT_LIPID_APL}
+        assert {"PC", "PE", "PG", "PS", "PA", "SM", "sterol"}.issubset(heads)
+
+
+class TestClassifyLipidHead:
+    @pytest.mark.parametrize("resname,expected", [
+        ("POPC", "PC"), ("DOPC", "PC"), ("AHPC", "PC"),
+        ("POPE", "PE"), ("DPPE", "PE"),
+        ("POPG", "PG"), ("DAPG", "PG"),
+        ("POPS", "PS"), ("DSPS", "PS"),
+        ("POPA", "PA"), ("DPPA", "PA"),
+        ("PSM", "SM"), ("OSM", "SM"), ("HSM", "SM"),
+        ("CHL1", "sterol"), ("CHOL", "sterol"), ("CHL", "sterol"),
+        ("ZZZZZ", "other"),
+    ])
+    def test_known_classification(self, resname, expected):
+        assert _classify_lipid_head(resname) == expected
+
+
+class TestListKnownLipids:
+    def test_no_filter_returns_all(self):
+        rows = list_known_lipids()
+        assert len(rows) == len(DEFAULT_LIPID_APL)
+
+    def test_pc_filter(self):
+        rows = list_known_lipids(head_group="PC")
+        assert all(head == "PC" for _name, _apl, head in rows)
+        # Includes well-known PC species
+        names = {r[0] for r in rows}
+        assert {"POPC", "DOPC", "DPPC"}.issubset(names)
+
+    def test_sm_filter(self):
+        rows = list_known_lipids(head_group="SM")
+        # 7 SM variants in the table (LSM..HSM)
+        assert len(rows) == 7
+        # Sorted alphabetically
+        names = [r[0] for r in rows]
+        assert names == sorted(names)
+
+    def test_sterol_filter(self):
+        rows = list_known_lipids(head_group="sterol")
+        names = {r[0] for r in rows}
+        assert {"CHL", "CHL1", "CHOL"}.issubset(names)
+
+    def test_apl_values_present(self):
+        rows = list_known_lipids()
+        for resname, apl, _head in rows:
+            assert apl > 0
+            assert apl == DEFAULT_LIPID_APL[resname]
+
 
     def test_charmm_backend_adds_charmm_flag_with_mix(self):
         cfg = MembraneConfig(

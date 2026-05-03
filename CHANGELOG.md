@@ -4,6 +4,47 @@
 
 (no changes yet — this section accumulates work-in-progress between releases)
 
+## [1.17.2] - 2026-05-03
+
+### Added
+
+- **`abmptools.membrane` の `DEFAULT_LIPID_APL` を 14 → 60 entries に拡張**。
+  Lipid21 の標準 lipid を網羅 (PC: 11, PE: 10, PG: 10, PS: 10, PA: 9,
+  SM: 7, sterol: 3)。命名は packmol-memgen / Lipid21 規則に従う:
+  - **PC**: DLPC/DMPC/DPPC/DSPC/POPC/PMPC/SOPC/DOPC/DAPC/DHPC/AHPC
+  - **PE**: DLPE/DMPE/DPPE/DSPE/POPE/PMPE/SOPE/DOPE/DAPE/DHPE
+  - **PG**: DLPG/DMPG/DPPG/DSPG/POPG/SOPG/DOPG/DAPG/DHPG/AHPG
+  - **PS**: DLPS/DMPS/DPPS/DSPS/POPS/SOPS/DOPS/DAPS/DHPS/AHPS
+  - **PA**: DLPA/DMPA/DPPA/DSPA/POPA/DOPA/DAPA/DHPA/AHPA
+  - **SM** (sphingomyelin、raft component、Lipid21 only):
+    LSM/MSM/PSM/SSM/OSM/ASM/HSM
+  - **sterol**: CHL1 / CHOL / CHL (alias)
+  - APL 値は文献ベース (Kučerka 2011 *BBA*, Marsh 2013 *BBA*, Lipid21
+    MD literature) の Lα 相 ~310 K 平均
+- **検索 / ロード helper** (`bilayer.py`):
+  - `list_known_lipids(head_group=None)` — curated table を head 別 sort
+    + filter ("PC"/"PE"/"PG"/"PS"/"PA"/"SM"/"sterol")
+  - `_classify_lipid_head(resname)` — resname の suffix / prefix から
+    head group 推定
+  - `query_packmol_memgen_lipids(packmol_memgen_path)` — packmol-memgen
+    の全 259 種を runtime で取得 (curated table 外も含む)
+- **CLI**: `python -m abmptools.membrane.lipid_info`
+  - `--known` (default) / `--known --head SM`: curated table 表示
+  - `--available`: packmol-memgen 全 259 種
+  - `--apl RESNAME`: 単一 lipid の APL 解決 (table miss → 65.0 fallback 表示)
+- **23 ユニットテスト追加** (`tests/test_membrane_mixed_lipid.py`):
+  table size sanity (≥50)、head group 完全性、`_classify_lipid_head`
+  の各 head + sterol + other ケース、`list_known_lipids` の filter /
+  sort / value 整合性。`v1.17.1` の 22 テストと合わせて 46 件 / 0.23 s
+
+### Documentation
+
+- `docs/membrane.md` の `LipidSpec` セクションを書き換え:
+  - 旧 14-row APL 表 → head 別の概観表 (各レンジで代表 5-10 entries) +
+    "完全表は CLI で表示" の案内
+  - "既知 lipid のロード / 検索" 新サブセクション (CLI 使用例 + Python
+    API 使用例)
+
 ## [1.17.1] - 2026-05-03
 
 ### Added

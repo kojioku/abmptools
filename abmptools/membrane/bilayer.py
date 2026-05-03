@@ -185,41 +185,219 @@ def _gcd_list(values: List[int]) -> int:
     return out or 1
 
 
-#: Default area-per-lipid (Å²) for common bilayer species at ~310 K.
+#: Default area-per-lipid (Å²) for common bilayer species at ~310 K (Lα phase).
 #:
-#: Sources: experimental SAXS / NMR averages (see e.g. Kučerka 2011 *BBA*
-#: 1808, Marsh 2013 *BBA* 1828). Values are biological-membrane "fluid
-#: phase" averages and may need adjustment at low T (gel phase) or in
-#: cholesterol-rich systems where condensation effects shrink APL by
-#: 5-15 Å². Override per-lipid via :attr:`LipidSpec.apl_angstrom2`.
+#: Sources: experimental SAXS / NMR averages (Kučerka 2011 *BBA* 1808,
+#: Marsh 2013 *BBA* 1828) and Lipid21 / Lipid17 MD literature. Values are
+#: biological-membrane "fluid phase" averages and may need adjustment at
+#: low T (gel phase) or in cholesterol-rich systems where condensation
+#: effects shrink APL by 5-15 Å². Override per-lipid via
+#: :attr:`LipidSpec.apl_angstrom2`.
 #:
 #: Residues not in this table fall back to a generic 65 Å² liquid-
 #: disordered phospholipid value via :func:`_resolve_apl`.
+#:
+#: Coverage: PC (11) / PE (10) / PG (10) / PS (10) / PA (10) / SM (7) /
+#: sterol (3) = 61 entries. Naming follows packmol-memgen / AMBER
+#: Lipid21 conventions (DPPC, POPE, POSM, …).
+#:
+#: Mixed-tail naming key (Lipid21 / packmol-memgen):
+#:   D + (L/M/P/S/O/A/H) + (L/M/P/S/O/A/H) ... for di- prefix
+#:   first-letter ⇒ sn-1 acyl, second-letter ⇒ sn-2 acyl
+#:     L = lauroyl (12:0), M = myristoyl (14:0), P = palmitoyl (16:0),
+#:     S = stearoyl (18:0), O = oleoyl (18:1), A = arachidonoyl (20:4),
+#:     H = docosahexaenoyl (DHA, 22:6)
+#:   "DXPC" = di-X palmitoyl-... = e.g. DPPC (DiPalmitoyl PC)
+#:   "ABPC" = arachidonoyl-... where A=sn-1, B=sn-2 (e.g. POPC = palmitoyl-oleoyl-PC)
 DEFAULT_LIPID_APL: dict[str, float] = {
-    # PC head (phosphocholine) — most common
-    "POPC": 67.0,    # 1-palmitoyl-2-oleoyl
-    "DOPC": 72.0,    # 1,2-dioleoyl
-    "DPPC": 63.0,    # 1,2-dipalmitoyl (Lα phase ≥ 314 K; gel ~49 below Tm)
-    "DMPC": 60.0,    # 1,2-dimyristoyl
-    "DLPC": 63.0,    # 1,2-dilauroyl
-    "DSPC": 65.0,    # 1,2-distearoyl
-    # PE head (phosphoethanolamine) — usually smaller than PC
+    # ━━━━━━━━━━ PC head (phosphocholine, neutral) ━━━━━━━━━━
+    # di-saturated
+    "DLPC": 63.0,    # di-lauroyl (12:0/12:0)
+    "DMPC": 60.0,    # di-myristoyl (14:0/14:0)
+    "DPPC": 63.0,    # di-palmitoyl (16:0/16:0; Lα ≥ 314 K, gel ~49 below Tm)
+    "DSPC": 65.0,    # di-stearoyl (18:0/18:0)
+    # mixed acyl
+    "POPC": 67.0,    # palmitoyl-oleoyl (16:0/18:1) — most common
+    "PMPC": 60.0,    # palmitoyl-myristoyl
+    "SOPC": 67.0,    # stearoyl-oleoyl
+    # di-unsaturated
+    "DOPC": 72.0,    # di-oleoyl (18:1/18:1)
+    # poly-unsaturated
+    "DAPC": 70.0,    # di-arachidonoyl (20:4/20:4)
+    "DHPC": 80.0,    # di-DHA (22:6/22:6)
+    "AHPC": 75.0,    # arachidonoyl-DHA
+
+    # ━━━━━━━━━━ PE head (phosphoethanolamine, neutral, smaller H-bonding) ━━━━━━━━━━
+    "DLPE": 50.0,
+    "DMPE": 50.0,
+    "DPPE": 52.0,    # Lα ≥ 336 K
+    "DSPE": 55.0,
     "POPE": 56.0,
+    "PMPE": 50.0,
+    "SOPE": 60.0,
     "DOPE": 65.0,
-    "DPPE": 56.0,
-    # PG head (phosphoglycerol) — anionic
+    "DAPE": 70.0,
+    "DHPE": 75.0,
+
+    # ━━━━━━━━━━ PG head (phosphoglycerol, anionic charge -1) ━━━━━━━━━━
+    "DLPG": 60.0,
+    "DMPG": 55.0,
+    "DPPG": 58.0,
+    "DSPG": 60.0,
     "POPG": 64.0,
+    "SOPG": 65.0,
     "DOPG": 67.0,
-    # PS head (phosphoserine) — anionic
+    "DAPG": 75.0,
+    "DHPG": 78.0,
+    "AHPG": 72.0,
+
+    # ━━━━━━━━━━ PS head (phosphoserine, anionic charge -1) ━━━━━━━━━━
+    "DLPS": 55.0,
+    "DMPS": 55.0,
+    "DPPS": 55.0,
+    "DSPS": 58.0,
     "POPS": 60.0,
+    "SOPS": 62.0,
     "DOPS": 65.0,
-    # PA head (phosphatidic acid) — anionic
+    "DAPS": 65.0,
+    "DHPS": 70.0,
+    "AHPS": 68.0,
+
+    # ━━━━━━━━━━ PA head (phosphatidic acid, anionic charge -1, smallest head) ━━━━━━━━━━
+    "DLPA": 50.0,
+    "DMPA": 50.0,
+    "DPPA": 50.0,
+    "DSPA": 52.0,
     "POPA": 62.0,
-    # cholesterol — much smaller, sterol ring
-    "CHL1": 38.0,
-    "CHOL": 38.0,
-    "CHL":  38.0,
+    "DOPA": 65.0,
+    "DAPA": 65.0,
+    "DHPA": 70.0,
+    "AHPA": 65.0,
+    # Note: POPA / DOPA values from Lipid21 MD; experimental APL for PA is sparse
+
+    # ━━━━━━━━━━ SM (sphingomyelin, neutral, raft-promoting; Lipid21 only) ━━━━━━━━━━
+    "LSM": 53.0,    # N-lauroyl (12:0)
+    "MSM": 53.0,    # N-myristoyl (14:0)
+    "PSM": 55.0,    # N-palmitoyl (16:0) — most common, raft component
+    "SSM": 56.0,    # N-stearoyl (18:0)
+    "OSM": 60.0,    # N-oleoyl (18:1)
+    "ASM": 65.0,    # N-arachidonoyl (20:4)
+    "HSM": 68.0,    # N-DHA (22:6)
+
+    # ━━━━━━━━━━ sterol (small, raft-stabilising) ━━━━━━━━━━
+    "CHL1": 38.0,    # cholesterol (Lipid21 / packmol-memgen canonical)
+    "CHOL": 38.0,    # alias
+    "CHL":  38.0,    # alias
 }
+
+
+#: Lookup of head-group classification by residue prefix / suffix.
+#: Used by :func:`list_known_lipids` for filtering and reporting.
+def _classify_lipid_head(resname: str) -> str:
+    """Return one of: 'PC', 'PE', 'PG', 'PS', 'PA', 'SM', 'sterol', 'other'."""
+    r = resname.strip()
+    if r in ("CHL1", "CHOL", "CHL"):
+        return "sterol"
+    if r.endswith("SM"):
+        return "SM"
+    if r.endswith("PC"):
+        return "PC"
+    if r.endswith("PE"):
+        return "PE"
+    if r.endswith("PG"):
+        return "PG"
+    if r.endswith("PS"):
+        return "PS"
+    if r.endswith("PA"):
+        return "PA"
+    return "other"
+
+
+def list_known_lipids(head_group: Optional[str] = None) -> List[Tuple[str, float, str]]:
+    """Return the curated APL table as a sortable list.
+
+    Parameters
+    ----------
+    head_group : str, optional
+        Filter to a single head group: one of
+        ``"PC", "PE", "PG", "PS", "PA", "SM", "sterol"``.
+        ``None`` (default) returns every entry.
+
+    Returns
+    -------
+    list[tuple[str, float, str]]
+        ``[(resname, apl_angstrom2, head_group), ...]`` sorted by
+        head-group then alphabetically.
+
+    Examples
+    --------
+    >>> list_known_lipids("SM")
+    [('ASM', 65.0, 'SM'), ('HSM', 68.0, 'SM'), ('LSM', 53.0, 'SM'),
+     ('MSM', 53.0, 'SM'), ('OSM', 60.0, 'SM'), ('PSM', 55.0, 'SM'),
+     ('SSM', 56.0, 'SM')]
+    """
+    rows = [
+        (name, apl, _classify_lipid_head(name))
+        for name, apl in DEFAULT_LIPID_APL.items()
+    ]
+    if head_group is not None:
+        rows = [r for r in rows if r[2] == head_group]
+    # sort by (head, resname)
+    head_order = {"PC": 0, "PE": 1, "PG": 2, "PS": 3, "PA": 4,
+                  "SM": 5, "sterol": 6, "other": 7}
+    rows.sort(key=lambda r: (head_order.get(r[2], 99), r[0]))
+    return rows
+
+
+def query_packmol_memgen_lipids(
+    packmol_memgen_path: str = "packmol-memgen",
+) -> List[Tuple[str, int, str]]:
+    """Query packmol-memgen's full lipid catalogue at runtime.
+
+    Returns the 259-entry list parsed from
+    ``packmol-memgen --available_lipids``. Includes lipids that
+    abmptools doesn't have a curated APL value for (those will fall
+    back to the 65 Å² generic when used with no explicit
+    ``apl_angstrom2``).
+
+    Returns
+    -------
+    list[tuple[str, int, str]]
+        ``[(resname, charge, description), ...]`` ordered as packmol-
+        memgen prints them.
+
+    Notes
+    -----
+    Requires ``$AMBERHOME`` resolvable; this helper auto-resolves it
+    from the binary path when conda-installed.
+    """
+    env = os.environ.copy()
+    amberhome = _resolve_amberhome(packmol_memgen_path)
+    if amberhome:
+        env.setdefault("AMBERHOME", amberhome)
+    result = subprocess.run(
+        [packmol_memgen_path, "--available_lipids"],
+        capture_output=True, text=True, env=env,
+    )
+    out: List[Tuple[str, int, str]] = []
+    for line in result.stdout.splitlines():
+        # Lines look like:
+        #   "POPC          0          1-palmitoyl-2-oleoyl-..."
+        # First token: resname (uppercase + digits + '-')
+        s = line.rstrip()
+        if not s or not s[0].isupper():
+            continue
+        parts = s.split(None, 2)
+        if len(parts) < 3:
+            continue
+        resname = parts[0]
+        try:
+            charge = int(parts[1])
+        except ValueError:
+            continue
+        description = parts[2].strip()
+        out.append((resname, charge, description))
+    return out
 
 
 def _resolve_apl(lipid: "LipidSpec", fallback: float = 65.0) -> float:
