@@ -6,8 +6,9 @@
 Author: Koji Okuwaki
 
 > Latest released version on PyPI: v1.15.4 (refactor/all line).
-> v1.16.0 (core / amorphous updates) and v1.17.0 (membrane subpackage)
-> are staged on `develop`, not yet released to `main` / PyPI.
+> v1.16.0 (core / amorphous updates), v1.17.0 (membrane subpackage),
+> and v1.17.1 (mixed-lipid support) are staged on `develop`, not yet
+> released to `main` / PyPI.
 > See [`CHANGELOG.md`](../CHANGELOG.md) for the per-version detail.
 
 ## What is ABMPTools?

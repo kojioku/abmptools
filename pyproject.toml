@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abmptools"
-version = "1.17.0"
+version = "1.17.1"
 description = "Pre/post-processing and analysis toolkit for ABINIT-MP Fragment Molecular Orbital calculations"
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "MIT"
