@@ -550,6 +550,7 @@ bash tests/integration/run_membrane_us_smoke.sh
 
 ## 関連ドキュメント
 
+- [`tutorial_membrane_us.md`](tutorial_membrane_us.md) — step-by-step 操作チュートリアル (本 doc は reference、tutorial は操作手順)
 - [`amorphous.md`](amorphous.md) — 3D ランダム box ビルダー (姉妹サブパッケージ)
 - [`gro2udf.md`](gro2udf.md) — GROMACS ↔ COGNAC UDF 変換
 - [`io_spec.md`](io_spec.md) — `param_udf` 仕様

@@ -43,8 +43,8 @@ Author: Koji Okuwaki
     - packmol-memgen で脂質 bilayer + ペプチド + 水 + イオンを配置 → tleap + parmed で AMBER (ff19SB + Lipid21 + TIP3P) → GROMACS top/gro を生成
     - 半等方 NPT 平衡化 → z-pulling で反応座標生成 → 各 window の MDP + run.sh を一括生成 → `gmx wham` で PMF 出力
     - **企業利用 OK な権利のみ**で構成: CGenFF Web server / CHARMM-GUI に依存しない設計 (商用ライセンス不要)
-    - CHARMM36 backend (MacKerell 公式 / Klauda port 経由、CGenFF 不使用) を Phase C で追加予定
-    - 詳細: [membrane.md](membrane.md)
+    - CHARMM36 backend (MacKerell 公式 / Klauda port 経由、CGenFF 不使用) も対応済
+    - 操作手順: [tutorial_membrane_us.md](tutorial_membrane_us.md) / 詳細リファレンス: [membrane.md](membrane.md)
 
 
 ### 各種IFIE情報の取得(getifiepieda)
