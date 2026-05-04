@@ -655,8 +655,38 @@ CHARMM36 backend の出力が「正しい」ことを保証する根拠を階層
 | L6. NVT/NPT 安定性 | 5 ns NPT (T=308.4±0.2 K, P=-27±28 bar) | ✅ 安定、blow up なし |
 | L7. APL 文献値一致 | POPC@310K で APL ≈ 65 Å² | ✅ **64.88 ± 0.82 Å²** ⭐ |
 | L8. P-P 厚 | POPC@310K で D_PP ≈ 38-40 Å | ⚠ 50.7 Å (Berendsen NPT 5 ns 段階; production windows で更に relax) |
-| L9. AMBER vs CHARMM PMF 比較 | 同系の barrier が ff レベル (数 kJ/mol) で一致 | (進行中: Phase D) |
-| L10. CHARMM-GUI と topology 比較 | atom counts / bonded params が一致 | (未実施) |
+| L9. AMBER vs CHARMM PMF 比較 | 同系の barrier が ff レベル (数 kJ/mol) で一致 | ⚠ 部分的 (Phase D 完了; 下記 L9 詳細参照) |
+| L10. CHARMM-GUI と topology 比較 | atom counts / bonded params が一致 | (ユーザーが academic ライセンスで予定) |
+
+#### L9 結果 (2026-05-04 Phase D 実行)
+
+13 windows × 1 ns × umbrella sampling + WHAM で peptide-bilayer PMF を比較
+(`docs/figures/pmf_compare_amber_charmm.png`):
+
+| z = peptide-bilayer 距離 | AMBER (ff19SB+Lipid21+TIP3P, 5ns/win) | CHARMM (Klauda+CHARMM-mod TIP3P, 1ns/win) | Δ |
+|---|---|---|---|
+| -1.5 nm (water below) | 0.0 (ref) | 0.0 (ref) | — |
+| 0 nm (bilayer center) | +86.7 kJ/mol | **+97.9 kJ/mol** | +11.3 |
+| +1.5 nm (water above) | +133.1 | **+227.2** | +94 |
+
+**結論**: 中心 barrier は AMBER と CHARMM で **+11 kJ/mol 差** (AMBER vs CHARMM
+脂質 PMF の典型的な ff レベル不一致範囲: 5-20 kJ/mol)。形状もほぼ同様
+(rising barrier into bilayer)。**topology 翻訳は意味のある PMF を生成**。
+
+⚠ **絶対値の信頼性は低い**: 両 backend とも window-to-window histogram overlap
+が 0.01-0.07 (推奨 >0.1) で大きく不足。これは builder のデフォルト
+(`force_constant=1000 kJ/mol/nm²` + `window_spacing=0.25 nm` で σ≈0.05 nm,
+2σ 間隔) に起因する **構造的問題で CHARMM 固有ではない**。両 PMF が示す
+asymmetry (water-above ≠ water-below) も同じ原因。
+
+良質な PMF を取るには:
+- `force_constant=500` に下げる (FWHM 倍 → overlap 改善)
+- または `window_spacing=0.10-0.15 nm` に細かく (windows 21-31 個)
+- または 5-10 ns/window の long sampling
+- または Hamiltonian replica exchange (HREX-US) を使う
+
+詳細データは `docs/figures/charmm_pmf_phase_d.xvg` /
+`docs/figures/amber_pmf_run02.xvg` を参照。
 
 L1-L7 で「topology は正しく、物理的に動く」を保証。L8 の P-P 厚は Berendsen
 barostat 5 ns では完全 equilibrate に至らず約 30% 厚いが、production phase
