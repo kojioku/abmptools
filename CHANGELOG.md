@@ -4,6 +4,78 @@
 
 (no changes yet — this section accumulates work-in-progress between releases)
 
+## [1.18.0] - 2026-05-04
+
+新サブパッケージ `abmptools.cg.peptide` を追加。abmptools の MO-AAMD-CGMD
+マルチスケール基盤化に向けた CG (粗視化) 系統 (`abmptools/cg/`) の最初の
+モジュール。後続で `cg/polymer/` (polyply 経由) や `cg/smallmol/`
+(Auto-Martini 経由) を計画している。
+
+### Added
+
+- **`abmptools.cg.peptide` — Martini 3 peptide CG system builder** (新サブパッケージ)
+  - JSON/YAML 入力から GROMACS MD 入力一式を生成する end-to-end builder。
+    abmptools の MO-AAMD-CGMD マルチスケール基盤化に向けて新設した
+    `abmptools/cg/` namespace の最初のモジュール。
+  - `PeptideCGBuilder.build()` で 6 stage を 1 呼び出し:
+    atomistic PDB (tleap or extended-backbone fallback) →
+    `martinize2 -ff martini3001` で M3 CG mapping →
+    `gmx insert-molecules` で peptide 配置 →
+    `gmx solvate` で Martini W →
+    `gmx grompp` + `gmx genion` で NaCl 中和 + 0.15 M →
+    em/nvt/npt/md.mdp + index.ndx + run.sh を生成。
+  - データクラス: `PeptideSpec` / `PeptideBuildConfig`
+    (`@dataclass` + `to_json/from_json`、JSON 往復、YAML は optional)。
+  - CLI: `python -m abmptools.cg.peptide {build,validate,example}`
+    (argparse、`amorphous` / `membrane` 流儀準拠、Click 不使用)。
+  - **Apache-2.0 互換のみ**: vermouth-martinize (Apache-2.0) を `subprocess`
+    経由で利用、改変 / 同梱なし。Martini 3 の `.itp` は本パッケージ未同梱で、
+    `validate` サブコマンドで存在確認 + cgmartini.nl からの取得手順を表示。
+  - ライセンス未明記の cgmartini 配布物 (martinize-dna.py 等) は除外し、
+    Martini 3 ペプチド機能のみを切り出した。
+  - `tests/test_cg_peptide_*.py` で 104 件の unit test を整備
+    (martinize2/gmx/tleap 不要、CI 通せる)。実機 smoke は
+    `tests/test_cg_peptide_integration.py` (`@pytest.mark.slow`) で gated --
+    abmptoolsenv (vermouth 0.15 + GROMACS 2021.3 + AmberTools tleap) で
+    KGG x1 / 4 nm cubic box の build → `gmx grompp -f em.mdp` PASS まで
+    実機検証済。
+  - 新 extras: `pip install abmptools[cg]` で vermouth + pyyaml が入る。
+  - `forcefield_check`: REQUIRED Martini 3 files は ITP 3 ファイル
+    (`martini_v3.0.0.itp` / `_solvents_v1.itp` / `_ions_v1.itp`)。
+    `martini_v3.0.0_water.gro` は cgmartini.nl が直接配布していないため
+    OPTIONAL 扱い (`solvent_enabled=True` のときのみ要)。
+  - `PeptideCGBuilder` は build 時に REQUIRED ITP を `output_dir/` に
+    自動コピーし、`topol.top` の bare-name `#include` を `gmx grompp` が
+    `cwd` から解決できるようにする (amorphous / membrane 流儀)。
+  - **`water_box.make_martini_water_box`**: cgmartini.nl が
+    `martini_v3.0.0_water.gro` を直接配布していないため、ff_dir に
+    water box が無い場合は `gmx insert-molecules` で W bead を
+    Martini 標準密度 (~8.36 W/nm^3、5 nm cubic で約 1045 beads) で詰めて
+    自動生成する。builder の `_stage4_solvate` で透過的に呼ばれる。
+    ユーザーが Martini 3 tutorial archive 等から自分で water.gro を
+    用意した場合はそちらが優先される。
+  - **実機検証 (abmptoolsenv で 17.42s)**:
+    - `solvent_enabled=False`: packed.gro -> `gmx grompp` PASS
+    - `solvent_enabled=True`: water_box auto-gen -> `gmx solvate` ->
+      `gmx genion` (NaCl 中和 + 0.15 M) -> system_ions.gro ->
+      `gmx grompp` PASS
+
+### External dependencies (new, optional via `[cg]` extra)
+
+- `vermouth` (PyPI、Apache-2.0): `martinize2` CLI 提供。
+- `gmx` (GROMACS, conda): `solvate` / `genion` / `grompp` / `make_ndx` /
+  `insert-molecules`。
+- `tleap` (AmberTools, conda; **推奨**): atomistic PDB 生成。**不在時は
+  extended-backbone fallback** だが、芳香族残基 (W/F/Y) で CG sidechain
+  bead が NaN になる可能性あり。研究用途では tleap 推奨。
+
+### Notes
+
+- Pydantic + Click ベースの非公開 m3-peptide リポジトリ (Martini 2/3 +
+  ssDNA 対応) からの再実装。DNA 関連 (`external/martinize-dna.py` 等の
+  ライセンス未明 derivative) は除外し、`abmptools.amorphous` /
+  `abmptools.membrane` と同じ流儀 (`@dataclass` + `argparse`) に統一。
+
 ## [1.17.3] - 2026-05-04
 
 CHARMM36 backend 実機検証で見つかった 7 件の互換性 bug を修正。Klauda lab

@@ -1,0 +1,27 @@
+{
+  "peptides": [
+    {"name": "kgg", "sequence": "KGGRGGKGGRGGKGG", "count": 5},
+    {"name": "rgg", "sequence": "RGGRGGRGGRGGRGG", "count": 5}
+  ],
+  "box_size_nm": 10.0,
+  "box_lengths_nm": null,
+  "solvent_enabled": true,
+  "neutralize": true,
+  "nacl_molar": 0.15,
+  "temperature": 310.0,
+  "seed": 42,
+  "martini_itp_dir": "./ff",
+  "martinize2_path": "martinize2",
+  "gmx_path": "gmx",
+  "tleap_path": "tleap",
+  "output_dir": ".",
+  "mdp_em": true,
+  "mdp_nvt": true,
+  "mdp_npt": true,
+  "mdp_md": true,
+  "em_steps": 50000,
+  "nvt_nsteps": 100000,
+  "npt_nsteps": 100000,
+  "md_nsteps": 1000000,
+  "dt_fs": 20.0
+}
