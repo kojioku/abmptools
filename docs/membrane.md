@@ -625,12 +625,56 @@ PMF 収束チェック:
 | B-7 | smoke test + builder fix | `907c040` |
 | D | tutorial doc + cross-references (this doc) | `a01fdda` `21dd567` |
 | C | CHARMM36 backend (Klauda port + pdb2gmx) | `5d28034` |
+| C+ | CHARMM36 backend 実機検証 + 7 件 bug fix (v1.17.3) | `<TBD-1.17.3>` |
 
 **Phase C end-to-end smoke** はユーザー側で `CHARMM36_FF_DIR` を整えた上で
 `bash tests/integration/run_membrane_us_charmm_smoke.sh` を実行すると検証
 される。未設定なら自動 SKIP (exit 0)、translation ユニットテストは
 .ff dir 不要で実行可能 (`pytest tests/test_membrane_charmm_translate.py`、
-25 tests / <1 秒)。
+26 tests / <1 秒)。
+
+v1.17.3 で **CHARMM36 backend を初回実機検証**し、Klauda port 特有の 7 件
+の bug を修正。peptide + bilayer + water + ion の smoke build (grompp pass)
+は `charmm36-feb2026_cgenff-5.0.ff/` / `charmm36-jul2022.ff/` のいずれでも
+完走することを確認 (PDB 4-char residue 切り詰め / `NME→CT3` 等の過剰
+rename / ACE atom 名 mapping / NME atom 名 mapping / terminus None index
+hardcode / TIP3 spurious O-H-H angles 削除 / pdb2gmx 2021.3 無限 spin
+回避)。詳細は `CHANGELOG.md` の v1.17.3 セクション参照。
+
+### CHARMM 業界実態 (重要、ニッチ性の認識)
+
+raw `pdb2gmx` で full bilayer PDB を扱うのは少数派 — academic 多数派
+(~95%) は **CHARMM-GUI** で完成済 `topol.top` を使い pdb2gmx を完全回避、
+少数派は psfgen + charmm2gmx (Wacha & Lemkul 2023 *JCIM*) を使う。完全
+commercial-OK な membrane builder は **packmol-memgen** (AmberTools)
+のみで、その出力を CHARMM 形式に変換するパスは世界的にも超ニッチ — 本
+パッケージの修正点は世界で数十人しか踏まない pain points。
+
+## TIP3P の AMBER vs CHARMM 違い
+
+「TIP3P」と一口に言っても、AMBER と CHARMM-modified では H atom の
+Lennard-Jones パラメータが異なる:
+
+| | AMBER TIP3P (Jorgensen 1983) | CHARMM-modified TIP3P |
+|---|---|---|
+| O σ/ε | 3.151 Å / 0.152 kcal/mol | 同じ |
+| **H σ/ε** | **0 / 0** (LJ なし、点電荷のみ) | **~0.4 Å / ~0.046 kcal/mol** |
+| 電荷 | O=-0.834, H=+0.417 | 同じ |
+
+CHARMM 側で H に小さい LJ を足したのは、HB ネットワーク安定化目的
+(電気陰性原子と H の人工的 overlap 防止)。影響は限定的で、純水密度は
+ほぼ同じだが、イオン水和エネルギーが ~1-3 kcal/mol、PMF 絶対値が数
+kJ/mol レベルでずれる。
+
+`abmptools.membrane` では backend ごとに自動で適切な TIP3P が選ばれる:
+
+- **AMBER backend**: `tleap` `leaprc.water.tip3p` → parmed が GROMACS
+  topology に書き出し → AMBER TIP3P (H に LJ なし)
+- **CHARMM36 backend**: `pdb2gmx -water tip3p` が ff dir の `tip3p.itp`
+  (CHARMM-modified) を `#include` → CHARMM TIP3P (H に小さい LJ)
+
+論文 / 報告書に「TIP3P を使った」と書く時は、どちらの実装かを明記
+することを推奨。
 
 Phase B 動作確認 (smoke、~30 秒、4-core local):
 

@@ -35,20 +35,27 @@ from abmptools.membrane.parameterize_charmm import (
 
 class TestTranslateResidueName:
     def test_histidine_tautomers(self):
+        # HID / HIE → HSD / HSE
         assert translate_residue_name("HID") == "HSD"
         assert translate_residue_name("HIE") == "HSE"
-        assert translate_residue_name("HIP") == "HSP"
+        # HIP is shared between AMBER and the Klauda CHARMM36 port
+        # (both [ HIP ] and [ HSP ] defined); we keep HIP verbatim.
+        assert translate_residue_name("HIP") == "HIP"
 
     def test_protomers(self):
+        # AMBER → CHARMM port: ASH/GLH/LYN need translation
         assert translate_residue_name("ASH") == "ASPP"
         assert translate_residue_name("GLH") == "GLUP"
         assert translate_residue_name("LYN") == "LSN"
+        # CYM is preserved as-is (port has [ CYM ] directly)
+        assert translate_residue_name("CYM") == "CYM"
 
     def test_caps(self):
-        # ACE keeps its name (only atom names change)
+        # Both ACE and NME keep their AMBER names in the Klauda
+        # GROMACS port (only atom names change for ACE; NME atoms also
+        # need only the universal H→HN backbone rename).
         assert translate_residue_name("ACE") == "ACE"
-        # NME becomes CT3
-        assert translate_residue_name("NME") == "CT3"
+        assert translate_residue_name("NME") == "NME"
 
     def test_water(self):
         assert translate_residue_name("WAT") == "TIP3"
@@ -81,28 +88,29 @@ class TestTranslateAtomName:
             assert translate_atom_name(aa, "H") == "HN"
 
     def test_ace_atoms(self):
-        assert translate_atom_name("ACE", "H1") == "HY1"
-        assert translate_atom_name("ACE", "H2") == "HY2"
-        assert translate_atom_name("ACE", "H3") == "HY3"
-        assert translate_atom_name("ACE", "CH3") == "CAY"
-        assert translate_atom_name("ACE", "C") == "CY"
-        assert translate_atom_name("ACE", "O") == "OY"
+        # Klauda CHARMM36 port ACE atoms: CH3 / HH31 / HH32 / HH33 / C / O.
+        # AMBER tleap-built ACE has H1/H2/H3 instead of HH3?, others same.
+        assert translate_atom_name("ACE", "H1") == "HH31"
+        assert translate_atom_name("ACE", "H2") == "HH32"
+        assert translate_atom_name("ACE", "H3") == "HH33"
+        # CH3, C, O — pass through (port keeps the AMBER-style names)
+        assert translate_atom_name("ACE", "CH3") == "CH3"
+        assert translate_atom_name("ACE", "C") == "C"
+        assert translate_atom_name("ACE", "O") == "O"
 
-    def test_ct3_atoms(self):
-        # Note: NME → CT3 residue rename happens before atom translation.
-        assert translate_atom_name("CT3", "CH3") == "CAT"
-        assert translate_atom_name("CT3", "HH31") == "HT1"
-        assert translate_atom_name("CT3", "HH32") == "HT2"
-        assert translate_atom_name("CT3", "HH33") == "HT3"
-        # Universal H→HN also applies to CT3's amide H? No — CT3 IS a cap;
-        # it's in SKIP_BACKBONE_RENAME so the universal map is bypassed.
-        # The CT3-specific map doesn't list H, so it passes through.
-        assert translate_atom_name("CT3", "H") == "H"
+    def test_nme_atoms(self):
+        # NME (kept as 'NME', not 'CT3') needs only the universal
+        # backbone H→HN rename. CH3 / HH31 / HH32 / HH33 / N pass through.
+        assert translate_atom_name("NME", "H") == "HN"
+        assert translate_atom_name("NME", "CH3") == "CH3"
+        assert translate_atom_name("NME", "HH31") == "HH31"
+        assert translate_atom_name("NME", "HH32") == "HH32"
+        assert translate_atom_name("NME", "N") == "N"
 
-    def test_caps_dont_get_universal_h_to_hn(self):
-        # ACE's H1/H2/H3 are caught by per-residue map (HY1/HY2/HY3),
-        # but if we somehow saw a literal "H" on ACE, it would NOT
-        # become HN because ACE is in SKIP_BACKBONE_RENAME.
+    def test_ace_h_passes_through(self):
+        # ACE has no backbone amide H (it's a cap providing C=O), but
+        # if a literal "H" appeared on ACE it would NOT become HN
+        # because ACE is in SKIP_BACKBONE_RENAME.
         assert translate_atom_name("ACE", "H") == "H"
 
     def test_ions(self):
@@ -172,20 +180,22 @@ def amber_peptide_pdb(tmp_path: Path) -> Path:
     pdb = tmp_path / "input.pdb"
     pdb.write_text(dedent("""\
         ATOM      1  H1  ACE     1       2.000   1.000   0.000  1.00  0.00
-        ATOM      2  CH3 ACE     1       2.000   2.090   0.000  1.00  0.00
-        ATOM      3  C   ACE     1       3.427   2.641   0.000  1.00  0.00
-        ATOM      4  O   ACE     1       4.391   1.877   0.000  1.00  0.00
-        ATOM      5  N   ALA     2       3.555   3.970   0.000  1.00  0.00
-        ATOM      6  H   ALA     2       2.733   4.556   0.000  1.00  0.00
-        ATOM      7  CA  ALA     2       4.853   4.614   0.000  1.00  0.00
-        ATOM      8  CB  ALA     2       4.853   5.450   1.260  1.00  0.00
-        ATOM      9  C   ALA     2       6.063   3.700   0.000  1.00  0.00
-        ATOM     10  O   ALA     2       6.063   2.481   0.000  1.00  0.00
-        ATOM     11  N   NME     3       7.176   4.430   0.000  1.00  0.00
-        ATOM     12  H   NME     3       7.176   5.448   0.000  1.00  0.00
-        ATOM     13  CH3 NME     3       8.421   3.728   0.000  1.00  0.00
-        ATOM     14 HH31 NME     3       8.421   3.111   0.890  1.00  0.00
-        ATOM     15  Na+ Na+     4      10.000  10.000   0.000  1.00  0.00
+        ATOM      2  H2  ACE     1       1.500   2.500   0.866  1.00  0.00
+        ATOM      3  H3  ACE     1       1.500   2.500  -0.866  1.00  0.00
+        ATOM      4  CH3 ACE     1       2.000   2.090   0.000  1.00  0.00
+        ATOM      5  C   ACE     1       3.427   2.641   0.000  1.00  0.00
+        ATOM      6  O   ACE     1       4.391   1.877   0.000  1.00  0.00
+        ATOM      7  N   ALA     2       3.555   3.970   0.000  1.00  0.00
+        ATOM      8  H   ALA     2       2.733   4.556   0.000  1.00  0.00
+        ATOM      9  CA  ALA     2       4.853   4.614   0.000  1.00  0.00
+        ATOM     10  CB  ALA     2       4.853   5.450   1.260  1.00  0.00
+        ATOM     11  C   ALA     2       6.063   3.700   0.000  1.00  0.00
+        ATOM     12  O   ALA     2       6.063   2.481   0.000  1.00  0.00
+        ATOM     13  N   NME     3       7.176   4.430   0.000  1.00  0.00
+        ATOM     14  H   NME     3       7.176   5.448   0.000  1.00  0.00
+        ATOM     15  CH3 NME     3       8.421   3.728   0.000  1.00  0.00
+        ATOM     16 HH31 NME     3       8.421   3.111   0.890  1.00  0.00
+        ATOM     17  Na+ Na+     4      10.000  10.000   0.000  1.00  0.00
     """))
     return pdb
 
@@ -199,27 +209,61 @@ class TestTranslatePdbAmberToCharmm:
         )
         text = out_pdb.read_text()
 
-        # ACE atoms translated (atom name field is 4-char left-justified,
-        # so "HY1 " "CAY " "CY  " "OY  " appear with trailing spaces).
-        assert "HY1 " in text
-        assert "CAY " in text
-        assert "CY  " in text
-        assert "OY  " in text
-        # All four ACE atoms keep their residue tag
-        assert text.count("ACE") == 4
+        # ACE: H1/H2/H3 → HH31/HH32/HH33; CH3/C/O pass through
+        # (Klauda CHARMM36 port keeps AMBER-style ACE atom names).
+        assert "HH31" in text
+        assert "HH32" in text
+        assert "HH33" in text
+        # ACE residue name kept (only atoms change)
+        # 6 ACE atoms in the fixture: H1/H2/H3/CH3/C/O
+        assert text.count("ACE") == 6
+        # Old (incorrect) classic-CHARMM names should NOT appear
+        assert "CAY" not in text
+        assert "HY1" not in text
 
         # ALA: backbone amide H → HN (only one ALA, has 1 amide H)
         assert "HN  " in text
 
-        # NME → CT3 + atom translations
-        assert "CT3" in text
-        assert "CAT " in text
-        assert "HT1 " in text
+        # NME stays NME (residue name unchanged, only H→HN applied)
+        assert text.count("NME") >= 1
+        # Old (incorrect) NME→CT3 rename must NOT have happened
+        assert "CT3" not in text
+        assert "CAT" not in text
+        assert " HT1" not in text
 
         # Na+ → SOD (residue name and atom name both)
         assert "SOD" in text
         # The original "Na+" should be gone everywhere
         assert "Na+" not in text
+
+    def test_4char_residue_not_truncated(self, tmp_path):
+        """Regression: POPC / TIP3 / etc. must not be truncated to POP / TIP.
+
+        packmol-memgen --charmm output uses 4-char residue names that fill
+        cols 18-21 (extending into the alt-loc / chain field). The
+        translator must preserve the 4-char width even for residues that
+        are NOT in the AMBER→CHARMM rename map (like POPC, which
+        passes through verbatim). Earlier code fell back to a 3-char
+        ``line[17:20].strip()`` read which produced "POP", causing
+        pdb2gmx to fail with "Residue 'POP' not found in residue
+        topology database".
+        """
+        src = tmp_path / "src.pdb"
+        # packmol-memgen --charmm style: 4-char POPC + chain 'A'
+        src.write_text(
+            "ATOM      1  N   POPCA   1       3.997  -9.117 -18.250  1.00  0.00\n"
+            "ATOM      2  C12 POPCA   1       2.786  -9.916 -17.797  1.00  0.00\n"
+            "ATOM      3  OW  TIP3A   2       0.000   0.000   0.000  1.00  0.00\n"
+        )
+        dst = tmp_path / "dst.pdb"
+        translate_pdb_amber_to_charmm(input_pdb=str(src), output_pdb=str(dst))
+        out = dst.read_text()
+        # 4-char residue names preserved; POP must NOT appear, POPC must
+        assert "POPC" in out
+        assert "POP " not in out  # POP followed by space = truncated form
+        # TIP3 likewise (already a CHARMM name)
+        assert "TIP3" in out
+        assert "TIP " not in out
 
     def test_non_atom_lines_pass_through(self, tmp_path):
         # HEADER / REMARK / END / blank lines are not modified
@@ -236,8 +280,8 @@ class TestTranslatePdbAmberToCharmm:
         assert "HEADER    PEPTIDE" in out
         assert "REMARK    Generated by abmptools tests" in out
         assert "END" in out
-        # ATOM line is translated (only H1 in this minimal case → HY1)
-        assert "HY1" in out
+        # ATOM line is translated (H1 → HH31 per Klauda port convention)
+        assert "HH31" in out
         # H1 (the AMBER name) should be gone
         assert " H1 " not in out
 
@@ -274,7 +318,14 @@ class TestTableIntegrity:
         assert UNIVERSAL_BACKBONE_ATOM_MAP["H"] == "HN"
 
     def test_skip_list_contains_caps_and_ions(self):
-        for r in ("ACE", "CT3", "TIP3", "SOD", "CLA"):
+        # ACE has no backbone amide H, ions / water have no protein
+        # backbone, so they all skip the universal H→HN rename.
+        # NME is intentionally NOT in this list — its amide H must
+        # become HN, and the universal map handles it.
+        for r in ("ACE", "TIP3", "SOD", "CLA"):
             assert r in SKIP_BACKBONE_RENAME, (
                 f"{r!r} should skip universal backbone H→HN renaming"
             )
+        assert "NME" not in SKIP_BACKBONE_RENAME, (
+            "NME must use the universal H→HN rename"
+        )

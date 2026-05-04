@@ -412,7 +412,9 @@ python -m abmptools.membrane.pmf \
 
 ## §6. CHARMM36 backend (任意)
 
-AMBER 路線が動いた後で CHARMM36 路線を試す:
+AMBER 路線が動いた後で CHARMM36 路線を試す。**v1.17.3 で実機検証済み**
+で、`charmm36-feb2026_cgenff-5.0.ff/` または `charmm36-jul2022.ff/`
+(Klauda port) で smoke build (grompp pass) は完走する:
 
 ```python
 cfg = MembraneConfig(
@@ -429,6 +431,11 @@ cfg = MembraneConfig(
 CHARMM36 force-field の取得方法は [`membrane.md`](membrane.md#charmm36-gromacs-port-の取得) を参照。
 
 商用利用 OK な手順 (CGenFF / CHARMM-GUI 経由は不可) を厳守。
+
+**注意 (TIP3P 違い)**: AMBER backend と CHARMM36 backend では、内部で
+使われる TIP3P が異なる (AMBER は H に LJ なし、CHARMM-modified は H
+に小さい LJ あり)。論文 / 報告書では backend を明示して書くこと。
+詳細は [`membrane.md`](membrane.md#tip3p-の-amber-vs-charmm-違い) 参照。
 
 ---
 

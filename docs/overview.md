@@ -7,9 +7,10 @@ Author: Koji Okuwaki
 
 > Latest released version on PyPI: v1.15.4 (refactor/all line).
 > v1.16.0 (core / amorphous updates), v1.17.0 (membrane subpackage),
-> v1.17.1 (mixed-lipid support), and v1.17.2 (extended lipid table +
-> discovery API) are staged on `develop`, not yet released to `main` /
-> PyPI. See [`CHANGELOG.md`](../CHANGELOG.md) for the per-version detail.
+> v1.17.1 (mixed-lipid support), v1.17.2 (extended lipid table + discovery
+> API), and v1.17.3 (CHARMM36 backend 実機検証 + 7 件 bug fix) are staged
+> on `develop`, not yet released to `main` / PyPI. See
+> [`CHANGELOG.md`](../CHANGELOG.md) for the per-version detail.
 
 ## What is ABMPTools?
 

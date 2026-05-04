@@ -4,6 +4,93 @@
 
 (no changes yet — this section accumulates work-in-progress between releases)
 
+## [1.17.3] - 2026-05-04
+
+CHARMM36 backend 実機検証で見つかった 7 件の互換性 bug を修正。Klauda lab
+GROMACS port (`charmm36-feb2026_cgenff-5.0.ff/` / `charmm36-jul2022.ff/`) で
+peptide + bilayer + water + ion の smoke build を end-to-end で完走できるように
+なった。
+
+### Fixed
+
+- **PDB 4-char residue 名の切り詰め回避** (`parameterize_charmm.translate_pdb_amber_to_charmm`):
+  packmol-memgen `--charmm` 出力は POPC / TIP3 / SOD 等を col 18-21 の 4-char で
+  書き込む (chain ID 列にはみ出す)。3-char `line[17:20]` fallback で読むと
+  POPC → POP に切り詰められて pdb2gmx が `Residue 'POP' not found` で fatal
+  終了していた。`line[17:21].strip()` に統一。
+- **Klauda port 規約に合わせた residue rename テーブル縮小** (`AMBER_TO_CHARMM_RESNAME`):
+  `NME → CT3`, `CYM → CYS`, `HIP → HSP` を削除。Klauda port は `[ NME ]`
+  `[ CYM ]` `[ HIP ]` を直接定義しており、CHARMM オリジナルの慣例に
+  rename すると `Residue type 'CT3' not found` で fatal。
+- **ACE atom 名 mapping を Klauda 規約に修正** (`PER_RESIDUE_ATOM_MAP['ACE']`):
+  Klauda port は AMBER 寄りの命名 (CH3/HH31/HH32/HH33/C/O) を採用しており、
+  CHARMM オリジナルの CAY/HY1/HY2/HY3/CY/OY ではない。AMBER tleap 由来の
+  H1/H2/H3 を HH31/HH32/HH33 にマップ、CH3/C/O はそのまま通す。
+- **NME atom 名 mapping を新規追加** (`PER_RESIDUE_ATOM_MAP['NME']`):
+  AMBER NME (`N H C H1 H2 H3`) → Klauda port NME (`N HN CH3 HH31 HH32 HH33`)。
+  C → CH3、H1/H2/H3 → HH31/HH32/HH33。`SKIP_BACKBONE_RENAME` から `'CT3'`
+  を削除し、NME は universal H → HN を適用。これにより `atom C in residue
+  NME 7 was not found in rtp entry NME with 6 atoms` 解決。
+- **terminus 'None' index の hardcode** (`KNOWN_CHARMM_TERMINUS_NONE` /
+  `_resolve_terminus_none_indices`): pdb2gmx `-ter` のメニュー順は ff の
+  `.n.tdb` / `.c.tdb` 読み込み順で決まり、`charmm36-feb2026` /
+  `charmm36-jul2022` 系では `None = (8, 7)` (N-term: 8、C-term: 7)。
+  デフォルトの `0/0` (`NH3+/COO-`) では ACE/NME cap で
+  `atom N not found in buiding block 1ACE` で fatal。subprocess による
+  動的 probe は pdb2gmx 2021.3 が無効 input で **99% CPU 無限 spin**
+  する未解決 bug を踏むため使わず、ff ごとに手動登録した dict で hardcode。
+- **TIP3 spurious O-H-H angles の post-process** (`_strip_water_spurious_angles`):
+  CHARMM port `solvent.rtp` の `[ TIP3 ]` には rigid 制約用の H1-H2 "bond"
+  が並び、pdb2gmx は通常 bond と解釈して 1 water あたり 3 angles
+  (1 real + 2 spurious) を生成。`ffbonded.itp` は `HT-OT-HT` のみ定義
+  なので、各 spurious angle が `No default U-B types` error 1 件を出す
+  (3500 waters で 7000+ errors)。`run_pdb2gmx` の post-process で全
+  chain itp の `[ angles ]` セクションをパースし、middle atom が `OT`
+  以外の 3-tuple を削除。除去件数を log 出力。
+- **subprocess 自動 probe の禁止 (regression 防止)**: pdb2gmx 2021.3 が
+  無効 input (`999\n999\n` 等) で 99% CPU 無限 spin する bug を踏まないよう、
+  terminus index 解決から subprocess probe を完全削除し、`KNOWN_CHARMM_TERMINUS_NONE`
+  辞書 lookup のみに simplify。新 ff port 追加時はメニューを手動で
+  1 度確認して dict に登録する運用。
+
+### Tests
+
+- **`tests/test_membrane_charmm_translate.py` の更新と新規テスト**:
+  - `test_histidine_tautomers`: HIP は港 (port) 規約で verbatim、HID/HIE
+    のみ HSD/HSE に rename
+  - `test_protomers`: ASH/GLH/LYN → ASPP/GLUP/LSN、CYM は verbatim
+  - `test_caps`: ACE/NME ともに residue 名は verbatim、atom のみ rename
+  - `test_ace_atoms`: H1/H2/H3 → HH31/HH32/HH33; CH3/C/O pass through
+  - `test_nme_atoms` (新規): C → CH3、H1/H2/H3 → HH31/HH32/HH33、universal
+    H → HN
+  - `test_4char_residue_not_truncated` (新規): POPC / TIP3 が POP / TIP に
+    切り詰められない regression test
+  - `test_skip_list_contains_caps_and_ions`: NME が SKIP_BACKBONE_RENAME に
+    含まれていないことを assert
+  - `test_full_translation_pipeline`: ACE 6 atoms (H1/H2/H3/CH3/C/O) を含む
+    fixture に拡張、HH31/HH32/HH33 すべての翻訳を verify
+  - 全 26 件 PASS / 0.31 s
+
+### Documentation
+
+- 業界実態を `memory/` に文書化 (`project_membrane_charmm36_gotchas.md`):
+  - ~95% の academic は CHARMM-GUI を使い pdb2gmx を完全回避
+  - 少数派は psfgen + charmm2gmx (Wacha & Lemkul 2023 *JCIM*)
+  - 完全 commercial-OK の membrane builder は packmol-memgen のみ
+  - **本パッケージの修正は世界で数十人しか踏まない pain points**
+- AMBER TIP3P と CHARMM-modified TIP3P の H atom LJ 違い (σ=0/ε=0 vs
+  σ≈0.4/ε≈0.046 kcal/mol) を memory に記載。abmptools.membrane では
+  backend ごとに自動で適切な TIP3P が選ばれる (AMBER: tleap、
+  CHARMM36: pdb2gmx の ff dir tip3p.itp)。
+
+### Known limitations
+
+- 実機 MD 完走 (production-leaning run, ~3 時間 GPU) はまだ未検証。
+  smoke (grompp pass) までは PASS。
+- 長期的には "正攻法 (a)": protein のみ pdb2gmx + water/lipid/ion は
+  ff dir の itp を直接 `#include` する方式へ refactor 余地あり (現状は
+  業界正攻法の (b) post-process 方式)。
+
 ## [1.17.2] - 2026-05-03
 
 ### Added

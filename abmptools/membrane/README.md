@@ -81,8 +81,16 @@ All four implementation phases are complete (latest commit `f10f791`):
   (commits `f1d49c7` … `907c040`)
 - **Phase C** — CHARMM36 backend (commits `5d28034` / `8c8bc1b`).
   End-to-end smoke gated on the user dropping a Klauda-port `charmm36-jul2022.ff`
-  directory in place; translation unit tests (`tests/test_membrane_charmm_translate.py`)
-  pass independently of the .ff dir.
+  (or `charmm36-feb2026_cgenff-5.0.ff`) directory in place; translation unit
+  tests (`tests/test_membrane_charmm_translate.py`, 26 件) pass independently
+  of the .ff dir.
+- **Phase C+** (v1.17.3) — **CHARMM36 backend 実機検証完了**。Klauda port
+  特有の 7 件の bug を修正 (4-char residue 切り詰め / 過剰 rename
+  `NME→CT3` 等 / ACE&NME atom mapping / terminus None index hardcode /
+  TIP3 spurious O-H-H angles 削除 / pdb2gmx subprocess 無限 spin 回避)。
+  `charmm36-feb2026_cgenff-5.0.ff` で peptide + bilayer + water + ion の
+  smoke build (grompp pass) end-to-end 完走を確認。詳細は CHANGELOG の
+  v1.17.3 セクション参照。
 - **Phase D** — documentation: [`docs/membrane.md`](../../docs/membrane.md) (reference)
   + [`docs/tutorial_membrane_us.md`](../../docs/tutorial_membrane_us.md) (step-by-step
   ops tutorial) + cross-references in `architecture.md` / `directory_structure.md` /
