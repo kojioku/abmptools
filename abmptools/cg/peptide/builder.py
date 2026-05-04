@@ -34,10 +34,12 @@ Output layout (under :attr:`PeptideBuildConfig.output_dir`)::
 from __future__ import annotations
 
 import logging
+import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from . import (
+    forcefield_check,
     martinize_runner,
     mdp_templates,
     peptide_atomistic,
@@ -103,6 +105,7 @@ class PeptideCGBuilder:
             raise ValueError("PeptideBuildConfig.peptides is empty")
 
         ff_dir = self._resolve_ff_dir()
+        self._copy_ff_files(ff_dir)
 
         logger.info("=== Stage 1/6: atomistic PDB ===")
         self._stage1_atomistic()
@@ -231,3 +234,27 @@ class PeptideCGBuilder:
         if self.config.martini_itp_dir:
             return Path(self.config.martini_itp_dir).resolve()
         return self.output_dir / "ff"
+
+    def _copy_ff_files(self, ff_dir: Path) -> None:
+        """Copy required Martini 3 ITP files into output_dir.
+
+        ``topol.top`` uses bare-name ``#include "martini_v3.0.0.itp"``;
+        ``gmx grompp`` resolves these relative to the topology's directory,
+        so the ITP files must live alongside topol.top. We copy (not
+        symlink) for portability with run scripts that may move the
+        directory.
+        """
+        for fname in forcefield_check.REQUIRED_MARTINI_FILES:
+            src = ff_dir / fname
+            dst = self.output_dir / fname
+            if src.exists():
+                if dst.exists():
+                    continue  # idempotent re-runs
+                shutil.copy2(src, dst)
+                logger.debug("Copied %s -> %s", src, dst)
+            else:
+                logger.warning(
+                    "Required Martini 3 file %s not found in %s; "
+                    "gmx grompp will fail without it",
+                    fname, ff_dir,
+                )

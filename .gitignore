@@ -10,3 +10,7 @@ tags
 for_abmp
 *.swp
 .project
+
+# Martini 3 force field files (downloaded separately from cgmartini.nl, not redistributed)
+ff/
+martini_v300.zip

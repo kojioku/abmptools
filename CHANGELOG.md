@@ -24,10 +24,20 @@
     `validate` サブコマンドで存在確認 + cgmartini.nl からの取得手順を表示。
   - ライセンス未明記の cgmartini 配布物 (martinize-dna.py 等) は除外し、
     Martini 3 ペプチド機能のみを切り出した。
-  - `tests/test_cg_peptide_*.py` で 102 件の unit test を整備
+  - `tests/test_cg_peptide_*.py` で 104 件の unit test を整備
     (martinize2/gmx/tleap 不要、CI 通せる)。実機 smoke は
-    `tests/test_cg_peptide_integration.py` (`@pytest.mark.slow`) で gated。
+    `tests/test_cg_peptide_integration.py` (`@pytest.mark.slow`) で gated --
+    abmptoolsenv (vermouth 0.15 + GROMACS 2021.3 + AmberTools tleap) で
+    KGG x1 / 4 nm cubic box の build → `gmx grompp -f em.mdp` PASS まで
+    実機検証済。
   - 新 extras: `pip install abmptools[cg]` で vermouth + pyyaml が入る。
+  - `forcefield_check`: REQUIRED Martini 3 files は ITP 3 ファイル
+    (`martini_v3.0.0.itp` / `_solvents_v1.itp` / `_ions_v1.itp`)。
+    `martini_v3.0.0_water.gro` は cgmartini.nl が直接配布していないため
+    OPTIONAL 扱い (`solvent_enabled=True` のときのみ要)。
+  - `PeptideCGBuilder` は build 時に REQUIRED ITP を `output_dir/` に
+    自動コピーし、`topol.top` の bare-name `#include` を `gmx grompp` が
+    `cwd` から解決できるようにする (amorphous / membrane 流儀)。
 
 ### External dependencies (new, optional via `[cg]` extra)
 

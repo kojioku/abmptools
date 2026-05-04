@@ -24,13 +24,21 @@ PeptideBuildConfig (JSON/YAML)
 python -m abmptools.cg.peptide example > kgg.json
 
 # 2. Martini 3 force field を別途取得 (パッケージ未同梱)
-mkdir ff && cd ff
-# https://cgmartini.nl/docs/downloads/force-field-parameters/martini3/ から:
-#   martini_v3.0.0.itp
-#   martini_v3.0.0_solvents_v1.itp
-#   martini_v3.0.0_ions_v1.itp
-#   martini_v3.0.0_water.gro
-cd ..
+#    cgmartini.nl は zip 一括配布。必要 3 itp を ff/ に展開する:
+mkdir ff
+curl -L -o /tmp/m300.zip \
+    https://cgmartini-library.s3.ca-central-1.amazonaws.com/1_Downloads/ff_parameters/martini3/martini_v300.zip
+unzip -o -j /tmp/m300.zip \
+    "martini_v300/martini_v3.0.0.itp" \
+    "martini_v300/martini_v3.0.0_solvents_v1.itp" \
+    "martini_v300/martini_v3.0.0_ions_v1.itp" \
+    -d ff/
+
+# 任意: solvent_enabled=True で gmx solvate する場合は
+# Martini 3 water box (martini_v3.0.0_water.gro) も必要。
+# cgmartini.nl は water.gro を直接配布していないので、
+# gmx insert-molecules で自作するか、Martini 3 tutorial archive
+# (例: martinize2 sample, lipid tutorial) に同梱されているものを利用する。
 
 # 3. 依存と .itp の存在確認
 python -m abmptools.cg.peptide validate --config kgg.json --ff-dir ./ff
@@ -49,7 +57,8 @@ bash out/run/run.sh
 | `martinize2` (vermouth, Apache-2.0) | 必須 | M3 CG mapping | `pip install abmptools[cg]` (PyPI 経由 vermouth) |
 | `gmx` (GROMACS) | 必須 | solvate / genion / grompp / make_ndx / mdrun | `mamba install -c conda-forge gromacs` |
 | `tleap` (AmberTools) | **推奨** (任意) | atomistic PDB | `mamba install -c conda-forge ambertools` |
-| Martini 3 force field `.itp` | 必須 | force field | cgmartini.nl から download |
+| Martini 3 ITP 3 ファイル (`martini_v3.0.0.itp` / `_solvents_v1` / `_ions_v1`) | 必須 | force field | `martini_v300.zip` から取得 |
+| Martini 3 water box `.gro` | 任意 (`solvent_enabled=True` のみ) | solvate template | cgmartini 直接配布なし。`gmx insert-molecules` で自作 / tutorial archive 流用 |
 
 ## tleap fallback の注意
 

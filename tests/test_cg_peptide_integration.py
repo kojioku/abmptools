@@ -45,11 +45,17 @@ def test_kgg_build_grompp_em(tmp_path):
 
     ff_dir = _ff_dir_or_skip()
 
+    # solvent_enabled=False keeps the test self-contained:
+    # cgmartini.nl does not distribute a Martini 3 water.gro directly,
+    # so end-to-end gmx solvate would require a user-generated water box.
+    # The build still exercises atomistic + martinize2 + gmx insert-molecules
+    # + topology + MDP + grompp.
     cfg = PeptideBuildConfig(
         peptides=[PeptideSpec(name="kgg", sequence="KGG", count=1)],
         box_size_nm=4.0,
         martini_itp_dir=str(ff_dir),
         output_dir=str(tmp_path),
+        solvent_enabled=False,
         em_steps=100,
         nvt_nsteps=100,
         npt_nsteps=100,

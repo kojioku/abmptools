@@ -74,11 +74,20 @@ def check_external_tools(
 # Martini 3 force field files
 # ---------------------------------------------------------------------------
 
-#: Files expected in ``martini_itp_dir`` for a peptide + water + ion build.
+#: ITP files expected in ``martini_itp_dir`` for a peptide + ion build.
+#: Distributed by cgmartini.nl as part of ``martini_v300.zip``.
 REQUIRED_MARTINI_FILES = [
     "martini_v3.0.0.itp",
     "martini_v3.0.0_solvents_v1.itp",
     "martini_v3.0.0_ions_v1.itp",
+]
+
+#: Optional Martini 3 water box for ``gmx solvate -cs``. **cgmartini.nl does
+#: not distribute this file directly** (only ITP is in martini_v300.zip);
+#: users typically generate one via ``gmx insert-molecules`` or take it from
+#: a Martini 3 tutorial archive. Required only when
+#: :attr:`PeptideBuildConfig.solvent_enabled` is True.
+OPTIONAL_MARTINI_FILES = [
     "martini_v3.0.0_water.gro",
 ]
 
@@ -97,10 +106,11 @@ class FileStatus:
     name: str
     found: bool
     path: Optional[str] = None
+    optional: bool = False
 
 
 def check_martini_files(itp_dir: str) -> List[FileStatus]:
-    """Check required Martini 3 ``.itp`` / ``.gro`` files exist in *itp_dir*.
+    """Check required + optional Martini 3 files in *itp_dir*.
 
     An empty *itp_dir* string yields all-missing statuses (helps the
     ``validate`` CLI subcommand display useful guidance).
@@ -108,15 +118,24 @@ def check_martini_files(itp_dir: str) -> List[FileStatus]:
     out: List[FileStatus] = []
     base = Path(itp_dir) if itp_dir else None
     for fname in REQUIRED_MARTINI_FILES:
-        if base is None:
-            out.append(FileStatus(name=fname, found=False, path=None))
-        else:
-            p = base / fname
-            out.append(FileStatus(
-                name=fname, found=p.exists(),
-                path=str(p) if p.exists() else None,
-            ))
+        out.append(_status(base, fname, optional=False))
+    for fname in OPTIONAL_MARTINI_FILES:
+        out.append(_status(base, fname, optional=True))
     return out
+
+
+def _status(
+    base: Optional[Path], fname: str, *, optional: bool,
+) -> FileStatus:
+    if base is None:
+        return FileStatus(name=fname, found=False, optional=optional)
+    p = base / fname
+    return FileStatus(
+        name=fname,
+        found=p.exists(),
+        path=str(p) if p.exists() else None,
+        optional=optional,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -141,16 +160,22 @@ def report(
             print(f"  [WARN]  {t.name:<11} -- {t.purpose}")
 
     print(f"\nMartini 3 force field files (in {itp_dir or '<unset>'}):")
-    files_ok = True
+    required_files_ok = True
     for f in files:
         if f.found:
-            print(f"  [OK]      {f.name}")
+            tag = "[OK]    " if not f.optional else "[opt-OK]"
+            print(f"  {tag} {f.name}")
+        elif f.optional:
+            print(
+                f"  [opt]    {f.name}  (only needed when "
+                "solvent_enabled=True; gmx insert-molecules で自作可)"
+            )
         else:
-            files_ok = False
+            required_files_ok = False
             print(f"  [MISSING] {f.name}")
 
-    if not files_ok or not itp_dir:
-        print(f"\nDownload missing files from:\n  {MARTINI_DOWNLOAD_URL}")
+    if not required_files_ok or not itp_dir:
+        print(f"\nDownload required ITP files from:\n  {MARTINI_DOWNLOAD_URL}")
         print(f"Please cite: {MARTINI_CITATION}")
 
-    return required_ok and files_ok
+    return required_ok and required_files_ok
