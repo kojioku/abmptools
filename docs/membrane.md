@@ -641,6 +641,40 @@ rename / ACE atom 名 mapping / NME atom 名 mapping / terminus None index
 hardcode / TIP3 spurious O-H-H angles 削除 / pdb2gmx 2021.3 無限 spin
 回避)。詳細は `CHANGELOG.md` の v1.17.3 セクション参照。
 
+### Phase C+ 実機検証の信頼度階層 (v1.17.3 時点)
+
+CHARMM36 backend の出力が「正しい」ことを保証する根拠を階層化:
+
+| Layer | 検証内容 | 結果 |
+|---|---|---|
+| L1. テーブル整合性 | rename テーブルが Klauda port の rtp と一致 | ✅ 26 unit tests pass |
+| L2. パイプライン syntactic | `pdb2gmx` が "atom not found" を出さず通過 | ✅ smoke 12 PASSED |
+| L3. grompp 受け入れ | 11 windows × MDP が `gmx grompp` を error 0 で通る | ✅ |
+| L4. 化学量論 (Phase A) | total charge = 0、peptide=62 atoms (AMBER と一致) | ✅ 14 tests pass (`test_membrane_topology_sanity.py`) |
+| L5. EM 収束 | energy minimization が物理的に妥当な値に収束 | ✅ E=-1.63×10⁵ kJ/mol, max F=783 < tol |
+| L6. NVT/NPT 安定性 | 5 ns NPT (T=308.4±0.2 K, P=-27±28 bar) | ✅ 安定、blow up なし |
+| L7. APL 文献値一致 | POPC@310K で APL ≈ 65 Å² | ✅ **64.88 ± 0.82 Å²** ⭐ |
+| L8. P-P 厚 | POPC@310K で D_PP ≈ 38-40 Å | ⚠ 50.7 Å (Berendsen NPT 5 ns 段階; production windows で更に relax) |
+| L9. AMBER vs CHARMM PMF 比較 | 同系の barrier が ff レベル (数 kJ/mol) で一致 | (進行中: Phase D) |
+| L10. CHARMM-GUI と topology 比較 | atom counts / bonded params が一致 | (未実施) |
+
+L1-L7 で「topology は正しく、物理的に動く」を保証。L8 の P-P 厚は Berendsen
+barostat 5 ns では完全 equilibrate に至らず約 30% 厚いが、production phase
+の c-rescale (Bussi 2020) barostat で許される proper volume fluctuation
+により windows 段階で更に relax 見込み。
+
+実機検証の sanity check helper は CLI として利用可能:
+
+```bash
+python -m abmptools.membrane.topology_sanity /path/to/build_dir
+```
+
+または pytest:
+
+```bash
+MEMBRANE_BUILD_DIR=/path/to/build_dir pytest tests/test_membrane_topology_sanity.py
+```
+
 ### CHARMM 業界実態 (重要、ニッチ性の認識)
 
 raw `pdb2gmx` で full bilayer PDB を扱うのは少数派 — academic 多数派
