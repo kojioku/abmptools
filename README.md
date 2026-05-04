@@ -55,6 +55,15 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
   trajectories with `gmx trjconv -pbc mol -ur compact` for VMD-friendly
   `*_pbc.xtc` / `_pbc.gro` outputs
 
+### Martini 3 Peptide CG System (`cg.peptide`)
+
+- End-to-end Martini 3 peptide CG system builder: residue sequence (1-letter) + counts + box → `martinize2 -ff martini3001` で CG mapping → `gmx insert-molecules` で peptide 配置 → `gmx solvate` で Martini W → `gmx genion` で NaCl 中和 + 0.15 M → em/nvt/npt/md.mdp + `run.sh` を生成
+- atomistic PDB は **tleap** (推奨; full sidechain) または extended-backbone fallback (tleap 不在時; 芳香族残基では NaN bead artifact の可能性あり、警告ログ)
+- データクラス: `PeptideSpec` / `PeptideBuildConfig` (`@dataclass`、JSON 往復、YAML optional)
+- CLI: `python -m abmptools.cg.peptide {build,validate,example}` (argparse)
+- **Apache-2.0 互換のみ**: `vermouth-martinize` を `subprocess` で呼ぶのみ、改変・同梱なし。Martini 3 force field `.itp` は本パッケージ未同梱で `validate` サブコマンドが取得手順を表示
+- `abmptools/cg/` namespace は MO-AAMD-CGMD マルチスケール基盤の CG 系統として新設。後続で `cg/polymer/` (polyply 経由) や `cg/smallmol/` (Auto-Martini 経由) を計画
+
 ### Peptide-Bilayer Umbrella Sampling (`membrane`)
 
 - End-to-end PMF builder for peptide membrane permeation: bilayer + peptide + water + ions → AMBER (`ff19SB` + `Lipid21` + TIP3P / Joung-Cheatham) or CHARMM36 backend → semiisotropic NPT equilibration → z-pulling → per-window umbrella MDPs → `gmx wham` PMF
@@ -125,6 +134,13 @@ python -m abmptools.amorphous --mol ketoprofen_pubchem_cid3825.sdf \
 # Or let abmptools fetch the 3D SDF straight from PubChem (1.15.3+)
 python -m abmptools.amorphous --pubchem_cid 3825 \
     --name ketoprofen --n_mol 50 --density 0.8 --output_dir ./ketoprofen_pubchem
+
+# Build a Martini 3 peptide CG system (KGG x5 + RGG x5 in 10 nm box)
+python -m abmptools.cg.peptide example > kgg.json   # 最小 example
+python -m abmptools.cg.peptide validate --config kgg.json --ff-dir ./ff
+python -m abmptools.cg.peptide build    --config kgg.json --ff-dir ./ff -o ./out
+# 上記で out/run/run.sh が生成される。Martini 3 .itp は cgmartini.nl から
+# 別途取得が必要 (本パッケージ未同梱)。詳細は abmptools/cg/peptide/README.md。
 
 # Build a peptide-bilayer Umbrella Sampling system (AMBER backend)
 python - <<'PY'

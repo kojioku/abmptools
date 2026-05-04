@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abmptools"
-version = "1.17.3"
+version = "1.18.0"
 description = "Pre/post-processing and analysis toolkit for ABINIT-MP Fragment Molecular Orbital calculations"
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "MIT"
@@ -50,6 +50,17 @@ membrane = [
     #   ambertools (>=22) — tleap, packmol-memgen, antechamber, parmchk2
     # Optional: gromacs[build=nompi_cuda*] for GPU offload (separate env).
     # See docs/dependencies.md for the full recipe.
+]
+cg = [
+    "vermouth>=0.10",   # martinize2 (PyPI、Apache-2.0)
+    "pyyaml>=6.0",      # YAML 入力 (optional; JSON only でも動く)
+    # External tools (subprocess、conda 推奨):
+    #   gromacs (>=2021)  — gmx insert-molecules / solvate / genion / grompp / make_ndx
+    #   ambertools (>=22) — tleap (推奨、不在時は extended-backbone fallback)
+    # Force field files (本パッケージ未同梱、cgmartini.nl から取得):
+    #   martini_v3.0.0.itp / martini_v3.0.0_solvents_v1.itp /
+    #   martini_v3.0.0_ions_v1.itp / martini_v3.0.0_water.gro
+    # See abmptools/cg/peptide/README.md for the full recipe.
 ]
 geomopt = [
     "pyscf",
