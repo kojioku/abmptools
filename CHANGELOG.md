@@ -2,7 +2,48 @@
 
 ## [Unreleased]
 
-(no changes yet — this section accumulates work-in-progress between releases)
+### Added
+
+- **`abmptools.cg.peptide` — Martini 3 peptide CG system builder** (新サブパッケージ)
+  - JSON/YAML 入力から GROMACS MD 入力一式を生成する end-to-end builder。
+    abmptools の MO-AAMD-CGMD マルチスケール基盤化に向けて新設した
+    `abmptools/cg/` namespace の最初のモジュール。
+  - `PeptideCGBuilder.build()` で 6 stage を 1 呼び出し:
+    atomistic PDB (tleap or extended-backbone fallback) →
+    `martinize2 -ff martini3001` で M3 CG mapping →
+    `gmx insert-molecules` で peptide 配置 →
+    `gmx solvate` で Martini W →
+    `gmx grompp` + `gmx genion` で NaCl 中和 + 0.15 M →
+    em/nvt/npt/md.mdp + index.ndx + run.sh を生成。
+  - データクラス: `PeptideSpec` / `PeptideBuildConfig`
+    (`@dataclass` + `to_json/from_json`、JSON 往復、YAML は optional)。
+  - CLI: `python -m abmptools.cg.peptide {build,validate,example}`
+    (argparse、`amorphous` / `membrane` 流儀準拠、Click 不使用)。
+  - **Apache-2.0 互換のみ**: vermouth-martinize (Apache-2.0) を `subprocess`
+    経由で利用、改変 / 同梱なし。Martini 3 の `.itp` は本パッケージ未同梱で、
+    `validate` サブコマンドで存在確認 + cgmartini.nl からの取得手順を表示。
+  - ライセンス未明記の cgmartini 配布物 (martinize-dna.py 等) は除外し、
+    Martini 3 ペプチド機能のみを切り出した。
+  - `tests/test_cg_peptide_*.py` で 102 件の unit test を整備
+    (martinize2/gmx/tleap 不要、CI 通せる)。実機 smoke は
+    `tests/test_cg_peptide_integration.py` (`@pytest.mark.slow`) で gated。
+  - 新 extras: `pip install abmptools[cg]` で vermouth + pyyaml が入る。
+
+### External dependencies (new, optional via `[cg]` extra)
+
+- `vermouth` (PyPI、Apache-2.0): `martinize2` CLI 提供。
+- `gmx` (GROMACS, conda): `solvate` / `genion` / `grompp` / `make_ndx` /
+  `insert-molecules`。
+- `tleap` (AmberTools, conda; **推奨**): atomistic PDB 生成。**不在時は
+  extended-backbone fallback** だが、芳香族残基 (W/F/Y) で CG sidechain
+  bead が NaN になる可能性あり。研究用途では tleap 推奨。
+
+### Notes
+
+- Pydantic + Click ベースの非公開 m3-peptide リポジトリ (Martini 2/3 +
+  ssDNA 対応) からの再実装。DNA 関連 (`external/martinize-dna.py` 等の
+  ライセンス未明 derivative) は除外し、`abmptools.amorphous` /
+  `abmptools.membrane` と同じ流儀 (`@dataclass` + `argparse`) に統一。
 
 ## [1.17.3] - 2026-05-04
 
