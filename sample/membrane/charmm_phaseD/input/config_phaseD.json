@@ -1,0 +1,72 @@
+{
+  "backend": "charmm36",
+  "lipids": [
+    {
+      "resname": "POPC",
+      "n_per_leaflet": 32,
+      "apl_angstrom2": 0.0
+    }
+  ],
+  "peptide": {
+    "name": "aa5",
+    "sequence": "AAAAA",
+    "pdb_path": "",
+    "n_copies": 1,
+    "cap_n": "ACE",
+    "cap_c": "NME",
+    "initial_z_offset_nm": 3.0
+  },
+  "ions": {
+    "cation": "Na+",
+    "anion": "Cl-",
+    "salt_concentration_M": 0.15,
+    "neutralize": true
+  },
+  "box_xy_nm": 6.0,
+  "water_thickness_nm": 2.5,
+  "distance_to_lipid_nm": 1.5,
+  "equilibration": {
+    "em_steps": 5000,
+    "em_tol": 1000.0,
+    "nvt_nsteps": 50000,
+    "npt_nsteps": 500000,
+    "dt_ps": 0.002,
+    "temperature_K": 310.0,
+    "pressure_bar": 1.0,
+    "tau_t_ps": 1.0,
+    "tau_p_ps": 5.0,
+    "nstxout_compressed": 5000,
+    "nstenergy": 1000,
+    "gen_seed": null
+  },
+  "pulling": {
+    "pull_rate_nm_per_ps": 0.001,
+    "pull_force_constant": 1000.0,
+    "nsteps": 5000000,
+    "nstxout_compressed": 500
+  },
+  "umbrella": {
+    "z_min_nm": -1.5,
+    "z_max_nm": 1.5,
+    "window_spacing_nm": 0.25,
+    "force_constant_kj_mol_nm2": 1000.0,
+    "window_nsteps": 500000,
+    "window_dt_ps": 0.002,
+    "window_nstxtcout": 1000,
+    "window_nstenergy": 500,
+    "pull_group1": "Bilayer",
+    "pull_group2": "Peptide",
+    "pull_geometry": "direction",
+    "pull_vec": "0 0 1",
+    "pull_dim": "N N Y"
+  },
+  "seed": 42,
+  "output_dir": "/tmp/membrane_charmm_smoke_run12",
+  "amber_protein_ff": "leaprc.protein.ff19SB",
+  "amber_lipid_ff": "leaprc.lipid21",
+  "amber_water_ff": "leaprc.water.tip3p",
+  "charmm_ff_dir": "/home/okuwaki/llm-project/charmm36-feb2026_cgenff-5.0.ff",
+  "packmol_memgen_path": "packmol-memgen",
+  "tleap_path": "tleap",
+  "gmx_path": "gmx"
+}
