@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+(no changes yet — this section accumulates work-in-progress between releases)
+
+## [1.18.0] - 2026-05-04
+
+新サブパッケージ `abmptools.cg.peptide` を追加。abmptools の MO-AAMD-CGMD
+マルチスケール基盤化に向けた CG (粗視化) 系統 (`abmptools/cg/`) の最初の
+モジュール。後続で `cg/polymer/` (polyply 経由) や `cg/smallmol/`
+(Auto-Martini 経由) を計画している。
+
 ### Added
 
 - **`abmptools.cg.peptide` — Martini 3 peptide CG system builder** (新サブパッケージ)
