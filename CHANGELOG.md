@@ -47,6 +47,18 @@
   - `PeptideCGBuilder` は build 時に REQUIRED ITP を `output_dir/` に
     自動コピーし、`topol.top` の bare-name `#include` を `gmx grompp` が
     `cwd` から解決できるようにする (amorphous / membrane 流儀)。
+  - **`water_box.make_martini_water_box`**: cgmartini.nl が
+    `martini_v3.0.0_water.gro` を直接配布していないため、ff_dir に
+    water box が無い場合は `gmx insert-molecules` で W bead を
+    Martini 標準密度 (~8.36 W/nm^3、5 nm cubic で約 1045 beads) で詰めて
+    自動生成する。builder の `_stage4_solvate` で透過的に呼ばれる。
+    ユーザーが Martini 3 tutorial archive 等から自分で water.gro を
+    用意した場合はそちらが優先される。
+  - **実機検証 (abmptoolsenv で 17.42s)**:
+    - `solvent_enabled=False`: packed.gro -> `gmx grompp` PASS
+    - `solvent_enabled=True`: water_box auto-gen -> `gmx solvate` ->
+      `gmx genion` (NaCl 中和 + 0.15 M) -> system_ions.gro ->
+      `gmx grompp` PASS
 
 ### External dependencies (new, optional via `[cg]` extra)
 

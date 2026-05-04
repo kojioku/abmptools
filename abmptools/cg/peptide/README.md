@@ -34,11 +34,13 @@ unzip -o -j /tmp/m300.zip \
     "martini_v300/martini_v3.0.0_ions_v1.itp" \
     -d ff/
 
-# 任意: solvent_enabled=True で gmx solvate する場合は
+# 任意: solvent_enabled=True (デフォルト) で gmx solvate する場合は
 # Martini 3 water box (martini_v3.0.0_water.gro) も必要。
-# cgmartini.nl は water.gro を直接配布していないので、
-# gmx insert-molecules で自作するか、Martini 3 tutorial archive
-# (例: martinize2 sample, lipid tutorial) に同梱されているものを利用する。
+# cgmartini.nl は直接配布していないが、本パッケージは ff_dir に
+# water.gro が無い場合 gmx insert-molecules で W bead を Martini 標準
+# 密度 (8.36 W/nm^3、5 nm cubic で約 1045 beads) で自動生成する。
+# 自分で用意したい場合 (チュートリアル archive 等から) は ff_dir に
+# `martini_v3.0.0_water.gro` を置けば auto-gen はスキップされる。
 
 # 3. 依存と .itp の存在確認
 python -m abmptools.cg.peptide validate --config kgg.json --ff-dir ./ff
@@ -58,7 +60,7 @@ bash out/run/run.sh
 | `gmx` (GROMACS) | 必須 | solvate / genion / grompp / make_ndx / mdrun | `mamba install -c conda-forge gromacs` |
 | `tleap` (AmberTools) | **推奨** (任意) | atomistic PDB | `mamba install -c conda-forge ambertools` |
 | Martini 3 ITP 3 ファイル (`martini_v3.0.0.itp` / `_solvents_v1` / `_ions_v1`) | 必須 | force field | `martini_v300.zip` から取得 |
-| Martini 3 water box `.gro` | 任意 (`solvent_enabled=True` のみ) | solvate template | cgmartini 直接配布なし。`gmx insert-molecules` で自作 / tutorial archive 流用 |
+| Martini 3 water box `.gro` | 任意 (`solvent_enabled=True` のみ) | solvate template | cgmartini 直接配布なし。**ff_dir に置けば使用、無ければ build 時に gmx insert-molecules で auto-generate** |
 
 ## tleap fallback の注意
 

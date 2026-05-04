@@ -71,6 +71,11 @@ def _stage_mocks(monkeypatch):
         out.write_text("[ System ]\n")
         return out
 
+    def fake_water_box(out, **kw):
+        out = Path(out)
+        out.write_text("water box stub\n")
+        return out
+
     monkeypatch.setattr(
         "abmptools.cg.peptide.builder."
         "peptide_atomistic.build_atomistic_pdb",
@@ -95,6 +100,10 @@ def _stage_mocks(monkeypatch):
     monkeypatch.setattr(
         "abmptools.cg.peptide.builder.system_packer.make_index",
         fake_make_index,
+    )
+    monkeypatch.setattr(
+        "abmptools.cg.peptide.builder.water_box.make_martini_water_box",
+        fake_water_box,
     )
 
 
@@ -191,3 +200,60 @@ class TestPeptideCGBuilder:
         cfg.box_lengths_nm = [10.0, 12.0, 15.0]
         result = PeptideCGBuilder(cfg).build()
         assert result["box_nm"] == (10.0, 12.0, 15.0)
+
+    def test_water_gro_auto_generated_when_missing(
+        self, tmp_path, monkeypatch,
+    ):
+        """ff_dir に water.gro が無いとき auto-gen 経路に入ることを検証。"""
+        from abmptools.cg.peptide import water_box
+
+        called = {}
+        original_fake = lambda *a, **kw: None  # placeholder
+
+        def tracking_water_box(out, **kw):
+            called["out"] = out
+            called["gmx_path"] = kw.get("gmx_path", "gmx")
+            from pathlib import Path as _P
+            _P(out).write_text("auto-gen W box\n")
+            return _P(out)
+
+        _stage_mocks(monkeypatch)
+        # Override the water_box mock with our tracking version
+        monkeypatch.setattr(
+            "abmptools.cg.peptide.builder."
+            "water_box.make_martini_water_box",
+            tracking_water_box,
+        )
+
+        cfg = _build_config(tmp_path)
+        # ff_dir does not exist, so water.gro is missing -> auto-gen
+        PeptideCGBuilder(cfg).build()
+        assert "out" in called
+        assert called["gmx_path"] == "gmx"
+
+    def test_water_gro_not_auto_generated_when_present(
+        self, tmp_path, monkeypatch,
+    ):
+        """ff_dir に water.gro が既にあれば auto-gen は呼ばれない。"""
+        ff_dir = tmp_path / "ff"
+        ff_dir.mkdir()
+        (ff_dir / "martini_v3.0.0_water.gro").write_text("user-provided\n")
+
+        called = {"count": 0}
+
+        def tracking_water_box(out, **kw):
+            called["count"] += 1
+            from pathlib import Path as _P
+            _P(out).write_text("X")
+            return _P(out)
+
+        _stage_mocks(monkeypatch)
+        monkeypatch.setattr(
+            "abmptools.cg.peptide.builder."
+            "water_box.make_martini_water_box",
+            tracking_water_box,
+        )
+
+        cfg = _build_config(tmp_path)
+        PeptideCGBuilder(cfg).build()
+        assert called["count"] == 0

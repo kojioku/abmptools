@@ -85,3 +85,59 @@ def test_kgg_build_grompp_em(tmp_path):
         f"gmx grompp failed:\nSTDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
     )
     assert (tmp_path / "em.tpr").exists()
+
+
+@pytest.mark.slow
+def test_kgg_build_with_solvate_and_water_autogen(tmp_path):
+    """Full pipeline including ``gmx solvate`` + ``gmx genion``.
+
+    cgmartini.nl does not distribute ``martini_v3.0.0_water.gro``; the
+    builder's water_box helper should auto-generate one via
+    ``gmx insert-molecules``. This test verifies the full 6-stage flow
+    ends with a working ``system_ions.gro`` that ``gmx grompp`` accepts.
+    """
+    if not shutil.which("martinize2"):
+        pytest.skip("martinize2 not on PATH (vermouth not installed)")
+    if not shutil.which("gmx"):
+        pytest.skip("gmx not on PATH (GROMACS not installed)")
+
+    ff_dir = _ff_dir_or_skip()
+
+    cfg = PeptideBuildConfig(
+        peptides=[PeptideSpec(name="kgg", sequence="KGG", count=1)],
+        box_size_nm=5.0,
+        martini_itp_dir=str(ff_dir),
+        output_dir=str(tmp_path),
+        solvent_enabled=True,
+        neutralize=True,
+        nacl_molar=0.15,
+        em_steps=100,
+        nvt_nsteps=100,
+        npt_nsteps=100,
+        md_nsteps=100,
+    )
+    result = PeptideCGBuilder(cfg).build()
+
+    # Final coordinates are post-genion (system_ions.gro)
+    assert result["gro"].name == "system_ions.gro"
+    assert result["gro"].exists()
+    # Auto-generated water box was placed in output_dir
+    auto_water = tmp_path / "_auto_martini_w_box.gro"
+    assert auto_water.exists()
+
+    # gmx grompp on em.mdp must succeed against the solvated system
+    proc = subprocess.run(
+        [
+            "gmx", "grompp",
+            "-f", str(tmp_path / "mdp" / "em.mdp"),
+            "-c", str(result["gro"]),
+            "-p", str(result["top"]),
+            "-o", str(tmp_path / "em.tpr"),
+            "-maxwarn", "5",
+        ],
+        capture_output=True, text=True, cwd=tmp_path,
+    )
+    assert proc.returncode == 0, (
+        f"gmx grompp failed:\nSTDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
+    )
+    assert (tmp_path / "em.tpr").exists()

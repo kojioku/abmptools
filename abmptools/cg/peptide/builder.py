@@ -45,6 +45,7 @@ from . import (
     peptide_atomistic,
     system_packer,
     top_writer,
+    water_box,
 )
 from ._subprocess import ensure_dir, write_text
 from .models import PeptideBuildConfig
@@ -190,6 +191,17 @@ class PeptideCGBuilder:
         self, packed_gro: Path, topol_top: Path, ff_dir: Path,
     ) -> Path:
         water_gro = ff_dir / "martini_v3.0.0_water.gro"
+        if not water_gro.exists():
+            logger.info(
+                "martini_v3.0.0_water.gro not found in %s; "
+                "auto-generating a Martini W box via gmx insert-molecules "
+                "(cgmartini.nl does not distribute one directly)",
+                ff_dir,
+            )
+            water_gro = water_box.make_martini_water_box(
+                self.output_dir / "_auto_martini_w_box.gro",
+                gmx_path=self.config.gmx_path,
+            )
         return system_packer.solvate(
             packed_gro, topol_top, self.output_dir, water_gro,
             gmx_path=self.config.gmx_path,
