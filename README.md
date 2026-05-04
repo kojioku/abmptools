@@ -64,6 +64,15 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 - **Apache-2.0 互換のみ**: `vermouth-martinize` を `subprocess` で呼ぶのみ、改変・同梱なし。Martini 3 force field `.itp` は本パッケージ未同梱で `validate` サブコマンドが取得手順を表示
 - `abmptools/cg/` namespace は MO-AAMD-CGMD マルチスケール基盤の CG 系統として新設。後続で `cg/polymer/` (polyply 経由) や `cg/smallmol/` (Auto-Martini 経由) を計画
 
+### Martini 3 Peptide-Membrane PMF (`cg.membrane`)
+
+- End-to-end Martini 3 peptide-bilayer **umbrella sampling** builder: cg.peptide で M3 CG ペプチド生成 → `insane` (GPL-2.0、subprocess only) で POPC bilayer に埋め込み → topology composer で 4 ITP includes / `Protein → molecule_0` / `NA+/CL- → NA/CL` 正規化 → `index.ndx` (Bilayer / Peptide / W / NA / CL / Non_Bilayer) → em / nvt / npt-semiisotropic + pull-direction-periodic + 13 window static umbrella + `run.sh` を生成
+- AA 系の `membrane` (CHARMM36 / Lipid21) と並走する CG 版。`abmptools.membrane.{pulling,pmf,mdp_us_protocol}` の generic helpers を **import 経由で再利用** (コード重複ゼロ)
+- データクラス: `MembraneCGBuildConfig` / `LipidMix` / `PeptideMembraneSpec` / `EquilibrationCGProtocol` / `PullingCGProtocol` / `UmbrellaCGProtocol` (5 段 nested JSON 往復)
+- CLI: `python -m abmptools.cg.membrane {build,validate,example,make-windows,wham}` (argparse)
+- Default umbrella: 13 windows (z = -1.5 to +1.5 nm), k = 1000 kJ/mol/nm², 1 ns/window (50,000 steps × dt=20 fs); pulling 5 ns × 1 nm/ns
+- **GPL-2.0 / Apache-2.0 / MIT 互換のみ**: `insane` (GPL-2.0) と `vermouth-martinize` (Apache-2.0) は subprocess only -- abmptools 自体は MIT のまま (mere aggregation)
+
 ### Peptide-Bilayer Umbrella Sampling (`membrane`)
 
 - End-to-end PMF builder for peptide membrane permeation: bilayer + peptide + water + ions → AMBER (`ff19SB` + `Lipid21` + TIP3P / Joung-Cheatham) or CHARMM36 backend → semiisotropic NPT equilibration → z-pulling → per-window umbrella MDPs → `gmx wham` PMF
@@ -139,6 +148,12 @@ python -m abmptools.amorphous --pubchem_cid 3825 \
 python -m abmptools.cg.peptide example > kgg.json   # 最小 example
 python -m abmptools.cg.peptide validate --config kgg.json --ff-dir ./ff
 python -m abmptools.cg.peptide build    --config kgg.json --ff-dir ./ff -o ./out
+
+# Martini 3 peptide-membrane PMF (umbrella sampling) — abmptools.cg.membrane
+python -m abmptools.cg.membrane example > kgg_popc.json
+python -m abmptools.cg.membrane validate --config kgg_popc.json --ff-dir ./ff
+python -m abmptools.cg.membrane build    --config kgg_popc.json --ff-dir ./ff -o ./out
+bash ./out/run.sh                                    # em → nvt → npt → pull → 13 windows → wham
 # 上記で out/run/run.sh が生成される。Martini 3 .itp は cgmartini.nl から
 # 別途取得が必要 (本パッケージ未同梱)。詳細は abmptools/cg/peptide/README.md。
 
