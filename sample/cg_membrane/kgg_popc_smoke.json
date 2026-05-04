@@ -1,0 +1,63 @@
+{
+  "lipids": [
+    {"resname": "POPC", "n_per_leaflet": 64}
+  ],
+  "peptide": {
+    "name": "kgg",
+    "sequence": "KGG",
+    "cg_pdb_path": "",
+    "cg_itp_path": "",
+    "initial_z_offset_nm": 3.0
+  },
+  "insane_d_nm": 8.0,
+  "box_z_nm": 14.0,
+  "insane_pbc": "hexagonal",
+  "insane_extra_args": [],
+  "solvent_type": "W",
+  "nacl_molar": 0.15,
+  "neutralize": true,
+  "equilibration": {
+    "em_steps": 5000,
+    "em_tol": 100.0,
+    "nvt_nsteps": 25000,
+    "npt_nsteps": 250000,
+    "dt_ps": 0.020,
+    "temperature_K": 310.0,
+    "pressure_bar": 1.0,
+    "tau_t_ps": 1.0,
+    "tau_p_ps": 12.0,
+    "nstxout_compressed": 5000,
+    "nstenergy": 1000,
+    "gen_seed": null
+  },
+  "pulling": {
+    "pull_rate_nm_per_ps": 0.001,
+    "pull_force_constant": 1000.0,
+    "nsteps": 250000,
+    "nstxout_compressed": 500
+  },
+  "umbrella": {
+    "z_min_nm": -1.5,
+    "z_max_nm": 1.5,
+    "window_spacing_nm": 0.25,
+    "force_constant_kj_mol_nm2": 1000.0,
+    "window_nsteps": 50000,
+    "window_dt_ps": 0.020,
+    "window_nstxout_compressed": 1000,
+    "window_nstenergy": 500,
+    "pull_group1": "Bilayer",
+    "pull_group2": "Peptide",
+    "pull_geometry": "direction",
+    "pull_vec": "0 0 1",
+    "pull_dim": "N N Y"
+  },
+  "martini_itp_dir": "./ff",
+  "insane_path": "insane",
+  "martinize2_path": "martinize2",
+  "gmx_path": "gmx",
+  "tleap_path": "tleap",
+  "seed": null,
+  "output_dir": ".",
+  "skip_pulling": false,
+  "grompp_maxwarn": 5
+}

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abmptools"
-version = "1.18.0"
+version = "1.19.0"
 description = "Pre/post-processing and analysis toolkit for ABINIT-MP Fragment Molecular Orbital calculations"
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "MIT"
@@ -53,14 +53,18 @@ membrane = [
 ]
 cg = [
     "vermouth>=0.10",   # martinize2 (PyPI、Apache-2.0)
+    "insane>=1.2",      # Martini lipid bilayer assembly (PyPI、GPL-2.0)
+                        # subprocess 経由のみ、ソース改変・同梱なし
     "pyyaml>=6.0",      # YAML 入力 (optional; JSON only でも動く)
     # External tools (subprocess、conda 推奨):
-    #   gromacs (>=2021)  — gmx insert-molecules / solvate / genion / grompp / make_ndx
+    #   gromacs (>=2021)  — gmx insert-molecules / solvate / genion / grompp /
+    #                       make_ndx / mdrun / wham
     #   ambertools (>=22) — tleap (推奨、不在時は extended-backbone fallback)
     # Force field files (本パッケージ未同梱、cgmartini.nl から取得):
-    #   martini_v3.0.0.itp / martini_v3.0.0_solvents_v1.itp /
-    #   martini_v3.0.0_ions_v1.itp / martini_v3.0.0_water.gro
-    # See abmptools/cg/peptide/README.md for the full recipe.
+    #   cg.peptide:  martini_v3.0.0.itp / _solvents_v1 / _ions_v1
+    #                (+ optional water.gro, auto-gen via gmx insert-molecules)
+    #   cg.membrane: 上記 3 ITP + martini_v3.0.0_phospholipids_v1.itp
+    # See abmptools/cg/peptide/README.md and abmptools/cg/membrane/README.md.
 ]
 geomopt = [
     "pyscf",

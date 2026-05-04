@@ -14,3 +14,6 @@ for_abmp
 # Martini 3 force field files (downloaded separately from cgmartini.nl, not redistributed)
 ff/
 martini_v300.zip
+
+# gmx grompp default output (created when grompp is run from the repo root)
+mdout.mdp

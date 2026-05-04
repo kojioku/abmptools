@@ -4,6 +4,113 @@
 
 (no changes yet — this section accumulates work-in-progress between releases)
 
+## [1.19.0] - 2026-05-05
+
+新サブパッケージ `abmptools.cg.membrane` を追加。Martini 3 + insane で
+ペプチド-脂質膜系の **PMF (umbrella sampling 経由)** を end-to-end に組める
+CG 系統 2 番目のモジュール。`cg.peptide` (1.18.0) を内部 sub-call し、
+`abmptools.membrane` (AA umbrella + WHAM) の generic helper を import 経由で
+直接再利用する -- コード重複ゼロ。
+
+### Added
+
+- **`abmptools.cg.membrane` — Martini 3 peptide-membrane US system builder** (新サブパッケージ)
+  - JSON 入力から GROMACS MD 入力一式 (CG bilayer + peptide CG +
+    `topol.top` + `index.ndx` + `em/nvt/npt/pull.mdp` + 13 window MDPs +
+    `run.sh`) を生成する end-to-end builder。
+  - `MembraneCGBuilder.build()` で 7 stage を 1 呼び出し:
+    1. 4 Martini 3 ITPs を output_dir に自動コピー
+    2. **`PeptideCGBuilder` sub-call** (`solvent_enabled=False`,
+       `mdp_*=False`) で M3 CG ペプチド (`<name>_cg.pdb` + `.itp`) 生成
+    3. **`insane`** で peptide を POPC bilayer に埋め込み + W solvent +
+       NaCl (`-charge auto` で peptide 電荷を考慮した salt 配置)
+    4. **`topology_composer.compose_topology`** で insane の生 topology を
+       post-process (4 ITP includes 群への書き換え、`Protein` →
+       `molecule_0` 置換、`NA+`/`CL-` 名の正規化)
+    5. **`normalize_ion_atom_names_gro`** で .gro の ion atom name 正規化
+    6. **`write_ndx_from_gro_cg`** で Bilayer / Peptide / W / NA / CL /
+       Non_Bilayer の named groups を Python 直書き (gmx make_ndx の
+       stdin 戦法不要)
+    7. CG MDP 群 (em / nvt / npt-semiisotropic /
+       direction-periodic pull / 13 window static umbrella) + `run.sh`
+  - データクラス: `MembraneCGBuildConfig` / `LipidMix` /
+    `PeptideMembraneSpec` / `EquilibrationCGProtocol` /
+    `PullingCGProtocol` / `UmbrellaCGProtocol`
+    (`@dataclass` + `to_json/from_json`、5 段の nested JSON 往復)。
+  - CLI: `python -m abmptools.cg.membrane {build,validate,example,make-windows,wham}`
+    (argparse、`cg.peptide` / `membrane` 流儀準拠)。
+  - **GPL-2.0 / Apache-2.0 / MIT 互換のみ**: insane (GPL-2.0) と
+    vermouth (Apache-2.0) を `subprocess` で呼ぶのみ、改変 / 同梱なし。
+    abmptools 自体は MIT のまま (subprocess は GPL FAQ の "mere
+    aggregation" 扱い、`martinize2` で確立した同流儀)。
+  - 既存サブパッケージとの統合 (コード重複ゼロ):
+    - Stage 1 で `abmptools.cg.peptide.PeptideCGBuilder` を
+      sub-call (`solvent_enabled=False`, `mdp_*=False`) で CG ペプチドのみ
+      生成。
+    - Pulling helpers (`parse_pullx_xvg`, `find_pbc_center_atom`,
+      `extract_window_frames`, `estimate_initial_pull_coord`,
+      `_gmx_trjconv_dump`, `_override_mdp_field`,
+      `_read_gro_positions`, `_read_ndx_groups`) を
+      `abmptools.membrane.pulling` から **import 経由で再利用**。
+    - `render_pull_block` を `abmptools.membrane.mdp_us_protocol` から
+      duck-typed import (`UmbrellaCGProtocol` と `USProtocol` の関連
+      フィールド名が一致)。
+    - `gmx wham` 呼び出し (`run_wham`) は `abmptools.membrane.pmf` を
+      delegate (`config.gmx_path` / `config.equilibration.temperature_K`
+      の duck-typing で動作)。
+  - **Default umbrella protocol**:
+    - 13 windows (z = -1.5 to +1.5 nm, spacing 0.25 nm)
+    - k = 1000 kJ/mol/nm²
+    - 1 ns/window (50,000 steps × dt=20 fs)
+    - 5 ns pulling (250,000 steps × dt=20 fs, 1 nm/ns)
+    - AA membrane と同じ z 軸プロトコルを CG dt=20 fs に scale。
+  - **Default MDP chassis** (Martini 3 標準):
+    - cutoff = 1.1 nm, reaction-field, ε_r = 15
+    - 2-group thermostat (Bilayer / Non_Bilayer, V-rescale, τ_t = 1 ps)
+    - semiisotropic c-rescale (τ_p = 12 ps, compressibility = 3e-4)
+    - constraints = none (CG だから h-bond constraint 不要)
+    - pull stage は **NVT-chassis + direction-periodic** (動的 box 不可)、
+      window stage は **NPT-semiisotropic + direction** (動的 box 互換)
+  - `forcefield_check`: REQUIRED Martini 3 files = 4 ITP
+    (`martini_v3.0.0.itp` / `_solvents_v1` / `_ions_v1` /
+    **`_phospholipids_v1.itp`** -- POPC topology を含む M3 phospholipid
+    一括ファイル)。 `validate` サブコマンドで存在確認 + cgmartini.nl
+    からの取得手順を表示。
+  - `MembraneCGBuilder` は build 時に REQUIRED ITP を `output_dir/` に
+    自動コピー (`gmx grompp` の bare-name `#include` 解決のため、
+    `cg.peptide` 流儀踏襲)。
+  - **`topology_composer`** モジュール: insane の出力 topology を
+    Martini 3 用に post-process。`get_moleculetype_name_from_itp`,
+    `compose_topology`, `normalize_ion_atom_names_gro` の 3 関数。
+  - **`system_packer.write_ndx_from_gro_cg`**: gmx make_ndx を呼ばず、
+    Python だけで `.gro` の residue 名から groups を分類して `.ndx`
+    生成 (`POPC` -> Bilayer, 標準 amino acids -> Peptide, `W` -> W,
+    `NA`/`NA+` -> NA, `CL`/`CL-` -> CL, それ以外 -> Non_Bilayer)。
+  - `tests/test_cg_membrane_*.py` で **166 件の unit test** を整備
+    (insane / gmx / martinize2 不要、CI 通せる)。実機 smoke は
+    `tests/test_cg_membrane_integration.py` (`@pytest.mark.slow`、4 件)
+    で gated -- abmptoolsenv (insane 1.2.0 + vermouth 0.15 +
+    GROMACS 2021.3 + AmberTools tleap) で KGG x1 / POPC 32-per-leaflet /
+    13 windows × 100 steps の build → `gmx grompp -f em.mdp` /
+    `pull.mdp` / `windows/win_006/window.mdp` の **3 stage 全て**
+    PASS まで 19.11s で実機検証済。
+
+### External dependencies (new)
+
+- `insane` (PyPI、**GPL-2.0**): Martini bilayer assembly。
+  abmptools は subprocess 経由のみ、ソース改変・同梱なし
+  (GPL-2.0 接触なし)。`pip install abmptools[cg]` で自動 install。
+
+### Notes
+
+- abmptools の **MO-AAMD-CGMD マルチスケール基盤** の CG 系統 2 番目の
+  モジュール。先行 `abmptools.cg.peptide` (1.18.0) を内部で sub-call
+  する形で再利用、コード重複ゼロ。AA 系の `abmptools.membrane`
+  (1.17.3、CHARMM36 / AMBER Lipid21 backend) と並走する CG 版位置付け。
+- 後続予定: 複数 lipid 種混合 (POPC/POPE/CHOL 等)、
+  small-molecule permeant (`cg/smallmol/` Auto-Martini 経由) は
+  v1.20+ に deferred。
+
 ## [1.18.0] - 2026-05-04
 
 新サブパッケージ `abmptools.cg.peptide` を追加。abmptools の MO-AAMD-CGMD
