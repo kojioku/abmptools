@@ -36,6 +36,9 @@ from .models import (
 try:
     from .pdb_loader import load_pdb_molecules, LoadedMolecule
     from .grouping import group_by_smiles
+    from .auto_split import suggest_cuts, suggest_cuts_for_groups
+    from .cut_apply import apply_cuts, FragmentInfo
+    from .expand_to_system import build_segment_data, write_segment_data, export_to_system
     _CORE_AVAILABLE = True
 except ImportError:
     _CORE_AVAILABLE = False
@@ -47,4 +50,15 @@ __all__ = [
     "FragmentResult",
 ]
 if _CORE_AVAILABLE:
-    __all__ += ["load_pdb_molecules", "LoadedMolecule", "group_by_smiles"]
+    __all__ += [
+        "load_pdb_molecules",
+        "LoadedMolecule",
+        "group_by_smiles",
+        "suggest_cuts",
+        "suggest_cuts_for_groups",
+        "apply_cuts",
+        "FragmentInfo",
+        "build_segment_data",
+        "write_segment_data",
+        "export_to_system",
+    ]
