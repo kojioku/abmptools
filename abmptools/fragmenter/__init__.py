@@ -45,6 +45,7 @@ try:
         resync_member_indices,
     )
     from .notebook_ui import AutoFragmenter
+    from .polymer import declare_same_pattern
     _CORE_AVAILABLE = True
 except ImportError:
     _CORE_AVAILABLE = False
@@ -71,6 +72,7 @@ if _CORE_AVAILABLE:
         "import_edited_review",
         "resync_member_indices",
         "AutoFragmenter",
+        "declare_same_pattern",
     ]
 
 # Optional: ipywidgets-dependent UI (only imported lazily by user)
