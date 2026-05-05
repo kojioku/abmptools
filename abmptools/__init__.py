@@ -22,3 +22,12 @@ try:
     from .amorphous import AmorphousBuilder
 except ImportError:
     pass
+try:
+    from .fragmenter import (
+        FragmenterConfig,
+        CutSite,
+        MoleculeGroup,
+        FragmentResult,
+    )
+except ImportError:
+    pass
