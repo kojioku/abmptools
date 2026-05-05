@@ -89,3 +89,9 @@ For new developers approaching this codebase:
    Martini 3 CG version of the membrane PMF builder
    (`cg.membrane`); 30-100× faster wall time than AA, smoke run completes
    in 5-6 min on 8-thread CPU.
+9. **`docs/cg_peptide.md`** — Martini 3 peptide CG builder
+   (`cg.peptide`); peptide-only system in water box, used standalone or
+   sub-called by `cg.membrane`.
+10. **`docs/peptide_builders.md`** — Cross-cutting selection guide for the
+    three peptide-from-sequence builders (AA membrane / CG peptide /
+    CG membrane); compares resolution, cost, license, and use cases.
