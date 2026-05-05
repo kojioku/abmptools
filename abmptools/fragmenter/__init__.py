@@ -44,6 +44,7 @@ try:
         import_edited_review,
         resync_member_indices,
     )
+    from .notebook_ui import AutoFragmenter
     _CORE_AVAILABLE = True
 except ImportError:
     _CORE_AVAILABLE = False
@@ -69,4 +70,13 @@ if _CORE_AVAILABLE:
         "export_review_bundle",
         "import_edited_review",
         "resync_member_indices",
+        "AutoFragmenter",
     ]
+
+# Optional: ipywidgets-dependent UI (only imported lazily by user)
+try:
+    from .notebook_ui import open_panel  # noqa: F401
+    if _CORE_AVAILABLE:
+        __all__.append("open_panel")
+except ImportError:
+    pass
