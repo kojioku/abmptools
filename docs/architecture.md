@@ -170,12 +170,14 @@ PDB  ──→ pdbmodify  ──→ PDB (edited)
 
 ## Subpackages
 
-In addition to the flat `abmptools/*.py` layer described above, the package ships three subpackages that each encapsulate a self-contained workflow:
+In addition to the flat `abmptools/*.py` layer described above, the package ships several subpackages that each encapsulate a self-contained workflow:
 
 - **`abmptools.gro2udf` / `abmptools.udf2gro`** — bidirectional conversion between GROMACS (`.gro / .top / .mdp / .itp`) and OCTA COGNAC UDF. See [`gro2udf.md`](gro2udf.md) / [`udf2gro.md`](udf2gro.md).
 - **`abmptools.geomopt`** — pluggable geometry optimization (MACE / OpenFF-OpenMM / PySCF-DFT). Each backend is a lazy-imported class under `geomopt/`. See [`geomopt.md`](geomopt.md) and [`qmopt.md`](qmopt.md).
 - **`abmptools.amorphous`** — multi-component amorphous builder (SMILES / SDF / PubChem CID → Packmol packing → OpenFF parameterization with AM1-BCC → GROMACS 5-stage annealing protocol + VMD-friendly PBC wrap script). The `amorphous.pubchem` submodule is a dependency-free (`urllib`-only) wrapper around the PubChem PUG REST API, raising `PubChemNo3DError` when no 3D conformer is available. See [`amorphous.md`](amorphous.md).
 - **`abmptools.membrane`** — peptide-bilayer umbrella-sampling builder (packmol-memgen lipid + peptide PDB → AMBER ff19SB+Lipid21 via tleap+parmed → semiisotropic NPT equilibration → z-pulling → per-window MDPs → `gmx wham`). Designed to be commercial-license-clean: CGenFF web server and CHARMM-GUI auto-generation are forbidden by design. See [`membrane.md`](membrane.md).
+- **`abmptools.cg.peptide`** — Martini 3 peptide CG system builder (residue sequence + counts + box → `tleap`/extended-backbone fallback for atomistic PDB → `martinize2 -ff martini3001` for CG mapping → `gmx insert-molecules` → `gmx solvate` (Martini W, auto-generated when needed) → `gmx genion` for NaCl 0.15 M → em/nvt/npt/md.mdp + `run.sh`). vermouth-martinize (Apache-2.0) is invoked via `subprocess` only (no source bundled or modified). See [`cg/peptide/README.md`](../abmptools/cg/peptide/README.md). New in v1.18.0.
+- **`abmptools.cg.membrane`** — Martini 3 peptide-membrane PMF builder (umbrella sampling). Internally sub-calls `abmptools.cg.peptide` for the CG peptide; embeds it via `insane` (GPL-2.0, subprocess only) into a POPC bilayer; post-processes the topology (4 ITP includes + `Protein → molecule_0` rename + `NA+/CL- → NA/CL` normalization); generates 13-31 windows of NPT-semiisotropic umbrella MDPs (with `pull-group1-pbcatom` injected for the bilayer group); reuses `abmptools.membrane.{pulling,pmf,mdp_us_protocol}` helpers via duck-typed imports for `gmx wham` analysis. CG dt=20 fs gives 30-100× wall-time speedup over AA membrane. See [`cg_membrane.md`](cg_membrane.md) and [`tutorial_cg_membrane_us.md`](tutorial_cg_membrane_us.md). New in v1.19.0.
 - **`abmptools.core`** — shared dataclasses used across the subpackages above:
   `SystemModel`, `AnnealProtocol`, `ClusterData`, `FixedLabel`, plus the
   `ensemble_family` flag and `classify_ensemble()` helper that distinguish

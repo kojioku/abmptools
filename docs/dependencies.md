@@ -214,6 +214,54 @@ sed -i 's/np\.array(args, dtype=np\.float, copy=True)/np.array(args, dtype=float
 |---|---|
 | `pymbar` | WHAM の代替 / 検証用 MBAR 解析 (現在 stub、将来本実装予定) |
 
+## Optional Dependencies — abmptools.cg.peptide / abmptools.cg.membrane (1.18.0+)
+
+CG (Martini 3) 系統サブパッケージ。すべて遅延インポートで `import abmptools` は
+成功する。両サブパッケージで必要な依存は `[cg]` extra にまとめてある:
+
+```bash
+pip install abmptools[cg]
+# vermouth>=0.10  (cg.peptide / cg.membrane 共通)
+# insane>=1.2     (cg.membrane のみ)
+# pyyaml>=6.0     (任意 YAML 入力)
+```
+
+### 必須ランタイム (Python パッケージ)
+
+| パッケージ | 用途 | バージョン | License |
+|---|---|---|---|
+| `vermouth` (`martinize2` CLI 提供) | M3 CG mapping (`cg.peptide` 経由)。subprocess only | ≥ 0.10 | Apache-2.0 |
+| `insane` (`insane` CLI 提供) | Martini bilayer assembly (`cg.membrane` のみ)。subprocess only | ≥ 1.2 | **GPL-2.0** (subprocess なので abmptools への license 接触なし) |
+| `pyyaml` (任意) | YAML 入力対応 (JSON は標準ライブラリのみで動く) | ≥ 6.0 | MIT |
+
+### 必須外部ツール (`micromamba install -c conda-forge ...`)
+
+| ツール | 用途 | 推奨バージョン |
+|---|---|---|
+| `gromacs` | grompp / mdrun / wham / trjconv / insert-molecules / solvate / genion / make_ndx | 2021+ |
+| `ambertools` (`tleap`) | atomistic peptide PDB 生成 (cg.peptide の Stage 1)。**推奨**、不在時は extended-backbone fallback (芳香族 W/F/Y で NaN bead artifact 注意) | ≥ 22 |
+
+### 必須 force field データ (本パッケージ未同梱、ユーザーが取得)
+
+cgmartini.nl の `martini_v300.zip` から 4 ITP を `ff/` に展開:
+
+```bash
+mkdir ff
+curl -L -o /tmp/m300.zip \
+    https://cgmartini-library.s3.ca-central-1.amazonaws.com/1_Downloads/ff_parameters/martini3/martini_v300.zip
+unzip -o -j /tmp/m300.zip \
+    "martini_v300/martini_v3.0.0.itp" \
+    "martini_v300/martini_v3.0.0_solvents_v1.itp" \
+    "martini_v300/martini_v3.0.0_ions_v1.itp" \
+    "martini_v300/martini_v3.0.0_phospholipids_v1.itp" \
+    -d ff/
+```
+
+cg.peptide は前 3 ITP で十分、cg.membrane は phospholipids ITP も必要。
+license は cgmartini.nl の慣行 ("free for academic use, please cite Souza
+et al. 2021 *Nat. Methods*") に従う。abmptools は未同梱、`validate`
+サブコマンドで存在確認。
+
 ## Optional Dependencies — abmptools.geomopt
 
 `abmptools.geomopt` はすべての重い依存を実行時まで遅延インポートするため、
