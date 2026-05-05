@@ -184,6 +184,8 @@ Use `-h` with any module for full option details.
 - **[geomopt](docs/geomopt.md)** / **[amorphous](docs/amorphous.md)** — Optimization and structure building
 - **[membrane](docs/membrane.md)** / **[tutorial_membrane_us](docs/tutorial_membrane_us.md)** — Peptide-bilayer umbrella-sampling PMF (AA, CHARMM36 / Lipid21)
 - **[cg_membrane](docs/cg_membrane.md)** / **[tutorial_cg_membrane_us](docs/tutorial_cg_membrane_us.md)** — Martini 3 peptide-bilayer PMF (CG, 30-100× faster than AA, KGG-POPC smoke 5 min / production 45 min)
+- **[cg_peptide](docs/cg_peptide.md)** — Martini 3 peptide CG builder (peptide-only in water box, sub-called by `cg.membrane` or standalone)
+- **[peptide_builders](docs/peptide_builders.md)** — Selection guide across 3 peptide-from-sequence builders (AA membrane / CG peptide / CG membrane)
 
 ## Testing
 
