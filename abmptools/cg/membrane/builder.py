@@ -123,7 +123,9 @@ class MembraneCGBuilder:
         ndx_path = self._stage5_index(ions_gro)
 
         logger.info("=== Stage 6/7: MDP files (em/nvt/npt/pull/windows) ===")
-        equil_mdps, pull_mdp, window_mdps = self._stage6_mdps()
+        equil_mdps, pull_mdp, window_mdps = self._stage6_mdps(
+            gro_path=ions_gro, ndx_path=ndx_path,
+        )
 
         logger.info("=== Stage 7/7: run.sh ===")
         run_script = self._stage7_run_script(
@@ -282,7 +284,7 @@ class MembraneCGBuilder:
         )
         return ndx_path
 
-    def _stage6_mdps(self) -> tuple:
+    def _stage6_mdps(self, gro_path: Path, ndx_path: Path) -> tuple:
         """Render em / nvt / npt MDPs + pull.mdp + per-window MDPs.
 
         ``pull_init_nm`` is initialized to the peptide's prescribed z offset
@@ -291,16 +293,44 @@ class MembraneCGBuilder:
         the equilibrated .gro using
         :func:`pulling.estimate_initial_pull_coord`; we record the initial
         guess in pull.mdp so ``gmx grompp`` accepts the file at build time.
+
+        ``pbc_atom_g1`` is computed from the post-insane .gro (the atom
+        closest to the Bilayer group's COM) and embedded into both
+        pull.mdp and per-window MDPs. The bilayer xy-extent typically
+        spans more than half the post-NPT compressed shortest box vector,
+        so ``gmx grompp`` requires an explicit pbcatom; leaving it
+        auto-selected triggers "Pull group 1 is larger than half the box,
+        a centrally placed atom should be chosen as pbcatom" mid-run
+        (manifests at windows whose pull-coord1-init lies near the
+        bilayer where the geometry check is tightest).
         """
         equil = mdp_templates.write_equilibration_mdps(
             config=self.config, equil_dir=self.mdp_dir,
         )
+
+        pbc_g1 = pulling.find_pbc_center_atom(
+            gro_path=str(gro_path), ndx_path=str(ndx_path),
+            group_name=self.config.umbrella.pull_group1,
+        )
+        logger.info(
+            "pbc-atom for %s: %d (atom closest to group COM)",
+            self.config.umbrella.pull_group1, pbc_g1,
+        )
+        self._pbc_atom_g1 = pbc_g1
+
+        # pbcatom is needed only for the WINDOW MDPs (geometry=direction, the
+        # static box-half-size grompp check rejects bilayer w/o a central
+        # reference atom). The pull MDP uses geometry=direction-periodic
+        # which handles periodic images internally; passing pbcatom there
+        # was observed to deadlock gmx mdrun at step 0 in CG (dt=20 fs)
+        # despite working in AA (dt=2 fs).
         pull_mdp = pulling.write_pulling_mdp_cg(
             config=self.config, pull_dir=self.pull_dir,
             pull_init_nm=self.config.peptide.initial_z_offset_nm,
         )
         window_mdps = umbrella.write_window_mdps(
             config=self.config, windows_dir=self.windows_dir,
+            pbc_atom_g1=pbc_g1,
         )
         return equil, pull_mdp, window_mdps
 
