@@ -95,3 +95,7 @@ For new developers approaching this codebase:
 10. **`docs/peptide_builders.md`** — Cross-cutting selection guide for the
     three peptide-from-sequence builders (AA membrane / CG peptide /
     CG membrane); compares resolution, cost, license, and use cases.
+11. **`docs/fragmenter.md`** — `abmptools.fragmenter` (1.21.0+); FMO
+    automatic fragment splitter for small molecules / lipids / polymers
+    (canonical SMILES grouping + C-C MW walk + Jupyter UI / headless CLI).
+    Protein / DNA stays on the existing `log2config` route.

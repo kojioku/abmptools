@@ -2,7 +2,53 @@
 
 ## [Unreleased]
 
-(no changes yet — this section accumulates work-in-progress between releases)
+新サブパッケージ `abmptools.fragmenter` を追加。FMO 計算用のフラグメント分割を
+PDB から自動提案する。タンパク質 / DNA は対象外 (既存 `log2config` 経路を維持)、
+小分子 / 脂質 / ポリマーに特化した **canonical SMILES グループ化 + C-C 切断
+MW walk + Jupyter / CLI 双方の UI** を提供する。リリース予定は v1.21.0。
+
+### Added
+
+- **`abmptools.fragmenter` — FMO automatic fragment splitter** (新サブパッケージ)
+  - `models.py`: `FragmenterConfig` / `CutSite` / `MoleculeGroup` /
+    `FragmentResult` データクラス (JSON 往復可能)
+  - `pdb_loader.py`: PDB → RDKit Mol、4 段階 bond perception フォールバック
+    (proximity → CONECT-only → sanitize=False → obabel)、連結成分分解
+  - `grouping.py`: heavy-atom-only canonical SMILES でのグループ化、
+    `RemoveHs` 失敗時のフォールバックあり
+  - `auto_split.py`: C-C 切断候補の自動提案
+    - graph diameter (heavy-atom-only 2-pass BFS) で主鎖検出
+    - 主鎖を walk し、累積 MW + 側鎖 MW を加算
+    - 累積 ≥ `target_mw` (default 200 g/mol) のたびに candidate bond で切断
+    - フィルタ: 環内除外 / 多重結合除外 / ヘテロ隣接除外
+  - `cut_apply.py`: `RWMol` で破壊的に bond 削除 → `GetMolFrags` で fragment 抽出、
+    formal charge sum と BAA pairs を計算
+  - `expand_to_system.py`: 1 group の cut_sites を全コピーへ展開、
+    `log2config` 互換 `segment_data.dat` を出力 (`pdb2fmo` がそのまま読める)
+  - `headless_io.py`: review bundle 経路 (C 経路)
+    - `export_review_bundle`: `config.json` + `review.json` +
+      group_NNN.svg / group_NNN.json (RDKit SVG で cut_sites 赤色ハイライト)
+    - `import_edited_review`: 編集後 JSON を読み戻し、
+      `resync_member_indices` で PDB との対応を再計算
+  - `__main__.py`: CLI (`python -m abmptools.fragmenter {suggest,apply,example}`)
+    - `--target-mw`、`--no-exclude-ring/multibond/hetero`、
+      `--split-by-resname` のフラグ
+  - `notebook_ui.py`: Jupyter UI (A 経路)
+    - `AutoFragmenter` クラス (state 管理 orchestrator)
+    - `open_panel`: ipywidgets dropdown / SVG / checkbox / export
+  - `polymer.py`: γ 経路 (`declare_same_pattern`)
+    - 異なる SMILES (PE N=10 / N=11 等) を明示的に同一視
+    - master (= 最も cut が多い group) のパターンを atom-path-index 対応で
+      短い chain にも転送
+  - **依存追加**: `pyproject.toml` に
+    `[fragmenter]=rdkit-pypi>=2022.09`、
+    `[jupyter]=ipywidgets>=8.0,ipykernel`
+  - **テスト**: `tests/fragmenter/test_basic.py` (10 tests) +
+    `test_polymer.py` (4 tests)。fixtures は `conftest.py` で RDKit から
+    生成 (propane / octane / propane×3+acetone×2 / PE N=10+N=11)。
+  - **ドキュメント**: `docs/fragmenter.md` (本サブパッケージリファレンス)、
+    `abmptools/fragmenter/README.md` (モジュール構成早見表)、
+    `docs/overview.md` の "Where to Start Reading" に項目 11 として追加
 
 ## [1.20.0] - 2026-05-06
 
