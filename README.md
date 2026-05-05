@@ -188,7 +188,7 @@ Use `-h` with any module for full option details.
 ## Testing
 
 ```bash
-pytest tests/ -v                     # 671 tests across 30 files
+pytest tests/ -v                     # 1239 tests across 68 files
 pytest tests/ -v -k molcalc          # specific module
 pytest tests/test_regression.py -v   # regression tests (60 bundled + 16 gated)
 ```

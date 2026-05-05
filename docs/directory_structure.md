@@ -11,14 +11,17 @@ abmptools/                  ← Repository root
 │   ├── gro2udf/            ← GROMACS → OCTA UDF 変換
 │   ├── udf2gro/            ← OCTA UDF → GROMACS 変換
 │   ├── amorphous/          ← アモルファス系構築 (packmol, OpenMM)
-│   ├── membrane/           ← 膜透過 PMF 用 US ビルダー (packmol-memgen, AMBER/CHARMM36)
+│   ├── membrane/           ← AA 膜透過 PMF 用 US ビルダー (packmol-memgen, AMBER/CHARMM36)
+│   ├── cg/                 ← Martini 3 CG 系統 (1.18.0+)
+│   │   ├── peptide/        ← Martini 3 ペプチド CG ビルダー (vermouth-martinize)
+│   │   └── membrane/       ← Martini 3 ペプチド-膜 PMF (insane + umbrella)
 │   ├── geomopt/            ← 構造最適化 (PySCF, MACE)
 │   └── f90/                ← Fortran extension
 │       ├── src/
 │       │   └── readifiepiedalib.f90
 │       └── bin/
 │           └── readifiepiedalib.so
-├── tests/                  ← pytest テストスイート (658 tests, 28 files)
+├── tests/                  ← pytest テストスイート (1239 tests, 68 files)
 │   ├── conftest.py
 │   ├── test_cli_scripts.py ← 全14 CLIスクリプトのargparseテスト
 │   └── test_*.py           ← 各モジュールの単体テスト
@@ -38,6 +41,8 @@ abmptools/                  ← Repository root
 │   ├── amorphous.md
 │   ├── membrane.md
 │   ├── tutorial_membrane_us.md
+│   ├── cg_membrane.md
+│   ├── tutorial_cg_membrane_us.md
 │   ├── geomopt.md
 │   ├── qmopt.md
 │   └── licenses_third_party.md
@@ -127,7 +132,7 @@ abmptools/                  ← Repository root
 
 ## `tests/` — テストスイート
 
-pytest ベースのテストスイート。658テスト、28ファイル。
+pytest ベースのテストスイート。**1239 tests、68 files** (1.19.0 時点)。
 
 | カテゴリ | ファイル数 | テスト数 | 概要 |
 |---------|-----------|---------|------|
@@ -135,8 +140,9 @@ pytest ベースのテストスイート。658テスト、28ファイル。
 | 複合クラス | 2 | 72 | setfmo, anlfmo |
 | マネージャ | 2 | 64 | cpfmanager, logmanager |
 | スタンドアロン | 2 | 61 | readcif, getifiepieda |
-| サブパッケージ | 14+ | 127+ | core, gro2udf, udf2gro, amorphous, geomopt, **membrane** (membrane backend translator + integration smoke は separate count) |
-| CLIスクリプト | 1 | 50 | 全14 CLIの argparse テスト |
+| サブパッケージ (AA) | 14+ | 127+ | core, gro2udf, udf2gro, amorphous, geomopt, **membrane** |
+| **サブパッケージ (CG, 1.18.0+)** | 23 | **287** | `cg.peptide` 117 + `cg.membrane` 170 (+ 4 slow integration) |
+| CLIスクリプト | 1 | 50 | 全 CLI の argparse テスト |
 
 詳細は `tests/TEST_COVERAGE.md` を参照。
 
@@ -156,8 +162,10 @@ pytest ベースのテストスイート。658テスト、28ファイル。
 | `faq.md` | FAQ |
 | `gro2udf.md` / `udf2gro.md` | GROMACS ↔ OCTA 変換ドキュメント |
 | `amorphous.md` | アモルファス系構築 |
-| `membrane.md` | 膜透過 PMF 用 US ビルダー (reference) |
+| `membrane.md` | 膜透過 PMF 用 US ビルダー (AA reference; AMBER/CHARMM36) |
 | `tutorial_membrane_us.md` | 同上の step-by-step 操作チュートリアル |
+| `cg_membrane.md` | Martini 3 ペプチド-膜 PMF ビルダー (CG reference) |
+| `tutorial_cg_membrane_us.md` | 同上の step-by-step (smoke 5-6 分 + production 45 分) |
 | `geomopt.md` / `qmopt.md` | 構造最適化 |
 | `licenses_third_party.md` | サードパーティライセンス |
 
