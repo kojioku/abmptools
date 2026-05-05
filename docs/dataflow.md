@@ -241,6 +241,111 @@ SMILES / SDF  ──→ molecule_prep.py     ──→ OpenFF Molecule + single-
 
 Orchestrated end-to-end by `abmptools.amorphous.builder.AmorphousBuilder.build()`.
 
+## CG Builder Pipeline (Martini 3, 1.18.0+)
+
+Two CG sub-packages live under `abmptools.cg/`. Both treat external
+tools (`vermouth`, `insane`, `gmx`, `tleap`) as subprocess-only black
+boxes — no source bundled or modified.
+
+### `abmptools.cg.peptide` — Martini 3 peptide CG box (1.18.0)
+
+```
+PeptideBuildConfig (JSON)
+    │
+    ↓
+peptide_atomistic.py     ──→ atomistic peptide PDB
+   (tleap or extended-backbone fallback)
+    │
+    ↓
+martinize_runner.py      ──→ <name>_cg.pdb + <name>.itp
+   (martinize2 -ff martini3001, vermouth Apache-2.0 subprocess)
+    │
+    ↓
+system_packer.py         ──→ packed.gro
+   (gmx insert-molecules)
+    │
+    ↓
+top_writer.py            ──→ topol.top  (M3 ITPs + peptide ITP)
+    │
+    ↓
+water_box.py             ──→ martini_v3.0.0_water.gro (auto-generated
+   if not in ff/, gmx insert-molecules with W density 8.36/nm³)
+    │
+    ↓
+system_packer.solvate    ──→ system_solv.gro  (gmx solvate -cs)
+    │
+    ↓
+system_packer.add_ions   ──→ system_ions.gro  (gmx grompp + genion,
+                              NaCl 0.15 M, neutralize)
+    │
+    ↓
+mdp_templates.py + run script writer
+                         ──→ mdp/{em,nvt,npt,md}.mdp + index.ndx + run.sh
+```
+
+Orchestrated end-to-end by `abmptools.cg.peptide.builder.PeptideCGBuilder.build()`.
+
+### `abmptools.cg.membrane` — Martini 3 peptide-membrane PMF (1.19.0)
+
+```
+MembraneCGBuildConfig (JSON)
+    │
+    ↓
+_copy_ff_files            ──→ output_dir/martini_v3.0.0*.itp (4 files)
+    │
+    ↓
+PeptideCGBuilder (sub-call,    ──→ molecules/<name>/{name}_cg.pdb + .itp
+solvent_enabled=False,
+mdp_*=False)
+    │
+    ↓
+insane_runner.run_insane  ──→ bilayer.gro + insane_topol.top
+   (insane GPL-2.0 subprocess; peptide -dm <z_offset> in POPC + W + NaCl)
+    │
+    ↓
+topology_composer.compose_topology
+                          ──→ topol.top  (4 M3 ITPs + peptide ITP +
+                              "Protein" → moleculetype name +
+                              NA+/CL- → NA/CL normalisation)
+    │
+    ↓
+topology_composer.normalize_ion_atom_names_gro
+                          ──→ system_ions.gro  (NA+/CL- → NA/CL in .gro)
+    │
+    ↓
+system_packer.write_ndx_from_gro_cg
+                          ──→ index.ndx  (Bilayer / Peptide / W / NA / CL /
+                                         Non_Bilayer; no gmx make_ndx)
+    │
+    ↓
+pulling.find_pbc_center_atom (imported from abmptools.membrane)
+                          ──→ bilayer pbc-atom index
+    │
+    ↓
+mdp_templates + pulling.write_pulling_mdp_cg + umbrella.write_window_mdps
+                          ──→ mdp/{em,nvt,npt}.mdp +
+                              pull/pull.mdp (NVT-chassis + direction-periodic) +
+                              windows/win_NNN/window.mdp × N
+                              (NPT-semiisotropic + direction + pbcatom)
+    │
+    ↓
+umbrella.write_run_script ──→ run.sh
+    │
+    ↓
+(bash run.sh)   em → nvt → npt → pull →
+                python -m abmptools.cg.membrane make-windows →
+                per-window grompp + mdrun (× N) →
+                python -m abmptools.cg.membrane wham
+                          ──→ analysis/pmf.xvg + histo.xvg
+```
+
+Orchestrated end-to-end by `abmptools.cg.membrane.builder.MembraneCGBuilder.build()` (build phase only) + `run.sh` (MD execution + post-analysis).
+
+`pulling.parse_pullx_xvg / extract_window_frames / find_pbc_center_atom`,
+`mdp_us_protocol.render_pull_block`, and `pmf.run_wham` are imported from
+`abmptools.membrane.*` (duck-typed via `UmbrellaCGProtocol` field-name
+match with `USProtocol`) — no helper duplication between CG and AA.
+
 ## Internal Data Structures
 
 All modules converge on **pandas DataFrames** for structured data:
