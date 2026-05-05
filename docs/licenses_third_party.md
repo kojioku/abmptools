@@ -108,6 +108,21 @@ cg.peptide の依存 (vermouth + gromacs + ambertools + Martini 3 ITP) に加え
 
 ---
 
+## abmptools.genesis.grest — GENESIS gREST_SSCR builder (1.20.0+)
+
+GENESIS replica-exchange MD engine 経由で gREST_SSCR (Replica-Exchange with Solute Tempering — Solute Side-Chain Repartitioning) を end-to-end 実行するためのサブパッケージ。AMBER ff19SB + TIP3P を `tleap` で勾配し、minimize / equilibrate / grest / remd_convert を 4 つの `.inp` で連携する。
+
+| パッケージ | バージョン (確認時) | ライセンス | 商用利用 | 備考 |
+|---|---|---|---|---|
+| **GENESIS** (`spdyn` / `atdyn` / `remd_convert` 等、R-CCS) | ≥ 2.1 | **LGPL-3.0-or-later** | ✅ 利用 (subprocess only) | <https://github.com/genesis-release-r-ccs/genesis> から build。abmptools は subprocess 呼び出しのみ、ソース改変・同梱なし、動的リンクなし (= mere aggregation per LGPL §5/§6 + FSF FAQ) |
+| **AmberTools `tleap`** | ≥ 22 | (AmberTools と同条件) | ✅ 自由 (academic + commercial、`abmptools.membrane` と同条件) | `mamba install -c conda-forge ambertools` |
+| **AmberTools `cpptraj`** (around-mode 時のみ必須) | ≥ 22 | 同上 | ✅ 同上 | optional、explicit-mode のみ使う場合は不要 |
+| **`matplotlib`** (PyPI、`[grest]` extras) | ≥ 3.5 | PSF License + BSD-compatible | ✅ 自由 | replica transition / acceptance / PMF プロット用 |
+
+**License 戦略**: GENESIS (LGPL-3.0-or-later) は subprocess 呼び出しのみ。Apache-2.0 ⇔ LGPL-3.0 の接触ポイントは **mere aggregation** で、abmptools 本体は GENESIS の動作に必要な改変・リンクを行わない。abmptools が将来 Apache-2.0 化しても問題ない (両方とも patent retaliation 含めて互換の検討済み)。詳細は `docs/grest.md` の "Scope and license" 節参照。
+
+---
+
 ## abmptools.geomopt — MACE バックエンド（`pdbopt --backend mace`）
 
 | パッケージ | バージョン（確認時） | ライセンス | 商用利用 | 備考 |

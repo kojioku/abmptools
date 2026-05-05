@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abmptools"
-version = "1.19.0"
+version = "1.20.0"
 description = "Pre/post-processing and analysis toolkit for ABINIT-MP Fragment Molecular Orbital calculations"
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "MIT"
@@ -65,6 +65,18 @@ cg = [
     #                (+ optional water.gro, auto-gen via gmx insert-molecules)
     #   cg.membrane: 上記 3 ITP + martini_v3.0.0_phospholipids_v1.itp
     # See abmptools/cg/peptide/README.md and abmptools/cg/membrane/README.md.
+]
+grest = [
+    "matplotlib>=3.5",  # replica transition / acceptance / PMF プロット
+    # External tools (subprocess only, never bundled):
+    #   GENESIS spdyn / atdyn / remd_convert (>=2.1) — LGPL-3.0-or-later
+    #     build from https://github.com/genesis-release-r-ccs/genesis
+    #     (icx で fileio_data_.c の ftello64/fseeko64 を ftello/fseeko に
+    #      置換するパッチが必要な場合あり。docs/grest.md 参照)
+    #   ambertools (>=22) — tleap (必須) + cpptraj (around モード時)
+    #   mpirun (OpenMPI / MPICH) — 並列レプリカ実行
+    # Force field files: AmberTools 同梱 (ff19SB / TIP3P)、本パッケージは追加 ITP なし。
+    # See abmptools/genesis/grest/__init__.py + docs/grest.md.
 ]
 geomopt = [
     "pyscf",
