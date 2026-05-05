@@ -101,6 +101,26 @@ CG 系統 2 番目のモジュール。`cg.peptide` (1.18.0) を内部 sub-call 
   abmptools は subprocess 経由のみ、ソース改変・同梱なし
   (GPL-2.0 接触なし)。`pip install abmptools[cg]` で自動 install。
 
+### Documentation
+
+- **`docs/cg_membrane.md`** (~330 行): サブシステム reference doc。license
+  ルール (insane GPL-2.0 + vermouth Apache-2.0 + Martini 3 ITP 未同梱)、
+  7-stage pipeline 詳解、API (6 dataclass)、CLI、6 つの設計判断
+  (`cg.peptide` sub-call / AA helper の duck-typing 再利用 / NVT-pull /
+  NPT-window split / pbcatom windows-only / topology post-process /
+  Python ndx writer)、既知 caveat、デフォルト値の根拠。AA `docs/membrane.md`
+  の CG 版。
+- **`docs/tutorial_cg_membrane_us.md`** (~510 行): step-by-step
+  ops tutorial。env 準備 → smoke (5-6 分) → smoke の限界解説 →
+  production (45 分) → smoke vs production 比較 plot →
+  別 lipid / 別 peptide / 失敗パターン → 参考リンク。
+  AA `docs/tutorial_membrane_us.md` の CG 版。
+- **`sample/cg_membrane/kgg_popc_production.json`** (新規): 31 windows ×
+  5 ns × k=500 × Δz=0.10 の production reproduction config (~45 分)。
+  smoke (`kgg_popc_smoke.json`) と並べて配置。
+- **Top-level `README.md` + `docs/overview.md`**: cg_membrane / tutorial
+  へのリンクを追加。
+
 ### Notes
 
 - abmptools の **MO-AAMD-CGMD マルチスケール基盤** の CG 系統 2 番目の
