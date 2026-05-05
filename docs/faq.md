@@ -191,6 +191,61 @@ Options:
    ```
    Requires a working CUDA driver inside WSL2 (already the case with recent `libcuda.so`).
 
+## CG (Martini 3): How do I install the Martini 3 force field files?
+
+`abmptools.cg.peptide` (1.18.0+) and `abmptools.cg.membrane` (1.19.0+) do **not** bundle the Martini 3 ITPs because cgmartini.nl distributes them under unspecified terms. Users download `martini_v300.zip` and unzip the required ITPs into `./ff/`:
+
+```bash
+mkdir ff
+curl -L -o /tmp/m300.zip \
+    https://cgmartini-library.s3.ca-central-1.amazonaws.com/1_Downloads/ff_parameters/martini3/martini_v300.zip
+unzip -o -j /tmp/m300.zip \
+    "martini_v300/martini_v3.0.0.itp" \
+    "martini_v300/martini_v3.0.0_solvents_v1.itp" \
+    "martini_v300/martini_v3.0.0_ions_v1.itp" \
+    "martini_v300/martini_v3.0.0_phospholipids_v1.itp" \
+    -d ff/
+```
+
+`cg.peptide` needs the first 3 ITPs; `cg.membrane` adds the phospholipid ITP. The `validate` subcommand (`python -m abmptools.cg.peptide validate ...` / `python -m abmptools.cg.membrane validate ...`) checks all required files are present. Please cite Souza et al. 2021 *Nat. Methods* in any publication using the Martini 3 force field.
+
+## CG: My cg.membrane PMF has 30-80 kJ/mol left/right asymmetry — bug?
+
+No. This is a known limitation of **single-direction umbrella sampling**: the peptide is pulled from +z above the bilayer to -z below in one trajectory, so each window inherits a sampling history biased toward that direction. The two water-side minima should be physically equivalent for a homogeneous bilayer, but with finite per-window MD time the WHAM integration anchors PMF=0 at one end and the other end drifts.
+
+Mitigations (not implemented in 1.19.0):
+
+1. **Bidirectional pulling + Bennett acceptance** — pull `+z → -z` and `-z → +z` separately, combine forward/reverse forces.
+2. **Replica-exchange umbrella sampling** — use `plumed` to swap windows during MD.
+3. **Post-process symmetrize** — fit and force-symmetrize about z=0 (only valid for a symmetric system).
+
+The same artifact appears in AA membrane Phase D (CHARMM36) and is documented in `docs/membrane.md` Phase C+. See `docs/tutorial_cg_membrane_us.md` §5 for details.
+
+## CG: My pull stage hangs at step 0 with 99% CPU and no progress?
+
+Symptom: `pull/pull.log` shows only `Step 0` and `pull.xtc` does not grow.
+
+Root cause: pull MDP has both `pull-coord1-geometry = direction-periodic` AND a `pull-group1-pbcatom = N` line. With Martini 3 dt=20 fs, this combination puts the integrator in a deadlock loop. AA membrane (dt=2 fs) does not see this pathology.
+
+Fix in 1.19.0+: `MembraneCGBuilder._stage6_mdps` only injects pbcatom into **window MDPs** (which use `direction` geometry, dynamic-box compatible). The pull MDP relies on `direction-periodic`'s internal periodic image handling and does not need pbcatom. If you build with an older builder version, manually remove `pull-group1-pbcatom` from `pull/pull.mdp` and re-grompp.
+
+## CG: `gmx grompp` on a window MDP fails with "Pull group 1 is larger than half the box"?
+
+Symptom (typically at the bilayer-center window, e.g. `win_018/window.mdp` for 31-window protocol):
+
+```
+ERROR 1 [file windows/win_018/window.mdp]:
+  When the maximum distance from a pull group reference atom to other
+  atoms in the group is larger than 0.5 times half the box size a
+  centrally placed atom should be chosen as pbcatom. Pull group 1 is
+  larger than that and does not have a specific atom selected as
+  reference atom.
+```
+
+Root cause: the bilayer xy-extent exceeds half the post-NPT compressed shortest box vector, but the window MDP lacks an explicit `pull-group1-pbcatom` directive.
+
+Fix in 1.19.0+: `MembraneCGBuilder._stage6_mdps` calls `find_pbc_center_atom` on `system_ions.gro` + `index.ndx` to locate the atom closest to the bilayer COM, then injects `pull-group1-pbcatom = <atom>` into every window MDP. If you build with an older builder version, manually compute it (`python -c "from abmptools.cg.membrane.pulling import find_pbc_center_atom; print(find_pbc_center_atom(gro_path='system_ions.gro', ndx_path='index.ndx', group_name='Bilayer'))"`) and append the line to each `windows/win_NNN/window.mdp`.
+
 ## What is the `tips/` directory?
 
 The `tips/` directory contains auxiliary scripts for MD post-processing workflows with AMBER, GROMACS, and NAMD. These are standalone helper scripts, not part of the core `abmptools` package.

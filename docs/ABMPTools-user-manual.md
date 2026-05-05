@@ -727,3 +727,57 @@ e.g.) `python -m abmptools.pdbmodify -mode resnum -aresname -reatm -i cyc.pdb.1`
       -ma, --manual         manual table
       -bsse, --bsse         bsse
     end
+
+## 新サブパッケージ (1.18.0+)
+
+このマニュアルは FMO/IFIE/PIEDA/CPF まわりの legacy 機能を中心に書かれている。
+1.18.0 以降に追加された **CG (Martini 3) 系統**サブパッケージは独立した
+モジュールとして設計されており、それぞれ専用 doc + tutorial がある。
+
+### `abmptools.cg.peptide` (1.18.0、Martini 3 ペプチド CG ビルダー)
+
+残基配列 (1-letter) + 本数 + box → atomistic PDB (`tleap` or extended-backbone fallback)
+→ `martinize2 -ff martini3001` (vermouth-martinize、Apache-2.0、subprocess only)
+→ `gmx insert-molecules` → `gmx solvate` (Martini W、自動生成可) → `gmx genion`
+(NaCl 0.15 M、中和) → em/nvt/npt/md.mdp + `run.sh` を生成。
+
+| Doc | 内容 |
+|---|---|
+| [`abmptools/cg/peptide/README.md`](../abmptools/cg/peptide/README.md) | サブパッケージ Quick Start |
+| `sample/cg_peptide/kgg_t20.json` | KGG ×5 + RGG ×5 サンプル config |
+
+CLI:
+
+```bash
+python -m abmptools.cg.peptide example > kgg.json
+python -m abmptools.cg.peptide validate --config kgg.json --ff-dir ./ff
+python -m abmptools.cg.peptide build    --config kgg.json --ff-dir ./ff -o ./out
+bash ./out/run/run.sh
+```
+
+Martini 3 force field (4 ITPs) は cgmartini.nl から別途取得 (本パッケージ未同梱)。
+詳細は [FAQ](faq.md) の「CG (Martini 3): How do I install the Martini 3 force field files?」参照。
+
+### `abmptools.cg.membrane` (1.19.0、Martini 3 ペプチド-膜 PMF ビルダー)
+
+`cg.peptide` を内部 sub-call で再利用 + `insane` (GPL-2.0、subprocess only) で
+ペプチドを Martini bilayer に埋め込み + topology compose + 13-31 windows umbrella
+sampling + WHAM 解析を end-to-end に組む。AA 膜 (`abmptools.membrane`) と並走する
+CG 版で、wall time が 30-100× 速い (KGG-POPC smoke 5-6 分 / production 45 分、
+8-thread CPU)。
+
+| Doc | 内容 |
+|---|---|
+| [`docs/cg_membrane.md`](cg_membrane.md) | Subsystem reference (license / 7-stage pipeline / API / 6 design rationales / caveats / defaults) |
+| [`docs/tutorial_cg_membrane_us.md`](tutorial_cg_membrane_us.md) | Step-by-step ops tutorial (smoke → smoke の限界解説 → production → 比較 plot → 失敗パターン) |
+| `sample/cg_membrane/kgg_popc_smoke.json` | 5-6 分 smoke config (13 win × 1 ns) |
+| `sample/cg_membrane/kgg_popc_production.json` | 45 分 production config (31 win × 5 ns) |
+
+CLI:
+
+```bash
+python -m abmptools.cg.membrane example > kgg_popc.json
+python -m abmptools.cg.membrane validate --config kgg_popc.json --ff-dir ./ff
+python -m abmptools.cg.membrane build    --config kgg_popc.json --ff-dir ./ff -o ./out
+NT=8 bash ./out/run.sh   # em → nvt → npt → pull → 13-31 windows → wham
+```
