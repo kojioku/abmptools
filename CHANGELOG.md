@@ -4,6 +4,80 @@
 
 (no changes yet — this section accumulates work-in-progress between releases)
 
+## [1.20.0] - 2026-05-06
+
+新サブパッケージ `abmptools.genesis.grest` を追加。GENESIS gREST_SSCR
+(generalized Replica-Exchange with Solute Tempering — Solute Side Chain
+Repartitioning) を end-to-end に組める最初の **GENESIS 系統** サブパッケージ。
+AMBER ff19SB + TIP3P を tleap で勾配し、prmtop+coor を経由して
+minimize → equilibrate → grest → remd_convert → 1D distance PMF まで自動化する。
+
+### Added
+
+- **`abmptools.genesis.grest` — GENESIS gREST_SSCR builder + analysis** (新サブパッケージ)
+  - JSON 入力から GENESIS 入力一式
+    (`system.tleap` / `system.prmtop` / `system.coor` /
+    `step1_minimize.inp` / `step2_equilibrate.inp` /
+    `step3_grest.inp` / `step5_remd_convert.inp` + `run.sh`)
+    を生成する end-to-end builder。
+  - `GrestBuilder.build()` で 5 stage を 1 呼び出し:
+    1. **`tleap`** で AMBER prmtop + coor + reference PDB を生成
+       (ff19SB + TIP3P solvateBox + 自動中和)
+    2. **REST 残基確定** (`mode="explicit"` 直接指定 / `mode="around"`
+       cpptraj `<:radius` mask 経由)
+    3. **温度ラダー生成** (`mode="auto"` 幾何級数 / `mode="manual"` 直接指定)
+    4. **`inp_writer`** で 4 種の GENESIS control file を生成
+       (POC + tutorial 12.3 syntax)
+    5. **`grest_runner`** で `mpirun -np {n_total} spdyn` 用 `run.sh`
+       テンプレート出力 (Fugaku PJSUB / SLURM scaffold は comment-only)
+  - データクラス (6 個): `RESTSelectionSpec` / `ReplicaTemperatureSpec` /
+    `MinimizationStage` / `EquilibrationStage` / `GrestStage` /
+    `GrestBuildConfig` (`@dataclass` + `to_json/from_json`、5 段の
+    nested JSON 往復)。
+  - 解析: `analyze` サブコマンドで以下を実装:
+    - `remd_convert` パラメータ sort (最低 T レプリカ抽出)
+    - replica transition plot (`.rem` ファイル → matplotlib)
+    - acceptance ratio plot (REMD log 集計、burn-in 100 exchange skip)
+    - 1D 距離 PMF (`-kT log P(r)`、cpptraj 距離時系列経由)
+    - 2D PMF / k-means / MBAR は v1.20.x 以降 (NotImplementedError)
+  - CLI: `python -m abmptools.genesis.grest {build,validate,example,analyze}`。
+  - **GENESIS LGPL-3.0-or-later、AmberTools (free academic + commercial)**:
+    binary は本パッケージ未同梱、`subprocess` で呼ぶのみ
+    (mere aggregation per LGPL §5/§6)。abmptools 自体は MIT (1.20.0 時点;
+    Apache-2.0 化は別途 release 後に予定)。
+  - 既存 `abmptools.cg.peptide._subprocess` を import 経由で再利用、
+    コード重複なし。
+  - 実行は **ローカル mpirun のみ** サポート。Fugaku (pjsub) / SLURM は
+    `run.sh` を真似た comment-only scaffold が同梱されるが、abmptools 側では
+    実機検証しない (= ユーザー責務)。
+  - 159 unit tests (test_grest_models.py / _replica_temperatures /
+    _rest_selection / _inp_writer / _system_builder / _builder_mocked /
+    _analysis_mocked / _cli) で 6 dataclass + 5-stage flow + 4 解析関数
+    を CI 化 (tleap / spdyn / mpirun 不要)。実機 smoke は
+    `tests/test_grest_integration.py` (`@pytest.mark.slow`) で gated。
+
+### External dependencies (new, optional)
+
+- `matplotlib >= 3.5` (PSF License/BSD-compatible): replica transition /
+  acceptance / PMF プロット。`pip install abmptools[grest]` で自動 install。
+- GENESIS spdyn / atdyn / remd_convert >= 2.1 (**LGPL-3.0-or-later**):
+  https://github.com/genesis-release-r-ccs/genesis から build。subprocess
+  経由のみ、ソース改変・同梱なし。Apache-2.0 化後も互換 (mere aggregation)。
+- AmberTools `tleap` (必須) + `cpptraj` (around-mode 時に必須): conda 経由
+  install (`mamba install -c conda-forge ambertools`)。
+- mpirun (OpenMPI / MPICH): 並列レプリカ実行。
+
+### Notes
+
+- `param_type` default は `["C", "L"]` (CHARGE + LJ): POC ログ
+  (`Setup_Remd_Solute_Tempering>` 出力の `CHARGE=T LJ=T`) と tutorial 12.3
+  step3 の SSCR-typical 設定に合わせた。
+- 温度ラダー auto mode は v1.20.0 では `geometric` のみ。Patriksson-van der
+  Spoel acceptance-ratio formula は v1.20.x で追加予定 (`NotImplementedError`)。
+- POC build caveat: icx で `fileio_data_.c` の `ftello64`/`fseeko64` が
+  undeclared になる場合は `sed 's/ftello64/ftello/g; s/fseeko64/fseeko/g'`
+  で patch。
+
 ## [1.19.0] - 2026-05-05
 
 新サブパッケージ `abmptools.cg.membrane` を追加。Martini 3 + insane で
