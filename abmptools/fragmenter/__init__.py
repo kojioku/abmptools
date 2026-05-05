@@ -39,6 +39,11 @@ try:
     from .auto_split import suggest_cuts, suggest_cuts_for_groups
     from .cut_apply import apply_cuts, FragmentInfo
     from .expand_to_system import build_segment_data, write_segment_data, export_to_system
+    from .headless_io import (
+        export_review_bundle,
+        import_edited_review,
+        resync_member_indices,
+    )
     _CORE_AVAILABLE = True
 except ImportError:
     _CORE_AVAILABLE = False
@@ -61,4 +66,7 @@ if _CORE_AVAILABLE:
         "build_segment_data",
         "write_segment_data",
         "export_to_system",
+        "export_review_bundle",
+        "import_edited_review",
+        "resync_member_indices",
     ]
