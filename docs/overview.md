@@ -81,4 +81,8 @@ For new developers approaching this codebase:
 5. **`docs/ABMPTools-user-manual.md`** — Comprehensive user manual with option descriptions and output examples.
 6. **`sample/`** — Working examples with `run.sh` scripts for each workflow.
 7. **`docs/tutorial_membrane_us.md`** — Step-by-step ops tutorial for the
-   `membrane` subpackage (peptide-bilayer Umbrella Sampling).
+   `membrane` subpackage (peptide-bilayer Umbrella Sampling, AA backend).
+8. **`docs/cg_membrane.md`** + **`docs/tutorial_cg_membrane_us.md`** —
+   Martini 3 CG version of the membrane PMF builder
+   (`cg.membrane`); 30-100× faster wall time than AA, smoke run completes
+   in 5-6 min on 8-thread CPU.

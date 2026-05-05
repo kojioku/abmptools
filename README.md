@@ -182,7 +182,8 @@ Use `-h` with any module for full option details.
 - **[I/O Spec](docs/io_spec.md)** — File format specifications
 - **[gro2udf](docs/gro2udf.md)** / **[udf2gro](docs/udf2gro.md)** — GROMACS ↔ OCTA conversion
 - **[geomopt](docs/geomopt.md)** / **[amorphous](docs/amorphous.md)** — Optimization and structure building
-- **[membrane](docs/membrane.md)** / **[tutorial_membrane_us](docs/tutorial_membrane_us.md)** — Peptide-bilayer umbrella-sampling PMF (reference + step-by-step ops tutorial)
+- **[membrane](docs/membrane.md)** / **[tutorial_membrane_us](docs/tutorial_membrane_us.md)** — Peptide-bilayer umbrella-sampling PMF (AA, CHARMM36 / Lipid21)
+- **[cg_membrane](docs/cg_membrane.md)** / **[tutorial_cg_membrane_us](docs/tutorial_cg_membrane_us.md)** — Martini 3 peptide-bilayer PMF (CG, 30-100× faster than AA, KGG-POPC smoke 5 min / production 45 min)
 
 ## Testing
 
