@@ -91,7 +91,8 @@ class TestPullMdp:
         text = mdp_templates.render_pull_mdp(
             config=_cfg(), pull_init_nm=3.0,
         )
-        assert "pull-coord1-rate           = 0.001000" in text
+        # Default rate is -0.001 (peptide pulled DOWN through bilayer)
+        assert "pull-coord1-rate           = -0.001000" in text
 
     def test_pull_init_value(self):
         text = mdp_templates.render_pull_mdp(

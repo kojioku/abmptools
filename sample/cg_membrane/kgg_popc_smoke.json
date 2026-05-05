@@ -31,7 +31,7 @@
     "gen_seed": null
   },
   "pulling": {
-    "pull_rate_nm_per_ps": 0.001,
+    "pull_rate_nm_per_ps": -0.001,
     "pull_force_constant": 1000.0,
     "nsteps": 250000,
     "nstxout_compressed": 500

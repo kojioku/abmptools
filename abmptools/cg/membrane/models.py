@@ -161,11 +161,24 @@ class EquilibrationCGProtocol:
 class PullingCGProtocol:
     """Reaction-coordinate generation (peptide pulled into/through bilayer).
 
-    Defaults: 1 nm/ns rate, k=1000 kJ/mol/nm², 5 ns total (250,000 steps at
-    dt=20 fs). At 1 nm/ns this sweeps roughly 5 nm of z, more than enough to
-    cover the umbrella range (-1.5 to +1.5 nm).
+    Defaults: -1 nm/ns rate, k=1000 kJ/mol/nm², 5 ns total (250,000 steps at
+    dt=20 fs).
+
+    Sign convention
+    ---------------
+    The pull coordinate is ``peptide_COM_z - bilayer_COM_z`` with
+    ``pull_vec = "0 0 1"``. With :attr:`PeptideMembraneSpec.initial_z_offset_nm`
+    defaulting to +3.0 nm (peptide above bilayer), a **negative** rate
+    pulls the peptide DOWN toward the bilayer centre and across to the
+    opposite side. With +0.001 nm/ps and 5 ns total pulling, the peptide
+    traverses from +3 nm to ~-2 nm, populating the default umbrella
+    range (-1.5 .. +1.5 nm). A positive rate would push the peptide
+    AWAY from the bilayer and the windows would never be sampled.
+
+    Override to a positive rate only if pairing with a negative
+    ``initial_z_offset_nm`` (peptide starting below bilayer).
     """
-    pull_rate_nm_per_ps: float = 0.001
+    pull_rate_nm_per_ps: float = -0.001
     pull_force_constant: float = 1000.0
     nsteps: int = 250_000
     nstxout_compressed: int = 500

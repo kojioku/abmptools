@@ -123,7 +123,9 @@ class TestProtocols:
     def test_pulling_defaults(self):
         pl = PullingCGProtocol()
         assert pl.pull_force_constant == 1000.0
-        assert pl.pull_rate_nm_per_ps == 0.001
+        # Negative rate: peptide pulled DOWN through bilayer
+        # (default initial_z_offset_nm = +3.0 means peptide starts above)
+        assert pl.pull_rate_nm_per_ps == -0.001
         assert pl.nsteps == 250_000  # 5 ns at dt=20 fs
 
     def test_pulling_negative_k_raises(self):
