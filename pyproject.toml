@@ -93,6 +93,16 @@ mmgbsa = [
     # (genesis.grest の ff19SB とは意図的に別、MM/GBSA で広く使われる安定 default)。
     # See abmptools/genesis/mmgbsa/__init__.py + docs/mmgbsa.md.
 ]
+fragmenter = [
+    "rdkit-pypi>=2022.09",  # 分子構造の正規化 (canonical SMILES)、SVG 描画、bond perception
+                            # PyPI、BSD-3-Clause
+    # Optional: Open Babel CLI (`obabel`) — bond perception フォールバック (subprocess)
+]
+jupyter = [
+    "ipywidgets>=8.0",  # notebook UI のインタラクティブ要素 (dropdown / checkbox / button)
+    "ipykernel",        # Jupyter notebook server カーネル
+    # 注: A 経路 (Jupyter UI) を使う場合のみ必要。CLI ヘッドレス経路 (C) では不要。
+]
 geomopt = [
     "pyscf",
     "ase",
