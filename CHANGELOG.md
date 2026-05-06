@@ -4,6 +4,87 @@
 
 (no changes yet — this section accumulates work-in-progress between releases)
 
+## [1.22.0] - 2026-05-06
+
+新サブパッケージ `abmptools.genesis.mmgbsa` を追加。GENESIS atdyn の
+`[ENERGY] implicit_solvent=GBSA` を使った protein-ligand 単フレーム
+MM/GBSA ΔG_bind 計算を end-to-end に組める **GENESIS 系統 2 番目** の
+モジュール (1.20.0 grest との並走)。
+
+### Added
+
+- **`abmptools.genesis.mmgbsa` — GENESIS MM/GBSA single-point ΔG_bind**
+  - `MMGBSAOrchestrator.run()` の 4 stage:
+    1. **PDB 分割** (Biopython): receptor (指定残基除外) + ligand (指定残基のみ)
+    2. **パラメタライズ** (acpype + tleap): GAFF/GAFF2 + AM1-BCC ligand →
+       complex / ligand / receptor の 3 系 prmtop+inpcrd
+    3. **GBSA 単フレーム実行** (mpirun atdyn): NOBC + implicit GBSA で
+       1-step minimize による single-point energy 抽出
+    4. **解析** (matplotlib): `[STEP4] Compute Single Point Energy` パース
+       → `ΔG_bind = (E+S)_complex − (E+S)_ligand − (E+S)_receptor` →
+       CSV + 棒グラフ
+  - データクラス (6 個): `TargetSpec` / `ForceFieldSet` /
+    `LigandParameterization` / `EnergyProtocol` /
+    `MinimizationProtocol` / `MMGBSABuildConfig`
+    (`@dataclass` + `to_json/from_json`、5 段の nested JSON 往復)
+  - 入力モード 2 系統 (mode "C"):
+    - **JSON config** (推奨, 再現性): `targets: [...]` で N target を明示
+    - **folder mode** (POC 互換): `-i input_dir -r ligand_resno [-c chain]`
+      で `*.pdb` を一括処理 (`pipeline` サブコマンド)
+  - CLI: `python -m abmptools.genesis.mmgbsa
+    {example,validate,divide,parameterize,run,analyze,pipeline}`
+    (7 sub-command、Step ごと再開可能 + 一気通貫 + folder shortcut)
+  - 力場 default: AMBER **ff14SB** + DNA.OL15 + RNA.OL3 + TIP3P +
+    GAFF/GAFF2 (POC 通り、grest の ff19SB とは意図的に別、MM/GBSA で
+    広く使われる安定 default)
+  - 既存 `abmptools.cg.peptide.forcefield_check.ToolStatus` を import
+    経由で再利用、`_subprocess` も同流儀
+  - 4 target POC 再現用 sample (`example_config.json`) + smoke
+    (`smoke_config.json`) + README を `sample/gbsa/` 直下に配置
+  - 116 unit tests (`test_mmgbsa_{models,pdb_splitter,system_builder,
+    inp_writer,analysis,forcefield_check,builder_mocked,cli}.py`) +
+    1 slow integration smoke (`test_mmgbsa_integration.py`)
+  - **3772L gold value** (POC 実 log fixture から実測):
+    `ΔG_bind = -38.2700 kcal/mol` を test で regression 化
+    (`tests/fixtures/gbsa_logs/3772L-rename/{complex,ligand,receptor}.log`)。
+    GENESIS doc `05_Energy.rst:564` の `U = U_FF + ΔG_solv` 規約に従い、
+    `ΔG_bind = E_complex - E_ligand - E_receptor` (ENERGY 列差)。
+  - 解析関数: `compute_dg_bind` (合計差) + `compute_dg_components`
+    (POC 風の `{dg_mm, dg_solv, dg_bind}` 分解、3 値の和は dg_bind と一致)
+
+### Changed
+
+- `sample/gbsa/gbsa-input/{1_devidepdb,2_setupmd,3_rungbsa,4_analyse}.py`
+  を `sample/gbsa/legacy_scripts/` に `git mv` で移動 (POC 保存)、新規
+  `sample/gbsa/example_config.json` / `smoke_config.json` /
+  `README.md` / `legacy_scripts/README.md` を `sample/gbsa/` 直下に配置
+  (mode "C")。POC scripts は研究の再現性のため温存、新規利用者は
+  abmptools.genesis.mmgbsa CLI 経由を推奨。
+- POC `4_analyse.py` の ΔG_bind 計算式
+  `(egas+S)_c - (egas+S)_l - (egas+S)_r` は v1.22.0 の
+  `E_c - E_l - E_r` と **代数的に同等** (egas + S = ENERGY、GENESIS
+  doc 05_Energy.rst:564)。POC 値と v1.22.0 値は bit-exact 一致する。
+
+### External dependencies (new, optional `[mmgbsa]`)
+
+- `biopython >= 1.80` (Biopython License + BSD-3-Clause): PDB splitter (Stage 1)
+- `matplotlib >= 3.5` (PSF/BSD): ΔG_bind 棒グラフ (Stage 4、grest と shared)
+- GENESIS atdyn >= 2.1 (**LGPL-3.0-or-later**): subprocess 経由のみ、
+  未同梱、`https://github.com/genesis-release-r-ccs/genesis` から build
+- AmberTools `tleap` (free academic+commercial): conda 推奨
+- **acpype** (>=2022.7.21, **GPL-3.0**): subprocess 経由のみ、未同梱
+  (mere aggregation per GPL FAQ; abmptools 独立)
+- mpirun (OpenMPI / MPICH): `mpirun -np 1 atdyn`
+
+### Deferred to v1.22.x / v1.23.x
+
+- per-residue energy decomposition (POC `4_analyse.py` にも非実装)
+- MD ensemble averaging (現状は単 frame minimize-only single-point のみ)
+- alanine scanning
+- 並列 target 処理 (multiprocessing): 現状は逐次のみ
+- `forcefield = CHARMM` 経由 (現状 AMBER 想定で kcal/mol)
+- explicit solvent (TIP3P box + PBC + PME) 版 MM/PBSA
+
 ## [1.20.0] - 2026-05-06
 
 新サブパッケージ `abmptools.genesis.grest` を追加。GENESIS gREST_SSCR

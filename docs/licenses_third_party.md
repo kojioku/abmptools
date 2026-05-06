@@ -123,6 +123,22 @@ GENESIS replica-exchange MD engine 経由で gREST_SSCR (Replica-Exchange with S
 
 ---
 
+## abmptools.genesis.mmgbsa — GENESIS MM/GBSA builder (1.22.0+)
+
+GENESIS atdyn の `[ENERGY] implicit_solvent=GBSA` を使った protein-ligand 単フレーム MM/GBSA ΔG_bind 計算サブパッケージ。AMBER ff14SB + TIP3P + GAFF/GAFF2 を `tleap` + `acpype` で勾配し、3 系 (complex / ligand / receptor) の単点エネルギーから ΔG_bind を集計する。
+
+| パッケージ | バージョン (確認時) | ライセンス | 商用利用 | 備考 |
+|---|---|---|---|---|
+| **GENESIS** (`atdyn`、R-CCS) | ≥ 2.1 | **LGPL-3.0-or-later** | ✅ 利用 (subprocess only) | grest と同じバイナリ、subprocess 経由のみ (mere aggregation) |
+| **AmberTools `tleap`** | ≥ 22 | (AmberTools と同条件) | ✅ 自由 (academic + commercial) | `mamba install -c conda-forge ambertools` |
+| **acpype** (PyPI、Alan Wilter Sousa da Silva) | ≥ 2022.7.21 | **GPL-3.0** | ✅ 利用 (subprocess only) | ligand GAFF/GAFF2 + AM1-BCC charge 計算。`pip install acpype` または `conda install -c conda-forge acpype`。subprocess 経由のみ、ソース改変・リンクなし (mere aggregation per GPL FAQ) |
+| **`biopython`** (PyPI、`[mmgbsa]` extras) | ≥ 1.80 | Biopython License + BSD-3-Clause (dual) | ✅ 自由 | PDB splitter (Stage 1) |
+| **`matplotlib`** (PyPI、`[mmgbsa]` extras) | ≥ 3.5 | PSF License + BSD-compatible | ✅ 自由 | ΔG_bind 棒グラフ (Stage 4、grest と shared) |
+
+**License 戦略**: acpype (GPL-3.0) は subprocess 呼び出しのみ。abmptools が GPL-3.0 に感染することはない (mere aggregation per FSF GPL FAQ)。abmptools 本体 MIT (1.22.0) → 将来 Apache-2.0 化しても互換。Biopython は dual license、BSD 部分のみで利用可。詳細は `docs/mmgbsa.md` の "Scope and license" 節参照。
+
+---
+
 ## abmptools.geomopt — MACE バックエンド（`pdbopt --backend mace`）
 
 | パッケージ | バージョン（確認時） | ライセンス | 商用利用 | 備考 |

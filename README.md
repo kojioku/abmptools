@@ -82,6 +82,15 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 - **LGPL-3.0-or-later 互換**: GENESIS (`spdyn` / `atdyn` / `remd_convert`) は subprocess only -- abmptools 自体は MIT (1.20.0) → 将来 Apache-2.0 化後も互換 (mere aggregation per LGPL §5/§6)
 - `abmptools/genesis/` は GENESIS 系統 namespace の最初の occupant。後続で `genesis/reus/` / `genesis/fep/` を計画
 
+### GENESIS MM/GBSA (`genesis.mmgbsa`)
+
+- End-to-end **GENESIS MM/GBSA** ΔG_bind builder + analysis: protein-ligand complex PDB + ligand 残基番号 → Biopython で receptor/ligand 分割 → acpype (GAFF/GAFF2 + AM1-BCC) + tleap で 3 系 (complex/ligand/receptor) の AMBER prmtop+inpcrd → `mpirun -np 1 atdyn` で `[ENERGY] implicit_solvent=GBSA` 単フレーム評価 → `[STEP4]` log パース → `ΔG_bind = (E+S)_complex - (E+S)_ligand - (E+S)_receptor` を CSV + 棒グラフ出力
+- データクラス: `MMGBSABuildConfig` / `TargetSpec` / `ForceFieldSet` / `LigandParameterization` / `EnergyProtocol` / `MinimizationProtocol` (5 段 nested JSON 往復)
+- CLI: `python -m abmptools.genesis.mmgbsa {build,validate,example,divide,parameterize,run,analyze,pipeline}` (7 sub-command + folder-mode shortcut `-i / -r / -c` で POC 互換)
+- 力場 default: AMBER **ff14SB** + DNA.OL15 + RNA.OL3 + TIP3P + GAFF/GAFF2 (POC 通り、grest の ff19SB とは意図的に別)
+- **ΔG_bind 計算**: GENESIS `ENERGY` 列は `U = U_FF + ΔG_solv` の合計 (doc 05_Energy.rst:564) なので `ΔG_bind = E_c - E_l - E_r` で全 MM/GBSA 寄与込み。POC `4_analyse.py` は等価な分解形 `(egas + S)_c - (egas + S)_l - (egas + S)_r` を使用 (`egas = E - S`)、両者は代数的に同一。`compute_dg_bind` (合計形) + `compute_dg_components` (分解報告 `{dg_mm, dg_solv, dg_bind}`) を提供
+- **LGPL-3.0+ / GPL-3.0 互換**: GENESIS (LGPL-3.0+) と acpype (GPL-3.0) は subprocess only -- abmptools 自体は MIT (1.22.0) → 将来 Apache-2.0 化後も互換 (mere aggregation)
+
 ### Peptide-Bilayer Umbrella Sampling (`membrane`)
 
 - End-to-end PMF builder for peptide membrane permeation: bilayer + peptide + water + ions → AMBER (`ff19SB` + `Lipid21` + TIP3P / Joung-Cheatham) or CHARMM36 backend → semiisotropic NPT equilibration → z-pulling → per-window umbrella MDPs → `gmx wham` PMF
