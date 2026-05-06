@@ -1,0 +1,333 @@
+****************************************************
+*                                                  *
+*                  GENESIS ATDYN                   *
+*                                                  *
+*        A Molecular Dynamics Simulator with       *
+*            Atomic Decomposition Scheme           *
+*                                                  *
+*               Developed by RIKEN                 *
+*                                                  *
+****************************************************
+ 
+[STEP0] Architecture and Compiler Information
+ 
+GENESIS_Information> GENESIS Information
+  version      = 2.1.2
+  commit ID    = 2.1.2 [2023-12-25 13:19:52 +0900]
+  precision    = double
+  nonbonding   = CPU
+
+Build_Information> Compiler Information
+  build host   = okuwaki@DPE00043
+  fortran      = ifort (IFORT) 2021.9.0 20230302
+  option       = 
+  -axCORE-AVX512 -g -O3  -qmkl=parallel  -assume byterecl -qopenmp  
+  C            = 
+ icc: remark #10441: The Intel(R) C++ Compiler Classic (ICC) is deprecated and w
+ ill be removed from product release in the second half of 2023. The Intel(R) on
+ eAPI DPC++/C++ Compiler (ICX) is the recommended compiler moving forward. Pleas
+ e transition to use this compiler. Use '-diag-disable=10441' to disable this me
+ ssage.
+  option       = -O3 -ip -axCORE-AVX2  -qopenmp 
+  defined var. = 
+  -DHAVE_MPI_GENESIS -DOMP -DIFORT19 -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
+  link option  = 
+  -assume byterecl -lgfortran -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_
+ core -lmkl_lapack95_lp64  
+  MPI Compiler = Intel(R) MPI
+
+Runtime_Information> Machine and Library Information
+  date       = 2025/01/08 01:14:29
+  cpu model    = Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz
+  exec. host   = okuwaki@
+  LD library   = 
+ /opt/intel/oneapi/tbb/2021.9.0/env/../lib/intel64/gcc4.8:/opt/intel/oneapi/mpi/
+ 2021.9.0//libfabric/lib:/opt/intel/oneapi/mpi/2021.9.0//lib/release:/opt/intel/
+ oneapi/mpi/2021.9.0//lib:/opt/intel/oneapi/mkl/2023.1.0/lib/intel64:/opt/intel/
+ oneapi/itac/2021.9.0/slib:/opt/intel/oneapi/ippcp/2021.7.0/lib/intel64:/opt/int
+ el/oneapi/ipp/2021.8.0/lib/intel64:/opt/intel/oneapi/dnnl/2023.1.0/cpu_dpcpp_gp
+ u_dpcpp/lib:/opt/intel/oneapi/debugger/2023.1.0/gdb/intel64/lib:/opt/intel/onea
+ pi/debugger/2023.1.0/libipt/intel64/lib:/opt/intel/oneapi/debugger/2023.1.0/dep
+ /lib:/opt/intel/oneapi/dal/2023.1.0/lib/intel64:/opt/intel/oneapi/compiler/2023
+ .1.0/linux/lib:/opt/intel/oneapi/compiler/2023.1.0/linux/lib/x64:/opt/intel/one
+ api/compiler/2023.1.0/linux/lib/oclfpga/host/linux64/lib:/opt/intel/oneapi/comp
+ iler/2023.1.0/linux/compiler/lib/intel64_lin:/opt/intel/oneapi/ccl/2021.9.0/lib
+ /cpu_gpu_dpcpp::/usr/local/libpng/lib/
+ MPI Runtime = Intel(R) MPI Library 2021.9 for Linux* OS
+
+
+[STEP1] Read Control Parameters
+ 
+Read_Ctrl_Input> Input Files
+  prmtopfile = ligand.prmtop
+  ambcrdfile = ligand.inpcrd
+ 
+Read_Ctrl_Output> Output Files
+  dcdfile    = ligand.dcd
+  rstfile    = ligand.rst
+ 
+Read_Ctrl_Energy> WARNING: "water_model" is not available
+Read_Ctrl_Energy> Parameters of Energy Calculations
+  forcefield      =      AMBER
+  switchdist      =     99.900  cutoffdist      =     99.900
+  pairlistdist    =    100.000  dielec_const    =      1.000
+  debye           =     10.000
+  vdw_force_switch=         no
+  electrostatic   =  CUTOFF
+  implicit_solvent=       gbsa
+  gbsa_eps_solvent=   78.50000  gbsa_eps_solute =    1.00000
+  gbsa_alpha      =    1.00000  gbsa_beta       =    0.80000
+  gbsa_gamma      =    4.85000  gbsa_salt_cons  =    0.15000
+  gbsa_vdw_offset =    0.09000  gbsa_surf_tens  =    0.00720
+  table_order     =          3
+  table_density   =     20.000
+  water_model     =       NONE
+  output_style    =    GENESIS
+  dispersion_corr =       none
+  nonb_limiter    =      no
+  user def. table =     no
+ 
+Read_Ctrl_Minimize> Parameters of MIN
+  method                     =      SD     nsteps                     =          1
+  eneout_period              =          1  crdout_period              =          1
+  rstout_period              =          1  nbupdate_period            =          1
+  fixatm_select_index        =       none
+  tol_rmsg                   =   0.36E+00  tol_maxg                   =   0.54E+00
+  verbose                    =         no
+  force_scale_init           =      0.010  force_scale_max            =      0.100
+  macro                      =         no
+  check_structure            =        yes  fix_ring_error             =         no
+  fix_chirality_error        =         no
+ 
+Read_Ctrl_Boundary> Parameters of Boundary Condition
+  type            =     NOBC  
+  spherical_pot   =         no  restart         =          T
+ 
+Read_Ctrl_Selection> Parameters of Selection
+  # of groups     =          0
+  # of mole names =          0
+ 
+Read_Ctrl_Restraints> No restraint in the system
+
+Read_Ctrl_Fitting_MD> Parameters of Fitting
+  fitting method  =  TR+ROT   
+  fitting atom    = group1
+  mass_weight     =         no
+ 
+[STEP2] Setup MPI
+ 
+Setup_Mpi_Md> Summary of Setup MPI
+  number of MPI processes   =          1
+  number of OpenMP threads  =          4
+  total number of CPU cores =          4
+
+[STEP3] Set Relevant Variables and Structures
+ 
+Read_Prmtop> Summary of PRMTOP file
+  NATOM           =         86  NTYPES          =         14
+  NBONH           =         46  MBONA           =         43
+  NTHETH          =        104  MTHETA          =         61
+  NPHIH           =        196  MPHIA           =         94
+  NPARM           =          0  NNB             =        512
+  NRES            =          1  NBONA           =         43
+  NTHETA          =         61  NPHIA           =         94
+  NUMBND          =         24  NUMANG          =         47
+  NPTRA           =         46  NATYP           =         15
+  NPHB            =          0
+  NCMAP           =          0  NCMAPTYPE       =          0
+ 
+Define_Molecule> Summary of molecules
+  num_atoms       =         86  num_bonds       =         89
+  num_angles      =        165  num_dihedrals   =        274
+  num_impropers   =         16  num_cmap_terms  =          0
+  num_residues    =          1  num_molecules   =          1
+  num_segments    =          1  num_deg_freedom =        258
+  total_charge    =      1.002
+ 
+Setup_Boundary> Setup Variables for Boundary Condition
+  origin(x,y,z)   =      0.000     0.000     0.000
+ 
+Setup_Structure_Check> Setup for checking the ring size and chirality errors of proteins and DNA/RNA
+  num_ring_grps   =          0  num_chiral_grps =          0
+ 
+Setup_Enefunc_Cmap_Par> Natural spline is used to derive cmap coefs.
+
+Setup_Enefunc_Table> Setup Variables for LookupTable
+  num_solutes     =         86  num_waters      =          0
+
+Setup_Enefunc_Gbsa> Setup parameters for GBSA
+
+Define_Enefunc_AMBER> Number of Interactions in Each Term
+  bond_ene        =         89  angle_ene       =        165
+  torsion_ene     =        274  improper_ene    =         16
+  cmap_ene        =          0
+  restraint_groups=          0  restraint_funcs =          0
+ 
+Get_Morph_in> Morphing check
+  morphing_bb     =          0  morphing_sc     =          0
+ 
+Setup_Fitting_Atdyn> NO fitting is applied, skip
+  fitting method  =  NO
+ 
+Setup_MinAtoms> Atoms info in minimize
+  number of fixed atoms     = 0
+     1           1 1UN    C1   c6    
+     2           1 1UN    C2   c6    
+     3           1 1UN    C3   c6    
+     4           1 1UN    C4   c6    
+     5           1 1UN    C5   c6    
+     6           1 1UN    C6   c6    
+     7           1 1UN    N7   nx    
+     8           1 1UN    C8   c6    
+     9           1 1UN    C9   c6    
+    10           1 1UN    C10  c6    
+    11           1 1UN    C11  c     
+    12           1 1UN    N12  ns    
+    13           1 1UN    C13  c3    
+    14           1 1UN    C14  c3    
+    15           1 1UN    C15  c3    
+    16           1 1UN    C16  c3    
+    17           1 1UN    O17  o     
+    18           1 1UN    C18  c3    
+    19           1 1UN    C19  c3    
+    20           1 1UN    C20  c3    
+    21           1 1UN    O21  oh    
+    22           1 1UN    N22  ns    
+    23           1 1UN    C23  c3    
+    24           1 1UN    C24  c     
+    25           1 1UN    O25  o     
+    26           1 1UN    C29  ca    
+    27           1 1UN    C30  ca    
+    28           1 1UN    C31  ca    
+    29           1 1UN    C32  ca    
+    30           1 1UN    C33  ca    
+    31           1 1UN    C34  ca    
+    32           1 1UN    O38  oh    
+    33           1 1UN    C39  c3    
+    34           1 1UN    S74  ss    
+    35           1 1UN    C77  ca    
+    36           1 1UN    C78  ca    
+    37           1 1UN    C79  ca    
+    38           1 1UN    C80  ca    
+    39           1 1UN    C81  ca    
+    40           1 1UN    C82  ca    
+    41           1 1UN    H1   hc    
+    42           1 1UN    H2   hc    
+    43           1 1UN    H3   hc    
+    44           1 1UN    H4   hc    
+    45           1 1UN    H5   hc    
+    46           1 1UN    H6   hc    
+    47           1 1UN    H7   hc    
+    48           1 1UN    H8   hc    
+    49           1 1UN    H9   hc    
+    50           1 1UN    H10  hc    
+    51           1 1UN    H11  hn    
+    52           1 1UN    H12  hx    
+    53           1 1UN    H13  hc    
+    54           1 1UN    H14  hc    
+    55           1 1UN    H15  hx    
+    56           1 1UN    H16  hx    
+    57           1 1UN    H17  hn    
+    58           1 1UN    H18  hc    
+    59           1 1UN    H19  hc    
+    60           1 1UN    H20  hc    
+    61           1 1UN    H21  hc    
+    62           1 1UN    H22  hc    
+    63           1 1UN    H23  hc    
+    64           1 1UN    H24  hc    
+    65           1 1UN    H25  hc    
+    66           1 1UN    H26  hc    
+    67           1 1UN    H27  hx    
+    68           1 1UN    H28  hx    
+    69           1 1UN    H29  h1    
+    70           1 1UN    H30  h1    
+    71           1 1UN    H31  ho    
+    72           1 1UN    H32  hn    
+    73           1 1UN    H33  h1    
+    74           1 1UN    H34  h1    
+    75           1 1UN    H35  ha    
+    76           1 1UN    H36  ha    
+    77           1 1UN    H37  ha    
+    78           1 1UN    H38  ho    
+    79           1 1UN    H39  hc    
+    80           1 1UN    H40  hc    
+    81           1 1UN    H41  hc    
+    82           1 1UN    H42  ha    
+    83           1 1UN    H43  ha    
+    84           1 1UN    H44  ha    
+    85           1 1UN    H45  ha    
+    86           1 1UN    H46  ha    
+  number of minimized atoms = 86
+ 
+[STEP4] Compute Single Point Energy for Molecules
+ 
+            STEP          ENERGY            BOND           ANGLE        DIHEDRAL        IMPROPER         VDWAALS           ELECT       SOLVATION
+ --------------- --------------- --------------- --------------- ---------------
+               0          8.8654          6.3401         16.1893         45.9890          0.3836         11.2680        -13.7973        -57.5072
+
+[STEP5] Perform Energy Minimization
+ 
+INFO:       STEP   POTENTIAL_ENE            RMSG            MAXG            BOND           ANGLE        DIHEDRAL        IMPROPER         VDWAALS           ELECT       SOLVATION
+ --------------- --------------- --------------- --------------- ---------------
+INFO:          0          8.8654         11.1253         54.4923          6.3401         16.1893         45.9890          0.3836         11.2680        -13.7973        -57.5072
+
+  maxg =    54.4923 at          7           1 1UN    N7   nx    
+
+INFO:          1          4.2636         12.4599         82.5374          9.4924         10.5217         45.4935          0.3144         11.4865        -14.3219        -58.7230
+
+  maxg =    82.5374 at         24           1 1UN    C24  c     
+
+
+Final energy =         4.2635908738
+
+ >>>>> STOP: Total number of iterations exceeds limit.
+
+Check_Ring_Structure> Check ring structure
+ 
+  No suspicious residue was detected.
+ 
+Check_Chirality> Check chirality
+ 
+  No suspicious residue was detected.
+ 
+ 
+[STEP6] Deallocate Arrays
+ 
+Output_Time> Averaged timer profile (Min, Max)
+  total time      =       0.058
+    setup         =       0.054
+    dynamics      =       0.005
+      energy      =       0.002
+      integrator  =       0.000
+      pairlist    =       0.000 (       0.000,       0.000)
+  energy           
+    bond          =       0.000 (       0.000,       0.000)
+    angle         =       0.000 (       0.000,       0.000)
+    dihedral      =       0.000 (       0.000,       0.000)
+    base stacking =       0.000 (       0.000,       0.000)
+    nonbond       =       0.000 (       0.000,       0.000)
+      CG exv      =       0.000 (       0.000,       0.000)
+      CG DNA bp   =       0.000 (       0.000,       0.000)
+      CG DNA exv  =       0.000 (       0.000,       0.000)
+      CG ele      =       0.000 (       0.000,       0.000)
+      CG PWMcos   =       0.000 (       0.000,       0.000)
+      CG PWMcosns =       0.000 (       0.000,       0.000)
+      CG IDR-HPS  =       0.000 (       0.000,       0.000)
+      CG IDR-KH   =       0.000 (       0.000,       0.000)
+      CG KH       =       0.000 (       0.000,       0.000)
+      Contact     =       0.000 (       0.000,       0.000)
+      pme real    =       0.000 (       0.000,       0.000)
+      pme recip   =       0.000 (       0.000,       0.000)
+    solvation     =       0.001 (       0.001,       0.001)
+      polar       =       0.001 (       0.001,       0.001)
+      non-polar   =       0.000 (       0.000,       0.000)
+    restraint     =       0.000 (       0.000,       0.000)
+    qmmm          =       0.000 (       0.000,       0.000)
+    morph         =       0.000 (       0.000,       0.000)
+  integrator       
+    constraint    =       0.000 (       0.000,       0.000)
+    update        =       0.000 (       0.000,       0.000)
+    comm_coord    =       0.000 (       0.000,       0.000)
+    comm_force    =       0.000 (       0.000,       0.000)
+    comm_migrate  =       0.000 (       0.000,       0.000)
+

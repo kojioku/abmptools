@@ -1,0 +1,247 @@
+****************************************************
+*                                                  *
+*                  GENESIS ATDYN                   *
+*                                                  *
+*        A Molecular Dynamics Simulator with       *
+*            Atomic Decomposition Scheme           *
+*                                                  *
+*               Developed by RIKEN                 *
+*                                                  *
+****************************************************
+ 
+[STEP0] Architecture and Compiler Information
+ 
+GENESIS_Information> GENESIS Information
+  version      = 2.1.2
+  commit ID    = 2.1.2 [2023-12-25 13:19:52 +0900]
+  precision    = double
+  nonbonding   = CPU
+
+Build_Information> Compiler Information
+  build host   = okuwaki@DPE00043
+  fortran      = ifort (IFORT) 2021.9.0 20230302
+  option       = 
+  -axCORE-AVX512 -g -O3  -qmkl=parallel  -assume byterecl -qopenmp  
+  C            = 
+ icc: remark #10441: The Intel(R) C++ Compiler Classic (ICC) is deprecated and w
+ ill be removed from product release in the second half of 2023. The Intel(R) on
+ eAPI DPC++/C++ Compiler (ICX) is the recommended compiler moving forward. Pleas
+ e transition to use this compiler. Use '-diag-disable=10441' to disable this me
+ ssage.
+  option       = -O3 -ip -axCORE-AVX2  -qopenmp 
+  defined var. = 
+  -DHAVE_MPI_GENESIS -DOMP -DIFORT19 -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
+  link option  = 
+  -assume byterecl -lgfortran -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_
+ core -lmkl_lapack95_lp64  
+  MPI Compiler = Intel(R) MPI
+
+Runtime_Information> Machine and Library Information
+  date       = 2025/01/08 01:14:33
+  cpu model    = Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz
+  exec. host   = okuwaki@
+  LD library   = 
+ /opt/intel/oneapi/tbb/2021.9.0/env/../lib/intel64/gcc4.8:/opt/intel/oneapi/mpi/
+ 2021.9.0//libfabric/lib:/opt/intel/oneapi/mpi/2021.9.0//lib/release:/opt/intel/
+ oneapi/mpi/2021.9.0//lib:/opt/intel/oneapi/mkl/2023.1.0/lib/intel64:/opt/intel/
+ oneapi/itac/2021.9.0/slib:/opt/intel/oneapi/ippcp/2021.7.0/lib/intel64:/opt/int
+ el/oneapi/ipp/2021.8.0/lib/intel64:/opt/intel/oneapi/dnnl/2023.1.0/cpu_dpcpp_gp
+ u_dpcpp/lib:/opt/intel/oneapi/debugger/2023.1.0/gdb/intel64/lib:/opt/intel/onea
+ pi/debugger/2023.1.0/libipt/intel64/lib:/opt/intel/oneapi/debugger/2023.1.0/dep
+ /lib:/opt/intel/oneapi/dal/2023.1.0/lib/intel64:/opt/intel/oneapi/compiler/2023
+ .1.0/linux/lib:/opt/intel/oneapi/compiler/2023.1.0/linux/lib/x64:/opt/intel/one
+ api/compiler/2023.1.0/linux/lib/oclfpga/host/linux64/lib:/opt/intel/oneapi/comp
+ iler/2023.1.0/linux/compiler/lib/intel64_lin:/opt/intel/oneapi/ccl/2021.9.0/lib
+ /cpu_gpu_dpcpp::/usr/local/libpng/lib/
+ MPI Runtime = Intel(R) MPI Library 2021.9 for Linux* OS
+
+
+[STEP1] Read Control Parameters
+ 
+Read_Ctrl_Input> Input Files
+  prmtopfile = complex.prmtop
+  ambcrdfile = complex.inpcrd
+ 
+Read_Ctrl_Output> Output Files
+  dcdfile    = complex.dcd
+  rstfile    = complex.rst
+ 
+Read_Ctrl_Energy> WARNING: "water_model" is not available
+Read_Ctrl_Energy> Parameters of Energy Calculations
+  forcefield      =      AMBER
+  switchdist      =     99.900  cutoffdist      =     99.900
+  pairlistdist    =    100.000  dielec_const    =      1.000
+  debye           =     10.000
+  vdw_force_switch=         no
+  electrostatic   =  CUTOFF
+  implicit_solvent=       gbsa
+  gbsa_eps_solvent=   78.50000  gbsa_eps_solute =    1.00000
+  gbsa_alpha      =    1.00000  gbsa_beta       =    0.80000
+  gbsa_gamma      =    4.85000  gbsa_salt_cons  =    0.15000
+  gbsa_vdw_offset =    0.09000  gbsa_surf_tens  =    0.00720
+  table_order     =          3
+  table_density   =     20.000
+  water_model     =       NONE
+  output_style    =    GENESIS
+  dispersion_corr =       none
+  nonb_limiter    =      no
+  user def. table =     no
+ 
+Read_Ctrl_Minimize> Parameters of MIN
+  method                     =      SD     nsteps                     =          1
+  eneout_period              =          1  crdout_period              =          1
+  rstout_period              =          1  nbupdate_period            =          1
+  fixatm_select_index        =       none
+  tol_rmsg                   =   0.36E+00  tol_maxg                   =   0.54E+00
+  verbose                    =         no
+  force_scale_init           =      0.010  force_scale_max            =      0.100
+  macro                      =         no
+  check_structure            =        yes  fix_ring_error             =         no
+  fix_chirality_error        =         no
+ 
+Read_Ctrl_Boundary> Parameters of Boundary Condition
+  type            =     NOBC  
+  spherical_pot   =         no  restart         =          T
+ 
+Read_Ctrl_Selection> Parameters of Selection
+  # of groups     =          0
+  # of mole names =          0
+ 
+Read_Ctrl_Restraints> No restraint in the system
+
+Read_Ctrl_Fitting_MD> Parameters of Fitting
+  fitting method  =  TR+ROT   
+  fitting atom    = group1
+  mass_weight     =         no
+ 
+[STEP2] Setup MPI
+ 
+Setup_Mpi_Md> Summary of Setup MPI
+  number of MPI processes   =          1
+  number of OpenMP threads  =          4
+  total number of CPU cores =          4
+
+[STEP3] Set Relevant Variables and Structures
+ 
+Read_Prmtop> Summary of PRMTOP file
+  NATOM           =       4752  NTYPES          =         17
+  NBONH           =       2353  MBONA           =       2455
+  NTHETH          =       5319  MTHETA          =       3340
+  NPHIH           =      10954  MPHIA           =      10591
+  NPARM           =          0  NNB             =      26201
+  NRES            =        306  NBONA           =       2455
+  NTHETA          =       3340  NPHIA           =      10591
+  NUMBND          =         90  NUMANG          =        204
+  NPTRA           =        226  NATYP           =         48
+  NPHB            =          0
+  NCMAP           =          0  NCMAPTYPE       =          0
+ 
+Define_Molecule> Summary of molecules
+  num_atoms       =       4752  num_bonds       =       4808
+  num_angles      =       8659  num_dihedrals   =      20558
+  num_impropers   =        987  num_cmap_terms  =          0
+  num_residues    =        306  num_molecules   =          2
+  num_segments    =          1  num_deg_freedom =      14256
+  total_charge    =     -1.998
+ 
+Setup_Boundary> Setup Variables for Boundary Condition
+  origin(x,y,z)   =      0.000     0.000     0.000
+ 
+Setup_Structure_Check> Setup for checking the ring size and chirality errors of proteins and DNA/RNA
+  num_ring_grps   =         51  num_chiral_grps =        314
+ 
+Setup_Enefunc_Cmap_Par> Natural spline is used to derive cmap coefs.
+
+Setup_Enefunc_Table> Setup Variables for LookupTable
+  num_solutes     =       4752  num_waters      =          0
+
+Setup_Enefunc_Gbsa> Setup parameters for GBSA
+
+Define_Enefunc_AMBER> Number of Interactions in Each Term
+  bond_ene        =       4808  angle_ene       =       8659
+  torsion_ene     =      20558  improper_ene    =        987
+  cmap_ene        =          0
+  restraint_groups=          0  restraint_funcs =          0
+ 
+Get_Morph_in> Morphing check
+  morphing_bb     =          0  morphing_sc     =          0
+ 
+Setup_Fitting_Atdyn> NO fitting is applied, skip
+  fitting method  =  NO
+ 
+Setup_MinAtoms> Atoms info in minimize
+  number of fixed atoms     = 0
+  number of minimized atoms = 4752
+ 
+[STEP4] Compute Single Point Energy for Molecules
+ 
+            STEP          ENERGY            BOND           ANGLE        DIHEDRAL        IMPROPER         VDWAALS           ELECT       SOLVATION
+ --------------- --------------- --------------- --------------- ---------------
+               0      -8855.2124        147.8618        539.1255       3479.7236         23.5583      -1269.9594      -9746.0196      -2029.5026
+
+[STEP5] Perform Energy Minimization
+ 
+INFO:       STEP   POTENTIAL_ENE            RMSG            MAXG            BOND           ANGLE        DIHEDRAL        IMPROPER         VDWAALS           ELECT       SOLVATION
+ --------------- --------------- --------------- --------------- ---------------
+INFO:          0      -8855.2124          5.6776        176.9256        147.8618        539.1255       3479.7236         23.5583      -1269.9594      -9746.0196      -2029.5026
+
+  maxg =   176.9256 at       4664         305 PHE    C    C     
+
+INFO:          1      -8171.0403         19.4791        953.2151        970.6202        627.7872       3472.4950         28.4947      -1363.8254      -9765.8148      -2140.7972
+
+  maxg =   953.2151 at       4664         305 PHE    C    C     
+
+
+Final energy =     -8171.0403286484
+
+ >>>>> STOP: Total number of iterations exceeds limit.
+
+Check_Ring_Structure> Check ring structure
+ 
+  No suspicious residue was detected.
+ 
+Check_Chirality> Check chirality
+ 
+  No suspicious residue was detected.
+ 
+ 
+[STEP6] Deallocate Arrays
+ 
+Output_Time> Averaged timer profile (Min, Max)
+  total time      =       2.323
+    setup         =       1.195
+    dynamics      =       1.129
+      energy      =       1.675
+      integrator  =       0.000
+      pairlist    =       0.435 (       0.435,       0.435)
+  energy           
+    bond          =       0.000 (       0.000,       0.000)
+    angle         =       0.001 (       0.001,       0.001)
+    dihedral      =       0.003 (       0.003,       0.003)
+    base stacking =       0.000 (       0.000,       0.000)
+    nonbond       =       0.677 (       0.677,       0.677)
+      CG exv      =       0.000 (       0.000,       0.000)
+      CG DNA bp   =       0.000 (       0.000,       0.000)
+      CG DNA exv  =       0.000 (       0.000,       0.000)
+      CG ele      =       0.000 (       0.000,       0.000)
+      CG PWMcos   =       0.000 (       0.000,       0.000)
+      CG PWMcosns =       0.000 (       0.000,       0.000)
+      CG IDR-HPS  =       0.000 (       0.000,       0.000)
+      CG IDR-KH   =       0.000 (       0.000,       0.000)
+      CG KH       =       0.000 (       0.000,       0.000)
+      Contact     =       0.000 (       0.000,       0.000)
+      pme real    =       0.677 (       0.677,       0.677)
+      pme recip   =       0.000 (       0.000,       0.000)
+    solvation     =       0.994 (       0.994,       0.994)
+      polar       =       0.830 (       0.830,       0.830)
+      non-polar   =       0.163 (       0.163,       0.163)
+    restraint     =       0.000 (       0.000,       0.000)
+    qmmm          =       0.000 (       0.000,       0.000)
+    morph         =       0.000 (       0.000,       0.000)
+  integrator       
+    constraint    =       0.000 (       0.000,       0.000)
+    update        =       0.000 (       0.000,       0.000)
+    comm_coord    =       0.000 (       0.000,       0.000)
+    comm_force    =       0.000 (       0.000,       0.000)
+    comm_migrate  =       0.000 (       0.000,       0.000)
+

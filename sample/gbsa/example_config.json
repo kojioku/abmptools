@@ -1,0 +1,60 @@
+{
+  "targets": [
+    {"pdb": "3772L-rename.pdb", "ligand_resno": 201, "chain": null, "name": null},
+    {"pdb": "9MM52-rename.pdb", "ligand_resno": 201, "chain": null, "name": null},
+    {"pdb": "L7759-rename.pdb", "ligand_resno": 201, "chain": null, "name": null},
+    {"pdb": "M99KZ-rename.pdb", "ligand_resno": 201, "chain": null, "name": null}
+  ],
+  "input_dir": "./input",
+  "project_name": "poc_reproduction",
+  "force_field": {
+    "leaprc_protein": "leaprc.protein.ff14SB",
+    "leaprc_dna": "leaprc.DNA.OL15",
+    "leaprc_rna": "leaprc.RNA.OL3",
+    "leaprc_water": "leaprc.water.tip3p",
+    "leaprc_gaff2": "leaprc.gaff2",
+    "leaprc_gaff": "leaprc.gaff",
+    "extra_lines": [],
+    "add_pdb_res_map": [
+      ["LI+", "LI"], ["NA+", "NA"], ["MG2", "MG"], ["CL-", "CL"],
+      ["K+", "K"], ["RB+", "RB"], ["CS+", "CS"]
+    ],
+    "add_pdb_atom_map": [
+      ["LI+", "LI"], ["NA+", "NA"], ["MG2", "MG"], ["CL-", "CL"],
+      ["K+", "K"], ["RB+", "RB"], ["CS+", "CS"]
+    ]
+  },
+  "ligand": {
+    "charge_method": "bcc",
+    "net_charge": null,
+    "extra_keys": "maxcyc=0",
+    "atom_type": "gaff2",
+    "skip_if_cached": true
+  },
+  "energy": {
+    "electrostatic": "CUTOFF",
+    "switchdist_A": 99.9,
+    "cutoffdist_A": 99.9,
+    "pairlistdist_A": 100.0,
+    "implicit_solvent": "GBSA",
+    "gbsa_salt_cons": 0.15,
+    "gbsa_surf_tens": 0.0072,
+    "gbsa_vdw_offset": 0.09
+  },
+  "minimize": {
+    "method": "SD",
+    "nsteps": 1,
+    "eneout_period": 1,
+    "crdout_period": 1,
+    "rstout_period": 1,
+    "nbupdate_period": 1
+  },
+  "mpi_processes": 1,
+  "mpirun_path": "mpirun",
+  "atdyn_path": "atdyn",
+  "tleap_path": "tleap",
+  "acpype_path": "acpype",
+  "output_dir": ".",
+  "seed": null,
+  "fail_fast": true
+}
