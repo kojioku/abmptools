@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abmptools"
-version = "1.20.0"
+version = "1.22.0"
 description = "Pre/post-processing and analysis toolkit for ABINIT-MP Fragment Molecular Orbital calculations"
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "MIT"
@@ -77,6 +77,21 @@ grest = [
     #   mpirun (OpenMPI / MPICH) — 並列レプリカ実行
     # Force field files: AmberTools 同梱 (ff19SB / TIP3P)、本パッケージは追加 ITP なし。
     # See abmptools/genesis/grest/__init__.py + docs/grest.md.
+]
+mmgbsa = [
+    "biopython>=1.80",  # PDB splitter (Stage 1)
+    "matplotlib>=3.5",  # ΔG_bind 棒グラフ (Stage 4、grest と shared)
+    # External tools (subprocess only, never bundled):
+    #   GENESIS atdyn (>=2.1) — LGPL-3.0-or-later
+    #     build from https://github.com/genesis-release-r-ccs/genesis
+    #   ambertools (>=22) — tleap (必須)
+    #   acpype (>=2022.7.21) — GPL-3.0、ligand GAFF/GAFF2 + AM1-BCC
+    #     pip install acpype  または  conda install -c conda-forge acpype
+    #     subprocess only (mere aggregation per GPL FAQ)
+    #   mpirun (OpenMPI / MPICH) — `mpirun -np 1 atdyn`
+    # Force field default: ff14SB + DNA.OL15 + RNA.OL3 + TIP3P + GAFF/GAFF2
+    # (genesis.grest の ff19SB とは意図的に別、MM/GBSA で広く使われる安定 default)。
+    # See abmptools/genesis/mmgbsa/__init__.py + docs/mmgbsa.md.
 ]
 geomopt = [
     "pyscf",
