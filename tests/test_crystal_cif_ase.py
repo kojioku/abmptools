@@ -316,3 +316,86 @@ def test_orchestrator_engine_ase_csp7_r00001(tmp_path):
     assert len(xyz_block) == natom, (
         f"&XYZ block has {len(xyz_block)} atoms but Natom={natom}"
     )
+
+
+# ---------------------------------------------------------------------------
+# unwrap_molecules — PBC boundary fix for Atoms.repeat
+# ---------------------------------------------------------------------------
+
+
+def test_unwrap_molecules_keeps_molecules_intact():
+    """A diatomic ``A-B`` straddling the cell boundary must, after
+    unwrap, sit contiguously in real space (max intramolecular
+    distance = bond length, not 1 cell - bond length).
+    """
+    pytest.importorskip("ase")
+    from ase import Atoms
+    from abmptools.crystal.cif_engine_ase import (
+        detect_molecules,
+        expand_supercell,
+        unwrap_molecules,
+    )
+
+    # Two N atoms across the x-boundary: 0.95 and 0.05 of a 5 Å cell.
+    # Without unwrap: nearest-image distance is 1.0 Å (bond), but in
+    # real-space coordinates atoms are 4.0 Å apart.
+    atoms = Atoms(
+        symbols="NN",
+        positions=[(4.75, 2.5, 2.5), (0.25, 2.5, 2.5)],  # spans the x face
+        cell=[5.0, 5.0, 5.0],
+        pbc=True,
+    )
+    super_atoms = expand_supercell(atoms, layer=2)
+    molecules = detect_molecules(super_atoms, atoms_in_mol=[2], bond_tolerance=0.4)
+    # 2x2x2 supercell -> 8 N2 molecules.
+    assert len(molecules) == 8
+
+    pos_before = super_atoms.get_positions().copy()
+    # Pre-unwrap: at least one molecule has its two atoms at opposite
+    # faces of the supercell.
+    spans_before = []
+    for mol in molecules:
+        d = abs(pos_before[mol[0]] - pos_before[mol[1]])
+        spans_before.append(max(d))
+    assert max(spans_before) > 4.0, "test setup expected pre-unwrap split"
+
+    unwrap_molecules(super_atoms, molecules, bond_tolerance=0.4)
+    pos_after = super_atoms.get_positions()
+
+    # Post-unwrap: every molecule's two atoms are within ~1 Å (bond),
+    # because find_mic returned the minimum-image vector.
+    for mol in molecules:
+        import numpy as np
+        d = np.linalg.norm(pos_after[mol[0]] - pos_after[mol[1]])
+        assert d < 1.5, f"unwrap failed for molecule {mol}: dist={d:.3f}"
+
+
+@pytest.mark.skipif(not os.path.isfile(R00001_CIF), reason="R00001 fixture missing")
+def test_run_ase_unwraps_molecules_for_csp7():
+    """run_ase calls unwrap_molecules under the hood; csp7 layer 2
+    should leave each 32-atom molecule contiguous (max C-C / C-O
+    intramolecular distance < ~12 Å, not the 18+ Å that boundary
+    splits would produce in a 9 Å unit cell)."""
+    pytest.importorskip("ase")
+    import numpy as np
+    from abmptools.crystal.cif_engine_ase import run_ase
+
+    super_atoms, molecules = run_ase(
+        cif=R00001_CIF, layer=2, atoms_in_mol=[32],
+    )
+    pos = super_atoms.get_positions()
+    max_intramol = 0.0
+    for mol in molecules:
+        coords = pos[mol]
+        # naive O(N^2) span calculation; cheap for 32 atoms.
+        for i in range(len(coords)):
+            for j in range(i + 1, len(coords)):
+                d = np.linalg.norm(coords[i] - coords[j])
+                if d > max_intramol:
+                    max_intramol = d
+    # csp7 R00001 molecules are about 6 Å end-to-end; allowing 15 Å
+    # rules out a wraparound contribution (would otherwise add the
+    # ~10 Å cell vector).
+    assert max_intramol < 15.0, (
+        f"intramolecular distance {max_intramol:.2f} Å suggests boundary split"
+    )

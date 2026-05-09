@@ -20,3 +20,10 @@ mdout.mdp
 
 # abmptools.crystal smoke / numeric-reference run artifacts (full logs go to OneDrive)
 .smoke_artifacts/
+
+# abmptools.crystal public-molecule pipeline outputs (log, ajf, pdb under
+# `sample/crystal/<mol>/out_*/` are regenerable; only `<mol>.cif` /
+# `UNK.ajf` / `crystal_layer3.yaml` / `monomer.yaml` and `reference/`
+# CSVs go into the repo).
+sample/crystal/*/out_*/
+sample/crystal/*/*.run.stdout

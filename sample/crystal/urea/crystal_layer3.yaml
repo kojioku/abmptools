@@ -1,0 +1,31 @@
+project_name: urea_layer3_mp2_631gd
+output_dir: ./out_layer3_v2
+inputs:
+  - cif: urea.cif
+    layer: 3
+    atoms_in_mol: [8]
+cif_engine:
+  engine: ase
+fragment:
+  cutmode: around
+  solutes: [0]
+  criteria: 6.0
+  molname: [UNK]
+  template_ajf: ./UNK.ajf
+fmo:
+  method: MP2
+  basis_set: 6-31Gdag
+  memory: 4000
+  abinit_ver: rev23
+  npro: 1
+  is_xyz: true
+hpc:
+  scheduler: local
+  abinit_dir: /home/okuwaki/bin/abinitmp/v2r8
+  binary_name: abinitmp
+  nodes: 1
+  proc_per_node: 4
+  omp_threads: 1
+  mpi_launcher: mpirun
+  elapse: '06:00:00'
+postproc: {enable: false}

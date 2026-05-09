@@ -1,0 +1,40 @@
+data_glycine_alpha
+_chemical_formula_structural    'NH2CH2COOH'
+_chemical_formula_sum           'C2 H5 N O2'
+_chemical_name_common           'glycine, alpha form'
+
+_cell_length_a       5.105
+_cell_length_b       11.969
+_cell_length_c       5.464
+_cell_angle_alpha    90.0
+_cell_angle_beta     111.65
+_cell_angle_gamma    90.0
+_cell_formula_units_Z 4
+
+_space_group_name_H-M_alt    'P 1 21/n 1'
+_space_group_IT_number       14
+
+loop_
+  _space_group_symop_operation_xyz
+  'x, y, z'
+  '-x, -y, -z'
+  '1/2-x, 1/2+y, 1/2-z'
+  '1/2+x, 1/2-y, 1/2+z'
+
+loop_
+  _atom_site_label
+  _atom_site_type_symbol
+  _atom_site_fract_x
+  _atom_site_fract_y
+  _atom_site_fract_z
+  _atom_site_occupancy
+  N1   N   0.5907  0.0860  0.6685  1.0
+  C1   C   0.4136  0.1413  0.4533  1.0
+  C2   C   0.2548  0.1209  0.5634  1.0
+  O1   O   0.2526  0.0606  0.7705  1.0
+  O2   O   0.1059  0.1646  0.4467  1.0
+  H1   H   0.7012  0.1284  0.7796  1.0
+  H2   H   0.6336 -0.0137  0.6466  1.0
+  H3   H   0.5878  0.1272  0.4837  1.0
+  H4   H   0.4099  0.0881  0.2632  1.0
+  H5   H   0.4172  0.2375  0.4243  1.0

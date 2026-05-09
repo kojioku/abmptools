@@ -74,7 +74,12 @@ def read_cif_to_atoms(cif_path: str):
             "`mamba install ase` or `pip install abmptools[crystal]`."
         ) from exc
 
-    atoms = read(str(cif_path), format="cif")
+    # `fractional_occupancies=False` avoids a `scipy.spatial.distance.cdist`
+    # TypeError that some ASE 3.28 / SciPy combinations hit on cif blocks
+    # whose atom_site_occupancy column is entirely 1.0. Organic-crystal
+    # FMO inputs never have partial occupancies, so disabling that branch
+    # is safe.
+    atoms = read(str(cif_path), format="cif", fractional_occupancies=False)
     return atoms
 
 
@@ -205,6 +210,71 @@ def detect_molecules(
     return molecules
 
 
+def unwrap_molecules(atoms, molecules, *, bond_tolerance: float = 0.4) -> None:
+    """Rewrite atom positions so each molecule sits in one piece.
+
+    `Atoms.repeat` (the supercell expansion) carries the input cell's
+    periodic boundary forward — molecules whose atoms straddle the
+    asymmetric-unit boundary therefore appear split (atoms scattered to
+    opposite faces of the supercell) in the raw expanded ``Atoms``.
+    Both the legacy CIF parser and the historical ``readcif`` pipeline
+    avoid this by always working from a centred / shifted origin; here
+    we have to fix it explicitly.
+
+    For each molecule, do a BFS along the bond graph (PBC-aware
+    neighbour list) and translate every atom by the **minimum-image
+    vector** to its parent. After this, the molecule is contiguous in
+    real space (no boundary crossing) and ABINIT-MP can build a sane
+    initial guess for the SCC procedure.
+
+    The mutation is in-place via ``atoms.set_positions``. ``atoms.pbc``
+    and ``atoms.cell`` are left untouched.
+
+    Parameters
+    ----------
+    atoms
+        Supercell ``ase.Atoms`` from :func:`expand_supercell`.
+    molecules
+        Connected-component partition from :func:`detect_molecules`.
+        Each entry is a list of atom indices belonging to one molecule.
+    bond_tolerance
+        Same neighbour-list padding used by :func:`detect_molecules`.
+    """
+    try:
+        from collections import deque
+        from ase.geometry import find_mic
+        from ase.neighborlist import natural_cutoffs, neighbor_list
+    except ImportError as exc:
+        raise ImportError("ASE is required for molecule unwrap.") from exc
+
+    cutoffs = [c + bond_tolerance for c in natural_cutoffs(atoms, mult=1.0)]
+    i_idx, j_idx = neighbor_list("ij", atoms, cutoffs)
+    adj: dict = {}
+    for a, b in zip(i_idx.tolist(), j_idx.tolist()):
+        adj.setdefault(a, []).append(b)
+
+    pos = atoms.get_positions().copy()
+    cell = atoms.cell
+    pbc = atoms.pbc
+
+    for mol in molecules:
+        mol_set = set(mol)
+        seen = {mol[0]}
+        queue = deque([mol[0]])
+        while queue:
+            cur = queue.popleft()
+            for nb in adj.get(cur, []):
+                if nb in seen or nb not in mol_set:
+                    continue
+                delta = pos[nb] - pos[cur]
+                delta_mic, _ = find_mic(delta, cell, pbc)
+                pos[nb] = pos[cur] + delta_mic
+                seen.add(nb)
+                queue.append(nb)
+
+    atoms.set_positions(pos)
+
+
 # ---------------------------------------------------------------------------
 # Top-level orchestrator
 # ---------------------------------------------------------------------------
@@ -240,6 +310,12 @@ def run_ase(
     molecules = detect_molecules(
         super_atoms, atoms_in_mol, bond_tolerance=bond_tolerance,
     )
+    # `Atoms.repeat` carries the original cell's PBC forward, so a
+    # molecule that straddles the input cell boundary lands as scattered
+    # atoms in the supercell. Walk each molecule's bond graph and
+    # rewrite positions to the minimum-image of the BFS parent, so
+    # the molecule sits contiguously in real space.
+    unwrap_molecules(super_atoms, molecules, bond_tolerance=bond_tolerance)
     return super_atoms, molecules
 
 
@@ -452,6 +528,7 @@ __all__ = [
     "read_cif_to_atoms",
     "expand_supercell",
     "detect_molecules",
+    "unwrap_molecules",
     "write_pdb_for_abmp",
     "write_xyz_for_abmp",
     "run_ase",

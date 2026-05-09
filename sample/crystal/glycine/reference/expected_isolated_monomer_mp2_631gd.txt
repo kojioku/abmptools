@@ -1,0 +1,27 @@
+# Glycine α-form isolated-monomer reference (MP2/6-31G(d), abinitmp v2r8)
+#
+# Source log:
+#   sample/crystal/glycine/out_monomer_v2/glycine/cifout/layer1/pdb/for_abmp/
+#       glycinelayer1Zp1-around_ar0.0.log
+#
+# Pipeline: cutmode='around' criteria=0.0 with layer=1 → 1-fragment AJF
+# (= isolated monomer at the in-crystal zwitterionic geometry).
+#
+# Caveat: glycine in α-crystal is a zwitterion (NH3+ ... COO-). When you
+# strip away the crystal field and run the same atomic positions in
+# vacuum, the SCF lands on the zwitterion form but at a much higher
+# energy than the gas-phase neutral form would. So the bare difference
+# `MonomerEnergy(1)` − `MP2_total_energy_hartree` is dominated by the
+# zwitterion penalty (~340 kcal/mol), not the more interesting
+# polarization-only deformation. For deformation analysis treat this
+# isolated-monomer energy as a *zwitterion-vacuum* reference, not a
+# gas-phase neutral reference.
+
+method                    MP2/6-31G(d)
+abinitmp_version          v2r8
+mpi_ranks                 4 (mpirun -np 4 abinitmp)
+geometry                  P21/n asymmetric unit (Marsh 1958), zwitterion
+atoms                     10 (1 glycine zwitterion, 1 fragment)
+HF_total_energy_hartree   -281.7401529352
+MP2_correlation_hartree   -0.8106872287
+MP2_total_energy_hartree  -282.5508401639

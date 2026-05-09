@@ -1,0 +1,23 @@
+# Urea isolated-monomer reference (MP2/6-31G(d), abinitmp v2r8)
+#
+# Generated 2026-05-10 from
+#   sample/crystal/urea/out_monomer_v3/urea/cifout/layer1/pdb/for_abmp/
+#       urealayer1Zp1-around_ar0.0.log
+#
+# Pipeline:
+#   abmp-crystal pipeline --config monomer.yaml --run-local
+# (cutmode='around' criteria=0.0 with layer=1 → 1-fragment AJF, ASE
+# backend with PBC unwrap so the molecule is contiguous in real space.)
+#
+# Use this together with the in-crystal MonomerEnergy(1) column in
+# `expected_layer3_mp2_631gd_ifiesum.csv` to compute deformation:
+#   deformation = E_in_crystal - E_isolated   (Hartree)
+
+method                    MP2/6-31G(d)
+abinitmp_version          v2r8
+mpi_ranks                 4 (mpirun -np 4 abinitmp)
+geometry                  P-421m asymmetric unit (Worsham 1957) -> ASE crystal()
+atoms                     8 (1 urea molecule, 1 fragment)
+HF_total_energy_hartree   -223.9703927475
+MP2_correlation_hartree   -0.6329125660
+MP2_total_energy_hartree  -224.6033053135

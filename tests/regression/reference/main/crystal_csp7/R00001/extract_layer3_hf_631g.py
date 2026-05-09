@@ -77,7 +77,11 @@ def main() -> int:
                     help="Destination directory for the renamed reference CSVs.")
     args = ap.parse_args()
 
-    log = args.log.resolve()
+    # `.absolute()` instead of `.resolve()` so we don't dereference
+    # symlinks that exist only to give getifiepieda its 5-digit
+    # zero-padded structure id (used by the public-molecule samples
+    # added in Phase D-5).
+    log = args.log.absolute()
     out_dir = args.out_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 

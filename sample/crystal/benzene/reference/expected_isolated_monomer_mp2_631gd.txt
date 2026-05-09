@@ -1,0 +1,14 @@
+# Benzene isolated-monomer reference (MP2/6-31G(d), abinitmp v2r8)
+#
+# Source log:
+#   sample/crystal/benzene/out_monomer_v2/benzene/cifout/layer1/pdb/for_abmp/
+#       benzenelayer1Zp1-around_ar0.0.log
+
+method                    MP2/6-31G(d)
+abinitmp_version          v2r8
+mpi_ranks                 4 (mpirun -np 4 abinitmp)
+geometry                  Pbca asymmetric unit (Cox/Cruickshank/Smith 1958)
+atoms                     12 (1 benzene molecule, 1 fragment)
+HF_total_energy_hartree   -230.6872330570
+MP2_correlation_hartree   -0.7702545358
+MP2_total_energy_hartree  -231.4574875928
