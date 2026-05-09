@@ -229,12 +229,20 @@ abinitmp v2r8 wall time scales roughly as `nfrag` (monomer SCF) +
 | 2 | HF / STO-3G | 32 | 496 | ~30 s |
 | 3 | HF / 6-31G | 24 | 276 | ~9 h 14 min |
 
-**Important**: this build of abinitmp v2r8 ignores
-`OMP_NUM_THREADS`. To run faster than 1 core you need the MPI
-build (Fugaku / cluster); set `npro: <ranks>` in the AJF or use
-`mpiexec -np <ranks>` from a custom HPC template
-(Section 5). Plan reference calculations around the parallelism
-you actually have.
+**Choosing the binary** (see memory `reference_abinitmp_parallelism`):
+
+| Binary name | Parallelism | How `--run-local` invokes it |
+|---|---|---|
+| `abinitmp` | MPI flat (1 thread per rank) | `mpirun -np <proc_per_node> abinitmp` (or direct, with `mpi_launcher: ""`) |
+| `abinitmp_omp` | MPI + OpenMP hybrid | `mpirun -np <proc_per_node> abinitmp_omp` + `OMP_NUM_THREADS=<omp_threads>` |
+
+`OMP_NUM_THREADS` only takes effect with `abinitmp_omp`. Setting it on
+plain `abinitmp` is silently ignored — the layer3 / 6-31G run that
+took ~9 h on 1 core in the table above was the result of using flat
+`abinitmp` with `proc_per_node=1`. For local reference calculations
+with multiple cores, switch to `abinitmp_omp` or raise
+`proc_per_node` (and have an MPI runtime on PATH). The AJF
+`Memory` field is per-MPI-process megabytes.
 
 ### 8-3. Run with a persistent work dir
 
@@ -264,10 +272,11 @@ fmo: {method: <HF|MP2>, basis_set: <STO-3G|6-31G|...>, memory: 4000, abinit_ver:
 hpc:
   scheduler: local
   abinit_dir: /home/okuwaki/bin/abinitmp/v2r8
-  binary_name: abinitmp
+  binary_name: abinitmp           # or abinitmp_omp for hybrid
   nodes: 1
-  proc_per_node: 1
-  omp_threads: 1
+  proc_per_node: 1                # MPI rank count for --run-local
+  omp_threads: 1                  # OMP only effective with abinitmp_omp
+  mpi_launcher: ""                # "" = direct, "mpirun" / "mpiexec" / "srun" etc.
   elapse: '12:00:00'
 postproc: {enable: false}
 YAML
@@ -404,7 +413,9 @@ not read by the test suite anymore.
 | `detect_molecules` raises with "do not match atoms_in_mol" (`engine='ase'`) | `bond_tolerance` too tight or wrong `atoms_in_mol` | Increase `cif_engine.bond_tolerance` (default 0.4 Å) or fix `atoms_in_mol` |
 | `Natom=0` and `&XYZ` block missing | `is_xyz=true` in config but matching `<base>.xyz` not staged | The orchestrator stages it automatically; if calling `pdb2fmo` by hand, copy `cifout/layer<L>/xyz/<base>.xyz` next to the PDB |
 | `--run-local` fails with `FileNotFoundError: abinitmp binary not found` | `abinitmp` not on PATH and `abinit_dir`/`binary_name` not set or wrong | Set both fields in the config or `export PATH=...:$PATH` |
-| `--run-local` runs single-core despite `omp_threads: 4` | abinitmp v2r8 build ignores OMP | Use the MPI build with `npro: <ranks>` or accept the single-core wall time |
+| `--run-local` runs single-core despite `omp_threads: 4` | Plain `abinitmp` is the MPI flat build — it ignores `OMP_NUM_THREADS`. | Switch `binary_name: abinitmp_omp` (the hybrid build) or raise `proc_per_node` so multiple MPI ranks are launched via `mpi_launcher`. |
+| `--run-local` fails with `mpirun: command not found` (or similar) | `mpi_launcher: "mpirun"` (default) but no MPI runtime on PATH | Either set `mpi_launcher: ""` for direct flat invocation (only valid with `proc_per_node=1` and a non-OMP binary), or install/load MPI (`module load openmpi` / activate a conda env that ships `mpirun`). |
+| `_build_run_command` raises `ValueError: mpi_launcher must be non-empty when ...` | Tried to launch a multi-rank or `_omp` build without a launcher | Set `mpi_launcher: "mpirun"` (or your site's launcher). Direct invocation is only OK for single-rank flat. |
 | Live FMO calc takes >> predicted wall time | Almost certainly running on 1 core | See Section 8-2; switch to MPI or downgrade method/basis |
 | Legacy fixture diff after refactor | Phase B regression test catches this | `pytest tests/test_crystal_regression.py -m slow` shows the offending file pair |
 | `extract_*.py` regex misses the FMO TOTAL ENERGY block | (legacy regex extractor) Anchored at `## TIME PROFILE` and matched the early MONOMER SCC profile instead | Use the new `extract_*.py` shipped in Phase D-3 revised (calls `getifiepieda` directly) — no regex maintenance |

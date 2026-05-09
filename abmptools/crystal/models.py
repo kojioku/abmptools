@@ -252,6 +252,15 @@ class HPCJobSpec:
     mkinp_path: str = ""
     extra_lines: List[str] = field(default_factory=list)
     template_override: Optional[str] = None
+    # ABINIT-MP binary naming convention (see memory
+    # reference_abinitmp_parallelism):
+    #   - "abinitmp"      = MPI flat            -> needs `mpirun -np N`
+    #   - "abinitmp_omp"  = MPI + OpenMP hybrid -> `mpirun -np M` + OMP_NUM_THREADS=T
+    # mpi_launcher overrides the launcher used by `--run-local`
+    # (e.g. "mpiexec", "srun"). Empty string means "skip mpirun and
+    # invoke the binary directly" — only valid for proc_per_node=1
+    # with a flat binary.
+    mpi_launcher: str = "mpirun"
 
     def __post_init__(self) -> None:
         valid_schedulers = {"PJM", "SLURM", "PBS", "local"}

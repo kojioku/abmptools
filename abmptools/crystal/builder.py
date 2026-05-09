@@ -407,31 +407,41 @@ class CrystalOrchestrator:
     def run_abinit(self, *, timeout_s: Optional[int] = None) -> List[Path]:
         """Invoke ``abinitmp`` locally on each rendered AJF.
 
-        For each AJF in ``fmo_results``:
+        Parallelism follows the binary naming convention (see memory
+        ``reference_abinitmp_parallelism``):
 
-        1. Resolve the ``abinitmp`` binary. Order of resolution:
-           a. ``hpc.abinit_dir / hpc.binary_name`` if both fields set
-              and the file exists.
-           b. ``shutil.which(hpc.binary_name)`` (PATH lookup).
-           c. ``shutil.which("abinitmp")`` (legacy plain name).
-           Missing binary raises :class:`FileNotFoundError`.
-        2. ``subprocess.run([abinitmp], stdin=ajf, stdout=log,
-           stderr=err, cwd=for_abmp_dir)``.
-        3. Append ``log`` to the return list; raise on non-zero exit
-           when ``config.fail_fast`` is True (default), warn-and-continue
-           otherwise.
+        - ``abinitmp`` (no suffix) = MPI flat. Single-rank invocations
+          (``proc_per_node == 1``) skip ``mpirun``; multi-rank go through
+          ``hpc.mpi_launcher`` (default ``"mpirun"``) with ``-np <N>``.
+        - ``abinitmp_omp`` (suffix ``_omp`` / contains ``omp``) = MPI+OMP
+          hybrid. Always launched via ``hpc.mpi_launcher`` with
+          ``OMP_NUM_THREADS = hpc.omp_threads`` exported.
 
-        Designed for smoke / debug runs (1-handful structures). Production
+        Set ``hpc.mpi_launcher = ""`` to force direct invocation (e.g.
+        for environments without an MPI runtime); only valid with
+        ``proc_per_node == 1`` and a flat binary.
+
+        Resolution order for the binary:
+
+        1. ``hpc.abinit_dir / hpc.binary_name`` if both set and the file exists.
+        2. ``shutil.which(hpc.binary_name)`` (PATH).
+        3. ``shutil.which("abinitmp")`` (legacy fallback).
+        Missing binary raises :class:`FileNotFoundError`.
+
+        For each AJF:
+        ``subprocess.run([<launcher>...] + [<binary>], stdin=ajf,
+        stdout=log, stderr=err, cwd=for_abmp_dir, env=<env>)``.
+        Non-zero exit raises :class:`RuntimeError` when
+        ``config.fail_fast`` is True (default), otherwise warn-continue.
+
+        Designed for smoke / single-shot reference runs. Production
         runs of the csp7 1500-structure pipeline should still go through
-        the HPC scheduler via the rendered jobscripts; ``--run-local``
-        is not intended for that scale.
+        the HPC scheduler via the rendered jobscripts.
 
         Parameters
         ----------
         timeout_s
-            Per-invocation timeout. ``None`` means no timeout (the
-            FMO calculations can take from minutes to hours depending
-            on system size).
+            Per-invocation timeout. ``None`` = no timeout.
 
         Returns
         -------
@@ -442,7 +452,16 @@ class CrystalOrchestrator:
             self.generate_fmo()
 
         abinit = self._resolve_abinit_binary()
-        logger.info("run_abinit: using binary %s", abinit)
+        cmd_prefix, env_overrides = self._build_run_command(abinit)
+        if env_overrides:
+            run_env = os.environ.copy()
+            run_env.update(env_overrides)
+        else:
+            run_env = None
+        logger.info(
+            "run_abinit: launch=%s env_overrides=%s",
+            " ".join(cmd_prefix), env_overrides or "<inherit>",
+        )
 
         log_files: List[Path] = []
         for spec in self.config.inputs:
@@ -453,17 +472,18 @@ class CrystalOrchestrator:
                 err_path = for_abmp_dir / f"{ajf.stem}.err"
                 logger.info(
                     "run_abinit: %s < %s > %s",
-                    abinit.name, ajf.name, log_path.name,
+                    cmd_prefix[-1], ajf.name, log_path.name,
                 )
                 with open(ajf, "rb") as fin, \
                      open(log_path, "wb") as flog, \
                      open(err_path, "wb") as ferr:
                     result = subprocess.run(
-                        [str(abinit)],
+                        cmd_prefix,
                         stdin=fin, stdout=flog, stderr=ferr,
                         cwd=str(for_abmp_dir),
                         timeout=timeout_s,
                         check=False,
+                        env=run_env,
                     )
                 if result.returncode != 0:
                     msg = (
@@ -475,6 +495,45 @@ class CrystalOrchestrator:
                     logger.warning("%s — continuing (fail_fast=False)", msg)
                 log_files.append(log_path)
         return log_files
+
+    def _build_run_command(
+        self, abinit: Path,
+    ) -> tuple[List[str], Optional[Dict[str, str]]]:
+        """Decide the subprocess command prefix and env overrides.
+
+        Returns
+        -------
+        (cmd_prefix, env_overrides)
+            ``cmd_prefix`` includes the launcher (if any), the
+            ``-np <N>`` flag, and the abinitmp path. ``env_overrides``
+            is ``None`` for flat builds, or a ``{"OMP_NUM_THREADS":
+            "<T>"}`` dict for hybrid builds.
+        """
+        hpc = self.config.hpc
+        binary_lower = hpc.binary_name.lower()
+        is_omp = binary_lower.endswith("_omp") or "_omp_" in binary_lower
+
+        nproc = max(int(hpc.proc_per_node), 1)
+        launcher = (hpc.mpi_launcher or "").strip()
+
+        # Flat single-rank: keep the historical direct invocation.
+        if nproc == 1 and not is_omp and not launcher:
+            return [str(abinit)], None
+        if nproc == 1 and not is_omp and launcher == "":
+            return [str(abinit)], None
+
+        if not launcher:
+            raise ValueError(
+                "hpc.mpi_launcher must be non-empty when proc_per_node>1 "
+                "or a hybrid (_omp) binary is selected; "
+                f"got proc_per_node={nproc}, binary_name={hpc.binary_name!r}"
+            )
+
+        cmd: List[str] = [launcher, "-np", str(nproc), str(abinit)]
+        env_overrides: Optional[Dict[str, str]] = None
+        if is_omp:
+            env_overrides = {"OMP_NUM_THREADS": str(max(int(hpc.omp_threads), 1))}
+        return cmd, env_overrides
 
     def _resolve_abinit_binary(self) -> Path:
         """Locate the ``abinitmp`` executable for ``--run-local``."""

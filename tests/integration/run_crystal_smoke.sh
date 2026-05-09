@@ -69,6 +69,9 @@ hpc:
   nodes: 1
   proc_per_node: 1
   omp_threads: 1
+  # Direct invocation (no mpirun) so the smoke runs without an MPI
+  # runtime; abinitmp is the flat (non-OMP) build at this path.
+  mpi_launcher: ""
   elapse: "00:30:00"
 postproc:
   enable: false

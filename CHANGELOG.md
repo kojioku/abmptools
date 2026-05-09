@@ -361,6 +361,44 @@ Phase D 完了後、abinitmp v2r8 で **csp7 R00001 layer3 HF/6-31G の
   本セッションのログ末尾を参照。anlfmo.py / extract script /
   数値 CSV (`expected_*_ifiesum.csv` / `_ifiedt.csv`) は残す
 
+### Changed (Phase D-4 — 2026-05-09: --run-local の MPI/OMP 並列対応)
+
+`abmp-crystal pipeline --run-local` を mpirun 経由起動に書き換え。
+Phase D-3 の reference 計算で `OMP_NUM_THREADS=4` が効かず 9h かかった
+原因は **`abinitmp` が MPI flat 版**だったため (user 共有、memory
+`reference_abinitmp_parallelism` に保存)。
+
+- **`HPCJobSpec` に `mpi_launcher` フィールド追加** (default `"mpirun"`)。
+  空文字列で direct invocation (mpirun 不在環境向け、`proc_per_node=1`
+  + flat binary 限定で valid)
+- **`CrystalOrchestrator._build_run_command()` 新設**: バイナリ命名規則で
+  flat / 混成を判定 → cmd と env を構築:
+  - `abinitmp` (suffix なし) = MPI flat: `mpirun -np <proc_per_node>
+    abinitmp` 経由 (single rank + `mpi_launcher=""` の場合だけ direct)
+  - `abinitmp_omp` (suffix `_omp` or `_omp_` 含む) = MPI/OMP 混成:
+    `mpirun -np <proc_per_node> abinitmp_omp` + `OMP_NUM_THREADS=
+    <omp_threads>` env override
+  - 多 rank or 混成で `mpi_launcher=""` の場合 `ValueError` で明示拒否
+- **`run_abinit()` を新 cmd builder 経由に書き換え**、`subprocess.run` の
+  `env` 引数で OMP override を反映
+- **5 個追加 unit test** (`tests/test_crystal_builder.py`):
+  flat single-rank direct / flat multi-rank mpirun / `_omp` hybrid /
+  custom launcher (`srun`) / 多 rank での空 launcher 拒否
+- **既存 `test_run_abinit_with_fake_binary` / `test_run_abinit_propagates_failure`**
+  は `proc_per_node=1, mpi_launcher=""` を明示して direct invocation
+  path を維持
+- **`tests/integration/run_crystal_smoke.sh`** の crystal.yaml に
+  `mpi_launcher: ""` を追加 (smoke 用途で MPI 不在環境にも対応)
+- **`docs/tutorial_crystal_fmo.md`**:
+  - Section 8-2 wall time 表に **バイナリ別 launcher** 表を追加、
+    `OMP_NUM_THREADS` が flat では無視される旨を明記
+  - Section 8-3 の crystal.yaml テンプレに `mpi_launcher: ""` 追加
+  - Section 9 (Failure modes) に MPI runtime 不在 / 空 launcher 多 rank /
+    omp_threads 効かない の 3 行追加 (各々 fix 提示)
+
+検証: `pytest tests/test_crystal_*.py` -> 62 passed, 6 skipped (5 個増、
+fail なし、production csp7 1500 構造 path には影響なし)
+
 ## [1.22.0] - 2026-05-06
 
 新サブパッケージ `abmptools.genesis.mmgbsa` を追加。GENESIS atdyn の
