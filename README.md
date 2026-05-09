@@ -105,6 +105,18 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 - 14 unit tests (10 basic + 4 polymer)、5 実 PDB 検証ケース (ketoprofen / PE N=20 / PP N=10 / propane×5+acetone×3 / antibody+ligand)
 - 依存: `pip install abmptools[fragmenter]` (rdkit-pypi >= 2022.09、BSD-3-Clause)、Jupyter UI を使うなら `[jupyter]` extras も
 
+### Crystal-FMO Pipeline (`crystal`)
+
+- End-to-end **organic-crystal FMO** workflow: CIF → supercell PDB → fragment cut around a target solute → ABINIT-MP AJF (with full-precision `&XYZ` block) → optional `--run-local` invocation → `getifiepieda` postprocessing (IFIE/PIEDA + MonomerEnergy)
+- Two CIF backends: `engine='legacy'` (the historical hand-rolled parser, byte-equivalent with v1.22.0 csp7 outputs) and `engine='ase'` (ASE space-group expansion, arbitrary `layer`)
+- 8-subcommand CLI: `abmp-crystal {expand,fragment,jobs,pipeline,postproc,nearest,validate,example}` driven by a single YAML/JSON config (`CrystalBuildConfig` + 7 leaf dataclasses)
+- HPC scheduler templates: PJM / SLURM / PBS / `local`. The `local` scheduler combined with `--run-local` invokes `abinitmp` directly per AJF (smoke / single-shot reference runs)
+- Numeric reference frozen for csp7 R00001 layer3 HF/6-31G (9h on 1 core, abinitmp v2r8) as `frag1-dimer-es-false-{ifiesum,ifiedt}.csv` from the in-tree `getifiepieda` post-processor — no parallel parser duplication
+- `abmptools.anlfmo` gained HF-log support along the way (5 defensive edits, MP2 production path unchanged)
+- Bundled tutorial: `docs/tutorial_crystal_fmo.md` (9 sections, including reference-establishment recipe); design notes: `docs/crystal.md`; verification matrix: `docs/crystal_verification.md`
+- Sample driver/config: `sample/crystal/csp7_smoke/` (cif and `UNK.ajf` template are private and live in `abmptools-sample` — staged automatically when `ABMPTOOLS_SAMPLE_DIR` is set)
+- Dependencies: `pip install abmptools[crystal]` (`ase >= 3.22` / `pyyaml >= 6.0`); ABINIT-MP for `--run-local` only
+
 ### Peptide-Bilayer Umbrella Sampling (`membrane`)
 
 - End-to-end PMF builder for peptide membrane permeation: bilayer + peptide + water + ions → AMBER (`ff19SB` + `Lipid21` + TIP3P / Joung-Cheatham) or CHARMM36 backend → semiisotropic NPT equilibration → z-pulling → per-window umbrella MDPs → `gmx wham` PMF
