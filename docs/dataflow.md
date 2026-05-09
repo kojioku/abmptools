@@ -346,6 +346,127 @@ Orchestrated end-to-end by `abmptools.cg.membrane.builder.MembraneCGBuilder.buil
 `abmptools.membrane.*` (duck-typed via `UmbrellaCGProtocol` field-name
 match with `USProtocol`) — no helper duplication between CG and AA.
 
+## GENESIS Builder Pipelines (1.20.0+)
+
+GENESIS-based sub-packages live under `abmptools.genesis/`. Both treat
+external binaries (`atdyn` / `spdyn` / `remd_convert`, LGPL-3.0+) as
+subprocess invocations only — no source bundling, no linking.
+
+### `abmptools.genesis.grest` — gREST_SSCR replica exchange (1.20.0)
+
+```
+input.pdb (protein)
+        │
+        ▼
+[Stage 1] tleap                                ──→ system.{prmtop,coor,ref.pdb}
+   AMBER ff19SB + TIP3P + solvateBox + addions
+        │
+        ▼
+[Stage 2] REST residue resolution              ──→ rest_residues.txt
+   ┌─ explicit: parse "1-138" / "21,96,274-275" → List[int]
+   └─ around:   cpptraj `(:96)<@5.0 & !:WAT` mask → List[int]
+        │
+        ▼
+[Stage 3] temperature ladder                   ──→ temperature_ladder.txt
+   ┌─ auto:   T_i = T_min × (T_max/T_min)^(i/(N-1))  (geometric)
+   └─ manual: passthrough
+        │
+        ▼
+[Stage 4] inp_writer (4 GENESIS .inp files)    ──→ inp/{step1,step2,step3,step5}.inp
+   step1_minimize        atdyn SD
+   step2_equilibrate     spdyn VVER NPT
+   step3_grest           spdyn VRES NVT + [REMD] type1=REST + ladder
+   step5_remd_convert    parameter sort
+        │
+        ▼
+[Stage 5] grest_runner (run.sh + HPC scaffolds)
+   bash run.sh: atdyn → mpirun spdyn (equil) → mpirun spdyn (gREST) → remd_convert
+        │
+        ▼
+analyze ─→ analysis/{replica_transition, acceptance_ratio, dist_pmf}.{png,csv}
+   ・remd_convert で param sort (param1.dcd = 最低 T)
+   ・replica transition plot (.rem files → matplotlib)
+   ・acceptance ratio plot (REMD log 集計、burn_in=100)
+   ・1D 距離 PMF (-kT log P(r)、cpptraj 距離 → numpy histogram)
+```
+
+Orchestrated by `abmptools.genesis.grest.builder.GrestBuilder.build()` (build phase) + `run.sh` (MD) + `analyze` subcommand (post-MD).
+
+### `abmptools.genesis.mmgbsa` — MM/GBSA single-point ΔG_bind (1.22.0)
+
+```
+input/<target>.pdb (protein-ligand complex)
+        │
+        ▼
+[Stage 1] pdb_splitter (Biopython)             ──→ <target>/<target>_{receptor,ligand}_<resno>.pdb
+   - residue resno を ligand として抽出、それ以外を receptor
+   - 任意の chain filter
+        │
+        ▼
+[Stage 2] parameterize (acpype + tleap × 3)    ──→ <target>/{complex,ligand,receptor}.{prmtop,inpcrd,pdb}
+   ┌─ acpype -i ligand.pdb -c bcc -k maxcyc=0
+   │     → ligand.acpype/{*_AC.frcmod, *_bcc_gaff2.mol2}
+   ├─ tleap -f leaprc_complex   (loadAmberParams + loadmol2 + loadpdb + combine)
+   ├─ tleap -f leaprc_ligand    (mol2 only)
+   └─ tleap -f leaprc_receptor  (pdb only)
+   FF: ff14SB + DNA.OL15 + RNA.OL3 + TIP3P + GAFF/GAFF2
+        │
+        ▼
+[Stage 3] gbsa_runner (mpirun atdyn × 3)       ──→ <target>/{complex,ligand,receptor}.{inp,log,dcd,rst}
+   - [ENERGY] implicit_solvent=GBSA + NOBC + cutoffdist=99.9 Å
+   - [MINIMIZE] method=SD nsteps=1 (single-point energy)
+        │
+        ▼
+[Stage 4] analysis (log parser + plot)         ──→ analysis/{analysis_results.csv, dg_bind_plot.png}
+   - [STEP4] Compute Single Point Energy 行から
+     ENERGY 列 (= U_FF + ΔG_solv) と SOLVATION 列を抽出
+   - ΔG_bind = E_complex - E_ligand - E_receptor (kcal/mol)
+   - matplotlib bar plot
+```
+
+Orchestrated by `abmptools.genesis.mmgbsa.builder.MMGBSAOrchestrator.run()` (`fail_fast` 制御、N targets 逐次)。
+
+## FMO Fragment Auto-splitter Pipeline (1.21.0+)
+
+`abmptools.fragmenter` は MD pipeline ではなく、PDB → fragment
+definition (`segment_data.dat`) のワンショット静的解析パイプライン。
+
+```
+input.pdb
+        │
+        ▼
+pdb_loader (RDKit、4-strategy bond perception) ──→ List[Mol] (連結成分)
+   1. proximityBonding=True,  sanitize=True   (default、CONECT 優先 + 近接補完)
+   2. proximityBonding=False, sanitize=True   (CONECT のみ信用、誤結合回避)
+   3. proximityBonding=True,  sanitize=False  (best effort、valence エラー時)
+   4. obabel 前処理 → 再ロード                (subprocess fallback)
+        │
+        ▼
+grouping (heavy-atom-only canonical SMILES)    ──→ List[MoleculeGroup]
+   - MoleculeGroup: pattern, members, atom_to_member
+        │
+        ▼
+auto_split (graph diameter MW walk)            ──→ List[CutSite]
+   ・graph diameter (heavy-atom-only 2-pass BFS) で主鎖検出
+   ・主鎖 walk + 側鎖 MW を累積
+   ・累積 ≥ target_mw (default 200) で C-C 切断 candidate
+   ・filter: 環内 / 多重結合 / ヘテロ隣接 (N/O/S/P/F/Cl/Br/I) 除外
+        │
+        ▼
+[A 経路 = Jupyter UI]   open_panel: ipywidgets dropdown / SVG / checkbox
+[C 経路 = ヘッドレス]   suggest → group_NNN.svg + group_NNN.json
+                        (cut_sites.enabled 編集 → apply)
+        │
+        ▼
+cut_apply (RWMol で破壊的に bond 削除)         ──→ List[FragmentResult]
+        │
+        ▼
+expand_to_system (n_copies 全コピーへ展開)     ──→ segment_data.dat
+                                                  (log2config 互換、pdb2fmo がそのまま読む)
+```
+
+ポリマー γ 経路 (`declare_same_pattern`) はオプションで、異なる SMILES (PE N=10 / N=11 等) を明示的に同一視し、master (最も cut の多い group) のパターンを atom-path-index 対応で短い chain にも転送する。
+
 ## Internal Data Structures
 
 All modules converge on **pandas DataFrames** for structured data:

@@ -98,6 +98,16 @@ fragmenter = [
                             # PyPI、BSD-3-Clause
     # Optional: Open Babel CLI (`obabel`) — bond perception フォールバック (subprocess)
 ]
+crystal = [
+    # Phase A は legacy ファイル (numpy/pandas のみ) を再 export するだけなので
+    # 追加依存なしでも動く。Phase C 以降で必須:
+    "ase>=3.22",       # CIF 読み込み、対称展開、スーパーセル (LGPL-2.1+)
+    "pyyaml>=6.0",     # YAML config loader (JSON でも動くが推奨)
+    # External tools (subprocess only, never bundled):
+    #   abinitmp (Open ver.1 rev20+) — `--run-local` 時のみ。HPC ジョブ提出は
+    #     abmptools.crystal が job script を出力し、ユーザが pjsub/sbatch する
+    # See abmptools/crystal/__init__.py + docs/crystal.md (Phase D 追加予定).
+]
 jupyter = [
     "ipywidgets>=8.0",  # notebook UI のインタラクティブ要素 (dropdown / checkbox / button)
     "ipykernel",        # Jupyter notebook server カーネル
@@ -131,6 +141,7 @@ abmp-pdbmodify = "abmptools.pdbmodify:main"
 abmp-ajf2config = "abmptools.ajf2config:main"
 abmp-ajfserial = "abmptools.ajfserial:main"
 abmp-addsolvfrag = "abmptools.addsolvfrag:main"
+abmp-crystal = "abmptools.crystal.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["abmptools*"]

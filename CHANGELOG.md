@@ -2,7 +2,364 @@
 
 ## [Unreleased]
 
-(no changes yet — this section accumulates work-in-progress between releases)
+新サブパッケージ `abmptools.crystal` の **Phase A skeleton** を追加。
+有機物結晶 CIF から FMO 計算入力 (ajf) を生成するワークフローを
+`abmptools.{readcif,pdb2fmo,ajf2config,pdbmodify,getifiepieda}` の flat
+配置から段階的にサブパッケージ化していく多段リリースの 1 段目。
+
+### Added
+
+- **`abmptools.crystal` skeleton** (cg.peptide / genesis.mmgbsa と同構造)
+  - `abmptools/crystal/__init__.py` — docstring + `legacy` namespace re-export
+  - `abmptools/crystal/__main__.py` — `python -m abmptools.crystal` entry point
+  - `abmptools/crystal/_subprocess.py` — `cg.peptide._subprocess` の薄い再 export
+    + crystal logger 用 `setup_logging`
+  - `abmptools/crystal/legacy/__init__.py` — flat 配置の 5 module
+    (`readcif`, `pdb2fmo`, `ajf2config`, `pdbmodify`, `getifiepieda`) を
+    `abmptools.crystal.legacy.<name>` で参照可能にする薄い再 export
+    (Phase C で本格的なリファクタを行うまで挙動は完全保持)
+  - `abmptools/crystal/forcefield_check.py` — `ase` / `pyyaml` / `abinitmp_*`
+    / `mkinp_openver1rev20.py` の presence check (Phase A はすべて optional)
+  - `abmptools/crystal/cli.py` — `example` / `validate` の 2 subcommand
+    (Phase C で `expand` / `fragment` / `jobs` / `pipeline` / `postproc` /
+    `nearest` を追加)
+- **`pyproject.toml`**
+  - `[project.optional-dependencies] crystal = ["ase>=3.22", "pyyaml>=6.0"]`
+    extras を追加 (Phase A は使わないが Phase C 以降必須)
+  - `[project.scripts] abmp-crystal = "abmptools.crystal.cli:main"`
+- **`abmptools/__init__.py`** — try/except で `from . import crystal` を追加
+  (`amorphous` / `fragmenter` と同パターン、未 install でも import 失敗しない)
+
+### Notes
+
+- 既存 CLI (`python -m abmptools.readcif` 等) と既存 Python API は
+  完全に維持。`abmptools.crystal.legacy.readcif` 経由でも同じ module
+  を取得可能 (re-export)。
+- 既存テスト 1302 件は全て pass (Phase A の skeleton 追加で挙動変更ゼロ)。
+
+### Added (Phase B — regression fixture & smoke sample)
+
+- **`tests/regression/reference/main/crystal_csp7/`** (~700 KB)
+  - `R00001` / `R00002` / `R00004` — 3 構造の入力 CIF + 出力
+    (`for_abmp/*layer5Zp1-around_ar6.0.{ajf,pdb}`) を fixture 化
+  - 共有ドライバ (`input_param`, `segment_data.dat`, `UNK.ajf`) は
+    fixture root に同梱
+  - 採取は v1.22.0 の `python -m abmptools.readcif -an 32 -l 5` →
+    XYZ を pdb 横に copy →
+    `python -m abmptools.pdb2fmo -p input_param -xyz` 経由
+    (**直接座標 AJF モード**: `&XYZ` block にフル精度浮動小数点で
+    座標を埋め込み、PDB 経由の `%8.3f` 切捨を回避)。Phase C 以降の
+    リファクタはこの fixture との byte-equivalence を維持すること
+  - `R00001layer5Zp1` の `&XYZ` block (832 行 + ヘッダ) は
+    `abmptools-sample/.../csp7_ciftest/cifout/layer5/pdb/for_abmp/` の
+    既存出力と byte-equivalent を確認済み (namelist 部分のみ
+    abmptools 1.22.0 で `&COUPLING/&CIS/&CISGRD/&GF2` 追加・
+    `CPFVER=10` skip 化の正常進化差分あり)
+- **`tests/test_crystal_regression.py`** — 4 test (3 構造 × pipeline +
+  legacy namespace identity)、いずれも `@pytest.mark.slow` 付き。
+  `_compare_output_dir` で for_abmp/ 配下を ajf+pdb 両方 byte-compare
+- **`sample/crystal/csp7_smoke/`** — 1 構造 (R00001) 分の最小 smoke
+  pipeline (`run.sh` で readcif → pdb2fmo を 5 秒で完走、出力は
+  fixture と byte-equivalent)。README で Phase C 以降への移行手順も
+  併記
+
+### Added (Phase C-1〜C-4 — v1.24.0 候補の前段)
+
+Phase C は `abmptools.crystal` 本体実装。`abmptoolsenv` に
+`ase>=3.22` (LGPL-2.1+) を追加し、サブパッケージに **8 dataclass +
+ASE バックエンド + HPC ジョブテンプレ + 距離検索ユーティリティ** を
+配置 (CrystalOrchestrator と CLI 7-subcommand 拡張は次フェーズ)。
+54 tests 全 pass、既存テストの regression ゼロ。
+
+- **`abmptools/crystal/models.py`** — 7 leaf dataclass
+  (`CIFInputSpec` / `CIFEngineConfig` / `FragmentTemplate` / `FMOMethod` /
+  `HPCJobSpec` / `PostProcessSpec`) + top-level `CrystalBuildConfig`、
+  `to_yaml/from_yaml/to_json/from_json` round-trip 対応。`is_xyz=True`
+  を `FMOMethod` のデフォルトに (Phase B での精度確認結果を反映)。
+- **`abmptools/crystal/cif_engine_legacy.py`** — `run_legacy(cif, layer,
+  atoms_in_mol, odir, cwd)` で `abmptools.readcif.run_legacy_cif_pipeline`
+  を Python API として呼び出すアダプタ。
+- **`abmptools/crystal/cif_engine_ase.py`** — ASE バックエンド:
+  `read_cif_to_atoms` (内部で対称展開済み Atoms 取得) /
+  `expand_supercell` (`Atoms.repeat((N,N,N))` で `layer³` cells、
+  legacy と原子数一致) / `detect_molecules` (`ase.neighborlist` +
+  union-find で connected components 分割、`atoms_in_mol` post-validate) /
+  `run_ase` orchestrator。csp7 R00001/R00002/R00004 (P21/n / Z=8 / P-1)
+  の 3 空間群で動作確認済み。
+- **`abmptools/crystal/job_templates.py`** — PJM/SLURM/PBS/local の 4
+  scheduler を `string.Template` で抽象化。`render_jobscript(spec, ajf)` +
+  `write_batch_runner(specs, output_dir, submit_command)` でシェル
+  シェル脱出 (`$$VAR`) も整理。`spec.template_override` で任意
+  テンプレ差し替え可能。
+- **`abmptools/crystal/atom_distance.py`** —
+  `find_nearest_atoms(pdb, center_res_seq, n_neighbors)` で
+  PDB centroid からの近接原子検索 (`tips/pdbtips/readatomdistpdb.py`
+  を最小 API として復元)、独立 PDB パーサで重い依存なし。
+- **`abmptools/readcif.py`** — `__main__` ブロック (line 355-994) を
+  `_build_parser()` + `run_legacy_cif_pipeline(args)` の 2 関数に抽出。
+  挙動完全保持 (Phase B regression 4 test で担保)。
+- **`pyproject.toml`** — `[crystal]` extras に `ase>=3.22, pyyaml>=6.0`
+  を実体追加 (Phase A は空セクションだった)。
+- **新規 unit test (54 個、`pytest tests/test_crystal_*.py`)**:
+  - 25 × `test_crystal_models` — 8 dataclass の round-trip + validation
+  - 2 × `test_crystal_cif_legacy` — readcif の API 経由呼び出し
+  - 9 × `test_crystal_cif_ase` — read/repeat/detect/run_ase
+  - 8 × `test_crystal_job_templates` — PJM/SLURM/PBS/local + override + batch
+  - 6 × `test_crystal_atom_distance` — synthetic PDB nearest-atom
+  - (4 × `test_crystal_regression` は Phase B で配置済み)
+
+### Added (Phase C-5/C-6 — v1.24.0 候補完成)
+
+Phase C 完成。**`abmp-crystal pipeline --config crystal.yaml` 1
+コマンドで CIF → for_abmp/*.{ajf,pdb} + HPC ジョブスクリプト** が
+生成される。csp7 R00001 で Phase B fixture と完全 byte-equivalent
+(ajf/pdb cmp exit 0)。
+
+- **`abmptools/crystal/builder.py`** — `CrystalOrchestrator` クラス、
+  5 stage の orchestration:
+  1. `expand_cif()` — `cif_engine_legacy.run_legacy` 経由で
+     CIF → cifout/layer<L>/{pdb,xyz}/
+  2. `generate_fmo()` — XYZ + drivers を pdb dir に staging、
+     `abmptools.pdb2fmo.run_pdb2fmo` を **in-process 呼び出し**
+     (param dict を直接渡し、interpreter 再起動を避ける)。CLI 互換は
+     `pdb2fmo.main()` が同 API を呼ぶため完全保持
+  3. `write_jobs()` — `job_templates.render_jobscript` で per-AJF
+     jobscript 生成、`write_batch_runner` で submitter
+  4. `run_abinit()` — Phase D 実装予定 (NotImplementedError stub)
+  5. `postprocess()` — `postproc.run_postprocess` (Phase C-6 で実装)
+  - drivers (`input_param`, `segment_data.dat`, `UNK.ajf`) は
+    `_emit_input_param` / `_emit_segment_data` で config から自動生成
+    (UNK.ajf テンプレのみ `FragmentTemplate.template_ajf` で path 指定
+    必須)
+- **`abmptools/crystal/postproc.py`** — IFIE/PIEDA + 最近接原子統合:
+  `run_getifiepieda` で `subprocess` 経由 `getifiepieda` 起動 →
+  `csv/` 取得、`annotate_with_nearest_atoms` で nearest-atom 列を
+  追記、`run_postprocess` でこの 2 段を統合
+- **`abmptools/crystal/cli.py`** — Phase A の 2 cmd から **8 cmd** に拡張:
+  `example` / `validate` / `expand` (Stage 1) / `fragment` (1+2) /
+  `jobs` (1+2+3) / `pipeline` (全部 + `--run-local` Phase D) /
+  `postproc` (Stage 5 standalone) / `nearest` (距離検索 standalone)。
+  YAML/JSON config 両対応 (拡張子で dispatch)
+- **`abmptools/crystal/__init__.py`** — `CrystalOrchestrator` と
+  全 7 dataclass を eager export
+- **`sample/crystal/csp7_smoke/crystal.yaml`** — Phase C+ の推奨
+  YAML config 例。1 コマンドで `run.sh` (Phase A/B legacy) と
+  byte-equivalent な出力 + PJM jobscript + runbatch.sh
+- **新規 unit test (10 個追加、累計 64)**:
+  - 5 × `test_crystal_builder` — `_emit_input_param` / `_emit_segment_data`
+    + R00001 byte-equivalence end-to-end + Phase D/C-6 stub raises
+  - 5 × `test_crystal_cli` — example YAML round-trip + validate +
+    `--help` (8 subcommand 全列挙) + nearest standalone +
+    YAML-driven pipeline byte-equivalence
+
+### Notes (Phase C 全体)
+
+- v1.22.0 → v1.24.0 候補で `abmptools.crystal` サブパッケージ完成
+  (Phase A/B = v1.23.0、Phase C = v1.24.0)
+- 64 crystal tests 全 pass、既存 test の regression ゼロ
+  (1541 pass、12 fail / 2 error は HEAD でも同じ pre-existing)
+- **`pdb2fmo.py` には in-process API `run_pdb2fmo` を追加**
+  (`main()` から `run_pdb2fmo` + `_resolve_oname` + `_load_param_file`
+  に分解、CLI 動作は完全保持)。同パッケージ内のサブモジュール
+  (`abmptools.crystal.builder`) は subprocess なしの直接呼び出しに
+  切替済み (smoke 実測: csp7 R00001 1 構造で 1.7s、subprocess 版より
+  高速)
+- `readcif.py` の唯一の変更点は `__main__` ブロックの関数化
+  (`_build_parser` + `run_legacy_cif_pipeline` に抽出、CLI 動作は完全保持)
+- ase バックエンドは Phase C-3 で **read pipeline のみ実装**
+  (read_cif_to_atoms / expand_supercell / detect_molecules /
+  run_ase)、PDB emit + AJF 生成は Phase D 候題 (`engine='ase'` で
+  pipeline を呼ぶと NotImplementedError)
+
+### Added (Phase D — v1.25.0 候補完成)
+
+Phase D で `abmp-crystal pipeline --run-local` の実機 abinitmp 実行と
+ase engine 経由の計算入力生成を実装。実機 smoke (abinitmp v2r8 + csp7
+R00001 layer2 + HF/STO-3G) で end-to-end 動作確認済み。
+
+- **`CrystalOrchestrator.run_abinit()`** (D-1) — `--run-local` 実装。
+  abinitmp バイナリの 3 段階解決 (`abinit_dir/binary_name` → PATH の
+  `binary_name` → PATH の `abinitmp`)、`subprocess.run([abinit],
+  stdin=ajf, stdout=log, stderr=err)` で per-AJF 実行、`fail_fast` で
+  非ゼロ exit 時の挙動制御。Phase D 以前の `NotImplementedError` stub
+  を本実装に差し替え
+- **`cif_engine_ase.write_pdb_for_abmp` / `write_xyz_for_abmp` /
+  `run_ase_pipeline`** (D-2) — ASE backend 経由で legacy 互換の
+  PDB + XYZ を出力。`builder.expand_cif()` の `engine='ase'` 分岐を
+  実装、`pdb2fmo -xyz` 経由で valid な FMO 入力 (`Natom > 0` +
+  matching `&XYZ` block) まで貫通。csp7 R00001 で smoke 確認済み
+  (legacy: Natom=832 / ase: Natom=704、supercell origin と分子順序
+  差は設計上想定済みで byte-equivalence は legacy のみ保証)
+- **`docs/crystal.md`** (D-3) — 10 節 API/設計ノート (scope / config
+  schema / legacy vs ASE / cutmode / `is_xyz` / HPC templates / CLI /
+  output layout / failure modes / license)
+- **`docs/tutorial_crystal_fmo.md`** (D-3) — 8 節 step-by-step
+  tutorial (Environment / Smoke / csp7 reproduction / ASE engine /
+  HPC / `--run-local` / postprocessing / Failure modes)。Phase D-3
+  追補で「Establishing a numeric reference for your crystal」
+  Section 8 (7 サブ節 8-1 〜 8-7) を追加し、計 9 節に拡張
+- **`tests/integration/run_crystal_smoke.sh`** (D-3) — 実機 abinitmp
+  smoke。`abinitmp` 不在時は SKIP、layer=2 + HF/STO-3G で 1 構造を
+  pipeline + run-local 実行
+- **9 個の新規 unit test (累計 73)**:
+  - 5 × `test_crystal_builder` 追加 (`_resolve_abinit_binary` 3 パス /
+    fake binary 実行 / 非ゼロ exit propagation)
+  - 4 × `test_crystal_cif_ase` 追加 (`write_pdb_for_abmp` 列レイアウト /
+    `write_xyz_for_abmp` フル精度 / `run_ase_pipeline` PDB+XYZ 出力 /
+    orchestrator `engine='ase'` end-to-end)
+
+### Notes (Phase D 完了)
+
+- v1.25.0 候補完成。`abmp-crystal pipeline --config crystal.yaml
+  --run-local` 1 コマンドで CIF → for_abmp/*.{ajf,pdb} →
+  abinitmp 実行 → log 取得まで貫通
+- 73 crystal tests 全 pass、実機 smoke PASS (abinitmp v2r8 + HF/STO-3G)
+- ASE backend は valid な FMO 入力を生成 (legacy と byte-equivalent
+  ではないが Natom と `&XYZ` block の整合性は確保)
+- README に `### Crystal-FMO Pipeline (crystal)` セクション追加は
+  別 commit で扱う (working tree に既存の README 変更があるため)
+
+### Added (Phase D-3 — numeric reference & verification doc)
+
+Phase D 完了後、abinitmp v2r8 で **csp7 R00001 layer3 HF/6-31G の
+本格 FMO 計算**を実機実行 (1 core で 9h 14min 完走) し、Total energy
++ 24 monomer energies + 95 ESP-AOC IFIE 値を numeric reference として
+凍結。
+
+- **`tests/regression/reference/main/crystal_csp7/R00001/expected_layer3_hf_631g.json`**
+  (21 KB) — abinitmp v2r8 reference snapshot:
+  - FMO2-HF / 6-31G、24 fragments / 768 atoms / 276 dimer pairs
+    (95 ESP-AOC + 181 ESP-PTC)
+  - Total energy = -34450.7633976498 hartree
+  - 24 monomer HF energies (~-1435.43 hartree each, ±0.005 hartree
+    結晶環境による分散)
+  - 95 ESP-AOC IFIE pairs (kcal/mol range -9.47 ~ +1.65)
+  - tolerances: total/monomer ±1e-5 hartree, IFIE ±1e-3 kcal/mol
+- **`tests/regression/reference/main/crystal_csp7/R00001/excerpt_layer3_hf_631g.log`**
+  (10 KB) — full log (322 KB) からの必要セクション抜粋。test fixture
+  として extract script の roundtrip 検証に使う
+- **`tests/regression/reference/main/crystal_csp7/R00001/extract_layer3_hf_631g.py`**
+  — abinitmp log から JSON reference を生成する CLI ツール。
+  再現用に repo に同梱
+- **`tests/test_crystal_numeric_regression.py`** (3 test、累計 63 collected /
+  62 passed + 1 gated):
+  - `test_extract_script_roundtrip` — excerpt log → extract → JSON
+    bit-perfect equality (~0.05 s、常時実行)
+  - `test_expected_json_shape` — JSON 必須フィールド検証
+  - `test_live_layer3_hf_631g_against_reference` —
+    `@pytest.mark.slow` + `ENABLE_FMO_LIVE_REGRESSION=1` gate、
+    実 abinitmp で 9h 計算 → 凍結 reference と tolerance 比較
+    (default skip)
+- **`docs/crystal_verification.md`** — 7 節 verification record:
+  test matrix (8 ファイル × カバー機能) / 実行コマンド / 検証済み
+  環境 (Python 3.11.11 + ase 3.28.0 + abinitmp v2r8) / numeric
+  reference summary / failure mode 逆引き表 / 既知の限界
+  (HF/6-31G 1 構造のみ、MP2 未取得、abinitmp v2r8 OMP 並列無効) /
+  reference 再現 step-by-step
+
+### Notes (Phase D-3)
+
+- 計算実行時の所要時間 (2026-05-07 → 2026-05-08): 9h 14min 33s
+  (33253 sec, exit 0) on WSL2 + 1 core。OMP_NUM_THREADS=4 環境
+  変数は abinitmp v2r8 build に効かず、MPI 並列前提と判明
+- 完全 log (322 KB) は OneDrive `abmptools-dump/crystal/csp7_r00001_l3_hf_631g/`
+  に退避 (memory `feedback_artifact_placement` 準拠)、repo には
+  excerpt のみ commit
+- `getifiepieda` 経由 CSV 化は今回 skip (log の `## HF-IFIE` block を
+  Python regex で直接抽出)。CSV 経路は将来追加予定 (※ 2026-05-09 で
+  下記 D-3 revised により実装、Python regex 経路は廃止)
+
+### Changed (Phase D-3 revised — 2026-05-09: getifiepieda 経路に統合)
+
+ユーザー方針 (「同じ機能の別モジュールは作らない」) に沿って、
+`abmptools.getifiepieda` を numeric reference 抽出に再利用する形に
+切替。HF log 対応のため `anlfmo.py` 5 箇所を修正。
+
+- **`abmptools/anlfmo.py` 5 箇所修正**:
+  1. `getlogorpdbfrag` (line 648-660) — `ReadGeom = ` 空欄 (`is_xyz=True`
+     経路) で `items[2]` IndexError → sibling PDB basename へ fallback
+  2. `readmultiifie` — `self.logMethod = self.getlogmethod(...)` +
+     method 別 `self.icolumn` 設定を追加 (multi mode に欠落していた、
+     `readsingleifie` は line 2608-2620 で同等処理あり)
+  3. `getfiltifpifd` — HF log で MP2 関連列 (MP2-IFIE/PR-TYPE1/GRIMME/
+     JUNG/HILL) が無い場合 0.0 で埋め、`KeyError` 回避
+  4. `getmomenedf` — HF log の monomer 行は 2 列 (`Frag.`, `HF`)、MP2 は
+     3 列。method 別に column 設定 + MP2 を 0 で pad
+  5. `getdimenedf` — HF log dimer 行は 3 列、MP2 は 4 列。同様に
+     method 別
+
+- **`extract_layer3_hf_631g.py`** — Python regex 抽出を廃止し、
+  `subprocess.run([... abmptools.getifiepieda ... --multi 1 -dimeres
+  -imd -zp 5 -t <id> <id> 1 -nof90 -i '["pfx","sfx"]'])` の wrapper
+  に書き換え。出力 CSV を `--out-dir` へ rename copy
+- **新 reference CSVs (canonical getifiepieda outputs)**:
+  - `tests/regression/reference/main/crystal_csp7/R00001/expected_layer3_hf_631g_ifiesum.csv`
+    (250 bytes) — target frag 1 の sum 1 行 (HF-IFIE/ES/EX/CT-mix/
+    `MonomerEnergy(1)` = -1435.433574 hartree 等)
+  - `tests/regression/reference/main/crystal_csp7/R00001/expected_layer3_hf_631g_ifiedt.csv`
+    (1797 bytes) — dimer-es=False の 16 pair 詳細、`UNK<i>(<i>)`
+    resname 注釈付き
+- **`tests/test_crystal_numeric_regression.py`** — excerpt log
+  roundtrip を廃止。新 test:
+  - `test_expected_csvs_have_committed_shape` (always run、~0.01 s):
+    committed CSVs の shape sanity (列存在 / MP2 zero-padding /
+    monomer energy range / dimer-es=False filter)
+  - `test_live_layer3_hf_631g_against_reference`
+    (`@pytest.mark.slow` + `ENABLE_FMO_LIVE_REGRESSION=1` gate):
+    pipeline + run-local + extract → byte-compare with committed CSVs
+- **`docs/tutorial_crystal_fmo.md` Section 8-4/8-5/8-6/9** —
+  getifiepieda 経路 + deformation route 1 (= MonomerEnergy 列) の
+  default 推奨、route 2 (isolated monomer ajf) の手順、Failure modes
+  に anlfmo.py 5 箇所修正点に対応する 4 行追加 (各 KeyError /
+  ValueError → 修正済の旨)
+
+### Notes (Phase D-3 revised)
+
+- legacy `expected_layer3_hf_631g.json` (21 KB) と
+  `excerpt_layer3_hf_631g.log` (10 KB) は archival のため残置。
+  test 経路は読まない (削除しない方針 = memory `feedback_no_deletions`)
+- production (Fugaku csp7 1500 構造、MP2/6-31Gdag) は影響なし —
+  anlfmo.py 修正は HF log 用の防御を追加しただけ、MP2 path は不変
+- 1 構造 + HF 6-31G という小規模で getifiepieda 経路が成立
+  したことで、今後別 system (R00002/R00004 / 他 space group) も
+  同じ extract script を流用可能 (zero-padding 桁違いだけ調整)
+- crystal tests: `pytest tests/test_crystal_*.py` で 61 passed +
+  2 skipped (numeric live + 別 1 件)、regression なし
+
+### Changed (Phase D-3 revised, separation — 2026-05-09)
+
+公開リポジトリ (abmptools) には csp7 構造データを含めない方針に
+基づき、入力構造を **abmptools-sample (非公開)** へ分離。整形手順 +
+結果数値 CSV のみ abmptools 残置。
+
+- **abmptools-sample に移動した入力構造**:
+  - `<sample>/sample/csp7_ciftest/crystal_reference/R00001_layer3_hf_631g/`
+    — Phase D-3 numeric reference 用 (cif + UNK.ajf + crystal.yaml +
+    run_local.sh + excerpt log + JSON snapshot)
+  - `<sample>/sample/csp7_ciftest/crystal_reference/phase_b_layer5/`
+    — Phase B byte-equivalence 用 (UNK.ajf + input_param +
+    segment_data.dat + R00001/R00002/R00004 ごとの cif + 期待
+    `*-around_ar6.0.{ajf,pdb}`)
+  - 移動先 README: `<sample>/.../crystal_reference/README.md` に
+    test 起動方法 (env var ABMPTOOLS_SAMPLE_DIR) を明記
+
+- **abmptools-sample 公開分離の test 改修**:
+  - `tests/test_crystal_regression.py` (Phase B): fixture path を
+    `${ABMPTOOLS_SAMPLE_DIR:-~/repos/abmptools-sample}/sample/csp7_ciftest/
+    crystal_reference/phase_b_layer5/` に変更。fixture 不在時 skip
+  - `tests/test_crystal_numeric_regression.py::test_live_*`: 入力 cif と
+    UNK.ajf の取得元を abmptools-sample 経由に変更。env var 不在時 skip
+  - `tests/integration/run_crystal_smoke.sh`: 同上、cif/UNK.ajf
+    取得元を abmptools-sample に変更
+  - `sample/crystal/csp7_smoke/run.sh`: cif/UNK.ajf を abmptools-sample
+    から auto-stage (ローカル不在時のみ)
+  - `sample/crystal/csp7_smoke/README.md`: 書き換え、 cif/UNK.ajf は
+    abmptools-sample 経由で stage する旨を明記
+
+- **削除候補 (user 自身が `git rm`、memory `feedback_no_deletions` 準拠)**:
+  abmptools 公開リポジトリから取り除くべき csp7 構造ファイル一覧は
+  本セッションのログ末尾を参照。anlfmo.py / extract script /
+  数値 CSV (`expected_*_ifiesum.csv` / `_ifiedt.csv`) は残す
 
 ## [1.22.0] - 2026-05-06
 

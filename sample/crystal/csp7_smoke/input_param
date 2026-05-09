@@ -1,0 +1,19 @@
+param = {
+            'cutmode': 'around',
+            'solutes': [0],
+            'criteria': 6.0,
+
+            'molname': ['UNK'],
+
+            'getmode': 'rfile',
+            'ajf_method': 'MP2',
+            'ajf_basis_set': '6-31Gdag',
+            'cpfflag': True,
+            'piedaflag': True,
+            'cmmflag': True,
+            'solv_flag': False,  # True -> in water , False -> in vacuum,
+            'abinit_ver': 'rev23',
+            'memory': 6000,
+            'npro': 1,
+        }
+

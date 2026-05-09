@@ -1,0 +1,47 @@
+# csp7 single-structure crystal-FMO config (Phase C YAML).
+#
+# Drives the full pipeline (CIF → supercell → FMO inputs → PJM jobscript).
+# Usage:
+#     python -m abmptools.crystal pipeline --config crystal.yaml
+#
+# Phase A/B equivalent shell recipe is in `run.sh` (kept for documentation
+# purposes; this YAML form is the recommended Phase C+ entry point).
+project_name: csp7_r00001_smoke
+output_dir: ./out
+inputs:
+  - cif: XXXI-MMFF-R00001.cif
+    layer: 5
+    atoms_in_mol: [32]
+cif_engine:
+  engine: legacy   # 'legacy' (default, byte-equivalent with v1.22.0) | 'ase' (Phase C-3 read pipeline only)
+fragment:
+  cutmode: around
+  solutes: [0]
+  criteria: 6.0
+  molname: [UNK]
+  pieda: true
+  cmm: true
+  getmode: rfile
+  template_ajf: ./UNK.ajf
+fmo:
+  method: MP2
+  basis_set: 6-31Gdag
+  memory: 6000
+  cpfflag: true
+  abinit_ver: rev23
+  npro: 1
+  is_xyz: true     # direct-coordinate &XYZ block in AJF (full precision)
+hpc:
+  scheduler: PJM   # 'PJM' | 'SLURM' | 'PBS' | 'local'
+  queue: small
+  group: hp190133
+  nodes: 12
+  proc_per_node: 2
+  omp_threads: 24
+  elapse: '24:00:00'
+  abinit_dir: /data/hp190133/programs/ABINIT-MP
+  binary_name: abinitmp_smp
+postproc:
+  enable: false   # set true after running ABINIT-MP to invoke getifiepieda
+  frag_target: '1-10'
+  annotate_nearest_atoms: true

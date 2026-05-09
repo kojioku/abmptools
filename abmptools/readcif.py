@@ -352,8 +352,13 @@ def getsymcoord(sympos: str, incoord: list[float], label: int) -> float:
 
 
 
-if __name__ == '__main__':
+def _build_parser() -> argparse.ArgumentParser:
+    """Build the readcif CLI argument parser (Phase C-2 extraction).
 
+    Extracted from the historical ``if __name__ == '__main__':`` block;
+    behaviour is unchanged. :func:`run_legacy_cif_pipeline` consumes the
+    namespace this function returns.
+    """
     parser = argparse.ArgumentParser(
                 prog='readcif.py', # program name
                 usage='python readcif.py -i xxx.cif --atomnum xx -l x', # program usage
@@ -426,10 +431,17 @@ if __name__ == '__main__':
                         help='assymmetric unit only',
                         action='store_true')
 
+    return parser
 
-    # get args
-    args = parser.parse_args()
 
+def run_legacy_cif_pipeline(args: argparse.Namespace) -> None:
+    """Run the legacy readcif pipeline (Phase C-2 extraction).
+
+    Extracted verbatim from the historical ``if __name__ == '__main__':``
+    block. Behaviour is unchanged; the Phase B regression fixture under
+    ``tests/regression/reference/main/crystal_csp7/`` freezes the
+    byte-equivalent outputs (CIF -> ``cifout/layer<L>/{pdb,xyz}/``).
+    """
     print('coord(cif) =', args.input)
     print('odir = ', args.odir)
     print('atomnum = ', args.atomnum)
@@ -980,3 +992,7 @@ if __name__ == '__main__':
         pdbs = glob.glob(xyzdir + '/*pdb')
         for pdb in pdbs:
             shutil.move(pdb, pdbdir + '/' + pdb.split('/')[-1])
+
+
+if __name__ == '__main__':
+    run_legacy_cif_pipeline(_build_parser().parse_args())

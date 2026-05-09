@@ -262,6 +262,85 @@ license は cgmartini.nl の慣行 ("free for academic use, please cite Souza
 et al. 2021 *Nat. Methods*") に従う。abmptools は未同梱、`validate`
 サブコマンドで存在確認。
 
+## Optional Dependencies — abmptools.genesis.grest (1.20.0+)
+
+GENESIS gREST_SSCR (Replica-Exchange with Solute Tempering) サブパッケージ。
+AMBER ff19SB + TIP3P 経路で 4-12 レプリカの REST exchange MD を回す。
+
+```bash
+# pyproject.toml [project.optional-dependencies]
+pip install abmptools[grest]
+
+# matplotlib>=3.5  (replica transition / acceptance ratio / 1D PMF プロット)
+```
+
+| パッケージ | 用途 | バージョン | License |
+|---|---|---|---|
+| `matplotlib` | replica transition / acceptance ratio / 1D 距離 PMF プロット | ≥ 3.5 | PSF License + BSD-compatible |
+
+外部 CLI (subprocess only、未同梱):
+
+| ツール | 用途 | 推奨バージョン |
+|---|---|---|
+| GENESIS `spdyn` / `atdyn` / `remd_convert` | replica MD + parameter sort、`https://github.com/genesis-release-r-ccs/genesis` から build (icx で `fileio_data_.c` の `ftello64`/`fseeko64` を `ftello`/`fseeko` に置換するパッチが必要な場合あり、`grest.md` 参照) | ≥ 2.1、**LGPL-3.0-or-later** |
+| AmberTools (`tleap` 必須 + `cpptraj` around モード時) | AMBER prmtop+coor 生成 + REST 残基 around-mode 解決 | ≥ 22 |
+| `mpirun` (OpenMPI / MPICH) | 並列レプリカ実行 | — |
+
+force field files: AmberTools 同梱の ff19SB + TIP3P を使用、本パッケージは追加 ITP を持たない。
+
+## Optional Dependencies — abmptools.fragmenter (1.21.0+)
+
+FMO 自動フラグメント分割サブパッケージ (small molecules / lipids / polymers)。
+
+```bash
+pip install abmptools[fragmenter]    # rdkit-pypi のみ
+pip install abmptools[fragmenter,jupyter]  # Jupyter UI も使う場合
+```
+
+| パッケージ | 用途 | バージョン | License |
+|---|---|---|---|
+| `rdkit-pypi` | 分子構造の正規化 (canonical SMILES、SVG 描画、bond perception) | ≥ 2022.09 | BSD-3-Clause |
+| `ipywidgets` (`[jupyter]` extras) | Jupyter UI のインタラクティブ要素 (dropdown / SVG / checkbox) | ≥ 8.0 | BSD-3-Clause |
+| `ipykernel` (`[jupyter]` extras) | Jupyter notebook server カーネル | — | BSD-3-Clause |
+
+外部 CLI (optional、subprocess only):
+
+| ツール | 用途 |
+|---|---|
+| Open Babel `obabel` | bond perception フォールバック (RDKit が CONECT 不在時にも壊れた場合の最後の手段) |
+
+`[jupyter]` extras は A 経路 (notebook UI) を使う場合のみ必要。CLI ヘッドレス経路 (`suggest` / `apply` / `example`) では rdkit-pypi だけで動く。
+
+## Optional Dependencies — abmptools.genesis.mmgbsa (1.22.0+)
+
+GENESIS atdyn を使った protein-ligand 単フレーム MM/GBSA ΔG_bind 計算サブパッケージ。
+AMBER ff14SB + DNA.OL15 + RNA.OL3 + TIP3P + GAFF/GAFF2 経路。
+
+```bash
+pip install abmptools[mmgbsa]
+
+# biopython>=1.80   (PDB splitter Stage 1)
+# matplotlib>=3.5   (ΔG_bind 棒グラフ Stage 4、grest と shared)
+```
+
+| パッケージ | 用途 | バージョン | License |
+|---|---|---|---|
+| `biopython` | PDB splitter (Stage 1: receptor + ligand 分割) | ≥ 1.80 | Biopython License + BSD-3-Clause (dual) |
+| `matplotlib` | ΔG_bind 棒グラフ (Stage 4) | ≥ 3.5 | PSF License + BSD-compatible |
+
+外部 CLI (subprocess only、未同梱):
+
+| ツール | 用途 | License |
+|---|---|---|
+| GENESIS `atdyn` | GBSA 単フレーム実行 (Stage 3、`mpirun -np 1 atdyn`) | **LGPL-3.0-or-later** (subprocess only、mere aggregation per LGPL §5/§6) |
+| AmberTools `tleap` | AMBER 3 系 (complex/ligand/receptor) prmtop+inpcrd 生成 (Stage 2) | free academic + commercial |
+| **acpype** | ligand GAFF/GAFF2 + AM1-BCC 計算 (Stage 2、`pip install acpype` または `conda install -c conda-forge acpype`) | **GPL-3.0** (subprocess only、mere aggregation per FSF GPL FAQ) |
+| `mpirun` (OpenMPI / MPICH) | atdyn の MPI 起動 | — |
+
+force field files: AmberTools 同梱の ff14SB / DNA.OL15 / RNA.OL3 / TIP3P / GAFF/GAFF2 を使用。
+
+POC スクリプトの `4_analyse.py` (POC 経路) は `(egas+S)_c - (egas+S)_l - (egas+S)_r` の式で ΔG_bind を計算しているが、これは abmptools.genesis.mmgbsa の `E_c - E_l - E_r` (form A) と代数的に同一 (egas + S = ENERGY)。GENESIS doc `05_Energy.rst:564` の `U = U_FF + ΔG_solv` 規約に従えば、`compute_dg_bind` で SOLVATION 列を加える必要はない (二重カウントになる)。
+
 ## Optional Dependencies — abmptools.geomopt
 
 `abmptools.geomopt` はすべての重い依存を実行時まで遅延インポートするため、
