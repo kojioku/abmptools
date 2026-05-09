@@ -10,9 +10,15 @@ Author: Koji Okuwaki
 > v1.17.1 (mixed-lipid support), v1.17.2 (extended lipid table + discovery
 > API), v1.17.3 (CHARMM36 backend 実機検証 + 7 件 bug fix),
 > **v1.18.0 (`cg.peptide` subpackage — Martini 3 peptide CG builder)**,
-> and **v1.19.0 (`cg.membrane` subpackage — Martini 3 peptide-membrane
-> PMF via insane + umbrella sampling)** are staged on `develop`, not yet
-> released to `main` / PyPI. See
+> **v1.19.0 (`cg.membrane` subpackage — Martini 3 peptide-membrane
+> PMF via insane + umbrella sampling)**,
+> **v1.20.0 (`genesis.grest` subpackage — GENESIS gREST_SSCR replica
+> exchange with solute tempering)**,
+> **v1.21.0 (`fragmenter` subpackage — FMO automatic fragment splitter
+> for small molecules / lipids / polymers)**,
+> and **v1.22.0 (`genesis.mmgbsa` subpackage — GENESIS MM/GBSA
+> single-point ΔG_bind via atdyn implicit GBSA)** are staged on
+> `develop`, not yet released to `main` / PyPI. See
 > [`CHANGELOG.md`](../CHANGELOG.md) for the per-version detail.
 
 ## What is ABMPTools?
@@ -98,4 +104,13 @@ For new developers approaching this codebase:
 11. **`docs/fragmenter.md`** — `abmptools.fragmenter` (1.21.0+); FMO
     automatic fragment splitter for small molecules / lipids / polymers
     (canonical SMILES grouping + C-C MW walk + Jupyter UI / headless CLI).
+12. **`docs/grest.md`** + **`docs/tutorial_grest.md`** —
+    `abmptools.genesis.grest` (1.20.0+); GENESIS gREST_SSCR replica
+    exchange with solute tempering (AMBER ff19SB + TIP3P, 4-12 replicas
+    + REST residue selection + temperature ladder).
+13. **`docs/mmgbsa.md`** + **`docs/tutorial_mmgbsa.md`** —
+    `abmptools.genesis.mmgbsa` (1.22.0+); GENESIS atdyn-based MM/GBSA
+    single-point ΔG_bind for protein-ligand complexes (AMBER ff14SB +
+    GAFF/GAFF2 via acpype, 4-stage pipeline: split PDB → parameterize →
+    GBSA single-point → ΔG_bind aggregation).
     Protein / DNA stays on the existing `log2config` route.

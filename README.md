@@ -91,6 +91,20 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 - **ΔG_bind 計算**: GENESIS `ENERGY` 列は `U = U_FF + ΔG_solv` の合計 (doc 05_Energy.rst:564) なので `ΔG_bind = E_c - E_l - E_r` で全 MM/GBSA 寄与込み。POC `4_analyse.py` は等価な分解形 `(egas + S)_c - (egas + S)_l - (egas + S)_r` を使用 (`egas = E - S`)、両者は代数的に同一。`compute_dg_bind` (合計形) + `compute_dg_components` (分解報告 `{dg_mm, dg_solv, dg_bind}`) を提供
 - **LGPL-3.0+ / GPL-3.0 互換**: GENESIS (LGPL-3.0+) と acpype (GPL-3.0) は subprocess only -- abmptools 自体は MIT (1.22.0) → 将来 Apache-2.0 化後も互換 (mere aggregation)
 
+### FMO Fragment Auto-splitter (`fragmenter`)
+
+- End-to-end **FMO 自動フラグメント分割** ツール: PDB → RDKit で 4-strategy bond perception (proximity → CONECT-only → `sanitize=False` → `obabel`) → heavy-atom-only canonical SMILES でグループ化 → graph diameter (heavy-atom-only 2-pass BFS) で主鎖検出 → 累積 MW + 側鎖 MW を加算しながら `target_mw` (default 200 g/mol) ごとに C-C 切断候補を提案 → `RWMol` で破壊的に bond 削除 → `log2config` 互換 `segment_data.dat` 出力 (pdb2fmo がそのまま読む)
+- 対象は **小分子 / 脂質 / ポリマー** (タンパク質・DNA は対象外、既存 `log2config` 経路へ流す方針)
+- フィルタ: 環内 / 多重結合 / ヘテロ隣接 (N/O/S/P/F/Cl/Br/I) を除外、いずれも config で off 可能
+- ポリマー γ 経路 (`declare_same_pattern`): 異なる SMILES (PE N=10 / N=11 等) を明示的に同一視、master (最も cut の多い group) のパターンを atom-path-index 対応で短い chain にも転送
+- 3 つの UI 経路:
+  - **A: Jupyter UI** (`AutoFragmenter.from_pdb` + `open_panel`、ipywidgets dropdown / SVG / checkbox)
+  - **C: ヘッドレス CLI** (`python -m abmptools.fragmenter {suggest,apply,example}` + SVG+JSON review bundle)
+  - **API**: 関数 chain (`load_pdb_molecules` → `group_by_smiles` → `suggest_cuts_for_groups` → `export_to_system`)
+- データクラス: `FragmenterConfig` / `CutSite` / `MoleculeGroup` / `FragmentResult` (JSON 往復可能)
+- 14 unit tests (10 basic + 4 polymer)、5 実 PDB 検証ケース (ketoprofen / PE N=20 / PP N=10 / propane×5+acetone×3 / antibody+ligand)
+- 依存: `pip install abmptools[fragmenter]` (rdkit-pypi >= 2022.09、BSD-3-Clause)、Jupyter UI を使うなら `[jupyter]` extras も
+
 ### Peptide-Bilayer Umbrella Sampling (`membrane`)
 
 - End-to-end PMF builder for peptide membrane permeation: bilayer + peptide + water + ions → AMBER (`ff19SB` + `Lipid21` + TIP3P / Joung-Cheatham) or CHARMM36 backend → semiisotropic NPT equilibration → z-pulling → per-window umbrella MDPs → `gmx wham` PMF
@@ -209,7 +223,7 @@ Use `-h` with any module for full option details.
 ## Testing
 
 ```bash
-pytest tests/ -v                     # 1239 tests across 68 files
+pytest tests/ -v                     # 1530 tests collected (1.22.0 時点)
 pytest tests/ -v -k molcalc          # specific module
 pytest tests/test_regression.py -v   # regression tests (60 bundled + 16 gated)
 ```

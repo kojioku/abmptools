@@ -31,3 +31,7 @@ try:
     )
 except ImportError:
     pass
+try:
+    from . import crystal as crystal  # noqa: F401
+except ImportError:
+    pass

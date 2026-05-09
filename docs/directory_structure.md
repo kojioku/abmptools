@@ -15,15 +15,23 @@ abmptools/                  ← Repository root
 │   ├── cg/                 ← Martini 3 CG 系統 (1.18.0+)
 │   │   ├── peptide/        ← Martini 3 ペプチド CG ビルダー (vermouth-martinize)
 │   │   └── membrane/       ← Martini 3 ペプチド-膜 PMF (insane + umbrella)
+│   ├── genesis/            ← GENESIS 系統 (1.20.0+)
+│   │   ├── grest/          ← gREST_SSCR replica exchange (atdyn/spdyn + remd_convert)
+│   │   └── mmgbsa/         ← GENESIS MM/GBSA single-point ΔG_bind (atdyn + acpype + tleap)
+│   ├── fragmenter/         ← FMO 自動フラグメント分割 (rdkit + ipywidgets) (1.21.0+)
 │   ├── geomopt/            ← 構造最適化 (PySCF, MACE)
 │   └── f90/                ← Fortran extension
 │       ├── src/
 │       │   └── readifiepiedalib.f90
 │       └── bin/
 │           └── readifiepiedalib.so
-├── tests/                  ← pytest テストスイート (1239 tests, 68 files)
+├── tests/                  ← pytest テストスイート (1530 tests collected, 80+ files)
 │   ├── conftest.py
 │   ├── test_cli_scripts.py ← 全14 CLIスクリプトのargparseテスト
+│   ├── test_grest_*.py     ← genesis.grest (1.20.0、159 tests + 1 slow)
+│   ├── test_mmgbsa_*.py    ← genesis.mmgbsa (1.22.0、117 tests + 1 slow)
+│   ├── fragmenter/         ← fragmenter (1.21.0、14 tests)
+│   ├── fixtures/           ← 共通テスト fixture (gbsa_logs/ 等)
 │   └── test_*.py           ← 各モジュールの単体テスト
 ├── docs/                   ← Documentation
 │   ├── ABMPTools-user-manual.md
@@ -132,7 +140,7 @@ abmptools/                  ← Repository root
 
 ## `tests/` — テストスイート
 
-pytest ベースのテストスイート。**1239 tests、68 files** (1.19.0 時点)。
+pytest ベースのテストスイート。**1530 tests collected** (1.22.0 時点、`pytest --collect-only -q` 結果)。
 
 | カテゴリ | ファイル数 | テスト数 | 概要 |
 |---------|-----------|---------|------|
@@ -142,6 +150,8 @@ pytest ベースのテストスイート。**1239 tests、68 files** (1.19.0 時
 | スタンドアロン | 2 | 61 | readcif, getifiepieda |
 | サブパッケージ (AA) | 14+ | 127+ | core, gro2udf, udf2gro, amorphous, geomopt, **membrane** |
 | **サブパッケージ (CG, 1.18.0+)** | 23 | **287** | `cg.peptide` 117 + `cg.membrane` 170 (+ 4 slow integration) |
+| **サブパッケージ (GENESIS, 1.20.0+)** | 17 | **276** | `genesis.grest` 159 + `genesis.mmgbsa` 117 (+ 2 slow integration、tools 不在時 auto-skip) |
+| **`fragmenter` (1.21.0+)** | 2 | **14** | basic + polymer の 2 ファイル、RDKit 必須 |
 | CLIスクリプト | 1 | 50 | 全 CLI の argparse テスト |
 
 詳細は `tests/TEST_COVERAGE.md` を参照。
@@ -166,6 +176,11 @@ pytest ベースのテストスイート。**1239 tests、68 files** (1.19.0 時
 | `tutorial_membrane_us.md` | 同上の step-by-step 操作チュートリアル |
 | `cg_membrane.md` | Martini 3 ペプチド-膜 PMF ビルダー (CG reference) |
 | `tutorial_cg_membrane_us.md` | 同上の step-by-step (smoke 5-6 分 + production 45 分) |
+| `cg_peptide.md` | Martini 3 ペプチド CG ビルダー (CG reference、1.18.0+) |
+| `peptide_builders.md` | 3 種ペプチドビルダー横断比較 (AA membrane / CG peptide / CG membrane) |
+| `grest.md` / `tutorial_grest.md` | GENESIS gREST_SSCR ビルダー (1.20.0+、subsystem reference + step-by-step) |
+| `mmgbsa.md` / `tutorial_mmgbsa.md` | GENESIS MM/GBSA single-point ΔG_bind (1.22.0+、subsystem reference + step-by-step) |
+| `fragmenter.md` | FMO automatic fragment splitter (1.21.0+、graph-diameter MW walk + canonical SMILES + γ polymer) |
 | `geomopt.md` / `qmopt.md` | 構造最適化 |
 | `licenses_third_party.md` | サードパーティライセンス |
 

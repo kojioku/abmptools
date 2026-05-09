@@ -17,3 +17,6 @@ martini_v300.zip
 
 # gmx grompp default output (created when grompp is run from the repo root)
 mdout.mdp
+
+# abmptools.crystal smoke / numeric-reference run artifacts (full logs go to OneDrive)
+.smoke_artifacts/

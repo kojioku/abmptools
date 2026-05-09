@@ -646,7 +646,19 @@ class anlfmo(pdio):
                     continue
 
                 if items[0] == 'ReadGeom':
-                     logreadGeom = items[2]
+                    if len(items) >= 3:
+                        logreadGeom = items[2]
+                    else:
+                        # is_xyz=True route: AJF embeds &XYZ block directly,
+                        # so ReadGeom prints empty in the log. Fall back to
+                        # the sibling PDB basename (line 723 substitutes this
+                        # into the log's directory path, so we return the
+                        # filename only, not the absolute path).
+                        sibling_pdb_path = os.path.splitext(os.path.abspath(ifile))[0] + '.pdb'
+                        if os.path.isfile(sibling_pdb_path):
+                            logreadGeom = os.path.basename(sibling_pdb_path)
+                        else:
+                            logreadGeom = ''
 
                 if items[0] == 'AutoFrag':
                     if items[2] == 'ON':
@@ -863,10 +875,18 @@ class anlfmo(pdio):
         Returns:
             pandas.DataFrame: フラグメント番号・HF・MP2エネルギーを含むデータフレーム
         """
-        df = pd.DataFrame(momene, columns=['Frag.', 'HF', 'MP2'])
-        df['Frag.'] = df['Frag.'].astype(int)
-        df['HF'] = df['HF'].astype(float)
-        df['MP2'] = df['MP2'].astype(float)
+        # HF logs report 2 columns (Frag., HF only); MP2 logs report 3
+        # columns (Frag., HF, MP2). Detect by row width and pad MP2 with 0.
+        if self.logMethod == 'HF':
+            df = pd.DataFrame(momene, columns=['Frag.', 'HF'])
+            df['Frag.'] = df['Frag.'].astype(int)
+            df['HF'] = df['HF'].astype(float)
+            df['MP2'] = 0.0
+        else:
+            df = pd.DataFrame(momene, columns=['Frag.', 'HF', 'MP2'])
+            df['Frag.'] = df['Frag.'].astype(int)
+            df['HF'] = df['HF'].astype(float)
+            df['MP2'] = df['MP2'].astype(float)
         return df
 
     def getdimenedf(self, dimene: list[list[str]]) -> pd.DataFrame:
@@ -878,11 +898,20 @@ class anlfmo(pdio):
         Returns:
             pandas.DataFrame: フラグメントペア(I, J)とダイマーHF・MP2エネルギーを含むデータフレーム
         """
-        df = pd.DataFrame(dimene, columns=['I', 'J', 'DIMER-HF', 'DIMER-MP2'])
-        df['I'] = df['I'].astype(int)
-        df['J'] = df['J'].astype(int)
-        df['DIMER-HF'] = df['DIMER-HF'].astype(float)
-        df['DIMER-MP2'] = df['DIMER-MP2'].astype(float)
+        # HF logs report 3 columns (I, J, DIMER-HF); MP2 logs report 4 columns
+        # (I, J, DIMER-HF, DIMER-MP2). Pad MP2 with 0 when missing.
+        if self.logMethod == 'HF':
+            df = pd.DataFrame(dimene, columns=['I', 'J', 'DIMER-HF'])
+            df['I'] = df['I'].astype(int)
+            df['J'] = df['J'].astype(int)
+            df['DIMER-HF'] = df['DIMER-HF'].astype(float)
+            df['DIMER-MP2'] = 0.0
+        else:
+            df = pd.DataFrame(dimene, columns=['I', 'J', 'DIMER-HF', 'DIMER-MP2'])
+            df['I'] = df['I'].astype(int)
+            df['J'] = df['J'].astype(int)
+            df['DIMER-HF'] = df['DIMER-HF'].astype(float)
+            df['DIMER-MP2'] = df['DIMER-MP2'].astype(float)
         return df
 
     def getpbpiedadf(self, pieda: list[list[str]]) -> pd.DataFrame:
@@ -2172,11 +2201,19 @@ class anlfmo(pdio):
         logger.debug(ifdf_filter.head())
         ifdf_filter['TIMES'] = self.tgttimes[i]
         HF_IFIE_sum = ifdf_filter['HF-IFIE'].sum()
-        MP2_IFIE_sum = ifdf_filter['MP2-IFIE'].sum()
-        PR_TYPE1_sum = ifdf_filter['PR-TYPE1'].sum()
-        GRIMME_sum = ifdf_filter['GRIMME'].sum()
-        JUNG_sum = ifdf_filter['JUNG'].sum()
-        HILL_sum = ifdf_filter['HILL'].sum()
+        # MP2-related columns are absent in HF logs (icolumn = 5 for HF).
+        if self.logMethod == 'HF':
+            MP2_IFIE_sum = 0.0
+            PR_TYPE1_sum = 0.0
+            GRIMME_sum = 0.0
+            JUNG_sum = 0.0
+            HILL_sum = 0.0
+        else:
+            MP2_IFIE_sum = ifdf_filter['MP2-IFIE'].sum()
+            PR_TYPE1_sum = ifdf_filter['PR-TYPE1'].sum()
+            GRIMME_sum = ifdf_filter['GRIMME'].sum()
+            JUNG_sum = ifdf_filter['JUNG'].sum()
+            HILL_sum = ifdf_filter['HILL'].sum()
         ES_sum = ifdf_filter['ES'].sum()
         EX_sum = ifdf_filter['EX'].sum()
         CT_sum = ifdf_filter['CT-mix'].sum()
@@ -2466,6 +2503,20 @@ class anlfmo(pdio):
         """複数ログファイルからIFIE/PIEDAデータを並列読み込みし、結果をインスタンス変数に格納する。"""
         # check disp(LRD)
         self.is_disp = self.getisdisp(self.tgtlogs[0])
+        # detect logMethod and align self.icolumn so that read_ifiepieda
+        # returns the correct number of columns (HF: 5, MP2: 10, MP3/CCPT: 10).
+        # readsingleifie performs the same step at line 2608-2620; multi mode
+        # was missing it, causing ValueError on HF logs (10 vs 7 columns).
+        self.logMethod = self.getlogmethod(self.tgtlogs[0])
+        if self.logMethod == 'HF':
+            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE']
+        elif self.logMethod == 'MP3':
+            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
+                            'USER-MP2', 'MP3-IFIE', 'USER-MP3', 'PADE[2/1]']
+        elif self.logMethod == 'CCPT':
+            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
+                            'GRIMME-MP2', 'MP3-IFIE', 'GRIMME-MP3', 'MP4-IFIE']
+        # MP2 keeps the __init__ default (10 columns)
         logger.info('## read multi mode')
         st = time.time()
         p = Pool(self.pynp)
