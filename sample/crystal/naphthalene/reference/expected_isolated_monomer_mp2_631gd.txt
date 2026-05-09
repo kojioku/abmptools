@@ -1,0 +1,17 @@
+# Naphthalene isolated-monomer reference (MP2/6-31G(d), abinitmp v2r8)
+#
+# Source log:
+#   sample/crystal/naphthalene/out_monomer/naphthalene/cifout/layer1/pdb/for_abmp/
+#       naphthalenelayer1Zp1-around_ar0.0.log
+#
+# Pipeline: cutmode='around' criteria=0.0 with layer=1 → 1-fragment AJF
+# (= isolated naphthalene at the in-crystal geometry).
+
+method                    MP2/6-31G(d)
+abinitmp_version          v2r8
+mpi_ranks                 4 (mpirun -np 4 abinitmp)
+geometry                  P21/c asymmetric unit (Hoser & Madsen, COD 2311088, 293 K)
+atoms                     18 (1 naphthalene molecule, 1 fragment)
+HF_total_energy_hartree   -383.2973295671
+MP2_correlation_hartree   -1.2626405994
+MP2_total_energy_hartree  -384.5599701665

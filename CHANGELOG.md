@@ -432,8 +432,11 @@ ABINIT-MP の Monomer SCC が振動 (urea で ±1420 hartree、glycine で
     - **deformation = +5.2 kcal/mol (MP2)** 確認
   - `glycine/` (Marsh 1958, P21/n, Z=4): 同 layout、layer3 21 frag
   - `benzene/` (Cox/Cruickshank/Smith 1958, Pbca, Z=4): 同 layout
-  - (`naphthalene/` は cif 座標重複の問題で今回 reference 未取得、
-    sample dir のみ disk 残置で commit からは除外)
+  - (`naphthalene/` は当初 hand-craft cif で座標重複だったが、Phase
+    D-5 続編 (2026-05-10、後続 commit) で **COD 2311088** (Hoser &
+    Madsen 2017、P21/c、293 K X-ray、CC0) を取得し追加。HF-IFIE
+    -1.5 kcal/mol、MP2-IFIE -26.3 kcal/mol で benzene の 2× の dispersion
+    contribution を示す aromatic stacking 例)
 - **`docs/tutorial_crystal_fmo.md` Section 9 (Failure modes)** に
   ASE Monomer SCC 振動 → unwrap fix 1 行追加
 
