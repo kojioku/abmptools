@@ -131,6 +131,7 @@ def _render_svg(
     cut_sites: List[CutSite],
     width: int = 600,
     height: int = 400,
+    show_bond_numbers: bool = False,
 ) -> str:
     """RDKit で heavy-atom-only SVG を生成、cut_sites の bond と BDA/BAA atom を
     識別表示。
@@ -174,6 +175,11 @@ def _render_svg(
         a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() != 1
     ]
     orig_to_heavy = {orig: i for i, orig in enumerate(heavy_atom_origs)}
+
+    # bond 番号表示 (Jupyter UI の Add Cut で使う)
+    if show_bond_numbers:
+        for bond in heavy_mol.GetBonds():
+            bond.SetProp("bondNote", str(bond.GetIdx()))
 
     hl_bonds: List[int] = []
     bond_colors: dict = {}

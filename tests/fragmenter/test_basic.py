@@ -232,6 +232,32 @@ def test_c_heteroatom_disabled_by_default(propane_acetone_mix_pdb):
     assert len(cands) == 0, f"expected 0 candidates (C-X disabled), got {cands}"
 
 
+def test_decide_bda_baa_for_manual_cc_cut(propane_pdb):
+    """C-C bond の手動 cut: atom_idx 若い側 = BDA (deterministic)。"""
+    from abmptools.fragmenter import load_pdb_molecules
+    from abmptools.fragmenter.auto_split import decide_bda_baa_for_manual_cut
+    loaded = load_pdb_molecules(str(propane_pdb))
+    mol = loaded[0].mol
+    bda, baa = decide_bda_baa_for_manual_cut(mol, 1, 0)
+    assert bda == 0 and baa == 1
+    bda, baa = decide_bda_baa_for_manual_cut(mol, 0, 1)
+    assert bda == 0 and baa == 1
+
+
+def test_decide_bda_baa_for_manual_cx_cut():
+    """C-O bond の手動 cut: C 側 = BDA (atom 順序によらず)。"""
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+    from abmptools.fragmenter.auto_split import decide_bda_baa_for_manual_cut
+    methanol = Chem.AddHs(Chem.MolFromSmiles("CO"))
+    AllChem.EmbedMolecule(methanol, randomSeed=42)
+    # atom 0 = C, atom 1 = O
+    bda, baa = decide_bda_baa_for_manual_cut(methanol, 1, 0)
+    assert bda == 0 and baa == 1  # C 側 BDA
+    bda, baa = decide_bda_baa_for_manual_cut(methanol, 0, 1)
+    assert bda == 0 and baa == 1  # 順序逆でも C 側 BDA
+
+
 def test_segment_data_only_bda_fragment_has_connect(propane_acetone_mix_pdb, tmp_path):
     """ABINIT-MP 形式: BDA holder fragment のみ connect entry を持つ。"""
     from abmptools.fragmenter import (

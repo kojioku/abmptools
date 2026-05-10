@@ -95,10 +95,12 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
 
     UI 構成:
         - Group dropdown: 分子グループ選択
-        - Info label: SMILES / n_copies / residue_names / cut sites 数
-        - SVG output: 代表分子の構造 (cut sites 赤線ハイライト)
-        - Cut site checkboxes: enabled を toggle
-        - Export button: segment_data.dat 出力
+        - "Show bond numbers" checkbox: SVG 上に bond_idx を表示 (Add Cut で参照)
+        - SVG output: 代表分子の構造 (cut bond=赤、BDA=青の点線円、BAA=オレンジ塗り)
+        - Cut sites: 各行に [enabled checkbox] + [Remove ボタン]
+        - Add cut: bond_idx (heavy_mol) を入力 + "Add cut" ボタン
+        - Re-suggest: target_mw を変更 + "Re-suggest" ボタン (全 cut を再提案で上書き)
+        - Export button: `segment_data.dat` 出力
     """
     try:
         import ipywidgets as widgets
@@ -114,6 +116,8 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
             "AutoFragmenter has no groups. "
             "Call AutoFragmenter.from_pdb(config) first."
         )
+
+    from rdkit import Chem
 
     state = {"group_idx": 0}
 
@@ -131,9 +135,40 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
         layout=widgets.Layout(width="700px"),
     )
 
+    show_bond_nums = widgets.Checkbox(
+        value=True,
+        description="Show bond numbers on SVG (heavy_mol indexing)",
+        indent=False,
+        layout=widgets.Layout(width="500px"),
+    )
+
     svg_output = widgets.HTML(value="")
     cuts_box = widgets.VBox([])
     info_label = widgets.Label(value="")
+
+    add_cut_input = widgets.IntText(
+        value=0, description="Bond idx:",
+        layout=widgets.Layout(width="220px"),
+    )
+    add_cut_button = widgets.Button(
+        description="Add cut",
+        button_style="info",
+        layout=widgets.Layout(width="120px"),
+    )
+    add_cut_status = widgets.HTML(value="")
+
+    target_mw_input = widgets.FloatText(
+        value=fragmenter.config.target_mw,
+        description="Target MW:",
+        layout=widgets.Layout(width="220px"),
+    )
+    re_suggest_button = widgets.Button(
+        description="Re-suggest (overwrite)",
+        button_style="warning",
+        layout=widgets.Layout(width="200px"),
+    )
+    re_suggest_status = widgets.HTML(value="")
+
     export_button = widgets.Button(
         description="Export segment_data.dat",
         button_style="primary",
@@ -143,12 +178,25 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
 
     def _refresh_svg(group: MoleculeGroup):
         rep = fragmenter.molecules[group.representative_mol_idx]
-        svg = _render_svg(rep.mol, group.cut_sites)
+        svg = _render_svg(
+            rep.mol, group.cut_sites,
+            show_bond_numbers=show_bond_nums.value,
+        )
         svg_output.value = (
             '<div style="border:1px solid #ccc;padding:10px;background:#fff;">'
-            + svg
-            + "</div>"
+            + svg + "</div>"
         )
+
+    def _refresh_dropdown():
+        """Group dropdown のラベル (cuts=N) を最新に更新。"""
+        group_dropdown.options = [
+            (
+                f"Group {i + 1}: {g.smiles[:30]}{'...' if len(g.smiles) > 30 else ''} "
+                f"(n_copies={g.n_copies}, cuts={len(g.cut_sites)})",
+                i,
+            )
+            for i, g in enumerate(fragmenter.groups)
+        ]
 
     def _make_cb_handler(group: MoleculeGroup, cs_idx: int):
         def _on_change(change):
@@ -157,30 +205,133 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
                 _refresh_svg(group)
         return _on_change
 
+    def _make_remove_handler(group: MoleculeGroup, cs_idx: int):
+        def _on_click(_btn):
+            del group.cut_sites[cs_idx]
+            _refresh_dropdown()
+            render(state["group_idx"])
+        return _on_click
+
     def render(group_idx: int):
         group = fragmenter.groups[group_idx]
         info_label.value = (
-            f"SMILES: {group.smiles} | n_copies: {group.n_copies} | "
+            f"SMILES: {group.smiles[:50]}{'...' if len(group.smiles) > 50 else ''} | "
+            f"n_copies: {group.n_copies} | "
             f"residues: {sorted(group.residue_names)} | "
             f"cut sites: {len(group.cut_sites)}"
         )
         _refresh_svg(group)
 
-        checkboxes = []
+        rows = []
         for k, cs in enumerate(group.cut_sites):
+            label = (
+                f"bond {cs.bond_idx} (atoms {cs.atom1_idx}-{cs.atom2_idx})  "
+                f"BDA={cs.bda_atom_idx}, BAA={cs.baa_atom_idx}, suggested={cs.suggested}"
+            )
             cb = widgets.Checkbox(
                 value=cs.enabled,
-                description=f"bond {cs.bond_idx} (atoms {cs.atom1_idx}-{cs.atom2_idx})",
+                description=label,
                 indent=False,
+                layout=widgets.Layout(width="600px"),
             )
             cb.observe(_make_cb_handler(group, k))
-            checkboxes.append(cb)
-        cuts_box.children = checkboxes
+            rm_btn = widgets.Button(
+                description="Remove",
+                button_style="danger",
+                layout=widgets.Layout(width="100px"),
+            )
+            rm_btn.on_click(_make_remove_handler(group, k))
+            rows.append(widgets.HBox([cb, rm_btn]))
+        cuts_box.children = rows
 
     def on_group_change(change):
         if change.get("name") == "value":
             state["group_idx"] = change["new"]
             render(state["group_idx"])
+
+    def on_show_bond_nums_change(change):
+        if change.get("name") == "value":
+            _refresh_svg(fragmenter.groups[state["group_idx"]])
+
+    def on_add_cut_click(_btn):
+        from .auto_split import decide_bda_baa_for_manual_cut
+        from .models import CutSite
+        try:
+            target_bond_idx = int(add_cut_input.value)
+            group = fragmenter.groups[state["group_idx"]]
+            rep = fragmenter.molecules[group.representative_mol_idx]
+            try:
+                heavy_mol = Chem.RemoveHs(rep.mol)
+            except Exception:
+                heavy_mol = rep.mol
+
+            if target_bond_idx < 0 or target_bond_idx >= heavy_mol.GetNumBonds():
+                add_cut_status.value = (
+                    f'<span style="color:#dc3545;">Invalid bond_idx '
+                    f'{target_bond_idx} (range 0..{heavy_mol.GetNumBonds() - 1})</span>'
+                )
+                return
+
+            heavy_bond = heavy_mol.GetBondWithIdx(target_bond_idx)
+            a1_h = heavy_bond.GetBeginAtomIdx()
+            a2_h = heavy_bond.GetEndAtomIdx()
+            heavy_atom_origs = [
+                a.GetIdx() for a in rep.mol.GetAtoms() if a.GetAtomicNum() != 1
+            ]
+            a1_orig = heavy_atom_origs[a1_h]
+            a2_orig = heavy_atom_origs[a2_h]
+            orig_bond = rep.mol.GetBondBetweenAtoms(a1_orig, a2_orig)
+            if orig_bond is None:
+                add_cut_status.value = (
+                    '<span style="color:#dc3545;">Could not map bond to original mol</span>'
+                )
+                return
+            orig_bond_idx = orig_bond.GetIdx()
+
+            for cs in group.cut_sites:
+                if cs.bond_idx == orig_bond_idx:
+                    add_cut_status.value = (
+                        f'<span style="color:#dc3545;">Bond {target_bond_idx} (orig '
+                        f'{orig_bond_idx}) already has a cut. Use Remove first.</span>'
+                    )
+                    return
+
+            bda, baa = decide_bda_baa_for_manual_cut(rep.mol, a1_orig, a2_orig)
+            new_cut = CutSite(
+                bond_idx=orig_bond_idx,
+                atom1_idx=a1_orig,
+                atom2_idx=a2_orig,
+                suggested=False,
+                enabled=True,
+                bda_atom_idx=bda,
+                baa_atom_idx=baa,
+            )
+            group.cut_sites.append(new_cut)
+            add_cut_status.value = (
+                f'<span style="color:#28a745;">Added cut: heavy bond '
+                f'{target_bond_idx}, orig bond {orig_bond_idx}, atoms '
+                f'{a1_orig}-{a2_orig}, BDA={bda}, BAA={baa}</span>'
+            )
+            _refresh_dropdown()
+            render(state["group_idx"])
+        except Exception as e:
+            add_cut_status.value = f'<span style="color:#dc3545;">Error: {e}</span>'
+
+    def on_re_suggest_click(_btn):
+        try:
+            new_mw = float(target_mw_input.value)
+            fragmenter.config.target_mw = new_mw
+            fragmenter.suggest_cuts()
+            total = sum(len(g.cut_sites) for g in fragmenter.groups)
+            re_suggest_status.value = (
+                f'<span style="color:#28a745;">Re-suggested with target_mw='
+                f'{new_mw}: {total} cut(s) total across {len(fragmenter.groups)} '
+                f'group(s)</span>'
+            )
+            _refresh_dropdown()
+            render(state["group_idx"])
+        except Exception as e:
+            re_suggest_status.value = f'<span style="color:#dc3545;">Error: {e}</span>'
 
     def on_export_click(_btn):
         try:
@@ -195,6 +346,9 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
             export_status.value = f'<span style="color:#dc3545;">Error: {e}</span>'
 
     group_dropdown.observe(on_group_change)
+    show_bond_nums.observe(on_show_bond_nums_change)
+    add_cut_button.on_click(on_add_cut_click)
+    re_suggest_button.on_click(on_re_suggest_click)
     export_button.on_click(on_export_click)
 
     render(0)
@@ -204,9 +358,23 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
             widgets.HTML("<h3>abmptools.fragmenter -- interactive panel</h3>"),
             group_dropdown,
             info_label,
+            show_bond_nums,
             svg_output,
-            widgets.HTML("<b>Cut sites (toggle to enable/disable):</b>"),
+            widgets.HTML("<b>Cut sites (toggle = enable/disable, Remove = delete):</b>"),
             cuts_box,
+            widgets.HTML(
+                '<hr><b>Add cut by heavy-mol bond index</b> '
+                '(see numbers on the SVG):'
+            ),
+            widgets.HBox([add_cut_input, add_cut_button]),
+            add_cut_status,
+            widgets.HTML(
+                '<hr><b>Re-suggest auto cuts</b> '
+                '(<i>overwrites all current cuts in all groups</i>):'
+            ),
+            widgets.HBox([target_mw_input, re_suggest_button]),
+            re_suggest_status,
+            widgets.HTML("<hr>"),
             export_button,
             export_status,
         ]

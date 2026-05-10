@@ -70,6 +70,34 @@ def suggest_cuts(mol: Any, config: FragmenterConfig) -> List[CutSite]:
     return cuts
 
 
+def decide_bda_baa_for_manual_cut(
+    mol: Any,
+    atom1_idx: int,
+    atom2_idx: int,
+) -> Tuple[int, int]:
+    """ユーザーが手動で追加した cut bond の BDA/BAA を decide する。
+
+    Rules (auto_split.suggest_cuts と整合):
+        - C-X (X = N/O/S/...): C 側を BDA (ABINIT-MP 慣習、ユーザー指定)
+        - C-C: atom_idx 若い側を BDA (deterministic な default)
+
+    Returns
+    -------
+    (bda_atom_idx, baa_atom_idx)
+    """
+    a1 = mol.GetAtomWithIdx(atom1_idx)
+    a2 = mol.GetAtomWithIdx(atom2_idx)
+    z1, z2 = a1.GetAtomicNum(), a2.GetAtomicNum()
+    if z1 == 6 and z2 != 6:
+        return atom1_idx, atom2_idx
+    if z2 == 6 and z1 != 6:
+        return atom2_idx, atom1_idx
+    # C-C もしくは X-X: atom_idx 若い側を BDA
+    if atom1_idx <= atom2_idx:
+        return atom1_idx, atom2_idx
+    return atom2_idx, atom1_idx
+
+
 def suggest_cuts_for_groups(
     groups: List[MoleculeGroup],
     molecules: List[LoadedMolecule],
