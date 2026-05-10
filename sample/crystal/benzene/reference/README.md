@@ -41,13 +41,16 @@ dispersion contribution that actually binds the crystal; this is
 the pedagogical example of why dispersion is essential for
 hydrocarbon crystals.
 
-## Deformation energy
+## Monomer energy: in crystal vs isolated
 
-Per-fragment deformation = `E_in_crystal − E_isolated`:
+The fragment-1 atomic coordinates are identical in both calculations
+(this is **not** a structural deformation energy; the geometry is
+unchanged). The Δ below is the polarization-plus-correlation
+contribution from sitting in the crystal field.
 
-| Quantity | In-crystal (frag 1) | Isolated | Δ (hartree) | Δ (kcal/mol) |
+| Quantity | In crystal (frag 1) | Isolated | Δ (hartree) | Δ (kcal/mol) |
 |---|---|---|---|---|
-| MP2 total | -231.4560 | -231.4575 | **+0.0015** | **+0.94** |
+| MP2 total | -231.4560 | -231.4575 | +0.0015 | +0.94 |
 
 A small positive shift, consistent with weak polarization of an
 apolar molecule in the crystal field.

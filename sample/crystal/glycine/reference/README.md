@@ -40,18 +40,21 @@ exchange repulsion (EX) that nearly cancel; the residual ~−700
 kcal/mol HF-IFIE reflects the remaining net cohesive contribution.
 This is normal for ionic-like organic crystals.
 
-## Deformation interpretation (caveat!)
+## Monomer energy: in crystal vs isolated (caveat!)
 
-Naïve deformation `MonomerEnergy(1) − MP2_total_isolated` ≈
-**+341 kcal/mol** — this is *not* the polarization deformation
-energy. It is dominated by the **zwitterion penalty in vacuum**:
-isolating a single NH3+/COO− zwitterion at fixed crystal geometry
-without surrounding electrostatic field puts the SCF in a high-
-energy charge-separated state that proton-transfer back to the
-neutral NH2/COOH form would relieve. For the polarization-only
-deformation you would need a separate gas-phase optimization
-(neutral form + relaxation), or a constrained QM/QM cluster
-calculation; both are outside this reference.
+The fragment-1 atomic coordinates are identical in both runs.
+The MonomerEnergy(1) column from the layer3 IFIE summary minus
+the isolated-monomer MP2 total gives **Δ ≈ +341 kcal/mol** — but
+this is **not** a structural deformation energy and is **not** a
+clean polarization shift either. It is dominated by the
+**zwitterion penalty in vacuum**: isolating a single NH3+/COO−
+zwitterion at the crystal geometry, without the surrounding
+electrostatic field, puts the SCF in a high-energy
+charge-separated state that proton-transfer back to the neutral
+NH2/COOH form would relieve. A clean polarization estimate would
+require a separate gas-phase optimization on the neutral form, or
+a constrained QM/QM cluster calculation; both are outside this
+reference.
 
 `expected_layer3_mp2_631gd_ifiesum.csv` and the IFIE detail are
 still meaningful as raw numerics — they just shouldn't be combined

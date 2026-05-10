@@ -317,11 +317,17 @@ and copies the canonical outputs to your `--out-dir`:
 | `expected_<run_id>_ifiesum.csv` | `csv/frag1-dimer-es-false-ifiesum.csv` | 1 row: target-frag-1 sums (HF-IFIE / ES / EX / CT-mix / **`MonomerEnergy(1)`** / etc) |
 | `expected_<run_id>_ifiedt.csv`  | `csv/frag1-dimer-es-false-ifiedt.csv`  | N rows: per-pair detail with `UNK<i>(<i>)` resname annotation |
 
-The `MonomerEnergy(<frag>)` column is the **deformation energy
-route (1)** lever — it's the in-crystal monomer SCF energy of the
-target fragment (HF, hartree). Subtract the gas-phase reference
-monomer SCF (route 2, see Section 8-5) to get the deformation
-contribution per molecule.
+The `MonomerEnergy(<frag>)` column is the **in-crystal monomer
+energy** of the target fragment: the polarized monomer SCF/MP2
+total (HF + MP2 correlation, hartree) computed inside the
+supercell's electrostatic field. Combine it with the
+gas-phase isolated-monomer total (Section 8-5, same fragment
+coordinates) to extract a polarization-plus-correlation
+contribution. Note that this difference is **not** a structural
+deformation energy (the geometry is unchanged between the two
+calculations); a clean structural-deformation analysis needs a
+separate gas-phase relaxed-geometry calculation, e.g. a
+polymorph-vs-polymorph comparison of `MonomerEnergy(<frag>)`.
 
 **Adapting to a different system**: copy the extract script as-is,
 then edit only the destination filename hardcoded in `main()` (and
@@ -330,26 +336,24 @@ differs from 5 digits). The CLI flags passed to getifiepieda are
 fixed for the layer3-style run; for a different cutmode / target
 fragment, change `--multi` and `-dimeres`/`-imd` accordingly.
 
-### 8-5. Deformation energy route 2 (isolated monomer ajf)
+### 8-5. Isolated monomer reference (gas-phase)
 
 For the gas-phase monomer reference you need a **separate ajf** that
 contains only fragment 0 (the central molecule) with no surrounding
-neighbours. Two common ways:
+neighbours. The shipped public-molecule samples
+(`sample/crystal/{urea,glycine,benzene,naphthalene}/monomer.yaml`)
+do this with `cutmode='around', criteria=0.0, layer=1`: the
+fragment-0 atoms are kept and every other molecule is screened
+out by the 0 Å cutoff, leaving a 1-fragment AJF whose atom
+coordinates match those of frag 1 in the supercell exactly.
 
-- **Manual**: copy `for_abmp/<base>.pdb` and keep only the residue 1
-  atoms (32 atoms for csp7), then run `pdb2fmo -xyz -p input_param`
-  on that 1-residue PDB. The resulting AJF has `Natom = 32`,
-  `Nfrag = 1`, and an FMO calculation on it produces the isolated
-  monomer SCF energy.
-- **Automated** (planned, not yet shipped): a `cutmode='monomer_only'`
-  on `pdb2fmo` would emit only the solute residue, skipping the
-  shell-around step. Track this in
-  `project_abmptools_crystal.md` (Phase D-4 candidate).
-
-Once you have both `E_in_crystal = MonomerEnergy(1)` from
-`ifiesum.csv` and `E_isolated = total energy` from the 1-residue
-log, **deformation = E_in_crystal − E_isolated** (in hartree;
-multiply by 627.5095 for kcal/mol).
+Compare the resulting log's `Total energy` to the
+`MonomerEnergy(<frag>)` column of `ifiesum.csv`. The difference is
+a polarization-plus-correlation shift between the in-crystal and
+isolated monomer at the **same geometry** — it is **not** a
+structural deformation energy. A structural deformation analysis
+needs separate gas-phase relaxation, e.g. a polymorph-vs-polymorph
+comparison of relaxed monomer energies.
 
 ### 8-6. Add the regression test
 

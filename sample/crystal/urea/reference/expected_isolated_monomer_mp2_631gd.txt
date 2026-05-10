@@ -9,9 +9,14 @@
 # (cutmode='around' criteria=0.0 with layer=1 → 1-fragment AJF, ASE
 # backend with PBC unwrap so the molecule is contiguous in real space.)
 #
-# Use this together with the in-crystal MonomerEnergy(1) column in
-# `expected_layer3_mp2_631gd_ifiesum.csv` to compute deformation:
-#   deformation = E_in_crystal - E_isolated   (Hartree)
+# The same fragment-1 atomic coordinates are used both here and in
+# the layer3 calculation that produces `expected_layer3_mp2_631gd_ifiesum.csv`,
+# so the difference between this isolated-monomer total and the
+# in-crystal `MonomerEnergy(1)` column is **not** a structural
+# deformation energy (the geometry is unchanged). It is the
+# polarization-plus-correlation contribution from sitting in the
+# crystal field; structural deformation would need a separate
+# gas-phase relaxed-geometry calculation.
 
 method                    MP2/6-31G(d)
 abinitmp_version          v2r8

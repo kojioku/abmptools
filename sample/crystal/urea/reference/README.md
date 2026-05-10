@@ -24,24 +24,30 @@ shippable in the public abmptools repo.
 |---|---|
 | `expected_layer3_mp2_631gd_ifiesum.csv` | Target frag 1 sum: HF-IFIE / MP2-IFIE / ES / EX / CT-mix / **`MonomerEnergy(1)`** (in-crystal HF + MP2 total, hartree) |
 | `expected_layer3_mp2_631gd_ifiedt.csv`  | 1:1 IFIE detail for dimer-es=False pairs around frag 1, with `UNK<i>(<i>)` resname annotation |
-| `expected_isolated_monomer_mp2_631gd.txt` | Isolated 1-molecule HF / MP2 total energies (hartree) for the deformation-energy reference |
+| `expected_isolated_monomer_mp2_631gd.txt` | Isolated 1-molecule HF / MP2 total energies (hartree) — gas-phase reference at the same fragment geometry |
 
-## Deformation energy
+## Monomer energy: in crystal vs isolated
 
-Per-fragment deformation = `E_in_crystal − E_isolated`:
+The fragment-1 atomic coordinates are identical in both calculations.
+The "in-crystal" value is the polarized monomer SCF/MP2 of frag 1
+inside the supercell; the "isolated" value is the same monomer
+calculated alone in vacuum. The difference is therefore **not** a
+structural deformation energy (which would require a separate
+gas-phase relaxed geometry); it is the polarization-plus-correlation
+contribution from sitting in the crystal field.
 
-| Quantity | In-crystal (frag 1) | Isolated | Δ (hartree) | Δ (kcal/mol) |
+| Quantity | In crystal (frag 1) | Isolated | Δ (hartree) | Δ (kcal/mol) |
 |---|---|---|---|---|
-| HF total | -223.9659 | -223.9704 | **+0.0045** | +2.8 |
-| MP2 total | -224.5950 | -224.6033 | **+0.0083** | +5.2 |
+| HF total  | -223.9659 | -223.9704 | +0.0045 | +2.8 |
+| MP2 total | -224.5950 | -224.6033 | +0.0083 | +5.2 |
 
-The +5 kcal/mol shift is the polarization-plus-correlation cost of
-sitting in the crystal field, which is consistent with literature
-values for urea (~6 kcal/mol). The crystal-environment IFIEs around
-frag 1 sum to **-28.9 kcal/mol (HF)** and **-11.3 kcal/mol (MP2 corr)**,
-so the net cohesive contribution per-molecule (= deformation +
-∑IFIE/2) is in the −10 to −20 kcal/mol band, in the right
-ballpark for urea's experimental cohesive energy ~16 kcal/mol.
+For urea this Δ is in the ~few kcal/mol range, consistent with a
+modest polarization shift. The crystal-environment IFIEs around
+frag 1 sum to **-28.9 kcal/mol (HF)** and **-11.3 kcal/mol (MP2
+corr)**, so the per-molecule cohesive contribution
+(≈ ΔE_monomer + ∑IFIE/2) is in the −10 to −20 kcal/mol band, in
+the right ballpark for urea's experimental cohesive energy
+~16 kcal/mol.
 
 ## Reproducing
 

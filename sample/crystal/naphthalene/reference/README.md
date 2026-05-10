@@ -52,13 +52,16 @@ benzene MP2-IFIE — consistent with the larger polarizable
 π-system. Together with benzene this is the textbook hydrocarbon
 "dispersion is essential" demonstration.
 
-## Deformation energy
+## Monomer energy: in crystal vs isolated
 
-Per-fragment deformation = `E_in_crystal − E_isolated`:
+The fragment-1 atomic coordinates are identical in both calculations
+(this is **not** a structural deformation energy; the geometry is
+unchanged). The Δ below is the polarization-plus-correlation
+contribution from sitting in the crystal field.
 
-| Quantity | In-crystal (frag 1) | Isolated | Δ (hartree) | Δ (kcal/mol) |
+| Quantity | In crystal (frag 1) | Isolated | Δ (hartree) | Δ (kcal/mol) |
 |---|---|---|---|---|
-| MP2 total | -384.5579 | -384.5600 | **+0.0021** | **+1.3** |
+| MP2 total | -384.5579 | -384.5600 | +0.0021 | +1.3 |
 
 A small positive shift, in line with weak polarization of an
 apolar molecule in the crystal field, similar to benzene.

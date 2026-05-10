@@ -308,9 +308,10 @@ Phase D 完了後、abinitmp v2r8 で **csp7 R00001 layer3 HF/6-31G の
     (`@pytest.mark.slow` + `ENABLE_FMO_LIVE_REGRESSION=1` gate):
     pipeline + run-local + extract → byte-compare with committed CSVs
 - **`docs/tutorial_crystal_fmo.md` Section 8-4/8-5/8-6/9** —
-  getifiepieda 経路 + deformation route 1 (= MonomerEnergy 列) の
-  default 推奨、route 2 (isolated monomer ajf) の手順、Failure modes
-  に anlfmo.py 5 箇所修正点に対応する 4 行追加 (各 KeyError /
+  getifiepieda 経路 + in-crystal monomer energy (= MonomerEnergy 列、
+  ifiesum.csv 由来) の default 推奨、isolated monomer 用別 ajf
+  (cutmode='around' criteria=0.0) の生成手順、Failure modes に
+  anlfmo.py 5 箇所修正点に対応する 4 行追加 (各 KeyError /
   ValueError → 修正済の旨)
 
 ### Notes (Phase D-3 revised)
@@ -429,7 +430,8 @@ ABINIT-MP の Monomer SCC が振動 (urea で ±1420 hartree、glycine で
     `reference/expected_isolated_monomer_mp2_631gd.txt` + README.md
     - 14 fragment / 112 atoms (layer3 cutmode around 6 Å)
     - 2.5 分で完走 (mpirun -np 4)
-    - **deformation = +5.2 kcal/mol (MP2)** 確認
+    - in-crystal vs isolated monomer の MP2 差 +5.2 kcal/mol
+      (polarization 由来、structural deformation ではない)
   - `glycine/` (Marsh 1958, P21/n, Z=4): 同 layout、layer3 21 frag
   - `benzene/` (Cox/Cruickshank/Smith 1958, Pbca, Z=4): 同 layout
   - (`naphthalene/` は当初 hand-craft cif で座標重複だったが、Phase

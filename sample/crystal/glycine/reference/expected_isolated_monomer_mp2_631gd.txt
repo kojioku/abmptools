@@ -12,10 +12,12 @@
 # vacuum, the SCF lands on the zwitterion form but at a much higher
 # energy than the gas-phase neutral form would. So the bare difference
 # `MonomerEnergy(1)` − `MP2_total_energy_hartree` is dominated by the
-# zwitterion penalty (~340 kcal/mol), not the more interesting
-# polarization-only deformation. For deformation analysis treat this
-# isolated-monomer energy as a *zwitterion-vacuum* reference, not a
-# gas-phase neutral reference.
+# zwitterion penalty (~340 kcal/mol), not the polarization-only
+# contribution one would normally read into a monomer-energy
+# difference at fixed geometry. Treat this isolated-monomer energy
+# as a *zwitterion-vacuum* reference, not a gas-phase neutral
+# reference; it is **not** a structural deformation energy either
+# (the geometry is unchanged from the in-crystal frag).
 
 method                    MP2/6-31G(d)
 abinitmp_version          v2r8

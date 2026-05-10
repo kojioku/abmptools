@@ -3,6 +3,12 @@
 # Source log:
 #   sample/crystal/benzene/out_monomer_v2/benzene/cifout/layer1/pdb/for_abmp/
 #       benzenelayer1Zp1-around_ar0.0.log
+#
+# Same fragment-1 atomic coordinates as in the layer3 calculation,
+# so the difference between this isolated total and the in-crystal
+# `MonomerEnergy(1)` is the polarization-plus-correlation
+# contribution from the crystal field — **not** a structural
+# deformation energy.
 
 method                    MP2/6-31G(d)
 abinitmp_version          v2r8
