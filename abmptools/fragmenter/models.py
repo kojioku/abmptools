@@ -79,6 +79,19 @@ class CutSite:
         auto_split の自動提案で生成されたか (True) ユーザー手動追加か (False)。
     enabled
         切断するか (True) 切断しないか (False)。UI で toggle。
+    bda_atom_idx
+        BDA (Bond Detached Atom) = 切断後 electron pair を保持する側の atom
+        index。`atom1_idx` か `atom2_idx` のどちらか。``None`` の場合は未決定
+        (legacy データや手動 cut で方向が定まっていないケース)。
+    baa_atom_idx
+        BAA (Bond Attachment Atom) = H 擬似 capping される側の atom index。
+        `bda_atom_idx` の反対側。``None`` の場合は未決定。
+
+    BDA / BAA の決定ルール (auto_split で suggest される際):
+        - C-C 単結合 (本サブパッケージの主対象): walk 起点側 (graph diameter
+          path[0] を含む側) を BDA 側とする
+        - C-X 単結合 (将来 ``--no-exclude-hetero`` 時): C 側を BDA
+        - peptide bond (本サブパッケージ対象外): N 末側を BDA (log2config 経路)
     """
 
     bond_idx: int
@@ -86,6 +99,8 @@ class CutSite:
     atom2_idx: int
     suggested: bool = True
     enabled: bool = True
+    bda_atom_idx: Optional[int] = None
+    baa_atom_idx: Optional[int] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

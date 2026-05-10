@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from typing import Any, List, Set
+from typing import Any, List, Set, Tuple
 
 from .models import CutSite, FragmenterConfig, MoleculeGroup
 from .pdb_loader import LoadedMolecule
@@ -53,10 +53,10 @@ def suggest_cuts(mol: Any, config: FragmenterConfig) -> List[CutSite]:
     if len(main_chain) < 2:
         return []
 
-    cut_bond_indices = _select_cuts_along_path(mol, main_chain, candidate, config.target_mw)
+    cut_results = _select_cuts_along_path(mol, main_chain, candidate, config.target_mw)
 
     cuts: List[CutSite] = []
-    for bond_idx in cut_bond_indices:
+    for bond_idx, bda_atom, baa_atom in cut_results:
         bond = mol.GetBondWithIdx(bond_idx)
         cuts.append(CutSite(
             bond_idx=bond_idx,
@@ -64,6 +64,8 @@ def suggest_cuts(mol: Any, config: FragmenterConfig) -> List[CutSite]:
             atom2_idx=bond.GetEndAtomIdx(),
             suggested=True,
             enabled=True,
+            bda_atom_idx=bda_atom,
+            baa_atom_idx=baa_atom,
         ))
     return cuts
 
@@ -198,10 +200,18 @@ def _find_main_chain_heavy(mol: Any) -> List[int]:
 
 
 def _atom_total_mw(atom: Any) -> float:
-    """atom 自身の質量 + 結合している H の質量。"""
+    """atom 自身の質量 + 結合している H の質量 (implicit + explicit 両方)。
+
+    PDB 由来の Mol は explicit H を持つ (RDKit が PDB から読み込むと H atom が
+    別 atom として登録される) ため、`GetTotalNumHs(includeNeighbors=False)` は
+    implicit H 0 を返してしまう。結果として CH3 の MW が ~12 (本来 ~15) と
+    低くなり、累積 walk の cut 位置がずれる。implicit + explicit H neighbors の
+    両方を加算することで、heavy-only Mol と H 込み Mol の挙動を一致させる。
+    """
     mw = atom.GetMass()
-    n_h = atom.GetTotalNumHs(includeNeighbors=False)
-    mw += n_h * 1.008
+    n_h_implicit = atom.GetTotalNumHs(includeNeighbors=False)
+    n_h_explicit = sum(1 for nb in atom.GetNeighbors() if nb.GetAtomicNum() == 1)
+    mw += (n_h_implicit + n_h_explicit) * 1.008
     return mw
 
 
@@ -232,11 +242,20 @@ def _select_cuts_along_path(
     path: List[int],
     candidate_bonds: Set[int],
     target_mw: float,
-) -> List[int]:
-    """主鎖 path を辿りつつ、累積 MW ≥ target_mw のたびに candidate bond で切断。"""
+) -> List[Tuple[int, int, int]]:
+    """主鎖 path を辿りつつ、累積 MW ≥ target_mw のたびに candidate bond で切断。
+
+    Returns
+    -------
+    List[Tuple[bond_idx, bda_atom_idx, baa_atom_idx]]
+        BDA / BAA 役割は walk 方向で決定する: walk 起点側 (path[0] 側) の atom
+        が BDA、反対側 (path[-1] 側) の atom が BAA。これにより「main chain
+        起点側 fragment が electron pair を保持」する形になる (アミノ酸の
+        N→C 方向のアナロジーを generic C-C cut に拡張)。
+    """
     if len(path) < 2:
         return []
-    selected: List[int] = []
+    selected: List[Tuple[int, int, int]] = []
     main_chain_set = set(path)
     cum_mw = 0.0
     for i in range(len(path) - 1):
@@ -249,6 +268,8 @@ def _select_cuts_along_path(
             continue
         bond_idx = bond.GetIdx()
         if bond_idx in candidate_bonds and cum_mw >= target_mw:
-            selected.append(bond_idx)
+            # path[i] = BDA (walk 起点側 = electron pair holder)
+            # path[i+1] = BAA (walk 進行方向側 = H で capping される)
+            selected.append((bond_idx, path[i], path[i + 1]))
             cum_mw = 0.0
     return selected

@@ -156,6 +156,58 @@ def test_segment_data_dat_roundtrip(propane_acetone_mix_pdb, tmp_path):
     assert all("name" in e and "atom" in e for e in seg_data)
 
 
+def test_bda_baa_assigned_on_auto_suggest(propane_acetone_mix_pdb):
+    """auto_split.suggest_cuts は BDA/BAA を decide して CutSite に格納する。"""
+    from abmptools.fragmenter import (
+        FragmenterConfig, load_pdb_molecules, group_by_smiles,
+        suggest_cuts_for_groups,
+    )
+    config = FragmenterConfig(pdb_path=str(propane_acetone_mix_pdb), target_mw=15.0)
+    loaded = load_pdb_molecules(config.pdb_path)
+    groups = group_by_smiles(loaded)
+    suggest_cuts_for_groups(groups, loaded, config)
+    propane_grp = next(g for g in groups if g.smiles == "CCC")
+    assert len(propane_grp.cut_sites) == 1
+    cs = propane_grp.cut_sites[0]
+    assert cs.bda_atom_idx is not None
+    assert cs.baa_atom_idx is not None
+    # BDA / BAA は cut bond の両端のいずれか、かつ互いに異なる
+    assert cs.bda_atom_idx in (cs.atom1_idx, cs.atom2_idx)
+    assert cs.baa_atom_idx in (cs.atom1_idx, cs.atom2_idx)
+    assert cs.bda_atom_idx != cs.baa_atom_idx
+
+
+def test_segment_data_only_bda_fragment_has_connect(propane_acetone_mix_pdb, tmp_path):
+    """ABINIT-MP 形式: BDA holder fragment のみ connect entry を持つ。"""
+    from abmptools.fragmenter import (
+        FragmenterConfig, load_pdb_molecules, group_by_smiles,
+        suggest_cuts_for_groups, export_to_system,
+    )
+    config = FragmenterConfig(pdb_path=str(propane_acetone_mix_pdb), target_mw=15.0)
+    loaded = load_pdb_molecules(config.pdb_path)
+    groups = group_by_smiles(loaded)
+    suggest_cuts_for_groups(groups, loaded, config)
+    output = tmp_path / "segment_data.dat"
+    result = export_to_system(config.pdb_path, groups, loaded, str(output))
+
+    # propane (CCC) entry: 6 fragments (3 copies × 2 frag/copy)
+    prop_entry = next(e for e in result.segment_data if "CCC" in e["name"])
+    cn = prop_entry["connect_num"]
+    # 各 propane が 2 fragment、片方が BDA (connect_num=1), 片方が BAA (=0)
+    assert cn.count(1) == 3, f"expected 3 BDA fragments, got connect_num={cn}"
+    assert cn.count(0) == 3, f"expected 3 BAA fragments, got connect_num={cn}"
+    # connect entry も同じ (BDA fragment のみ要素を持つ)
+    bda_entries = [c for c in prop_entry["connect"] if c]
+    empty_entries = [c for c in prop_entry["connect"] if not c]
+    assert len(bda_entries) == 3
+    assert len(empty_entries) == 3
+    # 各 BDA entry は (BDA atom, BAA atom) の 1 ペア
+    for entry in bda_entries:
+        assert len(entry) == 1
+        bda_atom, baa_atom = entry[0]
+        assert bda_atom != baa_atom
+
+
 def test_cli_suggest_apply(propane_acetone_mix_pdb, tmp_path):
     """CLI suggest -> apply round-trip。"""
     from abmptools.fragmenter.__main__ import main

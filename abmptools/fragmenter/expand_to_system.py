@@ -11,15 +11,20 @@ log2config の出力形式 (abmptools.log2config.main):
             'name': '<basename>',
             'atom':       [n_atoms_per_fragment, ...],
             'charge':     [charge_per_fragment, ...],
-            'connect_num':[BAA_count_per_fragment, ...],
+            'connect_num':[BDA_count_per_fragment, ...],   # BDA atom 数
             'seg_info':   [[atom_idx_1origin, ...], ...],
-            'connect':    [[(this_atom, other_atom), ...], ...],
+            'connect':    [[(BDA_atom, BAA_atom), ...], ...],
             'nummol_seg': [1],
             'repeat':     [1],
             'pair_file':  [],
             'multi_xyz':  'none',
         },
     ]
+
+ABINIT-MP の慣習: 各 cut bond につき 1 つの fragment を「BDA holder」(electron pair
+保持側) として登録し、その fragment の `connect` に `[BDA atom, BAA atom]` の順
+で記録する。反対側 fragment (= BAA 受け側) は `connect` に entry を持たず、
+`connect_num` も 0。これが log2config の出力形式と一致する。
 
 新ツールでは「同じ SMILES の分子グループの全コピー」を 1 segment_data エントリ
 にまとめる。各 fragment が seg_data 内 list の 1 要素になる。
@@ -63,6 +68,16 @@ def build_segment_data(
         seg_info_pf: List[List[int]] = []
         connect_pf: List[List[Tuple[int, int]]] = []
 
+        # Group 全体で BDA/BAA が設定されているかを 1 度判定する:
+        #   - 全 enabled cut_sites が bda/baa 完備 → 新 API mode (ABINIT-MP 形式、
+        #     BDA holder のみ connect 記録)
+        #   - 1 つでも未設定 → legacy mode (旧挙動、両 fragment 対称記録)
+        enabled_cuts = [cs for cs in group.cut_sites if cs.enabled]
+        new_api_mode = bool(enabled_cuts) and all(
+            cs.bda_atom_idx is not None and cs.baa_atom_idx is not None
+            for cs in enabled_cuts
+        )
+
         for mol_idx in group.member_mol_indices:
             lm = molecules[mol_idx]
             fragments = apply_cuts(lm.mol, group.cut_sites)
@@ -70,18 +85,25 @@ def build_segment_data(
                 # 各 fragment の atom 数 (heavy + H 全て、PDB 内に存在するもの)
                 atoms_pf.append(len(frag.atom_indices))
                 charges_pf.append(frag.charge)
-                connect_num_pf.append(len(frag.baa_atom_pairs))
+                # ABINIT-MP 形式: 新 API mode なら BDA holder のみ connect 記録、
+                # legacy mode なら baa_pairs (旧対称記録) を connect に
+                if new_api_mode:
+                    use_pairs = frag.bda_pairs
+                else:
+                    use_pairs = frag.baa_pairs
+                connect_num_pf.append(len(use_pairs))
                 # seg_info: PDB 内 atom index (1-origin)
                 seg_info_pf.append([
                     lm.atom_indices_in_pdb[i] + 1 for i in frag.atom_indices
                 ])
-                # connect: (this_atom_pdb_1origin, other_atom_pdb_1origin) のリスト
+                # connect: BDA holder の場合 (BDA atom, BAA atom) ペア。
+                # legacy fallback では (this, other) ペア (旧挙動)。
                 connect_list = [
                     (
                         lm.atom_indices_in_pdb[a_this] + 1,
                         lm.atom_indices_in_pdb[a_other] + 1,
                     )
-                    for a_this, a_other in frag.baa_atom_pairs
+                    for a_this, a_other in use_pairs
                 ]
                 connect_pf.append(connect_list)
                 total_fragments += 1
