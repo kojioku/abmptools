@@ -41,6 +41,12 @@ class FragmenterConfig:
     include_residue_name
         SMILES に加え residue_name も group key に含める。同一 SMILES でも
         residue_name が違えば別グループに分ける。
+    include_c_heteroatom
+        C-X (X = N/O/S/P/F/Cl/Br/I) の単結合も切断 candidate に含める。
+        デフォルト False (C-C 単結合のみ切断対象)。True にすると
+        ``exclude_heteroneighbor`` フィルタは C-C bond にのみ適用され、
+        C-X bond は別途切断対象。BDA/BAA 役割は ABINIT-MP の慣習に従い
+        **C 側を BDA、X 側を BAA** に固定 (walk 方向に依存しない)。
     """
 
     pdb_path: str
@@ -52,6 +58,7 @@ class FragmenterConfig:
     skip_protein_dna: bool = True
     polymer_groups: List[List[str]] = field(default_factory=list)
     include_residue_name: bool = False
+    include_c_heteroatom: bool = False
 
     def to_json(self, path: Optional[str] = None) -> str:
         text = json.dumps(asdict(self), indent=2, ensure_ascii=False)

@@ -41,6 +41,7 @@ def cmd_suggest(args: argparse.Namespace) -> int:
         exclude_heteroneighbor=not args.no_exclude_hetero,
         skip_protein_dna=True,
         include_residue_name=args.split_by_resname,
+        include_c_heteroatom=args.include_c_heteroatom,
     )
 
     loaded = load_pdb_molecules(config.pdb_path)
@@ -115,6 +116,8 @@ def build_parser() -> argparse.ArgumentParser:
                       help="allow cuts on double / triple bonds")
     p_sg.add_argument("--no-exclude-hetero", action="store_true",
                       help="allow cuts on C-C bonds adjacent to heteroatoms")
+    p_sg.add_argument("--include-c-heteroatom", action="store_true",
+                      help="also cut C-X single bonds (X = N/O/S/...). BDA = C side.")
     p_sg.add_argument("--split-by-resname", action="store_true",
                       help="separate groups by residue name even when SMILES match")
     p_sg.set_defaults(func=cmd_suggest)

@@ -94,7 +94,13 @@ def suggest_cuts_for_groups(
 
 
 def _enumerate_candidate_bonds(mol: Any, config: FragmenterConfig) -> Set[int]:
-    """切断対象 C-C 単結合を列挙する。"""
+    """切断対象の単結合を列挙する。
+
+    デフォルトは C-C 単結合のみ。``config.include_c_heteroatom=True`` の場合
+    は C-X 単結合 (X = N/O/S/P/F/Cl/Br/I) も candidate に含める。
+    ``exclude_heteroneighbor`` フィルタは **C-C bond にのみ適用** され、
+    C-X bond は別途許可される。
+    """
     from rdkit import Chem
 
     candidates: Set[int] = set()
@@ -103,11 +109,21 @@ def _enumerate_candidate_bonds(mol: Any, config: FragmenterConfig) -> Set[int]:
             continue
         a1 = bond.GetBeginAtom()
         a2 = bond.GetEndAtom()
-        if a1.GetAtomicNum() != 6 or a2.GetAtomicNum() != 6:
+        z1, z2 = a1.GetAtomicNum(), a2.GetAtomicNum()
+
+        is_cc = z1 == 6 and z2 == 6
+        is_cx = (
+            (z1 == 6 and z2 in HETERO_ELEMENTS)
+            or (z2 == 6 and z1 in HETERO_ELEMENTS)
+        )
+        if not is_cc and not (is_cx and config.include_c_heteroatom):
             continue
+
         if config.exclude_ring_cc and bond.IsInRing():
             continue
-        if config.exclude_heteroneighbor:
+
+        # ヘテロ隣接除外は C-C bond にのみ適用
+        if is_cc and config.exclude_heteroneighbor:
             if _has_hetero_neighbor(a1, exclude_idx=a2.GetIdx()) or \
                _has_hetero_neighbor(a2, exclude_idx=a1.GetIdx()):
                 continue
@@ -268,8 +284,18 @@ def _select_cuts_along_path(
             continue
         bond_idx = bond.GetIdx()
         if bond_idx in candidate_bonds and cum_mw >= target_mw:
-            # path[i] = BDA (walk 起点側 = electron pair holder)
-            # path[i+1] = BAA (walk 進行方向側 = H で capping される)
-            selected.append((bond_idx, path[i], path[i + 1]))
+            # BDA / BAA 役割の決定:
+            #   - C-X (X = N/O/S/...): C 側を BDA、X 側を BAA (ABINIT-MP 慣習)
+            #   - C-C: walk 起点側 (path[i]) を BDA、進行方向側 (path[i+1]) を BAA
+            a_i = mol.GetAtomWithIdx(path[i])
+            a_j = mol.GetAtomWithIdx(path[i + 1])
+            zi, zj = a_i.GetAtomicNum(), a_j.GetAtomicNum()
+            if zi == 6 and zj != 6:
+                bda, baa = path[i], path[i + 1]      # i は C
+            elif zj == 6 and zi != 6:
+                bda, baa = path[i + 1], path[i]      # j は C
+            else:
+                bda, baa = path[i], path[i + 1]      # C-C: walk 起点側
+            selected.append((bond_idx, bda, baa))
             cum_mw = 0.0
     return selected
