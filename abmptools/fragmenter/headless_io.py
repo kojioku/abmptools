@@ -132,11 +132,20 @@ def _render_svg(
     width: int = 600,
     height: int = 400,
 ) -> str:
-    """RDKit で heavy-atom-only SVG を生成、cut_sites の bond を赤色ハイライト。
+    """RDKit で heavy-atom-only SVG を生成、cut_sites の bond と BDA/BAA atom を
+    色分けハイライト。
 
     PDB の 3D 配座をそのまま投影すると化学者向けの構造式として読みにくいので、
     `Compute2DCoords` で 2D 座標を再生成してから描画する。これで PE / PP の
     ような長鎖でもまっすぐな zigzag に整えて表示される。
+
+    Color scheme:
+        - cut bond:  red (R=1.0, G=0.2, B=0.2)
+        - BDA atom:  blue (R=0.3, G=0.5, B=1.0) — electron pair holder
+        - BAA atom:  orange (R=1.0, G=0.6, B=0.0) — H で擬似 capping される側
+
+    `cs.bda_atom_idx` / `cs.baa_atom_idx` が ``None`` の legacy CutSite では
+    atom highlight なし、cut bond の赤線のみ。
     """
     from rdkit import Chem
     from rdkit.Chem import AllChem
@@ -163,6 +172,12 @@ def _render_svg(
 
     hl_bonds: List[int] = []
     bond_colors: dict = {}
+    hl_atoms: List[int] = []
+    atom_colors: dict = {}
+    BDA_COLOR = (0.3, 0.5, 1.0)        # blue
+    BAA_COLOR = (1.0, 0.6, 0.0)        # orange
+    CUT_BOND_COLOR = (1.0, 0.2, 0.2)   # red
+
     for cs in cut_sites:
         if not cs.enabled:
             continue
@@ -173,12 +188,26 @@ def _render_svg(
         bond = heavy_mol.GetBondBetweenAtoms(a1_h, a2_h)
         if bond is not None:
             hl_bonds.append(bond.GetIdx())
-            bond_colors[bond.GetIdx()] = (1.0, 0.2, 0.2)  # red
+            bond_colors[bond.GetIdx()] = CUT_BOND_COLOR
+
+        # BDA / BAA atom ハイライト (新 API のみ、`bda_atom_idx` 設定時)
+        if cs.bda_atom_idx is not None:
+            bda_h = orig_to_heavy.get(cs.bda_atom_idx)
+            if bda_h is not None:
+                hl_atoms.append(bda_h)
+                atom_colors[bda_h] = BDA_COLOR
+        if cs.baa_atom_idx is not None:
+            baa_h = orig_to_heavy.get(cs.baa_atom_idx)
+            if baa_h is not None:
+                hl_atoms.append(baa_h)
+                atom_colors[baa_h] = BAA_COLOR
 
     drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
     rdMolDraw2D.PrepareAndDrawMolecule(
         drawer,
         heavy_mol,
+        highlightAtoms=hl_atoms,
+        highlightAtomColors=atom_colors,
         highlightBonds=hl_bonds,
         highlightBondColors=bond_colors,
     )
