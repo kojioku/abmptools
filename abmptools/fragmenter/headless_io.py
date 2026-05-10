@@ -133,19 +133,24 @@ def _render_svg(
     height: int = 400,
 ) -> str:
     """RDKit で heavy-atom-only SVG を生成、cut_sites の bond と BDA/BAA atom を
-    色分けハイライト。
+    識別表示。
 
     PDB の 3D 配座をそのまま投影すると化学者向けの構造式として読みにくいので、
     `Compute2DCoords` で 2D 座標を再生成してから描画する。これで PE / PP の
     ような長鎖でもまっすぐな zigzag に整えて表示される。
 
-    Color scheme:
-        - cut bond:  red (R=1.0, G=0.2, B=0.2)
-        - BDA atom:  blue (R=0.3, G=0.5, B=1.0) — electron pair holder
-        - BAA atom:  orange (R=1.0, G=0.6, B=0.0) — H で擬似 capping される側
+    Display scheme:
+        - cut bond:  red line (R=1.0, G=0.2, B=0.2)
+        - **BDA atom**: 点線縁取りの青い円 (塗りつぶしなし) + 'BDA' atom note
+          — electron pair holder
+        - **BAA atom**: オレンジ塗り highlight + 'BAA' atom note
+          — H で擬似 capping される側
+
+    BDA を点線中抜き、BAA を塗りで対比することで「電子は BDA 側に donate、
+    BAA 側は H で capping される」という化学的方向性を視覚化する。
 
     `cs.bda_atom_idx` / `cs.baa_atom_idx` が ``None`` の legacy CutSite では
-    atom highlight なし、cut bond の赤線のみ。
+    atom 装飾なし、cut bond の赤線のみ。
     """
     from rdkit import Chem
     from rdkit.Chem import AllChem
@@ -172,9 +177,10 @@ def _render_svg(
 
     hl_bonds: List[int] = []
     bond_colors: dict = {}
-    hl_atoms: List[int] = []
+    hl_atoms: List[int] = []        # BAA only (BDA は SVG 後処理で点線円を描く)
     atom_colors: dict = {}
-    BDA_COLOR = (0.3, 0.5, 1.0)        # blue
+    bda_h_atoms: List[int] = []     # BDA atom の heavy_mol 内 idx (post-process 用)
+    BDA_OUTLINE = "rgb(76,127,255)"   # blue (0.3, 0.5, 1.0) を 0-255 換算
     BAA_COLOR = (1.0, 0.6, 0.0)        # orange
     CUT_BOND_COLOR = (1.0, 0.2, 0.2)   # red
 
@@ -190,17 +196,19 @@ def _render_svg(
             hl_bonds.append(bond.GetIdx())
             bond_colors[bond.GetIdx()] = CUT_BOND_COLOR
 
-        # BDA / BAA atom ハイライト (新 API のみ、`bda_atom_idx` 設定時)
+        # BDA: ハイライトせず atomNote 付与 + post-process で点線円
         if cs.bda_atom_idx is not None:
             bda_h = orig_to_heavy.get(cs.bda_atom_idx)
             if bda_h is not None:
-                hl_atoms.append(bda_h)
-                atom_colors[bda_h] = BDA_COLOR
+                heavy_mol.GetAtomWithIdx(bda_h).SetProp("atomNote", "BDA")
+                bda_h_atoms.append(bda_h)
+        # BAA: オレンジ塗り highlight + atomNote
         if cs.baa_atom_idx is not None:
             baa_h = orig_to_heavy.get(cs.baa_atom_idx)
             if baa_h is not None:
                 hl_atoms.append(baa_h)
                 atom_colors[baa_h] = BAA_COLOR
+                heavy_mol.GetAtomWithIdx(baa_h).SetProp("atomNote", "BAA")
 
     drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
     rdMolDraw2D.PrepareAndDrawMolecule(
@@ -211,5 +219,23 @@ def _render_svg(
         highlightBonds=hl_bonds,
         highlightBondColors=bond_colors,
     )
+
+    # BDA atom 位置を drawer から取得して、SVG 後処理で点線円を挿入
+    bda_circle_elems: List[str] = []
+    for bda_h in bda_h_atoms:
+        try:
+            pt = drawer.GetDrawCoords(bda_h)
+            bda_circle_elems.append(
+                f'<circle cx="{pt.x:.2f}" cy="{pt.y:.2f}" r="14" '
+                f'fill="none" stroke="{BDA_OUTLINE}" '
+                f'stroke-width="2" stroke-dasharray="3,3"/>'
+            )
+        except Exception:
+            pass
+
     drawer.FinishDrawing()
-    return drawer.GetDrawingText()
+    svg = drawer.GetDrawingText()
+
+    if bda_circle_elems:
+        svg = svg.replace("</svg>", "\n".join(bda_circle_elems) + "\n</svg>")
+    return svg
