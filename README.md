@@ -115,6 +115,7 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 - `abmptools.anlfmo` gained HF-log support along the way (5 defensive edits, MP2 production path unchanged)
 - Bundled tutorial: `docs/tutorial_crystal_fmo.md` (9 sections, including reference-establishment recipe); design notes: `docs/crystal.md`; verification matrix: `docs/crystal_verification.md`
 - Sample driver/config: `sample/crystal/csp7_smoke/` (cif and `UNK.ajf` template are private and live in `abmptools-sample` — staged automatically when `ABMPTOOLS_SAMPLE_DIR` is set)
+- Public-molecule MP2/6-31G(d) reference set: `sample/crystal/{urea,glycine,benzene,naphthalene}/` with `reference/expected_layer3_mp2_631gd_{ifiesum,ifiedt}.csv` + isolated-monomer total. Cross-molecule summary in `docs/crystal_public_molecule_references.md`
 - Dependencies: `pip install abmptools[crystal]` (`ase >= 3.22` / `pyyaml >= 6.0`); ABINIT-MP for `--run-local` only
 
 ### Peptide-Bilayer Umbrella Sampling (`membrane`)

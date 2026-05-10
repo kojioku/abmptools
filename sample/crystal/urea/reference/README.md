@@ -36,10 +36,9 @@ structural deformation energy (which would require a separate
 gas-phase relaxed geometry); it is the polarization-plus-correlation
 contribution from sitting in the crystal field.
 
-| Quantity | In crystal (frag 1) | Isolated | Δ (hartree) | Δ (kcal/mol) |
-|---|---|---|---|---|
-| HF total  | -223.9659 | -223.9704 | +0.0045 | +2.8 |
-| MP2 total | -224.5950 | -224.6033 | +0.0083 | +5.2 |
+| Quantity | E' (in crystal, hartree) | MP2 total (isolated, hartree) | Δ (hartree) | Δ (kcal/mol) |
+|---|---:|---:|---:|---:|
+| monomer energy | -224.5950 | -224.6033 | +0.0083 | +5.2 |
 
 For urea this Δ is in the ~few kcal/mol range, consistent with a
 modest polarization shift. The crystal-environment IFIEs around

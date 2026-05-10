@@ -42,11 +42,13 @@ This is normal for ionic-like organic crystals.
 
 ## Monomer energy: in crystal vs isolated (caveat!)
 
+| Quantity | E' (in crystal, hartree) | MP2 total (isolated, hartree) | Δ (hartree) | Δ (kcal/mol) |
+|---|---:|---:|---:|---:|
+| monomer energy | -282.0075 | -282.5508 | +0.5433 | +341 ※ |
+
 The fragment-1 atomic coordinates are identical in both runs.
-The MonomerEnergy(1) column from the layer3 IFIE summary minus
-the isolated-monomer MP2 total gives **Δ ≈ +341 kcal/mol** — but
-this is **not** a structural deformation energy and is **not** a
-clean polarization shift either. It is dominated by the
+The Δ above is **not** a structural deformation energy and is
+**not** a clean polarization shift either. It is dominated by the
 **zwitterion penalty in vacuum**: isolating a single NH3+/COO−
 zwitterion at the crystal geometry, without the surrounding
 electrostatic field, puts the SCF in a high-energy

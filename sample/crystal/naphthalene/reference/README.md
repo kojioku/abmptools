@@ -59,9 +59,9 @@ The fragment-1 atomic coordinates are identical in both calculations
 unchanged). The Δ below is the polarization-plus-correlation
 contribution from sitting in the crystal field.
 
-| Quantity | In crystal (frag 1) | Isolated | Δ (hartree) | Δ (kcal/mol) |
-|---|---|---|---|---|
-| MP2 total | -384.5579 | -384.5600 | +0.0021 | +1.3 |
+| Quantity | E' (in crystal, hartree) | MP2 total (isolated, hartree) | Δ (hartree) | Δ (kcal/mol) |
+|---|---:|---:|---:|---:|
+| monomer energy | -384.5579 | -384.5600 | +0.0021 | +1.3 |
 
 A small positive shift, in line with weak polarization of an
 apolar molecule in the crystal field, similar to benzene.
