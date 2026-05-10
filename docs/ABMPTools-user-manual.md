@@ -877,3 +877,74 @@ python -m abmptools.genesis.mmgbsa analyze      --config config.json --run-dir .
 ΔG_bind 計算は GENESIS doc `05_Energy.rst:564` の `U = U_FF + ΔG_solv` 規約に従い、`ΔG_bind = E_complex - E_ligand - E_receptor` (ENERGY 列差) を採用。POC `4_analyse.py` の `(egas + S)_c - (egas + S)_l - (egas + S)_r` 式と代数的に同一。`compute_dg_components` で MM 部 (ΔE_MM) と solvation 部 (ΔG_solv) の分解報告も可能。
 
 GENESIS atdyn (LGPL-3.0+) と acpype (GPL-3.0) は subprocess only、未同梱。Biopython (BSD + Biopython License) と matplotlib (PSF/BSD) は `pip install abmptools[mmgbsa]` で自動 install。
+
+### `abmptools.crystal` (1.23.0、有機物結晶 FMO ワークフロー)
+
+有機物結晶 CIF から ABINIT-MP FMO 計算入力 (AJF) と HPC ジョブスクリプト
+を生成する end-to-end パイプライン。flat 配置だった `readcif.py` /
+`pdb2fmo.py` / `ajf2config.py` / `pdbmodify.py` / `getifiepieda.py` を
+段階的にサブパッケージ化し、Phase A (skeleton + legacy 再 export) →
+Phase B (regression fixture: csp7 3 構造) → Phase C (本体実装 + 8-cmd
+CLI) → Phase D (`--run-local` + ASE PBC unwrap + 公開分子 4 種 reference)
+の 4 段階で完成。`abmptools.crystal.legacy.<name>` 経由で旧 module を
+温存しているため既存ワークフローと完全に互換。
+
+| Doc | 内容 |
+|---|---|
+| [`docs/crystal.md`](crystal.md) | Subsystem reference (256 行、Scope / config schema / CLI / pipeline stages / cif engine 比較 / 設計判断) |
+| [`docs/tutorial_crystal_fmo.md`](tutorial_crystal_fmo.md) | Step-by-step ops (9 節、smoke → csp7 reproduction → ase 切替 → HPC 例 → 後処理 → reference 構築 → failure modes) |
+| [`docs/crystal_verification.md`](crystal_verification.md) | Verification matrix (regression fixture / unit test / smoke / 公開分子 reference の網羅) |
+| [`docs/crystal_public_molecule_references.md`](crystal_public_molecule_references.md) | 4 公開分子 (urea / glycine / benzene / naphthalene) MP2/6-31G(d) reference 集計表 (E' in crystal / MP2 total isolated / Δ / sum-IFIE / wall time / cif source attribution) |
+| `sample/crystal/csp7_smoke/` | 1 構造 (csp7 R00001) の最小 smoke (cif と `UNK.ajf` template は abmptools-sample 由来、`ABMPTOOLS_SAMPLE_DIR` 設定で自動 stage) |
+| `sample/crystal/{urea,glycine,benzene,naphthalene}/` | 公開分子 4 種の cif + `UNK.ajf` + yaml + `reference/{ifiesum,ifiedt}.csv` + isolated monomer total |
+
+CLI (8 subcommand、`abmp-crystal` console script でも `python -m abmptools.crystal` でも呼べる):
+
+```bash
+abmp-crystal example > crystal.yaml          # 雛形 YAML 出力
+abmp-crystal validate --config crystal.yaml  # 依存診断 (ase / pyyaml / abinitmp)
+
+# Stage ごと:
+abmp-crystal expand   --config crystal.yaml -o ./out  # CIF → supercell PDB
+abmp-crystal fragment --config crystal.yaml -o ./out  # PDB → for_abmp/*.{ajf,pdb}
+abmp-crystal jobs     --config crystal.yaml -o ./out  # + HPC jobscripts
+abmp-crystal pipeline --config crystal.yaml -o ./out  # 全部 (推奨)
+
+# ローカル実行 (mpirun -np N abinitmp + getifiepieda 後処理):
+abmp-crystal pipeline --config crystal.yaml -o ./out --run-local
+
+# 既存 log dir を入力に postprocess だけ:
+abmp-crystal postproc --run-dir ./out
+abmp-crystal nearest  --pdb file.pdb --frag 1
+```
+
+Config schema: `CrystalBuildConfig` (top-level) + 6 leaves (`CIFInputSpec` /
+`CIFEngineConfig` / `FragmentTemplate` / `FMOMethod` / `HPCJobSpec` /
+`PostProcessSpec`)、YAML/JSON round-trip。例:
+
+```yaml
+project_name: csp7_r00001_smoke
+output_dir: ./out
+inputs:
+  - {cif: XXXI-MMFF-R00001.cif, layer: 5, atoms_in_mol: [32]}
+cif_engine: {engine: legacy, bond_tolerance: 0.4}
+fragment: {cutmode: around, solutes: [0], criteria: 6.0, molname: [UNK]}
+fmo: {method: MP2, basis_set: 6-31Gdag, memory: 6000, is_xyz: true}
+hpc: {scheduler: PJM, queue: small, group: hp190133, nodes: 12}
+postproc: {enable: true, frag_target: "1-10", annotate_nearest_atoms: true}
+```
+
+CIF パーサは 2 系統 (`legacy` = `readcif.py` の対称展開ハードコード版 /
+`ase` = `ase.io.read` + `Atoms.repeat` + bond-graph `unwrap_molecules`
+での PBC 境界またぎ自動修正)。Default は `legacy` (既存 1500 構造の
+計算実績を尊重)、ASE は opt-in。`is_xyz: true` (default) で `&XYZ`
+block にフル精度浮動小数点座標を埋め込み、PDB 経由の `%8.3f` 切捨を
+回避。
+
+ABINIT-MP basis 名は GAMESS 通称と異なる: `6-31G(d)` → **`6-31Gdag`**
+(reference: `docs/tutorial_crystal_fmo.md` Section 9 / sample/crystal の
+yaml ファイル)。
+
+ABINIT-MP (subprocess、`mpirun -np N abinitmp` MPI flat 想定) は別配布。
+ASE (LGPL-2.1+) と PyYAML は `pip install abmptools[crystal]` で auto
+install。

@@ -16,8 +16,13 @@ Author: Koji Okuwaki
 > exchange with solute tempering)**,
 > **v1.21.0 (`fragmenter` subpackage — FMO automatic fragment splitter
 > for small molecules / lipids / polymers)**,
-> and **v1.22.0 (`genesis.mmgbsa` subpackage — GENESIS MM/GBSA
-> single-point ΔG_bind via atdyn implicit GBSA)** are staged on
+> **v1.22.0 (`genesis.mmgbsa` subpackage — GENESIS MM/GBSA
+> single-point ΔG_bind via atdyn implicit GBSA)**,
+> and **v1.23.0 (`crystal` subpackage — organic-crystal FMO pipeline:
+> CIF → supercell → fragment cut → ABINIT-MP AJF + HPC jobscripts;
+> Phase A–D = skeleton + regression fixture + 8-subcommand CLI +
+> `--run-local` + ASE PBC unwrap, includes 4 public-molecule MP2/6-31G(d)
+> reference set: urea / glycine / benzene / naphthalene)** are staged on
 > `develop`, not yet released to `main` / PyPI. See
 > [`CHANGELOG.md`](../CHANGELOG.md) for the per-version detail.
 
@@ -43,6 +48,7 @@ ABMPTools is a Python toolkit for pre-processing, post-processing, and analysis 
 | Structure Optimization | `geomopt.{MacePdbOptimizer, OpenFFOpenMMMinimizer, QMOptimizerPySCF}` | MACE / OpenFF / PySCF-DFT driven geometry optimization for PDB inputs |
 | Amorphous Builder | `amorphous` (`build_amorphous.py`) | SMILES / SDF / PubChem CID (via `amorphous.pubchem`) multi-component amorphous builder (Packmol + OpenFF + AM1-BCC), auto-generates 5-stage GROMACS annealing protocol and VMD-friendly trajectory post-processing |
 | Membrane Builder | `membrane` (`MembraneUSBuilder`) | Lipid-bilayer + peptide umbrella-sampling PMF builder (packmol-memgen + AMBER `ff19SB`/`Lipid21`/TIP3P or CHARMM36 backend → semiisotropic NPT → z-pulling → per-window US → `gmx wham`). GPU-aware `run.sh`. Designed commercial-license-clean (no CGenFF / CHARMM-GUI). |
+| Crystal-FMO Pipeline | `crystal` (`CrystalOrchestrator`, `abmp-crystal` CLI) | Organic-crystal FMO workflow: CIF → supercell PDB (legacy parser or ASE backend with PBC unwrap) → fragment cut around solute → ABINIT-MP AJF (full-precision `&XYZ` block) → PJM/SLURM/PBS/local jobscripts → optional `--run-local` execution → `getifiepieda` postprocessing. 8-subcommand CLI driven by single YAML/JSON config. |
 
 ## Supported ABINIT-MP Versions
 
@@ -114,3 +120,13 @@ For new developers approaching this codebase:
     GAFF/GAFF2 via acpype, 4-stage pipeline: split PDB → parameterize →
     GBSA single-point → ΔG_bind aggregation).
     Protein / DNA stays on the existing `log2config` route.
+14. **`docs/crystal.md`** + **`docs/tutorial_crystal_fmo.md`** —
+    `abmptools.crystal` (1.23.0+); organic-crystal FMO pipeline
+    (CIF → supercell → fragment cut → ABINIT-MP AJF + HPC jobscripts;
+    8-subcommand CLI: `abmp-crystal {expand,fragment,jobs,pipeline,
+    postproc,nearest,validate,example}`). Companion docs:
+    **`docs/crystal_verification.md`** (verification matrix) +
+    **`docs/crystal_public_molecule_references.md`** (4-molecule
+    MP2/6-31G(d) reference summary: urea / glycine / benzene /
+    naphthalene with E' in crystal vs MP2 total isolated, sum-IFIE,
+    wall time, and CIF source attribution).

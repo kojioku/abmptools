@@ -341,6 +341,33 @@ force field files: AmberTools 同梱の ff14SB / DNA.OL15 / RNA.OL3 / TIP3P / GA
 
 POC スクリプトの `4_analyse.py` (POC 経路) は `(egas+S)_c - (egas+S)_l - (egas+S)_r` の式で ΔG_bind を計算しているが、これは abmptools.genesis.mmgbsa の `E_c - E_l - E_r` (form A) と代数的に同一 (egas + S = ENERGY)。GENESIS doc `05_Energy.rst:564` の `U = U_FF + ΔG_solv` 規約に従えば、`compute_dg_bind` で SOLVATION 列を加える必要はない (二重カウントになる)。
 
+## Optional Dependencies — abmptools.crystal (1.23.0+)
+
+有機物結晶 CIF から ABINIT-MP FMO 計算入力 (AJF) と HPC ジョブスクリプトを生成する end-to-end サブパッケージ。
+
+```bash
+pip install abmptools[crystal]
+
+# ase>=3.22       (CIF エンジンの ase バックエンド + supercell + PBC unwrap)
+# pyyaml>=6.0     (YAML 入力 -- JSON only でも動くが ase backend ユーザー向け推奨)
+```
+
+| パッケージ | 用途 | バージョン | License |
+|---|---|---|---|
+| `ase` | CIF パース (`ase.io.read`) + supercell expansion (`Atoms.repeat`) + neighbor-list bond detection + PBC `unwrap_molecules` の最小依存。`legacy` engine 経由なら不要だが、Phase D-5 で公開 4 分子 reference は ase backend で実装 | ≥ 3.22 | LGPL-2.1+ (改変配布時のみ LGPL 準拠が必要、import / subprocess 利用は自由) |
+| `pyyaml` | `CrystalBuildConfig.from_yaml` / `to_yaml` の YAML round-trip。JSON only で運用するなら省略可 | ≥ 6.0 | MIT |
+
+外部 CLI (subprocess only、未同梱):
+
+| ツール | 用途 | License |
+|---|---|---|
+| **ABINIT-MP** (`abinitmp` / `abinitmp_omp`) | FMO 計算本体。`abmp-crystal pipeline --run-local` で呼び出し (`mpirun -np N abinitmp`)。`abinitmp` = MPI flat、`abinitmp_omp` = MPI/OMP 混成 (別バイナリ)。HPC では `pjsub` / `sbatch` 経由のため不要 | 別配布 (公式ライセンスは [`abinit-mp.fmodd.jp`](https://fmodd.jp/) 参照、subprocess only で abmptools 側に license 接触なし) |
+| `mpirun` (OpenMPI / MPICH) | abinitmp の MPI 起動 (`--run-local` のみ) | — |
+
+Force field files: ABINIT-MP に同梱の basis set library を使用 (例: `6-31Gdag` = 6-31G(d) は abinitmp の internal naming convention)。abmptools 側は basis 文字列を AJF に書き込むだけで、library 自体には触れない。
+
+`legacy` engine (`abmptools/crystal/cif_engine_legacy.py`、既存 `readcif.py` の API ラッパー) は ase 不在でも動くため、`pip install abmptools[crystal]` を入れず numpy/pandas のみでも `python -m abmptools.readcif` 互換ワークフローは利用可能。`ase` engine を使う場合のみ `abmptools[crystal]` 必須。
+
 ## Optional Dependencies — abmptools.geomopt
 
 `abmptools.geomopt` はすべての重い依存を実行時まで遅延インポートするため、
@@ -403,5 +430,7 @@ ABMPTools
 ├── [optional/geomopt-openff] openmm, openff-toolkit, rdkit
 ├── [optional/geomopt-qm]     pyscf + geometric (or pyberny)
 │                             + simple-dftd3 (or dftd3)  [D3 dispersion]
+├── [optional/crystal]        ase>=3.22, pyyaml>=6.0
+│                             + abinitmp (subprocess、別配布、--run-local 時のみ)
 └── [build]    setuptools (<81 if using openff.amber_ff_ports)
 ```

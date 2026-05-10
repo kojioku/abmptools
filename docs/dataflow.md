@@ -426,6 +426,49 @@ input/<target>.pdb (protein-ligand complex)
 
 Orchestrated by `abmptools.genesis.mmgbsa.builder.MMGBSAOrchestrator.run()` (`fail_fast` 制御、N targets 逐次)。
 
+### `abmptools.crystal` — Organic-crystal FMO pipeline (1.23.0)
+
+```
+inputs[*].cif (one or more CIF files)
+        │
+        ▼
+[Stage 1] CIF → supercell PDB                    ──→ <project>/<name>/cifout/layer<N>/<name>layer<N>.pdb
+   ┌─ cif_engine.engine = "legacy" : readcif.py ハードコード対称展開
+   │     getsymcoord (1/3, 2/3, 1/4, 3/4, 1/6, 5/6 のみ) で symmetry 展開
+   └─ cif_engine.engine = "ase"    : ase.io.read(cif, format="cif")
+                                     + Atoms.repeat((2*layer+1,)*3)
+                                     + ase.neighborlist で connected components
+                                     + unwrap_molecules (BFS + find_mic で PBC 境界またぎ修正)
+        │
+        ▼
+[Stage 2] PDB → for_abmp/                       ──→ <project>/<name>/cifout/layer<N>/pdb/for_abmp/<name>layer<N><Zp>-<cutmode>_<solute>r<criteria>.{ajf,pdb}
+   - setfmo (multiple inheritance) で fragment cut around solute
+     (cutmode=around / sphere / cube / neutral / none)
+   - pdb2fmo + setfmo で `&BASIS BasisSet=<name>` (例: 6-31Gdag),
+     `&SCF Method=<MP2/HF>` を render
+   - is_xyz=True (default) で `&XYZ` block にフル精度浮動小数点座標を埋め込み
+     (PDB 経由の %8.3f 切捨を回避、`&FMOXYZ ReadGeom=` を空にして LOG 解析互換維持)
+        │
+        ▼
+[Stage 3] HPC jobscripts                         ──→ <project>/<name>/.../runab23q2_*.sh + runbatch.sh
+   - job_templates.render_jobscript(spec, ajf_path) で string.Template
+     系統別 4 種 (PJM / SLURM / PBS / local)
+   - bash の ${var} と Python Template の ${var} 衝突は $$var エスケープで回避
+        │
+        ▼
+[Stage 4] (optional) --run-local                 ──→ <project>/<name>/.../<ajf>.log
+   - mpirun -np <npro> abinitmp <ajf> > <log>
+     (abinitmp は MPI flat 想定; abinitmp_omp は MPI/OMP 混成、別バイナリ)
+   - HPCJobSpec.mpi_launcher で mpirun コマンド override 可
+        │
+        ▼
+[Stage 5] (optional) postprocess                 ──→ <project>/<name>/postproc/{ifie.csv, ifie_annotated.csv}
+   - getifiepieda --frag <target> --multi --csv で IFIE/PIEDA 抽出
+   - atom_distance.find_nearest_atoms で近接原子情報を CSV に annotate
+```
+
+Orchestrated end-to-end by `abmptools.crystal.builder.CrystalOrchestrator.run()` (Stage 1〜5 を逐次、`fail_fast` 制御、N inputs 並列)。Default は `legacy` engine (既存実績尊重)、`ase` は opt-in (`cif_engine.engine: ase`)。座標は `is_xyz=True` で `&XYZ` block 埋め込み。
+
 ## FMO Fragment Auto-splitter Pipeline (1.21.0+)
 
 `abmptools.fragmenter` は MD pipeline ではなく、PDB → fragment
