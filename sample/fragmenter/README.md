@@ -9,7 +9,7 @@
 | ファイル | atoms | MW (g/mol) | 用途 |
 |---|---|---|---|
 | `pe_n20.pdb` | 62 (20 C + 42 H) | 282.6 | PE N=20 線形ポリエチレン。長い C-C 鎖の自動切断検証 |
-| `pp_n10.pdb` | 95 (30 C + 62 H 等) | 436.9 | atactic polypropylene N=10。分岐含む鎖の主鎖検出 + 切断 |
+| `pp_n10.pdb` | 92 (30 C + 62 H、主鎖 20 C + 分岐 10 C) | 422.8 | atactic polypropylene N=10。分岐含む鎖の主鎖検出 + 切断 |
 | `propane5_acetone3.pdb` | 75 (combined: 5 propane + 2 acetone) | --- | 同一分子グループ化 + n_copies 展開検証 |
 
 ## 動作確認 (target_mw=200 default)
@@ -78,8 +78,8 @@ AllChem.EmbedMolecule(mol, randomSeed=42)
 AllChem.MMFFOptimizeMolecule(mol, maxIters=200)
 Chem.MolToPDBFile(mol, "pe_n20.pdb")
 
-# PP N=10 (atactic)
-pp_smiles = "CC(C)" + "CC(C)" * 9 + "C"
+# PP N=10 (atactic) — 主鎖 20 C + メチル分岐 10 C = 30 heavy + 62 H = 92 atoms
+pp_smiles = "CC(C)" * 10
 mol = Chem.AddHs(Chem.MolFromSmiles(pp_smiles))
 AllChem.EmbedMolecule(mol, randomSeed=42)
 AllChem.MMFFOptimizeMolecule(mol, maxIters=300)
