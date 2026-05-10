@@ -71,7 +71,7 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 - データクラス: `MembraneCGBuildConfig` / `LipidMix` / `PeptideMembraneSpec` / `EquilibrationCGProtocol` / `PullingCGProtocol` / `UmbrellaCGProtocol` (5 段 nested JSON 往復)
 - CLI: `python -m abmptools.cg.membrane {build,validate,example,make-windows,wham}` (argparse)
 - Default umbrella: 13 windows (z = -1.5 to +1.5 nm), k = 1000 kJ/mol/nm², 1 ns/window (50,000 steps × dt=20 fs); pulling 5 ns × 1 nm/ns
-- **GPL-2.0 / Apache-2.0 / MIT 互換のみ**: `insane` (GPL-2.0) と `vermouth-martinize` (Apache-2.0) は subprocess only -- abmptools 自体は MIT のまま (mere aggregation)
+- **Apache-2.0 / GPL-2.0 / MIT 互換のみ**: `insane` (GPL-2.0) と `vermouth-martinize` (Apache-2.0) は subprocess only -- abmptools 本体 (Apache-2.0、v1.23.0+) は mere aggregation で license 接触なし
 
 ### GENESIS gREST_SSCR (`genesis.grest`)
 
@@ -79,7 +79,7 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 - 解析: `analyze` サブコマンドで replica transition plot / acceptance ratio plot / `remd_convert` で param sort / 1D 距離 PMF (`-kT log P(r)`) を実装
 - データクラス: `GrestBuildConfig` / `RESTSelectionSpec` / `ReplicaTemperatureSpec` / `MinimizationStage` / `EquilibrationStage` / `GrestStage` (5 段 nested JSON 往復)
 - CLI: `python -m abmptools.genesis.grest {build,validate,example,analyze}` (argparse)
-- **LGPL-3.0-or-later 互換**: GENESIS (`spdyn` / `atdyn` / `remd_convert`) は subprocess only -- abmptools 自体は MIT (1.20.0) → 将来 Apache-2.0 化後も互換 (mere aggregation per LGPL §5/§6)
+- **LGPL-3.0-or-later 互換**: GENESIS (`spdyn` / `atdyn` / `remd_convert`) は subprocess only -- abmptools 本体 (Apache-2.0、v1.23.0+) と互換 (mere aggregation per LGPL §5/§6)
 - `abmptools/genesis/` は GENESIS 系統 namespace の最初の occupant。後続で `genesis/reus/` / `genesis/fep/` を計画
 
 ### GENESIS MM/GBSA (`genesis.mmgbsa`)
@@ -89,7 +89,7 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 - CLI: `python -m abmptools.genesis.mmgbsa {build,validate,example,divide,parameterize,run,analyze,pipeline}` (7 sub-command + folder-mode shortcut `-i / -r / -c` で POC 互換)
 - 力場 default: AMBER **ff14SB** + DNA.OL15 + RNA.OL3 + TIP3P + GAFF/GAFF2 (POC 通り、grest の ff19SB とは意図的に別)
 - **ΔG_bind 計算**: GENESIS `ENERGY` 列は `U = U_FF + ΔG_solv` の合計 (doc 05_Energy.rst:564) なので `ΔG_bind = E_c - E_l - E_r` で全 MM/GBSA 寄与込み。POC `4_analyse.py` は等価な分解形 `(egas + S)_c - (egas + S)_l - (egas + S)_r` を使用 (`egas = E - S`)、両者は代数的に同一。`compute_dg_bind` (合計形) + `compute_dg_components` (分解報告 `{dg_mm, dg_solv, dg_bind}`) を提供
-- **LGPL-3.0+ / GPL-3.0 互換**: GENESIS (LGPL-3.0+) と acpype (GPL-3.0) は subprocess only -- abmptools 自体は MIT (1.22.0) → 将来 Apache-2.0 化後も互換 (mere aggregation)
+- **LGPL-3.0+ / GPL-3.0 互換**: GENESIS (LGPL-3.0+) と acpype (GPL-3.0) は subprocess only -- abmptools 本体 (Apache-2.0、v1.23.0+) と互換 (mere aggregation)
 
 ### FMO Fragment Auto-splitter (`fragmenter`)
 
@@ -283,6 +283,36 @@ cd sample/amorphous/ketoprofen_pubchem && bash run_sample.sh   # ketoprofen via 
 ```
 
 See [`sample/amorphous/ketoprofen/README.md`](sample/amorphous/ketoprofen/README.md) for a step-by-step walk-through of the ketoprofen amorphous workflow (SMILES input + 5-stage MD + VMD post-processing).
+
+## License
+
+ABMPTools is licensed under the **Apache License, Version 2.0**. See the
+[`LICENSE`](LICENSE) file for the full text and the [`NOTICE`](NOTICE)
+file for attribution and citation requirements.
+
+The project was previously distributed under MIT (≤ v1.22.0); v1.23.0
+onwards switches to Apache-2.0 to strengthen the citation request via
+NOTICE-file attribution and the explicit patent grant. See
+[`CHANGELOG.md`](CHANGELOG.md) `[Unreleased]` → "License migration" for
+the transition note.
+
+Third-party dependencies (numpy / pandas / ase / rdkit / OpenMM / OpenFF
+Toolkit / GROMACS / AmberTools / vermouth / insane / GENESIS / acpype /
+ABINIT-MP, etc.) keep their respective licenses; a complete inventory
+is in [`docs/licenses_third_party.md`](docs/licenses_third_party.md).
+
+## How to cite
+
+If you use ABMPTools in academic or scientific work, please cite the
+project. GitHub's "Cite this repository" button on the repo home page
+generates BibTeX / APA / etc. from [`CITATION.cff`](CITATION.cff).
+
+A peer-reviewed publication and Zenodo DOI will be added on the first
+release tag; until then, use:
+
+> Okuwaki, K. (2026). *ABMPTools: a Python toolkit for ABINIT-MP
+> Fragment Molecular Orbital pre/post-processing.*
+> https://github.com/kojioku/abmptools
 
 ## Author
 

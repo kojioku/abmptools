@@ -1,0 +1,43 @@
+ABMPTools (ABINIT-MP Tools)
+Copyright 2022-2026 Koji Okuwaki
+
+This product includes software developed by Koji Okuwaki and contributors.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE file for the
+full text of the license).
+
+================================================================================
+
+Citation request
+----------------
+
+If you use ABMPTools in academic work, please cite the project. Citation
+metadata is provided in CITATION.cff (machine-readable, used by GitHub's
+"Cite this repository" button) and in the README.md "How to cite" section.
+
+Until a peer-reviewed publication is released, please cite as:
+
+    Okuwaki, K. (2026). ABMPTools: a Python toolkit for ABINIT-MP
+    Fragment Molecular Orbital pre/post-processing.
+    https://github.com/kojioku/abmptools
+
+A Zenodo DOI will be issued upon the first GitHub release tag and added
+to CITATION.cff.
+
+================================================================================
+
+Third-party software
+--------------------
+
+ABMPTools depends on, but does not bundle or modify, several open-source
+projects (numpy, pandas, ase, rdkit, OpenMM, OpenFF Toolkit, GROMACS,
+AmberTools, vermouth, insane, GENESIS, acpype, ABINIT-MP, etc.).
+
+A complete inventory with license details is provided in
+docs/licenses_third_party.md. All listed dependencies are used either
+via Python import (with their own license terms preserved separately)
+or via subprocess invocation (mere aggregation, no linking, no source
+modification).
+
+When redistributing ABMPTools, recipients must retain this NOTICE file
+verbatim per Apache-2.0 §4(d).
