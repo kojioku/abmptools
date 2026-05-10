@@ -49,6 +49,11 @@ ABMPTools is a Python toolkit for pre-processing, post-processing, and analysis 
 | Amorphous Builder | `amorphous` (`build_amorphous.py`) | SMILES / SDF / PubChem CID (via `amorphous.pubchem`) multi-component amorphous builder (Packmol + OpenFF + AM1-BCC), auto-generates 5-stage GROMACS annealing protocol and VMD-friendly trajectory post-processing |
 | Membrane Builder | `membrane` (`MembraneUSBuilder`) | Lipid-bilayer + peptide umbrella-sampling PMF builder (packmol-memgen + AMBER `ff19SB`/`Lipid21`/TIP3P or CHARMM36 backend → semiisotropic NPT → z-pulling → per-window US → `gmx wham`). GPU-aware `run.sh`. Designed commercial-license-clean (no CGenFF / CHARMM-GUI). |
 | Crystal-FMO Pipeline | `crystal` (`CrystalOrchestrator`, `abmp-crystal` CLI) | Organic-crystal FMO workflow: CIF → supercell PDB (legacy parser or ASE backend with PBC unwrap) → fragment cut around solute → ABINIT-MP AJF (full-precision `&XYZ` block) → PJM/SLURM/PBS/local jobscripts → optional `--run-local` execution → `getifiepieda` postprocessing. 8-subcommand CLI driven by single YAML/JSON config. |
+| CG Peptide Builder | `cg.peptide` (`PeptideBuildConfig`, vermouth-martinize2) | Martini 3 peptide CG system builder. tleap (optional) で AA PDB → martinize2 で CG 化 → GROMACS solvate / genion / MDP / run.sh まで end-to-end (v1.18.0+). |
+| CG Membrane PMF | `cg.membrane` (`MembraneCGBuildConfig`, insane + cg.peptide sub-call) | Martini 3 peptide-bilayer umbrella-sampling PMF builder. AA membrane より 30-100× 速い (v1.19.0+). |
+| GENESIS gREST | `genesis.grest` (`GrestBuilder`, `python -m abmptools.genesis.grest` CLI) | GENESIS gREST_SSCR (Replica-Exchange Solute Tempering with Solute Side Chain Repartitioning) 5-stage builder + replica transition / acceptance / PMF 解析 (AMBER ff19SB + TIP3P; v1.20.0+). |
+| GENESIS MM/GBSA | `genesis.mmgbsa` (`MmgbsaBuilder`, `python -m abmptools.genesis.mmgbsa` CLI) | GENESIS atdyn `[ENERGY] implicit_solvent=GBSA` による protein-ligand 単フレーム MM/GBSA ΔG_bind builder (AMBER ff14SB + GAFF/GAFF2 via acpype; v1.22.0+). |
+| Auto Fragmentation | `fragmenter` (`AutoFragmenter`, `python -m abmptools.fragmenter` CLI) | FMO 自動フラグメント分割: PDB → 連結成分 → canonical SMILES グループ化 → C-C 単結合切断 → log2config 互換 segment_data.dat 出力。Jupyter UI (ipywidgets) と headless CLI (SVG + JSON 編集) の 2 系統 (v1.21.0+). |
 
 ## Supported ABINIT-MP Versions
 
@@ -58,11 +63,19 @@ ABMPTools is a Python toolkit for pre-processing, post-processing, and analysis 
 
 ## Installation
 
+Editable install is recommended for day-to-day use and development:
+
 ```bash
-pip install --user .
+pip install -e .
 ```
 
-This runs `make` during install to compile the optional Fortran shared library (`readifiepiedalib.so`). If `gfortran` is not available, the install still succeeds — the Fortran acceleration is optional.
+Non-editable install (e.g. for production deployment):
+
+```bash
+pip install .
+```
+
+`--user` is usually unnecessary; pip handles both virtual environments and system Python appropriately. Installation runs `make` to compile the optional Fortran shared library (`readifiepiedalib.so`). If `gfortran` is not available, the install still succeeds — the Fortran acceleration is optional.
 
 ### Requirements
 

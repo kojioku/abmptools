@@ -232,11 +232,17 @@ Use `-h` with any module for full option details.
 - **[cg_peptide](docs/cg_peptide.md)** — Martini 3 peptide CG builder (peptide-only in water box, sub-called by `cg.membrane` or standalone)
 - **[peptide_builders](docs/peptide_builders.md)** — Selection guide across 3 peptide-from-sequence builders (AA membrane / CG peptide / CG membrane)
 - **[fragmenter](docs/fragmenter.md)** — FMO automatic fragment splitter for small molecules / lipids / polymers (canonical SMILES grouping + C-C MW walk + Jupyter UI / headless CLI; v1.21.0+)
+- **[grest](docs/grest.md)** / **[tutorial_grest](docs/tutorial_grest.md)** — GENESIS gREST_SSCR replica-exchange with solute tempering (REST + SSCR, AMBER ff19SB + TIP3P; v1.20.0+)
+- **[mmgbsa](docs/mmgbsa.md)** / **[tutorial_mmgbsa](docs/tutorial_mmgbsa.md)** — GENESIS atdyn-based MM/GBSA single-point ΔG_bind for protein-ligand complexes (AMBER ff14SB + GAFF/GAFF2 via acpype; v1.22.0+)
+- **[crystal](docs/crystal.md)** / **[tutorial_crystal_fmo](docs/tutorial_crystal_fmo.md)** — Organic-crystal FMO pipeline (CIF → supercell → fragment cut → ABINIT-MP AJF + HPC jobscripts, `abmp-crystal` CLI; v1.23.0+)
+- **[crystal_verification](docs/crystal_verification.md)** — verification matrix for the crystal subpackage (Phase A-D coverage)
+- **[crystal_public_molecule_references](docs/crystal_public_molecule_references.md)** — 4-molecule MP2/6-31G(d) reference summary (urea / glycine / benzene / naphthalene)
+- **[licenses_third_party](docs/licenses_third_party.md)** — third-party dependency license inventory (Apache-2.0 compatibility matrix)
 
 ## Testing
 
 ```bash
-pytest tests/ -v                     # 1530 tests collected (1.22.0 時点)
+pytest tests/ -v                     # 1613 tests collected (1.23.0+ 時点)
 pytest tests/ -v -k molcalc          # specific module
 pytest tests/test_regression.py -v   # regression tests (60 bundled + 16 gated)
 ```
