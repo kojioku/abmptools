@@ -294,3 +294,4 @@ PDB fixtures は `conftest.py` で RDKit が tmp_path_factory に毎回生成す
 | version | 日付 | 変更 |
 |---|---|---|
 | 1.21.0 | (本ドキュメント新設) | `abmptools.fragmenter` サブパッケージ初版 |
+| 1.23.0 | 2026-05-10 | abmptools 本体 license を MIT → Apache-2.0 に移行 (機能変更なし、本ドキュメント中の license 表記を更新) |
