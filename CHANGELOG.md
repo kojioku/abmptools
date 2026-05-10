@@ -2,12 +2,50 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **License migration: MIT → Apache-2.0** (適用範囲: v1.23.0 以降の新規
+  リリース)。abmptools の citation 基盤を強化するため、Apache-2.0 の
+  NOTICE-file attribution 機構 (§4(d)) と特許 retaliation (§3) を採用。
+  - `LICENSE` を MIT (24 行) から **Apache License, Version 2.0** (200 行
+    appendix 付き、Copyright 2022-2026 Koji Okuwaki) に差し替え
+  - 新規 `NOTICE` を追加 (attribution + 引用依頼 + 第三者ソフトウェアへの
+    pointer)。Apache-2.0 §4(d) により再配布時の verbatim 保持が必要
+  - 新規 `CITATION.cff` を追加 (GitHub の "Cite this repository" ボタン
+    対応、Zenodo DOI は最初の release tag で発行・追記予定)
+  - `pyproject.toml` の `license = "MIT"` を `license = "Apache-2.0"` に
+    変更 (PEP 639 SPDX expression)
+  - `README.md` に **License** / **How to cite** セクションを追加
+  - `docs/licenses_third_party.md` 本体 license 行を `BSD 2-Clause` (誤記)
+    から `Apache-2.0 (v1.23.0+; ≤ v1.22.0 は MIT)` に修正、互換性表 +
+    結論セクションを Apache-2.0 ベースに更新 (NOTICE 保持義務 / 特許
+    retaliation / GPL-2.0 only との incompatibility 注記を追加)
+  - `docs/{cg_membrane,cg_peptide,grest,mmgbsa,fragmenter,peptide_builders}.md`
+    + `README.md` の "abmptools 本体 MIT" 系の記述を Apache-2.0 ベースに
+    一括更新
+- **理由**: 単独開発者 (Koji Okuwaki) が abmptools を学術論文で引用して
+  もらうための仕組み化。MIT は permissive すぎて attribution が薄く、
+  Apache-2.0 の NOTICE 機構 + CITATION.cff + Zenodo DOI の 3 点セットで
+  citation を強制する。
+- **依存ライブラリとの互換性 (確認済み)**:
+  - Apache-2.0 ⇔ GPL-2.0 only (insane): ❌ incompatible だが subprocess
+    only なので mere aggregation = 実害なし
+  - Apache-2.0 ⇔ GPL-2.0-or-later / GPL-3.0 / LGPL-2.1+ / LGPL-3.0+: ✅
+    全て互換 (subprocess / import いずれでも問題なし)
+  - Apache-2.0 ⇔ MIT / BSD: ✅ 互換 (依存ライブラリとして自由に取り込み可)
+- **Per-file copyright header** (Apache-2.0 appendix の `[optional]` 表記)
+  は **追加しない**: single developer + LICENSE/NOTICE/CITATION.cff の 3
+  点セットで法的に十分。crystal 等の新規モジュールでも当面 header は無し。
+- **Contributor 同意**: 単独開発者のため外部 contributor の同意取得は不要。
+- 旧版 (≤ v1.22.0) は MIT のまま PyPI に固定済 (`pip install abmptools==1.22.0`
+  などで取得可能)。Apache-2.0 化は v1.23.0 以降の新規取得分のみに適用。
+
+### Added (Phase A — `abmptools.crystal` skeleton)
+
 新サブパッケージ `abmptools.crystal` の **Phase A skeleton** を追加。
 有機物結晶 CIF から FMO 計算入力 (ajf) を生成するワークフローを
 `abmptools.{readcif,pdb2fmo,ajf2config,pdbmodify,getifiepieda}` の flat
 配置から段階的にサブパッケージ化していく多段リリースの 1 段目。
-
-### Added
 
 - **`abmptools.crystal` skeleton** (cg.peptide / genesis.mmgbsa と同構造)
   - `abmptools/crystal/__init__.py` — docstring + `legacy` namespace re-export

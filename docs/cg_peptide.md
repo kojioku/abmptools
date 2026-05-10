@@ -34,7 +34,7 @@ GROMACS MD 入力一式 (CG `.itp`, `.gro`, `topol.top`, `index.ndx`,
   `gmx insert-molecules` で W bead を Martini 標準密度 (8.36 W/nm³、5 nm cubic で約
   1045 beads) で **auto-generate**
 
-このルールにより、abmptools 本体は **MIT のまま、商用利用 OK** を維持できる
+このルールにより、abmptools 本体は **Apache-2.0 (v1.23.0+)、商用利用 OK** を維持できる
 (GPL-2.0 ツールへ subprocess する mere aggregation は GPL に感染しない、FSF 公式見解)。
 
 ## 全体パイプライン (6 stage)

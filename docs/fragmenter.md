@@ -276,7 +276,7 @@ PDB fixtures は `conftest.py` で RDKit が tmp_path_factory に毎回生成す
 
 | 依存 | ライセンス | バンドル |
 |---|---|---|
-| abmptools 本体 | MIT (Apache-2.0 化計画あり) | はい |
+| abmptools 本体 | Apache-2.0 (v1.23.0+; ≤ v1.22.0 は MIT) | はい |
 | RDKit | BSD-3-Clause | いいえ (PyPI 経由) |
 | ipywidgets | BSD-3-Clause | いいえ (PyPI 経由) |
 | Open Babel CLI | GPL-2.0 | いいえ (subprocess only、optional) |

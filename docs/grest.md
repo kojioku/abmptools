@@ -25,8 +25,8 @@ ratio, parameter-sorted lowest-T trajectory, and a 1D distance PMF.
 **License posture**: GENESIS itself is **LGPL-3.0-or-later**. abmptools
 **does not bundle** any GENESIS source or binaries; it shells out via
 `subprocess`, which is *mere aggregation* under LGPL §5/§6 and
-compatible with abmptools' MIT (1.20.0) and the upcoming Apache-2.0
-relicense. Users build GENESIS themselves from
+compatible with abmptools' **Apache-2.0** (v1.23.0+; ≤ v1.22.0 was MIT).
+Users build GENESIS themselves from
 <https://github.com/genesis-release-r-ccs/genesis>.
 
 AmberTools (`tleap`, `cpptraj`) is free for both academic and

@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: >-
+  If you use ABMPTools in academic or scientific work, please cite this
+  repository using the following metadata. A peer-reviewed publication
+  and Zenodo DOI will be added when available.
+title: "ABMPTools: a Python toolkit for ABINIT-MP Fragment Molecular Orbital pre/post-processing"
+abstract: >-
+  ABMPTools provides pre-processing, post-processing, and analysis
+  utilities for Fragment Molecular Orbital (FMO) calculations performed
+  with ABINIT-MP. It bundles IFIE/PIEDA extraction, CPF management, AJF
+  input generation, GROMACS / OCTA UDF interconversion, geometry
+  optimization (MACE / OpenFF / PySCF), amorphous and membrane builders,
+  Martini 3 CG peptide / membrane builders, GENESIS gREST_SSCR / MM-GBSA
+  pipelines, an FMO automatic fragment splitter, and an organic-crystal
+  FMO pipeline.
+type: software
+authors:
+  - family-names: Okuwaki
+    given-names: Koji
+    email: koujioku81@gmail.com
+    affiliation: ABMPTools project
+repository-code: "https://github.com/kojioku/abmptools"
+url: "https://github.com/kojioku/abmptools"
+license: Apache-2.0
+keywords:
+  - ABINIT-MP
+  - Fragment Molecular Orbital
+  - FMO
+  - IFIE
+  - PIEDA
+  - computational chemistry
+  - quantum chemistry
+  - molecular dynamics
+  - Python
+# Replace with the actual release version and Zenodo DOI when published.
+version: "1.23.0-dev"
+date-released: "2026-05-10"
+# doi: "10.5281/zenodo.XXXXXXX"   # Zenodo DOI to be added on first GitHub release tag.

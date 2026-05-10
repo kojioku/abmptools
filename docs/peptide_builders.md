@@ -87,9 +87,9 @@ bash out/run.sh
 
 | 系統 | バンドル | サブプロセス依存 | 商用利用 |
 |---|---|---|---|
-| A. AA membrane | abmptools 本体 (MIT) | `packmol-memgen` (AmberTools, LGPL) / `tleap` (LGPL) / `pdb2gmx`+`gmx` (LGPL) / CHARMM36 ff (academic ok / industrial 別途確認) | ✅ (CHARMM-GUI を使わない設計、CGenFF も非依存) |
-| B. CG peptide | abmptools 本体 (MIT) | `martinize2` (Apache-2.0) / `gmx` (LGPL) / `tleap` (LGPL、推奨任意) | ✅ Martini 3 ITP は cgmartini.nl 配布物 (license 未明記、ユーザー自取得) |
-| C. CG membrane | abmptools 本体 (MIT) | 上記 B + `insane` (**GPL-2.0**) | ✅ insane は subprocess only (mere aggregation、GPL に感染しない、FSF 公式見解) |
+| A. AA membrane | abmptools 本体 (Apache-2.0) | `packmol-memgen` (AmberTools, LGPL) / `tleap` (LGPL) / `pdb2gmx`+`gmx` (LGPL) / CHARMM36 ff (academic ok / industrial 別途確認) | ✅ (CHARMM-GUI を使わない設計、CGenFF も非依存) |
+| B. CG peptide | abmptools 本体 (Apache-2.0) | `martinize2` (Apache-2.0) / `gmx` (LGPL) / `tleap` (LGPL、推奨任意) | ✅ Martini 3 ITP は cgmartini.nl 配布物 (license 未明記、ユーザー自取得) |
+| C. CG membrane | abmptools 本体 (Apache-2.0) | 上記 B + `insane` (**GPL-2.0**) | ✅ insane は subprocess only (mere aggregation、GPL に感染しない、FSF 公式見解) |
 
 ## 各系統の最小サンプル config
 

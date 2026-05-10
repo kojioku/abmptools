@@ -34,7 +34,7 @@ The result is a CSV + bar plot.
 **GPL-3.0**. abmptools shells out to both via `subprocess` only — no
 source modification, dynamic linking, or bundling. This is *mere
 aggregation* per the FSF GPL FAQ and LGPL §5/§6, compatible with
-abmptools' MIT (1.22.0) and the upcoming Apache-2.0 relicense.
+abmptools' **Apache-2.0** (v1.23.0+; ≤ v1.22.0 was MIT).
 
 AmberTools (`tleap`) is free for academic + commercial use.
 Biopython is BSD-3-Clause + Biopython License (dual).
@@ -170,7 +170,7 @@ the input dir and synthesises `TargetSpec` instances on the fly.
 All three are licensed under copyleft (LGPL-3.0+ for GENESIS, GPL-3.0
 for acpype) or have non-redistributable installers. Subprocess
 invocation is the simplest "mere aggregation" path that keeps
-abmptools MIT (1.22.0) and Apache-2.0-compatible.
+abmptools **Apache-2.0** (v1.23.0+) compatible.
 
 ### 6.2 Why `ff14SB`, not `ff19SB`?
 

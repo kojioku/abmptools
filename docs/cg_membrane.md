@@ -22,7 +22,7 @@ abmptools に同梱・改変しない設計:
 
 - ✅ **`insane`** (PyPI、**GPL-2.0**) — Martini bilayer assembly。abmptools は
   `subprocess.run(["insane", ...])` で呼ぶだけ、ソース改変・同梱なし
-  (GPL FAQ "mere aggregation" の範囲、abmptools 自体は MIT のまま)
+  (GPL FAQ "mere aggregation" の範囲、abmptools 自体は Apache-2.0、v1.23.0+)
 - ✅ **`vermouth-martinize`** (PyPI、Apache-2.0) — `cg.peptide` 経由で同様に
   subprocess only
 - ✅ **`gmx`** (LGPL) — subprocess only
@@ -32,11 +32,11 @@ abmptools に同梱・改変しない設計:
   cgmartini-library.s3.ca-central-1.amazonaws.com から取得して `ff/` に
   4 ITP を unzip する設計。`validate` サブコマンドが取得手順を表示
 
-このルールにより、abmptools の ABMPTools 本体は **MIT のまま、商用利用 OK** を
+このルールにより、abmptools 本体は **Apache-2.0 (v1.23.0+)、商用利用 OK** を
 維持できる (subprocess 起動の GPL-2.0 ツールとの mere aggregation は GPL に
 感染しない、FSF の公式見解)。
 
-許可されているもの (GPL-2.0 互換 + MIT 互換):
+許可されているもの (GPL-2.0 互換 + Apache-2.0 互換):
 
 - ✅ **insane** (GPL-2.0) — POPC / DOPC / DPPC 等の Martini bilayer 構築
 - ✅ **vermouth-martinize** (Apache-2.0) — `martinize2` CLI 提供
