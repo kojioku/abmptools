@@ -2,6 +2,37 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.fragmenter` 拡張)
+
+- **BDA/BAA 役割の決定ロジック**: 各切断 bond で `(BDA, BAA)` を decide し、
+  `CutSite.bda_atom_idx` / `baa_atom_idx` に格納。`segment_data.dat` 出力は
+  ABINIT-MP の log2config 形式に完全準拠 (BDA holder fragment のみ
+  `connect_num=1`、BAA 側は 0、`connect=[(BDA, BAA)]`)。決定ルール:
+  - **C-C 単結合**: walk 起点側 (graph diameter path[0] 含む側) を BDA
+    (アミノ酸 N→C 方向のアナロジー、deterministic)
+  - **C-X 単結合** (`include_c_heteroatom=True` 時): **C 側を BDA** (ABINIT-MP
+    慣習、ユーザー指定通り)
+  - **peptide N→C**: 本サブパッケージ対象外 (`abmptools.log2config` 経路で対応)
+- **SVG カラースキーム強化**: `_render_svg` で BDA atom (青) / BAA atom
+  (オレンジ) / cut bond (赤) を色分けハイライト。CLI ヘッドレス経路と
+  Jupyter UI 両方に効く。`AllChem.Compute2DCoords` で 2D 座標を再計算する
+  default 化も同時導入 (PE / PP のような長鎖が zigzag 構造式として綺麗に表示)。
+- **`include_c_heteroatom` config option**: C-X (X=N/O/S/P/F/Cl/Br/I) 単結合
+  切断を opt-in で許可。CLI flag は `--include-c-heteroatom`。
+  `exclude_heteroneighbor` フィルタは C-C bond にのみ適用される。
+
+### Fixed (`abmptools.fragmenter`)
+
+- **`_atom_total_mw` の H カウント抜け修正**: PDB 由来の Mol は H を
+  explicit atom として持つため、`atom.GetTotalNumHs(includeNeighbors=False)` は
+  implicit H = 0 を返す → CH3 の MW が ~12 (本来 ~15) と過少評価され、
+  累積 walk が早く target_mw に達して cut 位置が中央より 1 bond 左にずれていた。
+  implicit + explicit H neighbors の両方を加算するよう修正、結果として PP N=10
+  の cut が主鎖中央 (atom 13-15) に正しく配置される。
+- **PP N=10 sample SMILES 修正**: 末尾に余分な `C` が混入していた
+  (`"CC(C)" + "CC(C)" * 9 + "C"` = 主鎖 21 C, 31 heavy)。正しい
+  `"CC(C)" * 10` に直し、主鎖 20 C / 30 heavy / 92 atoms / MW 422.8 に。
+
 ### Changed
 
 - **License migration: MIT → Apache-2.0** (適用範囲: v1.23.0 以降の新規

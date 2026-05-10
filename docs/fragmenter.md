@@ -156,7 +156,9 @@ for i in range(len(path) - 1):
 
 - `atom_indices`: fragment 内 atom の mol 内 index (sorted)
 - `charge`: formal charge sum
-- `baa_atom_pairs`: BAA (Bond Attachment Atom) の `(this_atom, other_atom)` ペア list
+- `bda_pairs`: この fragment が **BDA holder** 側のペア list `(bda_atom_in_this, baa_atom_in_other)` (ABINIT-MP 形式の `connect` に展開される)
+- `baa_pairs`: この fragment が **BAA 受け側** のペア list `(baa_atom_in_this, bda_atom_in_other)` (検証・UI 表示用)
+- `baa_atom_pairs` (property、deprecated alias): 旧 API 互換、`bda_pairs + baa_pairs` を返す
 
 ### 5. 系全体への展開と segment_data 出力 (`expand_to_system.py`)
 
@@ -169,9 +171,9 @@ seg_data = [
         "name": "<basename>_grp1_<short_smiles>",
         "atom":       [n_atoms_per_fragment, ...],     # n_copies × frag/copy 個
         "charge":     [charge_per_fragment, ...],
-        "connect_num":[BAA_count_per_fragment, ...],
+        "connect_num":[BDA_count_per_fragment, ...],   # BDA holder fragment は 1、BAA 側は 0
         "seg_info":   [[atom_idx_1origin, ...], ...],  # PDB 内 atom index (1-origin)
-        "connect":    [[(this_atom, other_atom), ...], ...],
+        "connect":    [[(BDA_atom, BAA_atom), ...], ...],  # BDA holder のみ要素を持つ
         "nummol_seg": [1],
         "repeat":     [1],
         "pair_file":  [],
@@ -181,8 +183,39 @@ seg_data = [
 ]
 ```
 
-`write_segment_data` で log2config と同じ Python リテラル形式で書き出すため、
-`pdb2fmo` の `ast.literal_eval` がそのまま読み込める。
+ABINIT-MP の慣習に準拠し、各 cut bond につき **片方の fragment のみが BDA holder
+として登録**される (両 fragment 対称ではない)。`write_segment_data` で log2config と
+同じ Python リテラル形式で書き出すため、`pdb2fmo` の `ast.literal_eval` がそのまま
+読み込める。
+
+### 7. BDA / BAA 役割の決定 (`auto_split.py` + `cut_apply.py`)
+
+切断 bond ごとに「どちら側 fragment が electron pair を保持するか (= BDA holder)」
+を決定する必要がある。本サブパッケージの決定ルール:
+
+| 切断対象 | BDA 側 | BAA 側 | 根拠 |
+|---|---|---|---|
+| **C-C 単結合** (default) | walk 起点側 (graph diameter `path[0]` を含む fragment) | 反対側 | アミノ酸 N→C 方向に electron を寄せる慣習を generic に拡張、deterministic |
+| **C-X 単結合** (`include_c_heteroatom=True` 時) | **C 側** | X 側 (X = N/O/S/...) | ABINIT-MP 慣習 (ユーザー指定) |
+| peptide N→C | (本サブ対象外) | (本サブ対象外) | `abmptools.log2config` 経路 |
+
+`CutSite` には `bda_atom_idx` / `baa_atom_idx` (Optional[int]) が記録され、
+`apply_cuts` がそれを見て fragment を「BDA holder」「BAA 受け側」に振り分ける。
+
+### 8. SVG カラースキーム (`headless_io.py` `_render_svg`)
+
+レビューバンドル / Jupyter UI で生成される SVG は化学者向け 2D 構造式
+(`AllChem.Compute2DCoords` で 2D 座標を再計算) で、cut bond と BDA/BAA atom を
+色分けハイライト:
+
+| 要素 | 色 (RGB) | 意味 |
+|---|---|---|
+| cut bond | 赤 (1.0, 0.2, 0.2) | 切断される結合 |
+| BDA atom | 青 (0.3, 0.5, 1.0) | electron pair holder (この atom は cut 後も pair を保持) |
+| BAA atom | オレンジ (1.0, 0.6, 0.0) | H で擬似 capping される atom (cut 後 valence を H で補完) |
+
+cut_sites の `bda_atom_idx` / `baa_atom_idx` が ``None`` の legacy ケースでは
+atom highlight なし、cut bond の赤線のみ表示される。
 
 ### 6. ポリマー γ 経路 (`polymer.py`)
 
@@ -216,6 +249,7 @@ class FragmenterConfig:
     skip_protein_dna: bool = True
     polymer_groups: List[List[str]] = []
     include_residue_name: bool = False
+    include_c_heteroatom: bool = False  # C-X (X=N/O/S/...) 単結合も切断対象に
 
     def to_json(self, path: Optional[str] = None) -> str: ...
     @classmethod
