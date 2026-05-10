@@ -132,8 +132,14 @@ def _render_svg(
     width: int = 600,
     height: int = 400,
 ) -> str:
-    """RDKit で heavy-atom-only SVG を生成、cut_sites の bond を赤色ハイライト。"""
+    """RDKit で heavy-atom-only SVG を生成、cut_sites の bond を赤色ハイライト。
+
+    PDB の 3D 配座をそのまま投影すると化学者向けの構造式として読みにくいので、
+    `Compute2DCoords` で 2D 座標を再生成してから描画する。これで PE / PP の
+    ような長鎖でもまっすぐな zigzag に整えて表示される。
+    """
     from rdkit import Chem
+    from rdkit.Chem import AllChem
     from rdkit.Chem.Draw import rdMolDraw2D
 
     # H 非表示で描画 (cut_sites も heavy atom 同士の bond なので問題なし)
@@ -141,6 +147,13 @@ def _render_svg(
         heavy_mol = Chem.RemoveHs(mol)
     except Exception:
         heavy_mol = mol  # sanitize 不完全な mol はそのまま使う
+
+    # 2D 座標を再計算 (PDB 由来の 3D 配座をそのまま 2D 投影すると線が交差して
+    # 視認性が悪くなるため、化学者向けの 2D 構造式として描画し直す)。
+    try:
+        AllChem.Compute2DCoords(heavy_mol)
+    except Exception:
+        pass  # 失敗しても元 conformer で続行
 
     # 元 mol の heavy atom idx を heavy_mol の atom idx に mapping
     heavy_atom_origs = [
