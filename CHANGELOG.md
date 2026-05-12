@@ -20,6 +20,22 @@
 - **`include_c_heteroatom` config option**: C-X (X=N/O/S/P/F/Cl/Br/I) 単結合
   切断を opt-in で許可。CLI flag は `--include-c-heteroatom`。
   `exclude_heteroneighbor` フィルタは C-C bond にのみ適用される。
+- **Jupyter UI 拡張** (`open_panel`):
+  - **Show bond numbers** checkbox: SVG に heavy_mol の bond_idx を `bondNote`
+    で表示 (Add cut で参照)
+  - **Per-cut Remove button**: enable/disable とは別に CutSite を完全削除
+  - **Add cut**: bond_idx (heavy_mol) を入力欄 + "Add cut" ボタンで新規 cut
+    を追加。BDA/BAA は新 helper `auto_split.decide_bda_baa_for_manual_cut`
+    で自動 decide (C-X = C 側 / C-C = atom_idx 若い側)
+  - **Re-suggest**: Target MW を変更 + ボタンで `suggest_cuts()` 再実行
+    (全 cut を上書き)
+- **SVG カラースキーム refinement** (P10 → 後追い更新): solid blue/orange
+  だと BDA/BAA の区別が瞬時にしづらいというユーザー指摘を受け、化学教科書
+  慣習に近い見た目に変更。**BDA は青の点線円 (塗りつぶしなし)**、
+  **BAA はオレンジ塗り**、両端に `atomNote='BDA'`/`'BAA'` 文字を併記。
+  実装: BDA を `highlightAtoms` から外し、`drawer.GetDrawCoords()` で取得
+  した座標に SVG `<circle ... fill="none" stroke-dasharray="3,3"/>` を
+  post-process で挿入。
 
 ### Fixed (`abmptools.fragmenter`)
 

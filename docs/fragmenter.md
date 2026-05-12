@@ -81,10 +81,20 @@ open_panel(af)   # ipywidgets パネルが notebook 上に表示される
 ```
 
 操作:
-- Dropdown で分子グループを選択
-- SVG (heavy atom only) で代表分子の構造、提案 cut sites が赤色ハイライト
-- 各 cut site の Checkbox で `enabled` を toggle (re-render)
-- "Export segment_data.dat" ボタンで全コピーへ展開して出力
+
+| Widget | 機能 |
+|---|---|
+| **Group dropdown** | 分子グループを選択 (複数分子種が含まれる場合) |
+| **Show bond numbers (checkbox)** | SVG 上に heavy_mol の bond 番号を表示 (Add cut で参照する) |
+| **SVG output** | 代表分子の構造図。cut bond=赤線、BDA atom=青の点線円、BAA atom=オレンジ塗り、atom note 'BDA'/'BAA' |
+| **Cut sites (各行)** | `enabled` checkbox (= 切断する/しない toggle) + **Remove** ボタン (= 完全削除) |
+| **Add cut** | Bond idx (heavy_mol) を入力 + "Add cut" ボタン。BDA/BAA は `decide_bda_baa_for_manual_cut` で自動 decide (C-X case は C 側、C-C case は atom_idx 若い側) |
+| **Re-suggest** | Target MW を変更 + "Re-suggest (overwrite)" ボタン。`fragmenter.config.target_mw` を更新して `suggest_cuts()` を再実行 (全 group の cut を上書き) |
+| **Export segment_data.dat** | 全コピーへ展開して `output_dir/segment_data.dat` を出力 |
+
+`decide_bda_baa_for_manual_cut(mol, atom1_idx, atom2_idx) -> (bda, baa)` は
+`auto_split` モジュールの helper。手動追加 cut の BDA/BAA を `suggest_cuts` と
+整合的に決定する (C-X: C 側 / C-C: 若い idx 側 / X-X: 若い idx 側)。
 
 ## アルゴリズム詳細
 
