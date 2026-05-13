@@ -242,8 +242,11 @@ NF= """ + str(num_fragment) + """
 LMOTYP='ANO' """
 
         if num_fragment == 1:
-            use_FMO = 'OFF'
-            frag_section = ''
+            if self.abinit_ver in ['v1dd2026']:
+                use_FMO = 'ON'
+            else:
+                use_FMO = 'OFF'
+                frag_section = ''
         else:
             use_FMO = 'ON'
 
