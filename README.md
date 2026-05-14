@@ -127,6 +127,8 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
   - `backend="charmm36"` — MacKerell-free CHARMM36 parameter values via Klauda lab GROMACS port (`pdb2gmx`); CGenFF / CHARMM-GUI **forbidden by design** to keep the route commercial-clean
 - GPU acceleration hook in the generated `run.sh` (`MDRUN_OPTS` env var)
 - Bundled tutorial walks through poly-Ala 5-mer + POPC bilayer end-to-end
+- Sample driver/config (Phase D = L9 verification, both backends in parallel):
+  `sample/membrane/amber_phaseD/` (AMBER ff19SB + Lipid21 + TIP3P, PMF +86.7 kJ/mol) and `sample/membrane/charmm_phaseD/` (CHARMM36 Klauda port, PMF +97.9 kJ/mol, Δ-11.3 kJ/mol vs AMBER — typical FF gap)
 
 ## Supported ABINIT-MP Versions
 

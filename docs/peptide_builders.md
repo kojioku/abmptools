@@ -117,7 +117,8 @@ bash out/run.sh
 }
 ```
 
-完全なサンプル: [`sample/membrane/charmm_phaseD/input/config_phaseD.json`](../sample/membrane/charmm_phaseD/input/config_phaseD.json)
+完全なサンプル (CHARMM36 backend): [`sample/membrane/charmm_phaseD/input/config_phaseD.json`](../sample/membrane/charmm_phaseD/input/config_phaseD.json)
+完全なサンプル (AMBER backend、ff19SB + Lipid21 + TIP3P): [`sample/membrane/amber_phaseD/input/config_phaseD.json`](../sample/membrane/amber_phaseD/input/config_phaseD.json) (`packmol-memgen` → `tleap` → `parmed` 経路、商用利用クリーン)
 
 ### B. CG peptide (KGG ×5、water box)
 

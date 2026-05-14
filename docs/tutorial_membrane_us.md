@@ -518,6 +518,20 @@ CPU 4-core 比 ~4-5×。1 core 比 ~15×。
 
 軌跡解析 (RDF / 配向 / contact map 等) は OneDrive のフルデータから .xtc を取得して実施。
 
+### Phase D verification 用の入力サンプル (abmptools repo 内)
+
+両 backend で同じ系・同じプロトコルを並走させる Phase D = L9 verification の
+入力 `MembraneConfig` JSON が `sample/membrane/` 配下に commit されている:
+
+| Backend | サンプル | PMF (z=0 barrier) |
+|---|---|---|
+| AMBER (ff19SB + Lipid21 + TIP3P) | [`sample/membrane/amber_phaseD/`](../sample/membrane/amber_phaseD/) | +86.7 kJ/mol |
+| CHARMM36 (Klauda port) | [`sample/membrane/charmm_phaseD/`](../sample/membrane/charmm_phaseD/) | +97.9 kJ/mol (Δ+11.3 vs AMBER、典型 FF 差) |
+
+両者は `backend` フィールドと `charmm_ff_dir` 以外は完全に同一 (poly-Ala 5-mer
++ POPC 32×2 + 0.15 M NaCl、13 windows × 1 ns、`window_spacing_nm=0.25`)。
+PMF 比較プロットは [`docs/figures/pmf_compare_amber_charmm.png`](figures/pmf_compare_amber_charmm.png) を参照。
+
 ## 付録 B: 詳細リファレンス
 
 - [`membrane.md`](membrane.md) — 全 API / config field / 設計判断

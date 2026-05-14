@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.membrane` sample)
+
+- **`sample/membrane/amber_phaseD/`** — AMBER backend
+  (ff19SB + Lipid21 + GAFF2 + TIP3P) 用 umbrella sampling 入力サンプル。
+  既存 `sample/membrane/charmm_phaseD/` (CHARMM36 backend) と完全に同じ
+  系構成・プロトコル (poly-Ala 5-mer + POPC 32×2 + 0.15 M NaCl、
+  13 windows × 1 ns、`window_spacing_nm=0.25`) で力場のみ差し替えた、
+  Phase D = L9 verification の AMBER ベースライン側 reference。
+  - `input/config_phaseD.json` — `MembraneConfig` JSON
+    (`backend="amber"`, `charmm_ff_dir=""`)
+  - `README.md` — 概要 / CHARMM 版との差分表 / 結果サマリ
+    (PMF +86.7 kJ/mol、CHARMM +97.9 と Δ-11.3 kJ/mol、典型 FF 差) /
+    5-stage パイプライン (`packmol-memgen` → `tleap` → `parmed` →
+    GROMACS → `gmx wham`) / 実行例 / 重量級結果保管先
+  - 商用利用クリーン: `packmol-memgen` + `tleap` + `parmed` 経路で
+    CGenFF / CHARMM-GUI 非依存
+
 ### Added (`abmptools.fragmenter` 拡張)
 
 - **BDA/BAA 役割の決定ロジック**: 各切断 bond で `(BDA, BAA)` を decide し、
