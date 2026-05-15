@@ -13,16 +13,23 @@ segment** を PDB から自動構築する。
 | `ring_detector.py` | RDKit `GetRingInfo` → ring segment 抽出 (fused = atom 共有) |
 | `chain_splitter.py` | ring 外 chain の target_mw walk 切断 (`auto_split._atom_total_mw` 流用) |
 | `cap_attach.py` | 切断面に H or CH3 cap を 3D 配置 |
-| `exporter.py` | per-segment PDB + XYZ + summary JSON 出力 |
-| `orchestrator.py` | `CGSegmenter` クラス (state 管理 + pipeline) |
-| `__main__.py` | CLI (`python -m abmptools.fragmenter.cg_segmenter`) |
+| `exporter.py` | per-segment PDB + XYZ + summary JSON 出力 + SVG ハイライト描画 |
+| `dpdgen_exporter.py` | DPDgen 入力 (`{name}_monomer` + `{name}_calc_sett`) を出力 (path-based bond hierarchy + angle ポテンシャル) |
+| `notebook_ui.py` | Jupyter `open_panel()` (ipywidgets) — Move/Toggle/Delete/Re-segment/Export ボタン |
+| `orchestrator.py` | `CGSegmenter` クラス (state 管理 + pipeline + edit ops `move_atom` / `toggle_cap` / `delete_segment` / `re_segment` / `export_dpdgen`) |
+| `__main__.py` | CLI (`build` / `dpdgen` subcommand) |
 
 ## クイックスタート
 
 ```bash
-# CLI
+# CLI -- segment 構築
 python -m abmptools.fragmenter.cg_segmenter build \
     --pdb input.pdb --output-dir ./segs --target-mw 200
+
+# CLI -- DPDgen 入力生成 (segment 構築 + monomer/calc_sett 出力)
+python -m abmptools.fragmenter.cg_segmenter dpdgen \
+    --pdb input.pdb --output-dir ./dpdgen_input \
+    --monomer-name mymol --box 12
 
 # Python API
 python -c "
@@ -30,6 +37,11 @@ from abmptools.fragmenter.cg_segmenter import CGSegmenter, CGSegmenterConfig
 config = CGSegmenterConfig(pdb_path='input.pdb', target_mw=200)
 sg = CGSegmenter.from_pdb(config)
 print(f'{len(sg.segments)} segments')
-sg.export()
+sg.export()                                                       # PDB + XYZ + JSON
+sg.export_dpdgen(output_dir='./dpdgen', monomer_name='mymol')    # monomer + calc_sett
+
+# Jupyter UI
+from abmptools.fragmenter.cg_segmenter import open_panel
+open_panel(sg)                                                    # ipywidgets パネル
 "
 ```

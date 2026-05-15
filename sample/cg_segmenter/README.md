@@ -69,8 +69,36 @@ obabel -isdf cholesterol_pubchem.sdf -opdb -O cholesterol_pubchem.pdb
 本ディレクトリの `cholesterol_rdkit.pdb` は RDKit で SMILES から構築したもので、
 同等の構造 (canonical SMILES が一致) を持つため検証用に十分。
 
+## DPDgen 入力生成 (OCTA COGNAC)
+
+cg_segmenter の出力から [DPDgen](https://github.com/kojioku/dpdgen) の入力 2 ファイルを生成:
+
+```bash
+python -m abmptools.fragmenter.cg_segmenter dpdgen \
+    --pdb sample/cg_segmenter/cholesterol_rdkit.pdb \
+    --output-dir ./dpdgen_chol \
+    --monomer-name chol \
+    --box 12
+```
+
+期待出力 (`chol_monomer`):
+
+```python
+bond12      = [[0,1], [1,2], [2,3], [0,4]]      # 隣接 ring + ring-tail
+bond13_150  = [[0,2], [1,3]]                    # A-C, B-D (1-skip ring, dist 1.661)
+bond14_150  = [[0,3]]                           # A-D    (2-skip ring, dist 2.502)
+angle13     = [[1,0,4], [0,1,2], [1,2,3]]
+angle13data = [
+    [1, 0, 4, 0,  5.0],     # B-A-tail (mixed)   eq=0  (= 180° 直線想定)
+    [0, 1, 2, 30, 5.0],     # A-B-C    (all-ring) eq=30 (= 150° ring bend)
+    [1, 2, 3, 30, 5.0],     # B-C-D    (all-ring) eq=30 (= 150° ring bend)
+]
+```
+
+詳細は [`docs/cg_segmenter.md` — DPDgen export](../../docs/cg_segmenter.md#dpdgen-export-octa-cognac-入力生成) 参照。
+
 ## 関連
 
-- [`docs/cg_segmenter.md`](../../docs/cg_segmenter.md) — `cg_segmenter` リファレンス
+- [`docs/cg_segmenter.md`](../../docs/cg_segmenter.md) — `cg_segmenter` リファレンス (path hierarchy + angle convention 含む)
 - [`abmptools/fragmenter/cg_segmenter/README.md`](../../abmptools/fragmenter/cg_segmenter/README.md) — モジュール構成
-- `tests/cg_segmenter/` — pytest による回帰テスト 11 件
+- `tests/cg_segmenter/` — pytest による回帰テスト 29 件 (dataclass / e2e / 編集 op / DPDgen path hierarchy + angle 検証)
