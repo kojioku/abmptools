@@ -133,7 +133,12 @@ For new developers approaching this codebase:
     GAFF/GAFF2 via acpype, 4-stage pipeline: split PDB → parameterize →
     GBSA single-point → ΔG_bind aggregation).
     Protein / DNA stays on the existing `log2config` route.
-14. **`docs/crystal.md`** + **`docs/tutorial_crystal_fmo.md`** —
+14. **`docs/cg_segmenter.md`** — `abmptools.fragmenter.cg_segmenter` (1.24.0+);
+    CG (粗視化) 用セグメント構築ツール。fragmenter (FMO 用、BDA/BAA で擬似分割) の
+    姉妹で、**物理的に分子を分割し H/CH3 cap を付与**、fused ring の atom 共有を
+    許容する。コレステロールや EUD-E のような ring + 側鎖ありポリマーを CG MD
+    用に分割する用途。
+15. **`docs/crystal.md`** + **`docs/tutorial_crystal_fmo.md`** —
     `abmptools.crystal` (1.23.0+); organic-crystal FMO pipeline
     (CIF → supercell → fragment cut → ABINIT-MP AJF + HPC jobscripts;
     8-subcommand CLI: `abmp-crystal {expand,fragment,jobs,pipeline,
