@@ -11,6 +11,7 @@
 | `pe_n20.pdb` | 62 (20 C + 42 H) | 282.6 | PE N=20 線形ポリエチレン。長い C-C 鎖の自動切断検証 |
 | `pp_n10.pdb` | 92 (30 C + 62 H、主鎖 20 C + 分岐 10 C) | 422.8 | atactic polypropylene N=10。分岐含む鎖の主鎖検出 + 切断 |
 | `propane5_acetone3.pdb` | 75 (combined: 5 propane + 2 acetone) | --- | 同一分子グループ化 + n_copies 展開検証 |
+| `eude_block55.pdb` | 207 (90 heavy = MMA×5 + DMAEMA×5 block 共重合 + 117 H) | 1288.7 | 側鎖ありビニル系ポリマー (Eudragit E mimic)。MMA (ester 側鎖) + DMAEMA (amine 含む長い側鎖) block。主鎖 C-C 切断 + ester / amine 側鎖 + 多種 hetero atom 同居の検証 |
 
 ## 動作確認 (target_mw=200 default)
 
@@ -96,6 +97,17 @@ for _ in range(4):
 for _ in range(2):
     combined = Chem.CombineMols(combined, acetone)
 Chem.MolToPDBFile(combined, "propane5_acetone3.pdb")
+
+# EUD-E block 共重合体 (Eudragit E mimic): MMA×5 + DMAEMA×5
+# 注: EUD-E は実際 random 共重合だが、simplified block で代表化学的特徴
+# (ester + tertiary amine + 主鎖 C-C) を再現する
+mma_unit = "CC(C)(C(=O)OC)"           # methyl methacrylate-like
+dmaema_unit = "CC(C)(C(=O)OCCN(C)C)"  # DMAEMA-like (amine 側鎖)
+eude_smiles = mma_unit * 5 + dmaema_unit * 5
+mol = Chem.AddHs(Chem.MolFromSmiles(eude_smiles))
+AllChem.EmbedMolecule(mol, randomSeed=42)
+AllChem.MMFFOptimizeMolecule(mol, maxIters=500)
+Chem.MolToPDBFile(mol, "eude_block55.pdb")
 ```
 
 ## 関連
