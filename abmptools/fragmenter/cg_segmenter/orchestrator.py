@@ -103,6 +103,34 @@ class CGSegmenter:
         self.result = export_segments(self.mol, self.segments, out_dir)
         return self.result
 
+    def export_dpdgen(
+        self,
+        output_dir: Optional[str] = None,
+        monomer_name: str = "cg",
+        box_size: tuple = (10.0, 10.0, 10.0),
+        total_num: int = 100000,
+        step: int = 100,
+        aij_file: str = "aij.dat",
+    ) -> tuple:
+        """DPDgen 入力 (monomer + calc_sett) を生成する。
+
+        Returns
+        -------
+        (monomer_path, calc_sett_path) -- both Path objects
+        """
+        from .dpdgen_exporter import export_dpdgen
+        if self.mol is None:
+            raise RuntimeError("CGSegmenter.mol is None.")
+        out_dir = output_dir or self.config.output_dir
+        return export_dpdgen(
+            self.segments, self.mol, out_dir,
+            monomer_name=monomer_name,
+            box_size=box_size,
+            total_num=total_num,
+            step=step,
+            aij_file=aij_file,
+        )
+
     # ------------------------------------------------------------------
     # Manual edit operations (Jupyter UI から呼ばれる)
     # ------------------------------------------------------------------

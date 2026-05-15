@@ -43,6 +43,7 @@ try:
     from .chain_splitter import split_chain
     from .cap_attach import attach_caps
     from .exporter import export_segments, render_segments_svg
+    from .dpdgen_exporter import export_dpdgen
     from .orchestrator import CGSegmenter
     _CORE_AVAILABLE = True
 except ImportError:
@@ -68,6 +69,7 @@ if _CORE_AVAILABLE:
         "attach_caps",
         "export_segments",
         "render_segments_svg",
+        "export_dpdgen",
         "CGSegmenter",
     ]
 if _UI_AVAILABLE and _CORE_AVAILABLE:

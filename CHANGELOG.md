@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.fragmenter.cg_segmenter` DPDgen export — v1.24.0 候補)
+
+- **DPDgen 入力生成**: CG segments から [DPDgen](https://github.com/kojioku/dpdgen)
+  (Koji Okuwaki 作の DPD UDF 生成ツール、OCTA COGNAC エコシステム) 用の
+  `{name}_monomer` + `{name}_calc_sett` 2 ファイルを生成する `dpdgen_exporter.py`
+  サブモジュールを追加。
+  - **bond12 自動推定**: 各 segment ペアで共有 atom (fused ring) または直接
+    atom 結合 (cap 経由 / ring-chain 境界) があれば bond12 に追加
+  - **distance / stiffness ルール** (ユーザー指示通り):
+    - 両 segment が ring* kind → distance **0.60** / stiff 200 (cholesterol 特例)
+    - その他 → distance **0.86** / stiff 50 (DPD 均等配置 default)
+  - **bond13_180 / bond13_120 は自動生成しない** (化学的判断要、ユーザー手動編集)
+  - **aij.dat 自体は生成しない** (calc_sett に file path のみ書き込み、χ パラメータは
+    `fcews-manybody` 等で別途計算)
+  - `CGSegmenter.export_dpdgen(...)` メソッド + CLI `dpdgen` subcommand +
+    Jupyter UI `[Export DPDgen]` ボタンの 3 経路から呼び出し可能
+  - tests: 6 件追加 (`test_dpdgen.py`)、計 24/24 PASS in 0.51s
+
 ### Added (`abmptools.fragmenter.cg_segmenter` Jupyter UI 拡張 — v1.24.0 候補)
 
 - **Jupyter UI (`open_panel`)**: fragmenter UI と同じ操作感で CG segment を

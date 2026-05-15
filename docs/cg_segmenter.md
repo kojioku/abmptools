@@ -229,13 +229,87 @@ python -m abmptools.fragmenter.cg_segmenter build \
 期待 segment 数: 7 程度 (MW 1289 / 200 ≒ 6.4)。CH3 cap は ester O や amine N が
 切断面に来た所、H cap は C-C 境界。
 
+## DPDgen export (OCTA COGNAC 入力生成)
+
+CG segments から **[DPDgen](https://github.com/kojioku/dpdgen)** (Koji Okuwaki 作の DPD UDF
+生成ツール、ABINIT-MP / FCEWS / COGNAC エコシステム) の入力 2 ファイルを生成する:
+
+```bash
+python -m abmptools.fragmenter.cg_segmenter dpdgen \
+    --pdb cholesterol.pdb \
+    --output-dir ./dpdgen_input \
+    --monomer-name chol \
+    --box 10 --total-num 100000 --step 100
+```
+
+または Python API:
+
+```python
+from abmptools.fragmenter.cg_segmenter import CGSegmenter, CGSegmenterConfig
+
+config = CGSegmenterConfig(pdb_path="cholesterol.pdb", target_mw=200)
+sg = CGSegmenter.from_pdb(config)
+monomer_path, calc_sett_path = sg.export_dpdgen(
+    output_dir="./dpdgen_input",
+    monomer_name="chol",
+    box_size=(10, 10, 10),
+)
+```
+
+Jupyter UI からも `[Export DPDgen (monomer + calc_sett)]` ボタンで同じ操作が可能。
+
+### 出力ファイル
+
+```
+output_dir/
+├── {name}_monomer       # bond12 / bond12h (Python script)
+└── {name}_calc_sett     # total_num_list / phys_param / ratio_list ... (Python script)
+```
+
+### bond12 自動推定ルール
+
+各 segment ペア (i, j) について以下のいずれかなら bond12 に追加:
+
+1. **共有 atom がある** (fused ring) — `seg_i.atom_indices ∩ seg_j.atom_indices != ∅`
+2. **直接 atom 結合がある** (cap atom 経由 / ring-chain 境界) — `mol.GetBondBetweenAtoms(...)`
+
+### bond12 distance / stiffness
+
+| 両端 segment | distance | stiffness |
+|---|---|---|
+| **両方 ring* (kind="ring" or "ring_with_substituent")** | **0.60** | 200 |
+| その他 (chain-chain / chain-ring / mixed) | **0.86** | 50 |
+
+- 0.86: DPD 均等配置時のセグメント間距離 (default)
+- 0.60: cholesterol 等の特例 (ring-ring が密に詰まる場合)。後でユーザーが
+  monomer file を手動編集して調整可能。
+
+### 自動生成しないもの
+
+- **bond13_180 / bond13_120** (1-3 結合、化学的判断必要) → コメントアウト
+  プレースホルダのみ。geometry を見てユーザーが手動追加する。
+- **aij.dat** (相互作用パラメータ χ) → 本 exporter は生成しない。`fcews-manybody`
+  等で計算後、`{name}_calc_sett` の `aij_file` パスに配置する。
+- **ratio_list / phys_param 詳細** → calc_sett に TODO コメント付き
+  template として書かれるので、ユーザーが系構成に合わせて編集。
+
+### 出力ファイルの使い方
+
+```bash
+# DPDgen の makeudf_dpd.py を実行
+cd ./dpdgen_input
+python /path/to/dpdgen/makeudf_dpd.py -p chol_calc_sett
+# -> zz_test.inp_xxx UDF を生成
+# -> OCTA COGNAC でそのまま DPD MD 実行
+```
+
 ## テスト
 
 ```bash
 pytest tests/cg_segmenter/ -v
 ```
 
-11 テスト (dataclass roundtrip 2 + e2e 7 + 出力 1 + CLI 1)、~0.33s で PASS。
+24 テスト (dataclass roundtrip / e2e 7 / 編集 op 7 / DPDgen 6 + CLI 系)、~0.5s で PASS。
 
 ## 関連ドキュメント
 

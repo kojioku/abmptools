@@ -120,6 +120,20 @@ def open_panel(sg: "CGSegmenter") -> None:
     )
     export_status = widgets.HTML(value="")
 
+    dpdgen_name = widgets.Text(
+        value="cg", description="DPDgen name:",
+        layout=widgets.Layout(width="220px"),
+    )
+    dpdgen_box = widgets.FloatText(
+        value=10.0, description="Box (DPD):",
+        layout=widgets.Layout(width="180px"),
+    )
+    dpdgen_btn = widgets.Button(
+        description="Export DPDgen (monomer + calc_sett)", button_style="success",
+        layout=widgets.Layout(width="320px"),
+    )
+    dpdgen_status = widgets.HTML(value="")
+
     # --- Refresh functions ---
     def _refresh_svg():
         svg = render_segments_svg(
@@ -243,11 +257,31 @@ def open_panel(sg: "CGSegmenter") -> None:
         except Exception as e:
             export_status.value = f'<span style="color:#dc3545;">Error: {e}</span>'
 
+    def on_dpdgen_click(_btn):
+        try:
+            box = float(dpdgen_box.value)
+            name = dpdgen_name.value or "cg"
+            mono, calc = sg.export_dpdgen(
+                output_dir=sg.config.output_dir,
+                monomer_name=name,
+                box_size=(box, box, box),
+            )
+            dpdgen_status.value = (
+                f'<span style="color:#28a745;">'
+                f'DPDgen monomer: <code>{mono}</code><br>'
+                f'DPDgen calc_sett: <code>{calc}</code><br>'
+                f'(edit ratio_list / aij_file / phys_param, then '
+                f'<code>python makeudf_dpd.py -p {calc}</code>)</span>'
+            )
+        except Exception as e:
+            dpdgen_status.value = f'<span style="color:#dc3545;">Error: {e}</span>'
+
     show_atom_nums.observe(lambda _: _refresh_svg(), names="value")
     show_bold_shared.observe(lambda _: _refresh_svg(), names="value")
     atom_move_btn.on_click(on_move_click)
     re_seg_btn.on_click(on_re_seg_click)
     export_btn.on_click(on_export_click)
+    dpdgen_btn.on_click(on_dpdgen_click)
 
     # 初期描画
     _refresh_seg_list()
@@ -272,5 +306,11 @@ def open_panel(sg: "CGSegmenter") -> None:
         widgets.HTML("<hr>"),
         export_btn,
         export_status,
+        widgets.HTML(
+            "<hr><b>Export DPDgen input</b> "
+            "(monomer + calc_sett for OCTA COGNAC):"
+        ),
+        widgets.HBox([dpdgen_name, dpdgen_box, dpdgen_btn]),
+        dpdgen_status,
     ])
     display(panel)
