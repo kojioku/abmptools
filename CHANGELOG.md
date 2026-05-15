@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.fragmenter.cg_segmenter` 新サブモジュール — v1.24.0 候補)
+
+- **CG (粗視化) セグメント構築ツール**: FMO 用の `fragmenter` (BDA/BAA で擬似分割) に対し、
+  本サブモジュールは **物理的に分子を分割し、cap atom (H or CH3) を付与** する。
+  CG MD の前処理として、コレステロール等の環構造を含む系で「環ごとの segment +
+  fused ring atom 共有 + chain MW walk 切断 + cap 自動配置」を 1 コマンドで行う。
+  - `ring_detector.py`: RDKit `GetRingInfo().AtomRings()` で SSSR ring 抽出、fused
+    の共有 atom を両 Segment に含める (`allow_atom_sharing=True`)、ring atom の 1
+    heavy 置換基 (-OH/-NH2/-F 等) を吸収 (`absorb_single_substituent=True`)
+  - `chain_splitter.py`: ring 外 chain を connected component に分け、各 component を
+    `auto_split._atom_total_mw` (流用) ベースの target_mw walk で切断
+  - `cap_attach.py`: 境界 atom が C/halogen → H cap、N/O/S/P → CH3 cap (central C +
+    tetrahedral 3 H)。位置は元 bond 方向ベクトル × 結合長で配置。
+    Hetero に CH3 cap を選ぶのは「不要な水素結合スポット (擬似 H-bond) を MD で
+    出さない」ため (user-specified rule)。
+  - `exporter.py`: per-segment **PDB + XYZ** + summary JSON (`shared_atom_pairs`
+    を含む)。1 atom が複数 segment に属することを許容する。
+  - `orchestrator.py`: `CGSegmenter` クラスで pipeline 統合
+    (`from_pdb()` → `segment()` → `export()`)。
+  - `__main__.py`: `python -m abmptools.fragmenter.cg_segmenter {build,example}` CLI。
+  - `tests/cg_segmenter/test_basic.py`: 11 tests (dataclass roundtrip /
+    propane / octane / methyl acetate / benzene / naphthalene / cyclohexanol /
+    cyclohexyl-octyl / 出力ファイル / CLI) PASS in 0.33s。
+  - `docs/cg_segmenter.md` (新規)、`README.md` / `docs/overview.md` 更新。
+- `sample/fragmenter/eude_block55.pdb`: Eudragit E mimic block 共重合体 (PMMA×5 +
+  DMAEMA×5、heavy=90、MW=1288.7)。側鎖ありビニル系ポリマー (ester + tertiary amine)
+  のテスト用、cg_segmenter で 7 chain segments に分割される。
+
 ### Added (`abmptools.membrane` sample)
 
 - **`sample/membrane/amber_phaseD/`** — AMBER backend
