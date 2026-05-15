@@ -95,14 +95,18 @@ def test_dpdgen_exec_loads_in_python(naphthalene_segmenter, tmp_path):
     """生成された monomer / calc_sett は Python script として valid (exec できる)。"""
     sg = naphthalene_segmenter
     mono, calc = sg.export_dpdgen(output_dir=str(tmp_path), monomer_name="naph")
-    # monomer: bond12, bond12h を定義する純粋な Python
+    # monomer: bond12, bond12h, bond13_150, bond14_150, angle13, angle13data を定義
     ns: dict = {}
     exec(Path(mono).read_text(), ns)
-    assert "bond12" in ns
-    assert "bond12h" in ns
+    for k in ("bond12", "bond12h", "bond13_150", "bond13_150h",
+              "bond14_150", "bond14_150h", "angle13", "angle13data"):
+        assert k in ns, f"{k} missing in monomer"
     assert isinstance(ns["bond12"], list)
     assert all(isinstance(b, list) and len(b) == 2 for b in ns["bond12"])
     assert all(len(b) == 6 for b in ns["bond12h"])
+    assert all(isinstance(t, list) and len(t) == 3 for t in ns["angle13"])
+    # angle13data: [a, b, c, eq_余角, stiffness] = 5 要素
+    assert all(len(a) == 5 for a in ns["angle13data"])
     # calc_sett: total_num_list, phys_param 等
     ns2: dict = {}
     exec(Path(calc).read_text(), ns2)
@@ -186,76 +190,108 @@ def hexene_segmenter(tmp_path_factory):
     return CGSegmenter.from_pdb(config)
 
 
-def test_fused_ring_full_connect_cholesterol(cholesterol_segmenter_for_dpd, tmp_path):
-    """4 fused rings (cholesterol) → A-B-C-D 全 6 ring pair が bond12 に含まれる。"""
-    import itertools
+def test_cholesterol_path_hierarchy(cholesterol_segmenter_for_dpd, tmp_path):
+    """4 fused rings (cholesterol) で path-based hierarchy を検証:
+    bond12 = 隣接 (A-B, B-C, C-D, A-tail) — 4 pair
+    bond13_150 = 1-skip ring (A-C, B-D) — 2 pair、 distance 1.661 / stiff 200
+    bond14_150 = 2-skip ring (A-D) — 1 pair、 distance 2.502 / stiff 200
+    """
     sg = cholesterol_segmenter_for_dpd
     mono, _ = sg.export_dpdgen(output_dir=str(tmp_path), monomer_name="chol")
     ns: dict = {}
     exec(Path(mono).read_text(), ns)
     bond12 = ns["bond12"]
+    bond13_150 = ns["bond13_150"]
+    bond13_150h = ns["bond13_150h"]
+    bond14_150 = ns["bond14_150"]
+    bond14_150h = ns["bond14_150h"]
+
     ring_ids = sorted(s.segment_id for s in sg.segments if s.kind.startswith("ring"))
-    assert len(ring_ids) == 4, f"expected 4 ring segments for cholesterol, got {ring_ids}"
-    for a, b in itertools.combinations(ring_ids, 2):
-        pair = [a, b]
-        assert pair in bond12, (
-            f"fused-ring pair {pair} missing from bond12 = {bond12}"
-        )
+    assert len(ring_ids) == 4, f"expected 4 ring segments, got {ring_ids}"
+
+    # bond12: 隣接 3 + ring-tail 1 = 4 pair
+    assert len(bond12) == 4, f"expected 4 bond12 pairs, got {bond12}"
+    # bond13_150: 1-skip 2 pair
+    assert len(bond13_150) == 2, f"expected 2 bond13_150 pairs, got {bond13_150}"
+    assert all(b[3] == 1.661 and b[4] == 200 for b in bond13_150h), bond13_150h
+    # bond14_150: 2-skip 1 pair (A-D)
+    assert len(bond14_150) == 1, f"expected 1 bond14_150 pair (A-D), got {bond14_150}"
+    assert all(b[3] == 2.502 and b[4] == 200 for b in bond14_150h), bond14_150h
 
 
-def test_bond13_180_path_length_2(decane_segmenter, tmp_path):
-    """3 segment 以上の chain → bond13_180 (path-length-2) entry が出る。"""
+def test_angle13_chain_linear_eq_0(decane_segmenter, tmp_path):
+    """3 segment 以上の chain → angle13 で eq=0 (180° 直線想定)、 stiff 5.0。"""
     sg = decane_segmenter
     mono, _ = sg.export_dpdgen(output_dir=str(tmp_path), monomer_name="dec")
     ns: dict = {}
     exec(Path(mono).read_text(), ns)
-    bond13_180 = ns["bond13_180"]
-    bond13_180h = ns["bond13_180h"]
+    angle13 = ns["angle13"]
+    angle13data = ns["angle13data"]
     if len(sg.segments) >= 3:
-        assert len(bond13_180) > 0, (
-            f"expected bond13_180 entries (n_seg={len(sg.segments)}), got {bond13_180}"
+        assert len(angle13) > 0, (
+            f"expected angle13 entries (n_seg={len(sg.segments)}), got {angle13}"
         )
-        # chain は stiff 80
-        assert all(b[3] == 1.72 for b in bond13_180h), bond13_180h
-        assert all(b[4] == 80 for b in bond13_180h), bond13_180h
+        # chain (= 全 non-ring) → eq 0
+        for a in angle13data:
+            assert a[3] == 0, f"chain angle eq should be 0, got {a}"
+            assert a[4] == 5.0, f"angle stiff should be 5.0, got {a}"
 
 
-def test_bond13_180_excludes_bond12_pairs(cholesterol_segmenter_for_dpd, tmp_path):
-    """ring group 内部の 1-3 (例: A-C) は既に bond12 にあるので bond13_180 には出ない。"""
+def test_angle13_ring_bend_eq_30(cholesterol_segmenter_for_dpd, tmp_path):
+    """cholesterol で ring-ring-ring の angle → eq=30 (= 150° ring bend)。"""
     sg = cholesterol_segmenter_for_dpd
     mono, _ = sg.export_dpdgen(output_dir=str(tmp_path), monomer_name="chol")
     ns: dict = {}
     exec(Path(mono).read_text(), ns)
-    bond12 = [tuple(p) for p in ns["bond12"]]
-    bond13_180 = [tuple(p) for p in ns["bond13_180"]]
-    for p in bond13_180:
-        assert p not in bond12, f"bond13_180 {p} also appears in bond12"
+    angle13data = ns["angle13data"]
+
+    seg_kind = {s.segment_id: s.kind for s in sg.segments}
+    # 全 ring の triple は eq=30、 chain を含む triple は eq=0
+    n_ring_bend = 0
+    for a in angle13data:
+        all_ring = (
+            seg_kind[a[0]].startswith("ring") and
+            seg_kind[a[1]].startswith("ring") and
+            seg_kind[a[2]].startswith("ring")
+        )
+        if all_ring:
+            assert a[3] == 30, f"ring-ring-ring angle should have eq=30, got {a}"
+            n_ring_bend += 1
+        else:
+            assert a[3] == 0, f"non-ring-ring-ring should have eq=0, got {a}"
+        assert a[4] == 5.0, f"angle stiff should be 5.0, got {a}"
+    assert n_ring_bend >= 2, f"expected >=2 ring-bend angles in cholesterol, got {n_ring_bend}"
 
 
-def test_bond13_120_cis_double_bond(hexene_segmenter, tmp_path):
-    """中央に C=C を持つ hex-3-ene → bond13_120 entry が出る (3+ segments)。"""
+def test_angle13_cis_double_bond_eq_60(hexene_segmenter, tmp_path):
+    """hex-3-ene の中央 C=C → angle13 で該当 triple の eq=60 (= 120°)。"""
     sg = hexene_segmenter
     mono, _ = sg.export_dpdgen(output_dir=str(tmp_path), monomer_name="hex")
     ns: dict = {}
     exec(Path(mono).read_text(), ns)
-    bond13_120 = ns["bond13_120"]
-    bond13_120h = ns["bond13_120h"]
+    angle13data = ns["angle13data"]
     if len(sg.segments) >= 3:
-        assert len(bond13_120) > 0, (
-            f"expected bond13_120 entries for cis C=C (n_seg={len(sg.segments)}), "
-            f"got {bond13_120}"
+        # cis double bond の周辺 angle が少なくとも 1 つ eq=60
+        cis_count = sum(1 for a in angle13data if a[3] == 60)
+        assert cis_count > 0, (
+            f"expected angle13 with eq=60 for cis C=C "
+            f"(n_seg={len(sg.segments)}), got: {angle13data}"
         )
-        for b in bond13_120h:
-            assert b[3] == 1.49
-            assert b[4] == 70
+        for a in angle13data:
+            assert a[4] == 5.0, f"angle stiff should be 5.0, got {a}"
 
 
-def test_no_bond13_for_single_or_double_segment(naphthalene_segmenter, tmp_path):
-    """naphthalene (2 ring segments) → bond13_* は空 (path length 2 ペアなし)。"""
+def test_bond13_180_120_default_commented(naphthalene_segmenter, tmp_path):
+    """default では bond13_180 / bond13_120 は **コメントアウト** で出る
+    (angle ポテンシャルで代替するため、 距離制約は user 手動 uncomment)。"""
     sg = naphthalene_segmenter
     mono, _ = sg.export_dpdgen(output_dir=str(tmp_path), monomer_name="naph")
+    content = Path(mono).read_text()
+    # 実行コードに bond13_180 / bond13_120 が含まれていない
     ns: dict = {}
-    exec(Path(mono).read_text(), ns)
-    if len(sg.segments) <= 2:
-        assert ns["bond13_180"] == []
-        assert ns["bond13_120"] == []
+    exec(content, ns)
+    assert "bond13_180" not in ns, "bond13_180 should not be active (commented out)"
+    assert "bond13_120" not in ns
+    # コメントとしては書かれている (uncomment 用 template)
+    assert "# bond13_180 = []" in content
+    assert "# bond13_120 = []" in content

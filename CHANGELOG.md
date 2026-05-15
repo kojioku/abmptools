@@ -8,30 +8,44 @@
   (Koji Okuwaki 作の DPD UDF 生成ツール、OCTA COGNAC エコシステム) 用の
   `{name}_monomer` + `{name}_calc_sett` 2 ファイルを生成する `dpdgen_exporter.py`
   サブモジュールを追加。
-  - **bond12 自動推定 (3 step)**:
-    1. 共有 atom (fused ring boundary) があれば追加
-    2. 直接 atom 結合 (cap 経由 / ring-chain 境界) があれば追加
-    3. **Fused ring group 全結合化** (剛直性維持): step 1/2 で連結された ring 群を
-       union-find でグループ化し、同じ group 内のすべての ring pair に bond12 を追加
-       (cholesterol A-B-C-D fused ring → A-C / B-D / A-D も追加し計 6 pair)
-  - **bond12 distance / stiffness**:
-    - 両 segment が ring* kind → distance **0.60** / stiff 200 (cholesterol 特例)
-    - その他 → distance **0.86** / stiff 50 (DPD 均等配置 default)
-  - **bond13_180 自動推定** (1-3 直線): bond12 graph で path length 2 の (i, j, k)
-    ペアを抽出 (bond12 既存ペアは除外)。distance **1.72** / stiff ring 両端 200, chain 80
-  - **bond13_120 自動推定** (1-3 シス二重結合): RDKit `BondType.DOUBLE` の両端
-    atom の隣接 atom を辿って 3 segment 間の 1-3 を検出。distance **1.49** / stiff 70
-  - 化学的に「真の直線」「真のシス」かは保証されないので、ユーザーは生成された
-    monomer file をレビューし、必要に応じて該当 entry を削除 / 別 type に移動可能
+  - **bond ポテンシャル (距離制約)**:
+    - **bond12** (path 1): 共有 atom (fused boundary) または直接 atom bond で検出。
+      - 両 segment が ring* kind → distance **0.60** / stiff 200 (cholesterol 流儀)
+      - その他 → distance **0.86** / stiff 50 (DPD 均等配置 default)
+      - **boundary atom filter**: 複数 segment に shared assigned された atom は
+        has_direct check から除外し、 cholesterol B 環内部 bond が A-C / B-D の
+        誤検出を起こすのを防ぐ
+    - **bond13_150** (新): fused ring chain の BFS path 2 (= 1-skip ring) を検出。
+      distance **1.661** (= 2·0.86·sin(75°)、 余弦定理 150° 仮定) / stiff 200。
+      cholesterol で A-C, B-D。
+    - **bond14_150** (新): fused ring chain の BFS path 3 (= 2-skip ring) を検出。
+      distance **2.502** (= 4 環 chain extension, 150°/165° 想定) / stiff 200。
+      cholesterol で A-D。
+  - **angle ポテンシャル (角度制約)** — `bond13_180 / bond13_120` (bond ポテンシャル)
+    を **置き換え**:
+    - `bond12` graph path length 2 のペア `(a, b, c)` を抽出、 b を中央 segment に。
+    - `angle13 = [[a, b, c], ...]` + `angle13data = [[a, b, c, eq_余角, stiffness], ...]`
+      の DPDgen format (cognac 流) で出力。
+    - **平衡角は cognac 流の余角 (180° - θ) で指定**:
+      - 両端 ring + 中央 ring → eq **30** (= 150° ring bend, cholesterol-like)
+      - cis 二重結合 周辺 (RDKit `BondType.DOUBLE`) → eq **60** (= 120°)
+      - その他 (chain / mixed) → eq **0** (= 180° 直線想定)
+    - stiffness 一律 **5.0** (DPD 用やや弱め)。
+  - **オプション (コメントアウト template)**: `bond13_180h` (dist 1.72) /
+    `bond13_120h` (dist 1.49) は default 生成せず、 距離制約も併用したい場合に
+    ユーザーが monomer file で手動 uncomment する設計。
   - **aij.dat 自体は生成しない** (calc_sett に file path のみ書き込み、χ パラメータは
     `fcews-manybody` 等で別途計算済の aij.dat を配置する)
   - `CGSegmenter.export_dpdgen(...)` メソッド + CLI `dpdgen` subcommand +
     Jupyter UI `[Export DPDgen]` ボタンの 3 経路から呼び出し可能
-  - tests: 11 件追加 (`test_dpdgen.py`、内 5 件は fused-ring full-connect /
-    bond13_180 / bond13_120 / bond13 exclusion 検証)、計 29/29 PASS in 0.34s
-  - **検証 (cholesterol)**: A-B-C-D 4 fused ring + tail 1 chain → bond12 7 pair
-    (ring 全 6 pair + ring-tail 1 pair)、bond13_180 3 pair (ring-tail で path length 2)、
-    bond13_120 = [] (cholesterol に double bond なし)
+  - tests: 11 件 (`test_dpdgen.py`、 path hierarchy / angle eq 30/60/0 / cis 検証
+    / bond13 オプション コメントアウト検証 含む)、計 29/29 PASS in 0.46s
+  - **検証 (cholesterol)**:
+    - bond12 = 4 pair (A-B, B-C, C-D, A-tail)
+    - bond13_150 = 2 pair (A-C, B-D), distance 1.661 / stiff 200
+    - bond14_150 = 1 pair (A-D), distance 2.502 / stiff 200
+    - angle13 = 3 entry (B-A-tail eq=0, A-B-C eq=30, B-C-D eq=30), stiff 5.0
+    - bond13_180 / bond13_120 = コメントアウト template のみ
 
 ### Added (`abmptools.fragmenter.cg_segmenter` Jupyter UI 拡張 — v1.24.0 候補)
 
