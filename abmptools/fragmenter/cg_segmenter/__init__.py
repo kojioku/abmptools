@@ -42,11 +42,18 @@ try:
     from .ring_detector import detect_ring_segments
     from .chain_splitter import split_chain
     from .cap_attach import attach_caps
-    from .exporter import export_segments
+    from .exporter import export_segments, render_segments_svg
     from .orchestrator import CGSegmenter
     _CORE_AVAILABLE = True
 except ImportError:
     _CORE_AVAILABLE = False
+
+# Optional: ipywidgets-dependent UI (Jupyter extras only)
+try:
+    from .notebook_ui import open_panel  # noqa: F401
+    _UI_AVAILABLE = True
+except ImportError:
+    _UI_AVAILABLE = False
 
 __all__ = [
     "CGSegmenterConfig",
@@ -60,5 +67,8 @@ if _CORE_AVAILABLE:
         "split_chain",
         "attach_caps",
         "export_segments",
+        "render_segments_svg",
         "CGSegmenter",
     ]
+if _UI_AVAILABLE and _CORE_AVAILABLE:
+    __all__.append("open_panel")

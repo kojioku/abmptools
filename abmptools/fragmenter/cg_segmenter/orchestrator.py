@@ -102,3 +102,122 @@ class CGSegmenter:
         out_dir = output_dir or self.config.output_dir
         self.result = export_segments(self.mol, self.segments, out_dir)
         return self.result
+
+    # ------------------------------------------------------------------
+    # Manual edit operations (Jupyter UI から呼ばれる)
+    # ------------------------------------------------------------------
+
+    def move_atom(self, atom_idx: int, target_seg_id: int, shared: bool = False) -> None:
+        """atom を target segment に移動する (in-place、cap 再計算)。
+
+        Parameters
+        ----------
+        atom_idx
+            移動する atom の Mol 内 idx (heavy)。
+        target_seg_id
+            移動先 Segment.segment_id。target に既に atom_idx があれば no-op。
+        shared
+            False (default): 元 segment(s) から atom_idx を削除して exclusive に。
+            True: 元 segment(s) にも残して両方に属する shared atom 化。
+        """
+        target = next((s for s in self.segments if s.segment_id == target_seg_id), None)
+        if target is None:
+            raise ValueError(f"Target segment {target_seg_id} not found")
+
+        sources = [
+            s for s in self.segments
+            if atom_idx in s.atom_indices and s.segment_id != target_seg_id
+        ]
+
+        if atom_idx not in target.atom_indices:
+            target.atom_indices = sorted(set(target.atom_indices) | {atom_idx})
+
+        if not shared:
+            for s in sources:
+                s.atom_indices = [a for a in s.atom_indices if a != atom_idx]
+
+        self._recompute_caps()
+        logger.info(
+            "move_atom: atom %d -> seg %d (shared=%s, removed from %d source seg(s))",
+            atom_idx, target_seg_id, shared, 0 if shared else len(sources),
+        )
+
+    def toggle_cap(self, segment_id: int, cap_index: int) -> None:
+        """指定 Segment の cap_index 番目の cap の element / is_methyl_cap を toggle する。
+
+        H ↔ CH3 を切替。位置は parent atom 方向の単位ベクトル × 新結合長で
+        再計算する。
+        """
+        import math
+        from .cap_attach import BOND_LEN
+        seg = next((s for s in self.segments if s.segment_id == segment_id), None)
+        if seg is None:
+            raise ValueError(f"Segment {segment_id} not found")
+        if cap_index < 0 or cap_index >= len(seg.cap_atoms):
+            raise ValueError(
+                f"cap_index {cap_index} out of range (0..{len(seg.cap_atoms) - 1})"
+            )
+        cap = seg.cap_atoms[cap_index]
+        cap.is_methyl_cap = not cap.is_methyl_cap
+        cap.element = "C" if cap.is_methyl_cap else "H"
+
+        parent = self.mol.GetAtomWithIdx(cap.parent_atom_idx)
+        conf = self.mol.GetConformer()
+        ppos = conf.GetAtomPosition(cap.parent_atom_idx)
+        dx = cap.position[0] - ppos.x
+        dy = cap.position[1] - ppos.y
+        dz = cap.position[2] - ppos.z
+        norm = math.sqrt(dx * dx + dy * dy + dz * dz)
+        if norm < 1e-6:
+            return
+        new_len = BOND_LEN.get((parent.GetSymbol(), cap.element), 1.50)
+        cap.position = (
+            ppos.x + new_len * dx / norm,
+            ppos.y + new_len * dy / norm,
+            ppos.z + new_len * dz / norm,
+        )
+        logger.info(
+            "toggle_cap: seg %d cap %d -> %s",
+            segment_id, cap_index, "CH3" if cap.is_methyl_cap else "H",
+        )
+
+    def delete_segment(self, segment_id: int) -> None:
+        """指定 Segment を削除 (atoms はどの seg にも属さない状態に)。cap 再計算。"""
+        before = len(self.segments)
+        self.segments = [s for s in self.segments if s.segment_id != segment_id]
+        if len(self.segments) == before:
+            raise ValueError(f"Segment {segment_id} not found")
+        self._recompute_caps()
+        logger.info("delete_segment: removed seg %d, %d segments remain",
+                    segment_id, len(self.segments))
+
+    def re_segment(
+        self,
+        target_mw: Optional[float] = None,
+        separate_rings: Optional[bool] = None,
+        allow_atom_sharing: Optional[bool] = None,
+        absorb_single_substituent: Optional[bool] = None,
+    ) -> None:
+        """config を更新して self.segments を再計算する (全 segment を上書き)。"""
+        if target_mw is not None:
+            self.config.target_mw = target_mw
+        if separate_rings is not None:
+            self.config.separate_rings = separate_rings
+        if allow_atom_sharing is not None:
+            self.config.allow_atom_sharing = allow_atom_sharing
+        if absorb_single_substituent is not None:
+            self.config.absorb_single_substituent = absorb_single_substituent
+        self.segment()
+        logger.info(
+            "re_segment: %d segment(s) (target_mw=%.1f)",
+            len(self.segments), self.config.target_mw,
+        )
+
+    def _recompute_caps(self) -> None:
+        """全 segment の cap_atoms を attach_caps で再計算 (in-place)。"""
+        if self.mol is None:
+            return
+        attach_caps(
+            self.mol, self.segments,
+            hetero_cap_methyl_elements=self.config.hetero_cap_methyl_elements,
+        )

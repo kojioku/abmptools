@@ -58,6 +58,43 @@ for seg in result.segments:
     print(f"  seg {seg.segment_id} ({seg.kind}): {len(seg.atom_indices)} heavy, {len(seg.cap_atoms)} caps")
 ```
 
+### Jupyter UI (`open_panel`)
+
+`fragmenter.open_panel` と同様の interactive 編集 UI:
+
+```python
+from abmptools.fragmenter.cg_segmenter import (
+    CGSegmenter, CGSegmenterConfig, open_panel,
+)
+config = CGSegmenterConfig(pdb_path="cholesterol.pdb", target_mw=200)
+sg = CGSegmenter.from_pdb(config)
+open_panel(sg)
+```
+
+UI 構成 (require `pip install -e '.[fragmenter,jupyter]'`):
+
+| Widget | 機能 |
+|---|---|
+| **Show atom numbers** | SVG に heavy atom 番号 + shared atom には `*` 注記 |
+| **Bold shared atoms** | 複数 segment に属する atom を太い黒縁取りで強調 |
+| **SVG output** | 各 segment を別色 (赤/緑/青/オレンジ/紫/シアン/ピンク/ライム/...) で塗る、shared atom 黒縁取り |
+| **Segments list** | 各 segment 行に `[Delete]` ボタン + 各 cap の `[cap[n] toggle]` ボタン (H ↔ CH3 切替) |
+| **Move atom** | atom dropdown + 移動先 seg dropdown + `Keep in source` (shared option) checkbox + `Move` ボタン |
+| **Re-segment** | `Target MW` 入力 + 3 flags (`Separate rings` / `Atom sharing` / `Absorb substituent`) + `Re-segment` ボタン (全 segment 上書き) |
+| **Export** | `Export PDB + XYZ + JSON` ボタン |
+
+`CGSegmenter` クラスの edit API:
+
+```python
+sg.move_atom(atom_idx, target_seg_id, shared=False)   # exclusive or shared
+sg.toggle_cap(segment_id, cap_index)                  # H <-> CH3
+sg.delete_segment(segment_id)
+sg.re_segment(target_mw=..., separate_rings=..., allow_atom_sharing=...,
+              absorb_single_substituent=...)
+```
+
+これらのいずれも cap atoms を自動再計算する (`_recompute_caps`)。
+
 ## アルゴリズム詳細
 
 ### 1. PDB ロードと連結成分分解 (`pdb_loader.py` 共通)

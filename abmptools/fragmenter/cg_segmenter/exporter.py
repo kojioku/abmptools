@@ -144,3 +144,114 @@ def _write_xyz(
     for sym, x, y, z, _ in atoms:
         lines.append(f"{sym} {x:.4f} {y:.4f} {z:.4f}")
     path.write_text("\n".join(lines) + "\n")
+
+
+# ---------------------------------------------------------------------------
+# Multi-color SVG renderer for Jupyter UI
+# ---------------------------------------------------------------------------
+
+SEG_COLOR_PALETTE = [
+    (1.00, 0.55, 0.55),   # red
+    (0.55, 1.00, 0.55),   # green
+    (0.55, 0.65, 1.00),   # blue
+    (1.00, 0.85, 0.40),   # orange
+    (0.85, 0.55, 1.00),   # purple
+    (0.40, 0.85, 1.00),   # cyan
+    (1.00, 0.65, 0.85),   # pink
+    (0.65, 0.85, 0.40),   # lime
+    (0.85, 0.70, 0.55),   # tan
+    (0.70, 0.70, 0.70),   # grey
+]
+
+
+def render_segments_svg(
+    mol_with_h: Any,
+    segments: List[Segment],
+    width: int = 700,
+    height: int = 500,
+    show_atom_numbers: bool = False,
+    bold_shared: bool = True,
+) -> str:
+    """各 segment を別色で塗った heavy-atom-only SVG を生成する。
+
+    - segment 色: SEG_COLOR_PALETTE で順に割当 (segment_id mod len)
+    - shared atom は太い黒縁取りで強調 (`bold_shared=True`)
+    - `show_atom_numbers=True` で各 heavy atom に番号、shared なら "*" suffix
+    """
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+    from rdkit.Chem.Draw import rdMolDraw2D
+
+    try:
+        heavy_mol = Chem.RemoveHs(mol_with_h)
+    except Exception:
+        heavy_mol = mol_with_h
+
+    try:
+        AllChem.Compute2DCoords(heavy_mol)
+    except Exception:
+        pass
+
+    heavy_atom_origs = [
+        a.GetIdx() for a in mol_with_h.GetAtoms() if a.GetAtomicNum() != 1
+    ]
+    orig_to_heavy = {orig: i for i, orig in enumerate(heavy_atom_origs)}
+
+    atom_to_segs: dict = {}
+    for s in segments:
+        for a in s.atom_indices:
+            atom_to_segs.setdefault(a, []).append(s.segment_id)
+
+    hl_atoms: List[int] = []
+    atom_colors: dict = {}
+    for a_orig, sids in atom_to_segs.items():
+        a_h = orig_to_heavy.get(a_orig)
+        if a_h is None:
+            continue
+        hl_atoms.append(a_h)
+        atom_colors[a_h] = SEG_COLOR_PALETTE[sids[0] % len(SEG_COLOR_PALETTE)]
+
+    # atom note: 数字 + shared "*"
+    for a in heavy_mol.GetAtoms():
+        if a.HasProp("atomNote"):
+            a.ClearProp("atomNote")
+    if show_atom_numbers:
+        heavy_to_orig = {h: o for o, h in orig_to_heavy.items()}
+        for a in heavy_mol.GetAtoms():
+            h_idx = a.GetIdx()
+            a_orig = heavy_to_orig.get(h_idx)
+            note = str(h_idx)
+            if a_orig is not None and len(atom_to_segs.get(a_orig, [])) > 1:
+                note += "*"
+            a.SetProp("atomNote", note)
+
+    drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
+    rdMolDraw2D.PrepareAndDrawMolecule(
+        drawer, heavy_mol,
+        highlightAtoms=hl_atoms,
+        highlightAtomColors=atom_colors,
+    )
+
+    # shared atom の黒縁取り (SVG 後処理)
+    shared_circles: List[str] = []
+    if bold_shared:
+        for a_orig, sids in atom_to_segs.items():
+            if len(sids) < 2:
+                continue
+            a_h = orig_to_heavy.get(a_orig)
+            if a_h is None:
+                continue
+            try:
+                pt = drawer.GetDrawCoords(a_h)
+                shared_circles.append(
+                    f'<circle cx="{pt.x:.2f}" cy="{pt.y:.2f}" r="13" '
+                    f'fill="none" stroke="black" stroke-width="2.5"/>'
+                )
+            except Exception:
+                pass
+
+    drawer.FinishDrawing()
+    svg = drawer.GetDrawingText()
+    if shared_circles:
+        svg = svg.replace("</svg>", "\n".join(shared_circles) + "\n</svg>")
+    return svg

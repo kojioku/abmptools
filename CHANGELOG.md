@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.fragmenter.cg_segmenter` Jupyter UI 拡張 — v1.24.0 候補)
+
+- **Jupyter UI (`open_panel`)**: fragmenter UI と同じ操作感で CG segment を
+  interactive 編集できる ipywidgets パネル。
+  - `notebook_ui.py` (新規 ~290 行): SVG output / Segments list / Move atom /
+    Re-segment / Export ボタン
+  - `exporter.render_segments_svg` (新規): 各 segment を別色 (palette 10 色) で
+    highlight、shared atom を黒縁取り (`bold_shared=True`)、atom 番号 + shared `*`
+    注記 (`show_atom_numbers=True`)
+  - `CGSegmenter.{move_atom, toggle_cap, delete_segment, re_segment, _recompute_caps}`
+    の edit API を追加。すべて cap atom を自動再計算する。
+  - **move_atom**: exclusive default + `shared=True` で fused ring 化
+  - **toggle_cap**: cap_index 単位で H ↔ CH3 切替、位置も新結合長で再投影
+  - **delete_segment**: 任意 segment を完全削除 (atoms はどの seg にも属さない状態)
+  - **re_segment**: `target_mw` / 3 flags 変更で全 segment 再計算 (上書き)
+  - tests: 7 件追加 (`test_edit.py`)、計 18/18 PASS in 0.42s
+
 ### Added (`abmptools.fragmenter.cg_segmenter` 新サブモジュール — v1.24.0 候補)
 
 - **CG (粗視化) セグメント構築ツール**: FMO 用の `fragmenter` (BDA/BAA で擬似分割) に対し、
