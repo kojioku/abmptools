@@ -125,3 +125,137 @@ def test_cli_dpdgen_subcommand(cyclohexyl_octyl_segmenter, tmp_path):
     assert code == 0
     assert (out / "test_monomer").exists()
     assert (out / "test_calc_sett").exists()
+
+
+# --- Fused-ring full-connect + bond13_180 / bond13_120 ----------------------
+
+@pytest.fixture(scope="session")
+def cholesterol_segmenter_for_dpd(tmp_path_factory):
+    """sample/cg_segmenter/cholesterol_rdkit.pdb から 4 ring fused 構造を読む。"""
+    import os
+    from abmptools.fragmenter.cg_segmenter import CGSegmenter, CGSegmenterConfig
+
+    pdb = os.path.abspath("sample/cg_segmenter/cholesterol_rdkit.pdb")
+    if not Path(pdb).exists():
+        pytest.skip("sample/cg_segmenter/cholesterol_rdkit.pdb not found")
+    config = CGSegmenterConfig(
+        pdb_path=pdb,
+        output_dir=str(tmp_path_factory.mktemp("dpd_chol_out")),
+        target_mw=200,
+    )
+    return CGSegmenter.from_pdb(config)
+
+
+@pytest.fixture(scope="session")
+def decane_segmenter(tmp_path_factory):
+    """C10 alkane → 複数 chain segment で bond13_180 を検証する用。"""
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+    from abmptools.fragmenter.cg_segmenter import CGSegmenter, CGSegmenterConfig
+
+    pdb = tmp_path_factory.mktemp("dpd_dec") / "decane.pdb"
+    mol = Chem.AddHs(Chem.MolFromSmiles("CCCCCCCCCC"))
+    AllChem.EmbedMolecule(mol, randomSeed=42)
+    AllChem.MMFFOptimizeMolecule(mol)
+    Chem.MolToPDBFile(mol, str(pdb))
+    config = CGSegmenterConfig(
+        pdb_path=str(pdb),
+        output_dir=str(tmp_path_factory.mktemp("dpd_dec_out")),
+        target_mw=45,
+    )
+    return CGSegmenter.from_pdb(config)
+
+
+@pytest.fixture(scope="session")
+def hexene_segmenter(tmp_path_factory):
+    """hex-3-ene (cis): CC/C=C\\CC → 中央の C=C で bond13_120 を検証する用。"""
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+    from abmptools.fragmenter.cg_segmenter import CGSegmenter, CGSegmenterConfig
+
+    pdb = tmp_path_factory.mktemp("dpd_hex") / "hexene.pdb"
+    mol = Chem.AddHs(Chem.MolFromSmiles("CC/C=C\\CC"))
+    AllChem.EmbedMolecule(mol, randomSeed=42)
+    AllChem.MMFFOptimizeMolecule(mol)
+    Chem.MolToPDBFile(mol, str(pdb))
+    config = CGSegmenterConfig(
+        pdb_path=str(pdb),
+        output_dir=str(tmp_path_factory.mktemp("dpd_hex_out")),
+        target_mw=30,
+    )
+    return CGSegmenter.from_pdb(config)
+
+
+def test_fused_ring_full_connect_cholesterol(cholesterol_segmenter_for_dpd, tmp_path):
+    """4 fused rings (cholesterol) → A-B-C-D 全 6 ring pair が bond12 に含まれる。"""
+    import itertools
+    sg = cholesterol_segmenter_for_dpd
+    mono, _ = sg.export_dpdgen(output_dir=str(tmp_path), monomer_name="chol")
+    ns: dict = {}
+    exec(Path(mono).read_text(), ns)
+    bond12 = ns["bond12"]
+    ring_ids = sorted(s.segment_id for s in sg.segments if s.kind.startswith("ring"))
+    assert len(ring_ids) == 4, f"expected 4 ring segments for cholesterol, got {ring_ids}"
+    for a, b in itertools.combinations(ring_ids, 2):
+        pair = [a, b]
+        assert pair in bond12, (
+            f"fused-ring pair {pair} missing from bond12 = {bond12}"
+        )
+
+
+def test_bond13_180_path_length_2(decane_segmenter, tmp_path):
+    """3 segment 以上の chain → bond13_180 (path-length-2) entry が出る。"""
+    sg = decane_segmenter
+    mono, _ = sg.export_dpdgen(output_dir=str(tmp_path), monomer_name="dec")
+    ns: dict = {}
+    exec(Path(mono).read_text(), ns)
+    bond13_180 = ns["bond13_180"]
+    bond13_180h = ns["bond13_180h"]
+    if len(sg.segments) >= 3:
+        assert len(bond13_180) > 0, (
+            f"expected bond13_180 entries (n_seg={len(sg.segments)}), got {bond13_180}"
+        )
+        # chain は stiff 80
+        assert all(b[3] == 1.72 for b in bond13_180h), bond13_180h
+        assert all(b[4] == 80 for b in bond13_180h), bond13_180h
+
+
+def test_bond13_180_excludes_bond12_pairs(cholesterol_segmenter_for_dpd, tmp_path):
+    """ring group 内部の 1-3 (例: A-C) は既に bond12 にあるので bond13_180 には出ない。"""
+    sg = cholesterol_segmenter_for_dpd
+    mono, _ = sg.export_dpdgen(output_dir=str(tmp_path), monomer_name="chol")
+    ns: dict = {}
+    exec(Path(mono).read_text(), ns)
+    bond12 = [tuple(p) for p in ns["bond12"]]
+    bond13_180 = [tuple(p) for p in ns["bond13_180"]]
+    for p in bond13_180:
+        assert p not in bond12, f"bond13_180 {p} also appears in bond12"
+
+
+def test_bond13_120_cis_double_bond(hexene_segmenter, tmp_path):
+    """中央に C=C を持つ hex-3-ene → bond13_120 entry が出る (3+ segments)。"""
+    sg = hexene_segmenter
+    mono, _ = sg.export_dpdgen(output_dir=str(tmp_path), monomer_name="hex")
+    ns: dict = {}
+    exec(Path(mono).read_text(), ns)
+    bond13_120 = ns["bond13_120"]
+    bond13_120h = ns["bond13_120h"]
+    if len(sg.segments) >= 3:
+        assert len(bond13_120) > 0, (
+            f"expected bond13_120 entries for cis C=C (n_seg={len(sg.segments)}), "
+            f"got {bond13_120}"
+        )
+        for b in bond13_120h:
+            assert b[3] == 1.49
+            assert b[4] == 70
+
+
+def test_no_bond13_for_single_or_double_segment(naphthalene_segmenter, tmp_path):
+    """naphthalene (2 ring segments) → bond13_* は空 (path length 2 ペアなし)。"""
+    sg = naphthalene_segmenter
+    mono, _ = sg.export_dpdgen(output_dir=str(tmp_path), monomer_name="naph")
+    ns: dict = {}
+    exec(Path(mono).read_text(), ns)
+    if len(sg.segments) <= 2:
+        assert ns["bond13_180"] == []
+        assert ns["bond13_120"] == []

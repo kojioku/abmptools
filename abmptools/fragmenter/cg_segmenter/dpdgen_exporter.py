@@ -47,11 +47,20 @@ from .models import Segment
 
 logger = logging.getLogger(__name__)
 
-# Default DPD bond parameters
+# Default DPD bond parameters (cholesterol sample 流儀)
 DPD_DEFAULT_DIST = 0.86          # DPD 均等配置時のセグメント間距離
-DPD_RING_RING_DIST = 0.60        # ring-ring (cholesterol 特例、後で調整可)
+DPD_RING_RING_DIST = 0.60        # ring-ring (cholesterol 特例)
 DPD_DEFAULT_STIFFNESS = 50       # chain / mixed の default
 DPD_RING_STIFFNESS = 200         # ring-ring (cholesterol 流儀)
+
+# bond13_180 (1-3 linear / 180度) defaults
+DPD_BOND13_180_DIST = 1.72       # 1-3 で直線配置 (= bond12 0.86 × 2)
+DPD_BOND13_180_RING_STIFFNESS = 200    # ring 群内の 1-3
+DPD_BOND13_180_CHAIN_STIFFNESS = 80    # chain 1-3
+
+# bond13_120 (1-3 cis double bond) defaults
+DPD_BOND13_120_DIST = 1.49       # シス二重結合の 1-3
+DPD_BOND13_120_STIFFNESS = 70
 
 
 DEFAULT_CALC_SETT_TEMPLATE = """\
@@ -133,10 +142,21 @@ def export_dpdgen(
     out.mkdir(parents=True, exist_ok=True)
 
     bond12_pairs, bond12h_list = _compute_dpd_bonds(segments, mol)
+    bond13_180_pairs, bond13_180h_list = _compute_bond13_180(
+        segments, bond12_pairs,
+    )
+    bond13_120_pairs, bond13_120h_list = _compute_bond13_120(
+        segments, mol, bond12_pairs,
+    )
 
     monomer_path = out / f"{monomer_name}_monomer"
     monomer_path.write_text(
-        _format_monomer_file(bond12_pairs, bond12h_list, len(segments))
+        _format_monomer_file(
+            bond12_pairs, bond12h_list,
+            bond13_180_pairs, bond13_180h_list,
+            bond13_120_pairs, bond13_120h_list,
+            len(segments),
+        )
     )
 
     calc_sett_path = out / f"{monomer_name}_calc_sett"
@@ -166,31 +186,31 @@ def _compute_dpd_bonds(
 
     Rules
     -----
-    - 2 segments が atom を **共有** (fused ring) → bond12 に追加
-    - 共有 atom はないが、それぞれの atom 間に **直接 bond** がある (cap 経由 /
-      ring-chain 境界) → bond12 に追加
-    - distance / stiffness:
-      - 両 segment の kind が "ring*" → 0.60 / stiff 200 (ring-ring 特例)
-      - その他 → 0.86 / stiff 50 (DPD 均等配置 default)
+    1. 2 segments が atom を **共有** (fused ring) → 直接 bond12
+    2. 共有 atom はないが、それぞれの atom 間に **直接 bond** がある (cap 経由 /
+       ring-chain 境界) → 直接 bond12
+    3. **Fused ring group の全結合化** (cholesterol 等での剛直性維持):
+       上記 1 / 2 で連結された **ring** 群を union-find でグループ化し、同じ
+       group 内のすべての ring pair に bond12 を追加 (A-B-C-D fused なら
+       A-C, B-D, A-D も bond12 に含まれる)。
+    4. distance / stiffness:
+       - 両 segment が "ring*" kind → 0.60 / stiff 200 (cholesterol 流儀)
+       - その他 → 0.86 / stiff 50 (DPD 均等配置 default)
 
     Returns
     -------
-    bond12_pairs : List of [i, j] (segment_id ペア)
+    bond12_pairs : List of [i, j] (segment_id ペア、i < j で sort 済)
     bond12h_list : List of [type, i, j, distance, stiffness, 0]
     """
-    bond12_pairs: List[List[int]] = []
-    bond12h_list: List[List] = []
-
-    seg_ids = sorted(s.segment_id for s in segments)
     seg_by_id = {s.segment_id: s for s in segments}
+    seg_ids = sorted(seg_by_id.keys())
 
+    # Step 1: 共有 atom or 直接 bond の minimal pairs
+    minimal_pairs = set()
     for idx_i, i in enumerate(seg_ids):
-        seg_i = seg_by_id[i]
-        atoms_i = set(seg_i.atom_indices)
+        atoms_i = set(seg_by_id[i].atom_indices)
         for j in seg_ids[idx_i + 1:]:
-            seg_j = seg_by_id[j]
-            atoms_j = set(seg_j.atom_indices)
-
+            atoms_j = set(seg_by_id[j].atom_indices)
             has_shared = bool(atoms_i & atoms_j)
             has_direct = False
             if not has_shared:
@@ -201,29 +221,202 @@ def _compute_dpd_bonds(
                         if mol.GetBondBetweenAtoms(a_i, a_j) is not None:
                             has_direct = True
                             break
+            if has_shared or has_direct:
+                minimal_pairs.add((i, j))
 
-            if not (has_shared or has_direct):
-                continue
+    # Step 2: fused ring group の union-find
+    ring_ids = [s.segment_id for s in segments if s.kind.startswith("ring")]
+    parent = {sid: sid for sid in ring_ids}
 
-            bond12_pairs.append([i, j])
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
 
-            both_ring = (
-                seg_i.kind.startswith("ring") and seg_j.kind.startswith("ring")
-            )
-            if both_ring:
-                dist = DPD_RING_RING_DIST
-                stiff = DPD_RING_STIFFNESS
-            else:
-                dist = DPD_DEFAULT_DIST
-                stiff = DPD_DEFAULT_STIFFNESS
-            bond12h_list.append([1, i, j, dist, stiff, 0])
+    def union(x: int, y: int) -> None:
+        rx, ry = find(x), find(y)
+        if rx != ry:
+            parent[rx] = ry
+
+    for (i, j) in minimal_pairs:
+        if i in parent and j in parent:
+            union(i, j)
+
+    # Step 3: 各 group 内の全 ring pair を bond12 に追加 (enrichment)
+    groups: dict = {}
+    for sid in ring_ids:
+        groups.setdefault(find(sid), []).append(sid)
+
+    enriched_pairs = set(minimal_pairs)
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        sorted_members = sorted(members)
+        for idx_a, a in enumerate(sorted_members):
+            for b in sorted_members[idx_a + 1:]:
+                enriched_pairs.add((a, b))
+
+    # Step 4: bond12_pairs と bond12h_list を整形
+    bond12_pairs: List[List[int]] = []
+    bond12h_list: List[List] = []
+    for (i, j) in sorted(enriched_pairs):
+        seg_i = seg_by_id[i]
+        seg_j = seg_by_id[j]
+        both_ring = (
+            seg_i.kind.startswith("ring") and seg_j.kind.startswith("ring")
+        )
+        if both_ring:
+            dist = DPD_RING_RING_DIST
+            stiff = DPD_RING_STIFFNESS
+        else:
+            dist = DPD_DEFAULT_DIST
+            stiff = DPD_DEFAULT_STIFFNESS
+        bond12_pairs.append([i, j])
+        bond12h_list.append([1, i, j, dist, stiff, 0])
 
     return bond12_pairs, bond12h_list
+
+
+def _compute_bond13_180(
+    segments: List[Segment],
+    bond12_pairs: List[List[int]],
+) -> Tuple[List[List[int]], List[List]]:
+    """bond12 graph で path-length-2 (1-skip neighbor) のペアを 13_180 として推定。
+
+    - 既に bond12 にあるペアは除外 (= ring group 内の全結合化済の 1-3 等)
+    - distance = 1.72 (= bond12 0.86 × 2)
+    - stiffness:
+      - 両端 ring → 200
+      - その他 (chain 直線、ring-chain-ring 等) → 80
+
+    化学的に「直線」とは限らないので、ユーザーは生成された bond13_180 を
+    monomer file で手動チェック / 編集することを推奨。
+    """
+    seg_by_id = {s.segment_id: s for s in segments}
+    bond12_set = {tuple(sorted(p)) for p in bond12_pairs}
+
+    # bond12 graph (隣接リスト)
+    g: dict = {sid: set() for sid in seg_by_id}
+    for (i, j) in bond12_set:
+        g[i].add(j)
+        g[j].add(i)
+
+    bond13_180_pairs: List[List[int]] = []
+    bond13_180h_list: List[List] = []
+    seen = set()
+
+    for mid in sorted(g):
+        neighbors = sorted(g[mid])
+        for idx_a, a in enumerate(neighbors):
+            for b in neighbors[idx_a + 1:]:
+                pair = tuple(sorted([a, b]))
+                if pair in bond12_set:
+                    continue
+                if pair in seen:
+                    continue
+                seen.add(pair)
+                bond13_180_pairs.append([pair[0], pair[1]])
+
+                both_ring = (
+                    seg_by_id[pair[0]].kind.startswith("ring") and
+                    seg_by_id[pair[1]].kind.startswith("ring")
+                )
+                stiff = (DPD_BOND13_180_RING_STIFFNESS if both_ring
+                         else DPD_BOND13_180_CHAIN_STIFFNESS)
+                bond13_180h_list.append(
+                    [1, pair[0], pair[1], DPD_BOND13_180_DIST, stiff, 0]
+                )
+
+    return bond13_180_pairs, bond13_180h_list
+
+
+def _compute_bond13_120(
+    segments: List[Segment],
+    mol: Any,
+    bond12_pairs: List[List[int]],
+) -> Tuple[List[List[int]], List[List]]:
+    """RDKit の double bond の周辺で 1-3 (シス二重結合) ペアを推定。
+
+    Logic:
+    - mol 内の `BondType.DOUBLE` (C=C, C=O, C=N 等) を列挙
+    - double bond の両端 atom (a1, a2) が含まれる segment を s1 / s2 とする
+    - a1 / a2 の各 neighbor atom (= double bond 反対側) が含まれる segment を
+      s_n とする
+    - s_n と (s2 or s1) のペアで、bond12 にも bond13_180 にも未登録なら
+      13_120 として追加
+    - distance = 1.49, stiffness = 70
+
+    化学的判定 (シス vs トランス) は厳密にはやらない (DPD では多くの場合
+    シスを default にする慣習があるので) — ユーザーは monomer で手動編集可能。
+    """
+    bond12_set = {tuple(sorted(p)) for p in bond12_pairs}
+    atom_to_segs: dict = {}
+    for s in segments:
+        for a in s.atom_indices:
+            atom_to_segs.setdefault(a, []).append(s.segment_id)
+
+    bond13_120_pairs: List[List[int]] = []
+    bond13_120h_list: List[List] = []
+    seen = set()
+
+    try:
+        from rdkit import Chem
+        double_type = Chem.BondType.DOUBLE
+    except ImportError:
+        return bond13_120_pairs, bond13_120h_list
+
+    for bond in mol.GetBonds():
+        if bond.GetBondType() != double_type:
+            continue
+        a1 = bond.GetBeginAtomIdx()
+        a2 = bond.GetEndAtomIdx()
+        segs1 = set(atom_to_segs.get(a1, []))
+        segs2 = set(atom_to_segs.get(a2, []))
+
+        # a1 周辺の 1-3 ペア
+        for nb in mol.GetAtomWithIdx(a1).GetNeighbors():
+            if nb.GetIdx() == a2 or nb.GetAtomicNum() == 1:
+                continue
+            nb_segs = set(atom_to_segs.get(nb.GetIdx(), []))
+            for s_n in nb_segs - segs1:
+                for s_far in segs2 - {s_n}:
+                    pair = tuple(sorted([s_n, s_far]))
+                    if pair in bond12_set or pair in seen:
+                        continue
+                    seen.add(pair)
+                    bond13_120_pairs.append([pair[0], pair[1]])
+                    bond13_120h_list.append([
+                        1, pair[0], pair[1],
+                        DPD_BOND13_120_DIST, DPD_BOND13_120_STIFFNESS, 0
+                    ])
+        # a2 周辺の 1-3 (対称)
+        for nb in mol.GetAtomWithIdx(a2).GetNeighbors():
+            if nb.GetIdx() == a1 or nb.GetAtomicNum() == 1:
+                continue
+            nb_segs = set(atom_to_segs.get(nb.GetIdx(), []))
+            for s_n in nb_segs - segs2:
+                for s_far in segs1 - {s_n}:
+                    pair = tuple(sorted([s_n, s_far]))
+                    if pair in bond12_set or pair in seen:
+                        continue
+                    seen.add(pair)
+                    bond13_120_pairs.append([pair[0], pair[1]])
+                    bond13_120h_list.append([
+                        1, pair[0], pair[1],
+                        DPD_BOND13_120_DIST, DPD_BOND13_120_STIFFNESS, 0
+                    ])
+
+    return bond13_120_pairs, bond13_120h_list
 
 
 def _format_monomer_file(
     bond12_pairs: List[List[int]],
     bond12h_list: List[List],
+    bond13_180_pairs: List[List[int]],
+    bond13_180h_list: List[List],
+    bond13_120_pairs: List[List[int]],
+    bond13_120h_list: List[List],
     n_segments: int,
 ) -> str:
     """monomer file (Python script) の文字列を組み立てる。"""
@@ -231,26 +424,41 @@ def _format_monomer_file(
         "# DPDgen monomer definition (generated by abmptools.fragmenter.cg_segmenter)",
         f"# Particles: {n_segments} CG segments (idx = segment_id)",
         "#",
-        "# Default bond distance: 0.86 (DPD uniform spacing)",
-        "# Ring-ring bond distance: 0.60 (cholesterol-like special case;",
-        "#                                 generated when both segments are ring*)",
-        "# Stiffness: ring-ring = 200, chain/mixed = 50",
+        "# Distance / stiffness rules:",
+        "#   bond12:",
+        "#     ring-ring  -> dist 0.60, stiff 200   (cholesterol-like special case)",
+        "#     other      -> dist 0.86, stiff 50    (DPD uniform spacing default)",
+        "#   bond13_180 (1-3 linear, auto-generated from path-length-2 on bond12 graph):",
+        "#     ring-ring  -> dist 1.72, stiff 200",
+        "#     other      -> dist 1.72, stiff 80",
+        "#   bond13_120 (1-3 cis double bond, auto-generated from RDKit double-bond perimeter):",
+        "#     dist 1.49, stiff 70",
         "#",
-        "# Higher-order bonds (bond13_180 / bond13_120 / ...) are NOT auto-generated.",
-        "# Add manually after reviewing geometry.",
+        "# Note: ring-ring bond12 includes the FULL connectivity within a fused-ring",
+        "# group (e.g. cholesterol A-B-C-D all six pairs), to maintain rigidity.",
+        "# Review and edit the higher-order bonds (13_180 / 13_120) for chemistry.",
         "",
         f"bond12 = {_format_pairs(bond12_pairs)}",
         "",
-        "# Per-bond detailed list [type, particle_i, particle_j, distance, stiffness, 0]",
         "bond12h = [",
     ]
     for b in bond12h_list:
         lines.append(f"    [{b[0]}, {b[1]}, {b[2]}, {b[3]}, {b[4]}, {b[5]}],")
     lines.append("]")
     lines.append("")
-    lines.append("# Uncomment and fill manually for higher-order bonds:")
-    lines.append("# bond13_180 = []     # 1-3 linear (e.g. consecutive ring atoms, dist 1.72)")
-    lines.append("# bond13_120 = []     # 1-3 cis double bond (dist 1.49)")
+    lines.append(f"bond13_180 = {_format_pairs(bond13_180_pairs)}")
+    lines.append("")
+    lines.append("bond13_180h = [")
+    for b in bond13_180h_list:
+        lines.append(f"    [{b[0]}, {b[1]}, {b[2]}, {b[3]}, {b[4]}, {b[5]}],")
+    lines.append("]")
+    lines.append("")
+    lines.append(f"bond13_120 = {_format_pairs(bond13_120_pairs)}")
+    lines.append("")
+    lines.append("bond13_120h = [")
+    for b in bond13_120h_list:
+        lines.append(f"    [{b[0]}, {b[1]}, {b[2]}, {b[3]}, {b[4]}, {b[5]}],")
+    lines.append("]")
     lines.append("")
     return "\n".join(lines)
 

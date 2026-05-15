@@ -8,17 +8,30 @@
   (Koji Okuwaki 作の DPD UDF 生成ツール、OCTA COGNAC エコシステム) 用の
   `{name}_monomer` + `{name}_calc_sett` 2 ファイルを生成する `dpdgen_exporter.py`
   サブモジュールを追加。
-  - **bond12 自動推定**: 各 segment ペアで共有 atom (fused ring) または直接
-    atom 結合 (cap 経由 / ring-chain 境界) があれば bond12 に追加
-  - **distance / stiffness ルール** (ユーザー指示通り):
+  - **bond12 自動推定 (3 step)**:
+    1. 共有 atom (fused ring boundary) があれば追加
+    2. 直接 atom 結合 (cap 経由 / ring-chain 境界) があれば追加
+    3. **Fused ring group 全結合化** (剛直性維持): step 1/2 で連結された ring 群を
+       union-find でグループ化し、同じ group 内のすべての ring pair に bond12 を追加
+       (cholesterol A-B-C-D fused ring → A-C / B-D / A-D も追加し計 6 pair)
+  - **bond12 distance / stiffness**:
     - 両 segment が ring* kind → distance **0.60** / stiff 200 (cholesterol 特例)
     - その他 → distance **0.86** / stiff 50 (DPD 均等配置 default)
-  - **bond13_180 / bond13_120 は自動生成しない** (化学的判断要、ユーザー手動編集)
+  - **bond13_180 自動推定** (1-3 直線): bond12 graph で path length 2 の (i, j, k)
+    ペアを抽出 (bond12 既存ペアは除外)。distance **1.72** / stiff ring 両端 200, chain 80
+  - **bond13_120 自動推定** (1-3 シス二重結合): RDKit `BondType.DOUBLE` の両端
+    atom の隣接 atom を辿って 3 segment 間の 1-3 を検出。distance **1.49** / stiff 70
+  - 化学的に「真の直線」「真のシス」かは保証されないので、ユーザーは生成された
+    monomer file をレビューし、必要に応じて該当 entry を削除 / 別 type に移動可能
   - **aij.dat 自体は生成しない** (calc_sett に file path のみ書き込み、χ パラメータは
-    `fcews-manybody` 等で別途計算)
+    `fcews-manybody` 等で別途計算済の aij.dat を配置する)
   - `CGSegmenter.export_dpdgen(...)` メソッド + CLI `dpdgen` subcommand +
     Jupyter UI `[Export DPDgen]` ボタンの 3 経路から呼び出し可能
-  - tests: 6 件追加 (`test_dpdgen.py`)、計 24/24 PASS in 0.51s
+  - tests: 11 件追加 (`test_dpdgen.py`、内 5 件は fused-ring full-connect /
+    bond13_180 / bond13_120 / bond13 exclusion 検証)、計 29/29 PASS in 0.34s
+  - **検証 (cholesterol)**: A-B-C-D 4 fused ring + tail 1 chain → bond12 7 pair
+    (ring 全 6 pair + ring-tail 1 pair)、bond13_180 3 pair (ring-tail で path length 2)、
+    bond13_120 = [] (cholesterol に double bond なし)
 
 ### Added (`abmptools.fragmenter.cg_segmenter` Jupyter UI 拡張 — v1.24.0 候補)
 
