@@ -34,6 +34,7 @@ from .dpm_writer import (
     patch_dpm, propagate_virtual_mom, write_message_txt,
     DEFAULT_PATCH_FIELDS, MESSAGE_TXT_CONTENT,
 )
+from .udf_writer import write_dpd_udf
 from .orchestrator import CGDpdBuilder
 
 __all__ = [
@@ -43,5 +44,6 @@ __all__ = [
     "read_calc_sett",
     "patch_dpm", "propagate_virtual_mom", "write_message_txt",
     "DEFAULT_PATCH_FIELDS", "MESSAGE_TXT_CONTENT",
+    "write_dpd_udf",
     "CGDpdBuilder",
 ]
