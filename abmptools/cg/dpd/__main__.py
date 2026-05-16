@@ -39,12 +39,17 @@ def main(argv=None) -> int:
     p2.add_argument("--particle-names", default=None,
                     help="comma-separated segment 名 (例 'segA,segB,segC,segA,WAT')")
 
-    # build-udf (R1) - placeholder for Phase 3
-    p1 = sub.add_parser("build-udf", help="R1: Cognac DPD 入力 UDF 生成 (Phase 3 で実装予定)")
+    # build-udf (R1)
+    p1 = sub.add_parser("build-udf", help="R1: Cognac DPD 入力 UDF を生成")
     p1.add_argument("--monomer", required=True)
     p1.add_argument("--aij", required=True)
     p1.add_argument("--calc-sett", required=True)
-    p1.add_argument("--output", required=True)
+    p1.add_argument("--output", required=True, help="出力 UDF path (例 chol_uin.udf)")
+    p1.add_argument("--include-file", default="cognac112.udf",
+                    help="冒頭 \\include の Cognac class 定義 file (default cognac112.udf)")
+    p1.add_argument("--particle-names", default=None,
+                    help="comma-separated segment 名 (例 'segA,segB,segC,segA,WAT')")
+    p1.add_argument("--project-name", default="abmptools-cg-dpd")
 
     args = parser.parse_args(argv)
 
@@ -64,8 +69,14 @@ def main(argv=None) -> int:
         return 0
 
     if args.cmd == "build-udf":
-        print("ERROR: build-udf は Phase 3 で実装予定 (まだ未実装)", file=sys.stderr)
-        return 1
+        names = args.particle_names.split(",") if args.particle_names else None
+        builder = CGDpdBuilder.from_files(
+            monomer=args.monomer, aij=args.aij, calc_sett=args.calc_sett,
+            particle_names=names, project_name=args.project_name,
+        )
+        out = builder.build_udf(args.output, include_file=args.include_file)
+        print(f"udf: {out}")
+        return 0
 
     return 1
 
