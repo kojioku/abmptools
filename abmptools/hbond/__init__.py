@@ -43,9 +43,19 @@ from .bdf_reader import (
 )
 from .classifier import ClassificationResult, MolRole, classify
 from .colorizer import DEFAULT_COLORS, DrawAttribute, VALID_COLORS, colorize_udf
+from .func_tags import (
+    BUILTIN_MAPPINGS, CHARMM36, GAFF2, OPENFF_SAGE, OPLS_AA,
+    FunctionalTagMapping, detect_force_field, get_mapping, tag_atoms,
+)
 from .functional_groups import (
-    AmideGroup, CarboxylGroup, HydroxylGroup,
-    detect_amides, detect_carboxyls, detect_hydroxyls, summarize_groups
+    AmideGroup, AmineDonorGroup, CarboxylGroup, HydroxylGroup,
+    detect_amides, detect_amine_donors, detect_carboxyls,
+    detect_hydroxyls, summarize_groups,
+)
+from .lifetime import (
+    PairKey, PairLifetime,
+    compute_autocorrelation, compute_lifetimes,
+    integrate_autocorrelation, summarize_lifetimes,
 )
 from .hbond_detector import (
     AcceptorSite, DonorSite, HBond, HBondCriteria, detect_hbonds,
@@ -58,9 +68,13 @@ __all__ = [
     # reader
     "BDFTrajectory", "TrajectoryFrame", "CellBox",
     "MoleculeTopology", "AtomInfo", "BondInfo",
+    # functional tag mapping (v1.26+ FF abstraction)
+    "FunctionalTagMapping", "GAFF2", "OPLS_AA", "CHARMM36", "OPENFF_SAGE",
+    "BUILTIN_MAPPINGS", "detect_force_field", "get_mapping", "tag_atoms",
     # functional groups
-    "CarboxylGroup", "AmideGroup", "HydroxylGroup",
-    "detect_carboxyls", "detect_amides", "detect_hydroxyls", "summarize_groups",
+    "CarboxylGroup", "AmideGroup", "HydroxylGroup", "AmineDonorGroup",
+    "detect_carboxyls", "detect_amides", "detect_hydroxyls",
+    "detect_amine_donors", "summarize_groups",
     # detector
     "HBond", "HBondCriteria", "DonorSite", "AcceptorSite",
     "detect_hbonds", "minimum_image_vector",
@@ -68,6 +82,10 @@ __all__ = [
     "ClassificationResult", "MolRole", "classify",
     # colorizer
     "DrawAttribute", "DEFAULT_COLORS", "VALID_COLORS", "colorize_udf",
+    # lifetime (v1.26+ multi-record)
+    "PairKey", "PairLifetime",
+    "compute_lifetimes", "compute_autocorrelation",
+    "integrate_autocorrelation", "summarize_lifetimes",
 ]
 
 # Optional UI (lazy)

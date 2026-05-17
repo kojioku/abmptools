@@ -157,16 +157,20 @@ def open_panel(bdf_path: str):
     traj.load_topology()
     summary = summarize_groups(traj.molecules)
 
+    n_sec_amide = summary['n_amides'] - summary['n_amides_tert']
     info_html = widgets.HTML(value=f"""
     <h3>abmptools.hbond panel</h3>
     <p><b>Input:</b> <code>{bdf_path}</code></p>
     <ul>
       <li>n_molecules: <b>{len(traj.molecules)}</b></li>
       <li>n_records: <b>{traj.n_records}</b></li>
+      <li>force field: <b>{summary['force_field']}</b></li>
       <li>detected carboxyls: <b>{summary['n_carboxyls']}</b>
           (in {summary['n_mols_with_carboxyl']} mols)</li>
       <li>detected amides: <b>{summary['n_amides']}</b>
-          (in {summary['n_mols_with_amide']} mols)</li>
+          (tert: {summary['n_amides_tert']}, sec/prim: {n_sec_amide})</li>
+      <li>detected hydroxyls (non-carboxyl): <b>{summary['n_hydroxyls']}</b></li>
+      <li>detected N-H donors: <b>{summary['n_amine_donors']}</b></li>
     </ul>
     """)
 
@@ -230,6 +234,35 @@ def open_panel(bdf_path: str):
         description="out prefix:",
         layout=widgets.Layout(width="500px"),
     )
+
+    # Functional group pair selection (Phase 3 enhancement)
+    donor_cb = {
+        "carboxyl":     widgets.Checkbox(value=True,  description="COOH (carboxyl OH)"),
+        "amide_donor":  widgets.Checkbox(value=False, description="N-H (sec/prim amide)"),
+        "amine_donor":  widgets.Checkbox(value=False, description="N-H (amine)"),
+        "hydroxyl":     widgets.Checkbox(value=False, description="OH (alcohol)"),
+    }
+    acceptor_cb = {
+        "carboxyl_O":   widgets.Checkbox(value=True,  description="C=O (carboxyl)"),
+        "amide_O":      widgets.Checkbox(value=True,  description="C=O (amide)"),
+        "hydroxyl_O":   widgets.Checkbox(value=False, description="O-H (as acceptor)"),
+        "ether_O":      widgets.Checkbox(value=False, description="O (ether/ester)"),
+    }
+    donor_box = widgets.VBox(
+        [widgets.HTML("<b>Donor groups (D-H)</b>")] + list(donor_cb.values()),
+        layout=widgets.Layout(border="1px solid lightgray", padding="6px"),
+    )
+    acceptor_box = widgets.VBox(
+        [widgets.HTML("<b>Acceptor groups (A)</b>")] + list(acceptor_cb.values()),
+        layout=widgets.Layout(border="1px solid lightgray", padding="6px"),
+    )
+
+    # Lifetime options
+    do_lifetime = widgets.Checkbox(value=True, description="compute lifetime")
+    gap_tol = widgets.IntText(value=0, description="gap tol:")
+    dt_input = widgets.FloatText(value=1.0, description="dt:")
+    lifetime_box = widgets.HBox([do_lifetime, gap_tol, dt_input])
+
     run_button = widgets.Button(description="Run", button_style="primary")
     output = widgets.Output()
 
@@ -243,6 +276,11 @@ def open_panel(bdf_path: str):
                     d_ha_max=d_ha_slider.value,
                     angle_min=angle_slider.value,
                 )
+            selected_donors = [k for k, w in donor_cb.items() if w.value]
+            selected_acceptors = [k for k, w in acceptor_cb.items() if w.value]
+            if not selected_donors or not selected_acceptors:
+                print("ERROR: select at least one donor and one acceptor group")
+                return
             cfg = AnalyzerConfig(
                 bdf_path=bdf_path,
                 out_prefix=out_prefix.value,
@@ -252,12 +290,14 @@ def open_panel(bdf_path: str):
                 record_end=rec_end.value,
                 base_mol_name=mol_name.value,
                 verbose=True,
+                donor_groups=selected_donors,
+                acceptor_groups=selected_acceptors,
+                compute_lifetime=do_lifetime.value,
+                gap_tolerance=gap_tol.value,
+                dt=dt_input.value,
             )
             analyzer = Analyzer(cfg)
-            analyzer.traj = traj
-            from .functional_groups import detect_amides, detect_carboxyls
-            analyzer.carboxyls = detect_carboxyls(traj.molecules)
-            analyzer.amides = detect_amides(traj.molecules)
+            analyzer.load()
             analyzer.run()
             paths = analyzer.write_outputs()
 
@@ -287,9 +327,11 @@ def open_panel(bdf_path: str):
     panel = widgets.VBox([
         info_html,
         svg_view,
+        widgets.HBox([donor_box, acceptor_box]),
         widgets.HBox([criteria_dd]),
         widgets.HBox([d_da_slider, d_ha_slider, angle_slider]),
         widgets.HBox([rec_start, rec_end, mol_name]),
+        lifetime_box,
         out_prefix,
         run_button,
         output,

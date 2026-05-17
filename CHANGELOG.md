@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.hbond` 拡張 — v1.26.0 候補)
+
+- **FF 抽象化** (`func_tags.py`): GAFF2/OPLS-AA/CHARMM36/OpenFF の 4 force field
+  に対応。atom type → 機能タグ (`carbonyl_C`/`hydroxyl_O`/`amide_N` 等) の
+  マッピング辞書 + 自動 FF 検出 (`detect_force_field`) + ユーザ拡張
+  (`add_mapping`)。`functional_groups.py` を tag ベースに refactor。
+- **任意官能基対選択**: donor `{carboxyl, amide_donor, amine_donor, hydroxyl}` ×
+  acceptor `{carboxyl_O, amide_O, hydroxyl_O, ether_O}` から CLI/Python API/
+  Jupyter UI で自由に組み合わせ可能。デフォルトは v1.25.0 互換 (COOH→{COOH O,
+  amide O})。
+- **Secondary amide donor 対応**: `AmideGroup.tert` フラグで tertiary/secondary
+  を区別、`detect_amine_donors()` で N-H を donor 集合に取得可能。
+  peptide 主鎖 H-bond network の解析が可能になった。
+- **Lifetime + autocorrelation** (`lifetime.py`):
+  - Continuous lifetime: 連続存在区間の strict 集計
+  - Intermittent lifetime: `gap_tolerance` で許容 gap 指定
+  - Luzar-Chandler 自己相関 `C(t) = <h(0)h(t)>/<h(0)>` (unbiased estimator)
+  - τ_HB (= ∫C(t)dt) 台形則積分
+  - Multi-record CLI: `--gap-tolerance N --dt FLOAT --autocorr-max-lag N`
+  - 追加出力: `<prefix>_lifetime.csv` + `<prefix>_autocorr.{csv,png}`
+- **Jupyter UI 拡張**: donor/acceptor 官能基チェックボックス, lifetime 設定 box,
+  FF 自動検出表示, sec amide N-H donor 数表示。
+- **テスト 22 件追加** (合計 42、全 PASS):
+  - `test_func_tags.py` (9): 各 FF mapping + auto-detect
+  - `test_lifetime.py` (8): continuous/intermittent/autocorr/τ_HB
+  - `test_amine_donor.py` (5): synthetic N-methylacetamide (GAFF2/CHARMM36) + IMC 否定確認
+
 ### Added (`abmptools.hbond` サブパッケージ — v1.25.0 候補)
 
 - **非晶質 MD トラジェクトリ用 H-bond 解析**: COGNAC UDF/BDF を入力に、

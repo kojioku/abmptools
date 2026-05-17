@@ -67,6 +67,42 @@ def main(argv=None) -> int:
         "--quiet", "-q", action="store_true",
         help="Suppress per-frame output"
     )
+    # Force field + functional group selection
+    parser.add_argument(
+        "--force-field", default=None,
+        help="Force field name (auto-detect if not specified). "
+             "Built-in: GAFF2, OPLS-AA, CHARMM36, OpenFF"
+    )
+    parser.add_argument(
+        "--donor-groups", default=None,
+        help="Comma-separated donor groups. Options: "
+             "carboxyl, amide_donor, amine_donor, hydroxyl. "
+             "Default: carboxyl (= COOH OH only)"
+    )
+    parser.add_argument(
+        "--acceptor-groups", default=None,
+        help="Comma-separated acceptor groups. Options: "
+             "carboxyl_O, amide_O, hydroxyl_O, ether_O. "
+             "Default: carboxyl_O,amide_O"
+    )
+    # Lifetime analysis
+    parser.add_argument(
+        "--no-lifetime", action="store_true",
+        help="Skip lifetime / autocorrelation computation"
+    )
+    parser.add_argument(
+        "--gap-tolerance", type=int, default=0,
+        help="Frames of gap to bridge for intermittent lifetime (default 0=strict)"
+    )
+    parser.add_argument(
+        "--dt", type=float, default=1.0,
+        help="Time between consecutive records (user units, e.g. ps). "
+             "Default 1.0 (= per-frame)"
+    )
+    parser.add_argument(
+        "--autocorr-max-lag", type=int, default=None,
+        help="Max lag (in records) for autocorrelation C(t). Default: N/2"
+    )
     args = parser.parse_args(argv)
 
     custom = None
@@ -76,6 +112,15 @@ def main(argv=None) -> int:
             d_ha_max=args.d_ha_max,
             angle_min=args.angle_min if args.angle_min is not None else 120.0,
         )
+
+    donor_groups = (
+        [s.strip() for s in args.donor_groups.split(",") if s.strip()]
+        if args.donor_groups else None
+    )
+    acceptor_groups = (
+        [s.strip() for s in args.acceptor_groups.split(",") if s.strip()]
+        if args.acceptor_groups else None
+    )
 
     config = AnalyzerConfig(
         bdf_path=args.bdf_path,
@@ -88,6 +133,13 @@ def main(argv=None) -> int:
         do_colorize=not args.no_colorize,
         do_plot=not args.no_plot,
         verbose=not args.quiet,
+        force_field=args.force_field,
+        donor_groups=donor_groups,
+        acceptor_groups=acceptor_groups,
+        compute_lifetime=not args.no_lifetime,
+        gap_tolerance=args.gap_tolerance,
+        dt=args.dt,
+        autocorr_max_lag=args.autocorr_max_lag,
     )
 
     analyzer = Analyzer(config)

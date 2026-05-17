@@ -1,35 +1,45 @@
 """
 functional_groups.py
 --------------------
-Auto-detect functional groups from GAFF2 atom types + bond graph.
+Force-field-agnostic functional group detection using canonical tags.
 
 Detects:
-- carboxyl  COOH:  c (sp2) - oh - ho  AND  c - o (C=O)
-- amide     C(=O)-N: c - n  AND  c - o  (tertiary if n has no H)
-- hydroxyl  O-H:   oh - ho
+- carboxyl  COOH:  carbonyl_C bonded to hydroxyl_O (+hydroxyl_H) AND carbonyl_O
+- amide     C(=O)-N: carbonyl_C bonded to amide_N AND carbonyl_O
+              tert=True iff N has no hydroxyl_H/amide_H neighbor (= tertiary amide)
+- hydroxyl  O-H:   hydroxyl_O bonded to hydroxyl_H (excluding carboxyl OH by default)
+- amine     N-H:   amine_N/amide_N bonded to amide_H (donor for secondary amides)
 
 Atom indices in returned dataclasses are 0-based LOCAL atom indices within
 each molecule (i.e. the position in molecule.atoms list). This matches the
 convention in Set_of_Molecules.molecule[].bond[k].atom1/atom2 (which uses
 0-based local indices, NOT global Atom_ID).
 
-Use these local indices with TrajectoryFrame.positions[mol_index][local_idx]
-to retrieve 3D coordinates.
+The previous GAFF2-specific implementation has been refactored to dispatch
+through ``func_tags`` so OPLS-AA / CHARMM36 / OpenFF systems can use the
+same detection logic.
 """
 from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from .bdf_reader import MoleculeTopology
+from .func_tags import (
+    FunctionalTagMapping, GAFF2,
+    TAG_AMIDE_H, TAG_AMIDE_N, TAG_AMINE_N,
+    TAG_CARBONYL_C, TAG_CARBONYL_O,
+    TAG_HYDROXYL_H, TAG_HYDROXYL_O,
+    detect_force_field, get_mapping,
+)
 
 
 @dataclass
 class CarboxylGroup:
     """COOH group: c=carbonyl C, o=C=O, oh=hydroxyl O, ho=hydroxyl H."""
     mol_index: int
-    c_atom: int   # local index in molecule.atoms
+    c_atom: int     # local index in molecule.atoms
     o_atom: int
     oh_atom: int
     ho_atom: int
@@ -37,89 +47,149 @@ class CarboxylGroup:
 
 @dataclass
 class AmideGroup:
-    """C(=O)-N: c=carbonyl C, o=C=O, n=amide N. tert=True means N has no H."""
+    """C(=O)-N: c=carbonyl C, o=C=O, n=amide N.
+
+    ``tert=True`` means N has no donor H attached (= tertiary amide).
+    ``nh_atom`` is the local index of the N-H hydrogen if present, else None.
+    """
     mol_index: int
     c_atom: int
     o_atom: int
     n_atom: int
     tert: bool
+    nh_atom: Optional[int] = None
 
 
 @dataclass
 class HydroxylGroup:
-    """Free O-H (not part of carboxyl): oh-ho."""
+    """Free O-H (typically alcohol, optionally excluding carboxyl OH)."""
     mol_index: int
     oh_atom: int
     ho_atom: int
 
 
-def _build_adjacency(topo: MoleculeTopology) -> Dict[int, List[Tuple[int, str]]]:
-    """Build adj[local_atom_idx] = [(neighbor_local_idx, neighbor_type), ...].
+@dataclass
+class AmineDonorGroup:
+    """N-H donor site (typically secondary/primary amide, primary/secondary amine).
+
+    Each H on the N is represented by a separate AmineDonorGroup
+    (i.e. primary amide -NH2 yields TWO AmineDonorGroup entries).
+    """
+    mol_index: int
+    n_atom: int
+    h_atom: int
+    from_amide: bool   # True if N is amide_N; False if amine_N
+
+
+# ----------------------------------------------------------------------------
+# Internal helpers
+# ----------------------------------------------------------------------------
+
+def _tag_atoms_of_mol(
+    topo: MoleculeTopology, mapping: FunctionalTagMapping,
+) -> List[Optional[str]]:
+    """Return per-atom tag list (local-index ordered)."""
+    return [mapping.get_tag(a.atom_type) for a in topo.atoms]
+
+
+def _build_adjacency(
+    topo: MoleculeTopology, tags: List[Optional[str]],
+) -> Dict[int, List[Tuple[int, Optional[str]]]]:
+    """Build adj[local_atom_idx] = [(neighbor_local_idx, neighbor_tag), ...].
 
     Bond table atom1/atom2 are 0-based local atom indices within the molecule.
     """
-    adj: Dict[int, List[Tuple[int, str]]] = defaultdict(list)
-    # local index = position in topo.atoms
-    type_of = {idx: a.atom_type for idx, a in enumerate(topo.atoms)}
+    adj: Dict[int, List[Tuple[int, Optional[str]]]] = defaultdict(list)
     for bond in topo.bonds:
         a, b = bond.atom1, bond.atom2
-        adj[a].append((b, type_of.get(b, "?")))
-        adj[b].append((a, type_of.get(a, "?")))
+        adj[a].append((b, tags[b] if 0 <= b < len(tags) else None))
+        adj[b].append((a, tags[a] if 0 <= a < len(tags) else None))
     return adj
 
 
+def _resolve_mapping(
+    molecules: List[MoleculeTopology],
+    mapping: Optional[FunctionalTagMapping] = None,
+) -> FunctionalTagMapping:
+    """If mapping is None, auto-detect from the first molecule's atom types."""
+    if mapping is not None:
+        return mapping
+    sample_types = {a.atom_type for m in molecules for a in m.atoms}
+    try:
+        ff_name = detect_force_field(sample_types)
+        return get_mapping(ff_name)
+    except (KeyError, RuntimeError):
+        return GAFF2  # fall back to GAFF2
+
+
+# ----------------------------------------------------------------------------
+# Public detection functions
+# ----------------------------------------------------------------------------
+
 def detect_carboxyls(
     molecules: List[MoleculeTopology],
+    mapping: Optional[FunctionalTagMapping] = None,
 ) -> List[CarboxylGroup]:
-    """Find all COOH groups in all molecules."""
-    out = []
+    """Find all COOH groups across all molecules.
+
+    Pattern: ``carbonyl_C`` bonded to **both** ``hydroxyl_O`` (with attached
+    ``hydroxyl_H``) and ``carbonyl_O``.
+    """
+    mapping = _resolve_mapping(molecules, mapping)
+    out: List[CarboxylGroup] = []
     for mi, topo in enumerate(molecules):
-        adj = _build_adjacency(topo)
-        type_of = {idx: a.atom_type for idx, a in enumerate(topo.atoms)}
-        for c_atom, c_type in type_of.items():
-            if c_type != "c":
+        tags = _tag_atoms_of_mol(topo, mapping)
+        adj = _build_adjacency(topo, tags)
+        for c_atom, c_tag in enumerate(tags):
+            if c_tag != TAG_CARBONYL_C:
                 continue
-            neighbors = adj[c_atom]
-            o_neighbors = [n for n, t in neighbors if t == "o"]
-            oh_neighbors = [n for n, t in neighbors if t == "oh"]
-            if len(o_neighbors) == 1 and len(oh_neighbors) == 1:
-                oh = oh_neighbors[0]
-                ho_neighbors = [n for n, t in adj[oh] if t == "ho"]
-                if len(ho_neighbors) == 1:
+            o_neigh = [n for n, t in adj[c_atom] if t == TAG_CARBONYL_O]
+            oh_neigh = [n for n, t in adj[c_atom] if t == TAG_HYDROXYL_O]
+            if len(o_neigh) == 1 and len(oh_neigh) == 1:
+                oh = oh_neigh[0]
+                ho_neigh = [n for n, t in adj[oh] if t == TAG_HYDROXYL_H]
+                if len(ho_neigh) == 1:
                     out.append(CarboxylGroup(
                         mol_index=mi,
                         c_atom=c_atom,
-                        o_atom=o_neighbors[0],
+                        o_atom=o_neigh[0],
                         oh_atom=oh,
-                        ho_atom=ho_neighbors[0],
+                        ho_atom=ho_neigh[0],
                     ))
     return out
 
 
 def detect_amides(
     molecules: List[MoleculeTopology],
+    mapping: Optional[FunctionalTagMapping] = None,
 ) -> List[AmideGroup]:
-    """Find all C(=O)-N groups. tert=True iff N has no H neighbor."""
-    out = []
+    """Find all C(=O)-N (amide) groups.
+
+    ``tert=True`` iff N has no ``amide_H`` neighbor.
+    ``nh_atom`` is the local index of one such H (or None for tertiary).
+    """
+    mapping = _resolve_mapping(molecules, mapping)
+    out: List[AmideGroup] = []
     for mi, topo in enumerate(molecules):
-        adj = _build_adjacency(topo)
-        type_of = {idx: a.atom_type for idx, a in enumerate(topo.atoms)}
-        for c_atom, c_type in type_of.items():
-            if c_type != "c":
+        tags = _tag_atoms_of_mol(topo, mapping)
+        adj = _build_adjacency(topo, tags)
+        for c_atom, c_tag in enumerate(tags):
+            if c_tag != TAG_CARBONYL_C:
                 continue
-            neighbors = adj[c_atom]
-            o_neighbors = [n for n, t in neighbors if t == "o"]
-            n_neighbors = [n for n, t in neighbors if t == "n"]
-            if len(o_neighbors) == 1 and len(n_neighbors) == 1:
-                n_atom = n_neighbors[0]
-                h_on_n = [n for n, t in adj[n_atom] if t in ("hn", "h", "ho")]
+            o_neigh = [n for n, t in adj[c_atom] if t == TAG_CARBONYL_O]
+            n_neigh = [n for n, t in adj[c_atom]
+                       if t in (TAG_AMIDE_N, TAG_AMINE_N)]
+            if len(o_neigh) == 1 and len(n_neigh) == 1:
+                n_atom = n_neigh[0]
+                h_on_n = [n for n, t in adj[n_atom] if t == TAG_AMIDE_H]
                 tert = (len(h_on_n) == 0)
                 out.append(AmideGroup(
                     mol_index=mi,
                     c_atom=c_atom,
-                    o_atom=o_neighbors[0],
+                    o_atom=o_neigh[0],
                     n_atom=n_atom,
                     tert=tert,
+                    nh_atom=(h_on_n[0] if h_on_n else None),
                 ))
     return out
 
@@ -127,42 +197,98 @@ def detect_amides(
 def detect_hydroxyls(
     molecules: List[MoleculeTopology],
     exclude_carboxyl: bool = True,
+    mapping: Optional[FunctionalTagMapping] = None,
 ) -> List[HydroxylGroup]:
-    """Find all O-H groups. Excludes carboxyl OH if exclude_carboxyl=True."""
-    out = []
+    """Find O-H groups. Excludes carboxyl OH if ``exclude_carboxyl=True``."""
+    mapping = _resolve_mapping(molecules, mapping)
+    out: List[HydroxylGroup] = []
     carboxyl_oh = set()
     if exclude_carboxyl:
-        for cg in detect_carboxyls(molecules):
+        for cg in detect_carboxyls(molecules, mapping):
             carboxyl_oh.add((cg.mol_index, cg.oh_atom))
     for mi, topo in enumerate(molecules):
-        adj = _build_adjacency(topo)
-        type_of = {idx: a.atom_type for idx, a in enumerate(topo.atoms)}
-        for oh_atom, oh_type in type_of.items():
-            if oh_type != "oh":
+        tags = _tag_atoms_of_mol(topo, mapping)
+        adj = _build_adjacency(topo, tags)
+        for oh_atom, oh_tag in enumerate(tags):
+            if oh_tag != TAG_HYDROXYL_O:
                 continue
             if (mi, oh_atom) in carboxyl_oh:
                 continue
-            ho_neighbors = [n for n, t in adj[oh_atom] if t == "ho"]
-            if len(ho_neighbors) == 1:
+            ho_neigh = [n for n, t in adj[oh_atom] if t == TAG_HYDROXYL_H]
+            if len(ho_neigh) == 1:
                 out.append(HydroxylGroup(
-                    mol_index=mi,
-                    oh_atom=oh_atom,
-                    ho_atom=ho_neighbors[0],
+                    mol_index=mi, oh_atom=oh_atom, ho_atom=ho_neigh[0]
                 ))
     return out
 
 
-def summarize_groups(molecules: List[MoleculeTopology]) -> dict:
-    """High-level summary of functional groups found."""
-    carboxyls = detect_carboxyls(molecules)
-    amides = detect_amides(molecules)
-    hydroxyls = detect_hydroxyls(molecules)
+def detect_amine_donors(
+    molecules: List[MoleculeTopology],
+    include_amide: bool = True,
+    include_amine: bool = True,
+    mapping: Optional[FunctionalTagMapping] = None,
+) -> List[AmineDonorGroup]:
+    """Find N-H donor sites.
+
+    Returns one entry per N-H bond (so primary amide -NH2 yields 2 entries).
+
+    Parameters
+    ----------
+    include_amide : if True, include amide_N - amide_H pairs (secondary/primary amides)
+    include_amine : if True, include amine_N - amide_H pairs (primary/secondary amines)
+    """
+    mapping = _resolve_mapping(molecules, mapping)
+    out: List[AmineDonorGroup] = []
+    for mi, topo in enumerate(molecules):
+        tags = _tag_atoms_of_mol(topo, mapping)
+        adj = _build_adjacency(topo, tags)
+        for n_atom, n_tag in enumerate(tags):
+            if n_tag == TAG_AMIDE_N:
+                if not include_amide:
+                    continue
+                from_amide = True
+            elif n_tag == TAG_AMINE_N:
+                if not include_amine:
+                    continue
+                from_amide = False
+            else:
+                continue
+            for h_neighbor, h_tag in adj[n_atom]:
+                if h_tag == TAG_AMIDE_H:
+                    out.append(AmineDonorGroup(
+                        mol_index=mi,
+                        n_atom=n_atom,
+                        h_atom=h_neighbor,
+                        from_amide=from_amide,
+                    ))
+    return out
+
+
+def summarize_groups(
+    molecules: List[MoleculeTopology],
+    mapping: Optional[FunctionalTagMapping] = None,
+) -> dict:
+    """High-level summary of functional groups detected.
+
+    Now includes secondary amide donor counts (N-H).
+    """
+    mapping = _resolve_mapping(molecules, mapping)
+    carboxyls = detect_carboxyls(molecules, mapping)
+    amides = detect_amides(molecules, mapping)
+    hydroxyls = detect_hydroxyls(molecules, mapping=mapping)
+    n_donors = detect_amine_donors(molecules, mapping=mapping)
     return {
+        "force_field": mapping.force_field,
         "carboxyl": carboxyls,
         "amide": amides,
         "hydroxyl": hydroxyls,
-        "n_mols_with_carboxyl": len(set(g.mol_index for g in carboxyls)),
-        "n_mols_with_amide": len(set(g.mol_index for g in amides)),
+        "amine_donor": n_donors,
         "n_carboxyls": len(carboxyls),
         "n_amides": len(amides),
+        "n_amides_tert": sum(1 for a in amides if a.tert),
+        "n_amides_nonsec": sum(1 for a in amides if not a.tert),
+        "n_hydroxyls": len(hydroxyls),
+        "n_amine_donors": len(n_donors),
+        "n_mols_with_carboxyl": len(set(g.mol_index for g in carboxyls)),
+        "n_mols_with_amide": len(set(g.mol_index for g in amides)),
     }

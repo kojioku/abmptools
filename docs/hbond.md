@@ -1,8 +1,11 @@
-# abmptools.hbond — Carboxyl/Amide H-bond Analyzer for COGNAC Trajectories
+# abmptools.hbond — H-bond Analyzer for COGNAC Trajectories
 
-非晶質 MD トラジェクトリ (OCTA COGNAC `.udf` / `.bdf`) から、官能基間 H-bond
-を幾何条件で検出し、各分子を **dual / single / free** の 3 グループに分類して
-gourmet で可視化できる UDF を生成するサブパッケージ。
+非晶質 MD トラジェクトリ (OCTA COGNAC `.udf` / `.bdf`) から、官能基間 H-bond を
+幾何条件で検出し、各分子を **dual / single / free** の 3 グループに分類して gourmet
+で可視化できる UDF を生成するサブパッケージ。
+
+v1.26.0+ で **FF 抽象化 (GAFF2/OPLS-AA/CHARMM36/OpenFF) + 任意官能基対選択 +
+multi-record lifetime/autocorrelation + secondary amide donor** に対応。
 
 ## 概要
 
@@ -146,16 +149,95 @@ gourmet output/imc_hbond_colored.bdf
 開いたら `show` アクションを実行 → 3 色グループに塗り分けられた分子描画が表示
 される。Picking で分子を選んでアクション実行も可能。
 
+## v1.26.0+ の追加機能
+
+### 1. FF 抽象化 (`func_tags.py`)
+
+GAFF2 / OPLS-AA / CHARMM36 / OpenFF の 4 FF に組み込み対応。FF 名を指定しない場合は
+atom type の overlap で自動判定:
+
+```python
+from abmptools.hbond import detect_force_field, get_mapping
+ff = detect_force_field(atom_types)         # → "GAFF2" / "OPLS-AA" / "CHARMM36"
+mapping = get_mapping(ff)
+```
+
+| FF | 例 atom type → 機能タグ |
+|---|---|
+| GAFF2 | `c` → carbonyl_C, `oh` → hydroxyl_O, `hn` → amide_H |
+| OPLS-AA | `opls_267` → carbonyl_C, `opls_268` → hydroxyl_O |
+| CHARMM36 | `CC` → carbonyl_C, `NH1` → amide_N (sec/peptide), `H` → amide_H |
+
+ユーザ拡張も可能:
+```python
+GAFF2.add_mapping("custom_type", "carbonyl_C")
+```
+
+### 2. 任意官能基対選択
+
+donor/acceptor の組み合わせを CLI/Python API/Jupyter UI から指定:
+
+| Donor group | 対象 |
+|---|---|
+| `carboxyl` (default) | COOH OH-H |
+| `amide_donor` | secondary/primary amide N-H (peptide backbone 等) |
+| `amine_donor` | amine N-H |
+| `hydroxyl` | alcohol OH-H |
+
+| Acceptor group | 対象 |
+|---|---|
+| `carboxyl_O` (default) | carboxyl C=O |
+| `amide_O` (default) | amide C=O |
+| `hydroxyl_O` | OH O |
+| `ether_O` | ester/ether O |
+
+```bash
+# Secondary amide donor + amide acceptor (peptide H-bond network)
+python -m abmptools.hbond traj.bdf --out-prefix peptide \
+    --donor-groups amide_donor --acceptor-groups amide_O
+```
+
+### 3. Multi-record + Lifetime (`lifetime.py`)
+
+Multi-record trajectory で per-pair lifetime + Luzar-Chandler 自己相関を計算:
+
+| 量 | 関数 | 内容 |
+|---|---|---|
+| Continuous lifetime | `compute_lifetimes(per_rec, gap_tolerance=0)` | 連続存在区間の strict 集計 |
+| Intermittent lifetime | `compute_lifetimes(per_rec, gap_tolerance=k)` | k フレームまでの gap を許容 |
+| Autocorrelation C(t) | `compute_autocorrelation(per_rec, max_lag)` | Luzar-Chandler `<h(0)h(t)>/<h(0)>` (unbiased) |
+| τ_HB | `integrate_autocorrelation(c, dt)` | ∫C(t)dt (台形則) |
+
+CLI:
+```bash
+python -m abmptools.hbond traj.bdf --out-prefix prefix \
+    --gap-tolerance 2 --dt 0.5     # dt = 0.5 ps/record の場合
+```
+
+出力 (multi-record 時のみ追加):
+- `<prefix>_lifetime.csv` — per-pair の continuous_max/mean、intermittent_max/mean、occupancy
+- `<prefix>_autocorr.csv` — lag × C(t)
+- `<prefix>_autocorr.png` — autocorrelation plot
+
+### 4. Secondary amide donor 対応
+
+Tertiary (N に H なし) / secondary/primary (N に H あり) を `AmideGroup.tert` フラグで
+区別。secondary amide の N-H は `detect_amine_donors()` 経由で donor 集合に追加可能。
+IMC は tertiary なので donor にはならない (acceptor のみ)。
+
+```python
+from abmptools.hbond import detect_amine_donors
+donors = detect_amine_donors(molecules, include_amide=True, include_amine=False)
+# → AmineDonorGroup(mol_index, n_atom, h_atom, from_amide=True) のリスト
+```
+
 ## 既知の制限
 
 1. **直交 cubic/orthorhombic box のみ対応** (三斜晶/モノクリニックは未対応)
-2. **単一原子タイプ前提**: carboxyl の `c` 検出は GAFF2 `c` 専用、`C2` 等の
-   別 force field 名には対応していない (将来拡張余地)
-3. **アミドは tert/sec 区別なし**: 現状はカルボニル C + N + O の組み合わせで
-   amide とみなす。Secondary amide の N-H は H-bond donor として未活用 (donor
-   集合は carboxyl OH のみ)
-4. **多分子内多官能基**: 1 分子に複数の COOH/amide があると全て処理対象になり、
+2. FF mapping は組み込み 4 FF のみ。AMBER ff14SB 等は `add_mapping` で拡張可能
+3. **多分子内多官能基**: 1 分子に複数の COOH/amide があると全て処理対象になり、
    分類は最も強い役割が優先される
+4. 大規模 trajectory (1M+ records) でのメモリ効率は未最適化 (`H` 行列が大きくなる)
 
 ## サンプル
 

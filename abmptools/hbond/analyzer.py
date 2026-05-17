@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import csv
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence
 
 import numpy as np
@@ -18,11 +18,17 @@ import numpy as np
 from .bdf_reader import BDFTrajectory
 from .classifier import ClassificationResult, classify
 from .colorizer import DEFAULT_COLORS, DrawAttribute, colorize_udf
+from .func_tags import FunctionalTagMapping, detect_force_field, get_mapping
 from .functional_groups import (
-    AmideGroup, CarboxylGroup, detect_amides, detect_carboxyls
+    AmideGroup, AmineDonorGroup, CarboxylGroup,
+    detect_amides, detect_amine_donors, detect_carboxyls,
 )
 from .hbond_detector import (
     AcceptorSite, DonorSite, HBond, HBondCriteria, detect_hbonds
+)
+from .lifetime import (
+    PairLifetime, compute_autocorrelation, compute_lifetimes,
+    integrate_autocorrelation, summarize_lifetimes,
 )
 
 
@@ -54,6 +60,19 @@ class AnalyzerConfig:
     do_colorize: bool = True
     do_plot: bool = True
     verbose: bool = True
+    # Force field (None = auto-detect from atom types)
+    force_field: Optional[str] = None
+    # Donor / acceptor functional-group selection.
+    # If both are None, defaults to {COOH→COOH, COOH→amide} as in v1.25.0.
+    # When set, accepts subset of {"carboxyl", "amide_donor", "amine_donor", "hydroxyl"}
+    # for donors and {"carboxyl_O", "amide_O", "hydroxyl_O", "ether_O"} for acceptors.
+    donor_groups: Optional[List[str]] = None
+    acceptor_groups: Optional[List[str]] = None
+    # Lifetime analysis (multi-record only)
+    compute_lifetime: bool = True
+    gap_tolerance: int = 0      # for intermittent lifetime
+    dt: float = 1.0             # time between consecutive records (user units, e.g. ps)
+    autocorr_max_lag: Optional[int] = None   # None = N/2
 
     def get_criteria(self) -> HBondCriteria:
         if self.criteria_mode == "luzar-chandler":
@@ -71,22 +90,43 @@ class Analyzer:
     def __init__(self, config: AnalyzerConfig):
         self.config = config
         self.traj: Optional[BDFTrajectory] = None
+        self.mapping: Optional[FunctionalTagMapping] = None
         self.carboxyls: List[CarboxylGroup] = []
         self.amides: List[AmideGroup] = []
+        self.amine_donors: List[AmineDonorGroup] = []
         self.frame_results: List[FrameResult] = []
+        self.lifetimes: List[PairLifetime] = []
+        self.autocorr: Optional[np.ndarray] = None
+        self.tau_hb: Optional[float] = None
 
     def load(self) -> None:
         c = self.config
         self.traj = BDFTrajectory(c.bdf_path)
         self.traj.load_topology()
-        self.carboxyls = detect_carboxyls(self.traj.molecules)
-        self.amides = detect_amides(self.traj.molecules)
+        # Resolve force field
+        if c.force_field is None:
+            sample_types = {a.atom_type for m in self.traj.molecules for a in m.atoms}
+            try:
+                ff_name = detect_force_field(sample_types)
+            except Exception:
+                ff_name = "GAFF2"
+        else:
+            ff_name = c.force_field
+        self.mapping = get_mapping(ff_name)
+        self.carboxyls = detect_carboxyls(self.traj.molecules, self.mapping)
+        self.amides = detect_amides(self.traj.molecules, self.mapping)
+        self.amine_donors = detect_amine_donors(
+            self.traj.molecules, mapping=self.mapping,
+        )
         if c.verbose:
             print(f"Loaded {c.bdf_path}")
             print(f"  {len(self.traj.molecules)} molecules, "
                   f"{self.traj.n_records} record(s)")
+            print(f"  force field: {self.mapping.force_field}")
             print(f"  detected {len(self.carboxyls)} carboxyls, "
-                  f"{len(self.amides)} amides")
+                  f"{len(self.amides)} amides "
+                  f"({sum(1 for a in self.amides if a.tert)} tert), "
+                  f"{len(self.amine_donors)} N-H donors")
 
     def run(self) -> List[FrameResult]:
         if self.traj is None:
@@ -95,16 +135,49 @@ class Analyzer:
         end = c.record_end if c.record_end >= 0 else self.traj.n_records
         criteria = c.get_criteria()
 
-        carb_donors = [
-            DonorSite(g.mol_index, g.oh_atom, g.ho_atom)
-            for g in self.carboxyls
-        ]
-        carb_acceptors = [
-            AcceptorSite(g.mol_index, g.o_atom) for g in self.carboxyls
-        ]
-        amide_acceptors = [
-            AcceptorSite(g.mol_index, g.o_atom) for g in self.amides
-        ]
+        # Build donor and acceptor sites from selected functional groups.
+        donor_groups = c.donor_groups or ["carboxyl"]
+        acceptor_groups = c.acceptor_groups or ["carboxyl_O", "amide_O"]
+
+        donors_carb: List[DonorSite] = []
+        donors_amine: List[DonorSite] = []
+        donors_hydroxyl: List[DonorSite] = []
+        if "carboxyl" in donor_groups:
+            donors_carb = [
+                DonorSite(g.mol_index, g.oh_atom, g.ho_atom)
+                for g in self.carboxyls
+            ]
+        if "amine_donor" in donor_groups or "amide_donor" in donor_groups:
+            # Filter amine_donors by amide vs amine if both keys present
+            keep_amide = "amide_donor" in donor_groups
+            keep_amine = "amine_donor" in donor_groups
+            donors_amine = [
+                DonorSite(g.mol_index, g.n_atom, g.h_atom)
+                for g in self.amine_donors
+                if (g.from_amide and keep_amide) or
+                   (not g.from_amide and keep_amine)
+            ]
+        if "hydroxyl" in donor_groups:
+            from .functional_groups import detect_hydroxyls
+            for g in detect_hydroxyls(self.traj.molecules, mapping=self.mapping):
+                donors_hydroxyl.append(
+                    DonorSite(g.mol_index, g.oh_atom, g.ho_atom)
+                )
+
+        carb_donors_all = donors_carb + donors_amine + donors_hydroxyl
+
+        accept_carb_o = (
+            [AcceptorSite(g.mol_index, g.o_atom) for g in self.carboxyls]
+            if "carboxyl_O" in acceptor_groups else []
+        )
+        accept_amide_o = (
+            [AcceptorSite(g.mol_index, g.o_atom) for g in self.amides]
+            if "amide_O" in acceptor_groups else []
+        )
+        # Legacy backward-compat names used downstream
+        carb_donors = donors_carb if donors_carb else carb_donors_all
+        carb_acceptors = accept_carb_o
+        amide_acceptors = accept_amide_o
 
         n_mol = len(self.traj.molecules)
         results: List[FrameResult] = []
@@ -214,5 +287,93 @@ class Analyzer:
                 out_paths["plot"] = plot_path
             except ImportError:
                 print("Warning: matplotlib not available; skipping plot")
+
+        # Lifetime analysis (multi-record only)
+        if c.compute_lifetime and len(self.frame_results) >= 2:
+            out_paths.update(self._write_lifetime_outputs())
+
+        return out_paths
+
+    def _write_lifetime_outputs(self) -> Dict[str, str]:
+        """Compute and write lifetime stats + autocorrelation."""
+        c = self.config
+        out_paths: Dict[str, str] = {}
+
+        # Combine cc + ca hbonds per record (any pair, regardless of acceptor type)
+        per_rec_all: List[List[HBond]] = [
+            list(fr.hbonds_cc) + list(fr.hbonds_ca) for fr in self.frame_results
+        ]
+        rec_indices = [fr.record for fr in self.frame_results]
+        self.lifetimes = compute_lifetimes(
+            per_rec_all, record_indices=rec_indices,
+            gap_tolerance=c.gap_tolerance,
+        )
+        self.autocorr = compute_autocorrelation(
+            per_rec_all, max_lag=c.autocorr_max_lag,
+        )
+        self.tau_hb = integrate_autocorrelation(self.autocorr, dt=c.dt)
+
+        # CSV: per-pair lifetime
+        lt_path = f"{c.out_prefix}_lifetime.csv"
+        with open(lt_path, "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow([
+                "donor_mol", "donor_d", "donor_h",
+                "acceptor_mol", "acceptor_a",
+                "total_present", "occupancy",
+                "continuous_max", "continuous_mean",
+                "intermittent_max", "intermittent_mean",
+            ])
+            for l in self.lifetimes:
+                w.writerow([
+                    *l.pair,
+                    l.total_present,
+                    f"{l.occupancy:.4f}",
+                    l.continuous_max, f"{l.continuous_mean:.2f}",
+                    l.intermittent_max, f"{l.intermittent_mean:.2f}",
+                ])
+        out_paths["lifetime"] = lt_path
+
+        # CSV: autocorrelation
+        ac_path = f"{c.out_prefix}_autocorr.csv"
+        with open(ac_path, "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["lag", "time", "C(t)"])
+            for lag, ct in enumerate(self.autocorr):
+                w.writerow([lag, f"{lag * c.dt:.4f}", f"{ct:.6f}"])
+        out_paths["autocorr"] = ac_path
+
+        # PNG plot
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+            t = np.arange(len(self.autocorr)) * c.dt
+            fig, ax = plt.subplots(figsize=(7, 4))
+            ax.plot(t, self.autocorr, "o-", color="purple", markersize=3)
+            ax.set_xlabel(f"time")
+            ax.set_ylabel("C(t)")
+            ax.set_title(
+                f"H-bond autocorrelation (τ_HB ≈ {self.tau_hb:.3f} "
+                f"per dt={c.dt})"
+            )
+            ax.grid(True, alpha=0.3)
+            ax.axhline(0, color="black", lw=0.5)
+            fig.tight_layout()
+            ac_png = f"{c.out_prefix}_autocorr.png"
+            fig.savefig(ac_png, dpi=100)
+            plt.close(fig)
+            out_paths["autocorr_plot"] = ac_png
+        except ImportError:
+            pass
+
+        if c.verbose:
+            stats = summarize_lifetimes(self.lifetimes)
+            print(f"\n--- Lifetime summary ---")
+            print(f"  unique pairs: {stats['n_unique_pairs']}")
+            print(f"  mean occupancy: {stats['mean_occupancy']:.3f}")
+            print(f"  longest continuous run: {stats['max_continuous']} frames")
+            print(f"  τ_HB (integral C(t) dt): {self.tau_hb:.4f} "
+                  f"(dt={c.dt})")
 
         return out_paths

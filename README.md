@@ -141,6 +141,10 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
   125 分子 → dual=10 / single=73 / free=42)
 - 依存: `pip install abmptools[hbond]` (matplotlib for plot)、Jupyter UI を使うなら
   `[jupyter]` + `[fragmenter]` (rdkit) を併用。UDFManager は OCTA に同梱
+- **v1.26.0+ 拡張**: FF 抽象化 (GAFF2/OPLS-AA/CHARMM36/OpenFF)、任意官能基対選択
+  (donor: carboxyl/amide_donor/amine_donor/hydroxyl × acceptor: carboxyl_O/amide_O/
+  hydroxyl_O/ether_O)、secondary amide N-H donor 対応、multi-record lifetime +
+  Luzar-Chandler 自己相関 `C(t)` + τ_HB 算出
 
 ### Peptide-Bilayer Umbrella Sampling (`membrane`)
 
