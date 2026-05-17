@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.hbond` サブパッケージ — v1.25.0 候補)
+
+- **非晶質 MD トラジェクトリ用 H-bond 解析**: COGNAC UDF/BDF を入力に、
+  カルボキシル基 (COOH) 同士の dual H-bond (環状二量体) と COOH→アミド C=O の
+  single H-bond を幾何条件で検出・分類し、gourmet で 3 色可視化できる UDF
+  を出力する新規サブパッケージ。
+  - **官能基自動検出** (`functional_groups.py`): GAFF2 atomtype (`c`/`oh`/`ho`/`o`/`n`)
+    + bond graph で carboxyl / amide / hydroxyl を検出。Tertiary amide (N-H なし)
+    も `tert=True` でマーキング (インドメタシン対応)。
+  - **Luzar-Chandler 幾何判定** (`hbond_detector.py`): `d(D-A) ≤ 3.5 Å` かつ
+    `∠(D-H-A) ≥ 120°` を default、`strict` モード (`d(H-A) ≤ 2.5 Å` かつ
+    `∠ ≥ 150°`) と `custom` モード (任意閾値) も選択可能。直交 cubic box の
+    最短像法で PBC 対応。
+  - **dual/single/free 分類** (`classifier.py`): 各分子に 3 役割を割り当て
+    (優先度 dual > single > free)。Dual は両方向 COOH↔COOH H-bond が成立する
+    分子ペアのみ。
+  - **gourmet 色付け** (`colorizer.py`): `Set_of_Molecules.molecule[i].Mol_Name`
+    を `IMC_DUAL` / `IMC_SINGLE` / `IMC_FREE` にリネームし、
+    `Draw_Attributes.Molecule[]` に Red / Blue / Gray の named color を書き込む。
+    **GOURMET の Draw_Attributes color は select 型 (9 色名のみ) で RGBA tuple
+    は受け付けない** ことを実機検証で確認。`transparency` は 1.0 = 不透明
+    (直観に反する) も確認済。
+  - **3 経路インターフェース**:
+    - CLI: `python -m abmptools.hbond <bdf> --criteria luzar-chandler -o prefix`
+    - Python API: `from abmptools.hbond import Analyzer, AnalyzerConfig`
+    - Jupyter UI: `open_panel(bdf_path)` (RDKit 2D 構造図 + ipywidgets コンパネ
+      + matplotlib count plot のインライン表示)
+  - **出力**: per-record summary CSV + H-bond pair CSV + colored BDF + count PNG
+- **IMC amorphous サンプル**: `sample/hbond/imc_amorphous/` に CLI/notebook
+  ワンライナーと期待値 (T=450 K, 125 IMC: dual=10, single=73, free=42)
+- **テスト**: 20 unit + integration テスト
+  - 8 角度パターン + PBC wrap geometry の検出器単体テスト
+  - IMC count regression (±2-5 mol tolerance)
+  - colorize round-trip 検証
+- **依存**: `extras_require['hbond'] = ["matplotlib>=3.5"]` 追加。コア機能は
+  `numpy` + `UDFManager` (OCTA 同梱) のみ。Jupyter UI は `[jupyter]` +
+  `[fragmenter]` (rdkit) を別途併用。
+- **ドキュメント**: `docs/hbond.md`、`README.md` (このセクション)
+
 ### Added (`abmptools.fragmenter.cg_segmenter` DPDgen export — v1.24.0 候補)
 
 - **DPDgen 入力生成**: CG segments から [DPDgen](https://github.com/kojioku/dpdgen)

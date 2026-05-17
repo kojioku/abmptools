@@ -1,0 +1,298 @@
+"""
+notebook_ui.py
+--------------
+Jupyter ipywidgets-based UI for hbond analyzer.
+
+Use::
+
+    from abmptools.hbond import open_panel
+    open_panel("/path/to/IMC.bdf")
+
+Provides:
+- functional group detection summary (textual + 2D RDKit structure of mol[0])
+- criteria selector (luzar-chandler / strict / custom sliders)
+- record range selector
+- output prefix
+- Run button → executes Analyzer, displays stats table + count plot
+- path to colored.bdf with hint "open in gourmet to visualize"
+
+Dependencies:
+- ipywidgets >= 8
+- rdkit (optional; falls back to text-only summary)
+- matplotlib (for inline plot)
+"""
+from __future__ import annotations
+
+import io
+import os
+import tempfile
+from typing import Optional
+
+
+def _build_rdkit_mol_from_topology(topo, positions):
+    """Build an RDKit Mol from MoleculeTopology + 3D positions.
+
+    Uses Atom_Name as the element symbol (works for IMC GAFF2 output:
+    Cl, O, N, C, H).
+    """
+    try:
+        from rdkit import Chem
+        from rdkit.Geometry import Point3D
+    except ImportError:
+        return None
+
+    rwmol = Chem.RWMol()
+    for atom in topo.atoms:
+        elem = atom.atom_name.strip()
+        if elem and elem[0].isupper():
+            sym = elem
+            if len(sym) >= 2 and sym[1].isupper():
+                sym = sym[0]
+            elif len(sym) >= 2 and sym[1].isdigit():
+                sym = sym[0]
+        else:
+            sym = "C"
+        try:
+            ra = Chem.Atom(sym)
+        except RuntimeError:
+            ra = Chem.Atom("C")
+        rwmol.AddAtom(ra)
+
+    bond_type_map = {
+        1.0: Chem.BondType.SINGLE,
+        1.5: Chem.BondType.AROMATIC,
+        2.0: Chem.BondType.DOUBLE,
+        3.0: Chem.BondType.TRIPLE,
+    }
+    for bond in topo.bonds:
+        bt = bond_type_map.get(bond.order, Chem.BondType.SINGLE)
+        try:
+            rwmol.AddBond(bond.atom1, bond.atom2, bt)
+        except RuntimeError:
+            pass
+
+    mol = rwmol.GetMol()
+    conf = Chem.Conformer(mol.GetNumAtoms())
+    for i in range(mol.GetNumAtoms()):
+        x, y, z = positions[i]
+        conf.SetAtomPosition(i, Point3D(float(x), float(y), float(z)))
+    mol.AddConformer(conf, assignId=True)
+    try:
+        Chem.SanitizeMol(mol, sanitizeOps=Chem.SANITIZE_ALL ^ Chem.SANITIZE_PROPERTIES)
+    except Exception:
+        pass
+    return mol
+
+
+def _render_mol_svg(mol, highlight_atoms_by_color=None, size=(400, 300)) -> str:
+    """Render an RDKit Mol to SVG with optional atom highlights.
+
+    highlight_atoms_by_color: dict like
+        {'red': [3, 4, 18, 40], 'blue': [2, 5, 14]}
+    """
+    try:
+        from rdkit import Chem
+        from rdkit.Chem import AllChem, Draw
+        from rdkit.Chem.Draw import rdMolDraw2D
+    except ImportError:
+        return ""
+
+    heavy_mol = Chem.RemoveHs(mol) if mol.GetNumAtoms() > 0 else mol
+    try:
+        AllChem.Compute2DCoords(heavy_mol)
+    except Exception:
+        pass
+
+    highlight_atoms = []
+    atom_colors = {}
+    color_map = {
+        "red": (1.0, 0.3, 0.3),
+        "blue": (0.3, 0.3, 1.0),
+        "green": (0.3, 0.8, 0.3),
+    }
+    if highlight_atoms_by_color:
+        heavy_idx_of_orig = {}
+        orig_to_heavy = {}
+        for new_idx, atom in enumerate(heavy_mol.GetAtoms()):
+            orig = atom.GetPropsAsDict().get("origIdx")
+            if orig is not None:
+                orig_to_heavy[orig] = new_idx
+        for color_name, atom_ids in highlight_atoms_by_color.items():
+            rgb = color_map.get(color_name, (0.7, 0.7, 0.7))
+            for a_idx in atom_ids:
+                heavy_idx = orig_to_heavy.get(a_idx, a_idx)
+                if 0 <= heavy_idx < heavy_mol.GetNumAtoms():
+                    highlight_atoms.append(heavy_idx)
+                    atom_colors[heavy_idx] = rgb
+
+    drawer = rdMolDraw2D.MolDraw2DSVG(size[0], size[1])
+    drawer.drawOptions().addAtomIndices = True
+    drawer.DrawMolecule(
+        heavy_mol,
+        highlightAtoms=highlight_atoms,
+        highlightAtomColors=atom_colors,
+    )
+    drawer.FinishDrawing()
+    svg = drawer.GetDrawingText()
+    return svg
+
+
+def open_panel(bdf_path: str):
+    """Open the hbond analyzer UI for the given BDF file.
+
+    Must be called from a Jupyter notebook cell.
+    """
+    import ipywidgets as widgets
+    from IPython.display import HTML, clear_output, display
+
+    from .analyzer import Analyzer, AnalyzerConfig
+    from .functional_groups import (
+        detect_amides, detect_carboxyls, summarize_groups
+    )
+    from .hbond_detector import HBondCriteria
+    from .bdf_reader import BDFTrajectory
+
+    # Pre-load topology
+    traj = BDFTrajectory(bdf_path)
+    traj.load_topology()
+    summary = summarize_groups(traj.molecules)
+
+    info_html = widgets.HTML(value=f"""
+    <h3>abmptools.hbond panel</h3>
+    <p><b>Input:</b> <code>{bdf_path}</code></p>
+    <ul>
+      <li>n_molecules: <b>{len(traj.molecules)}</b></li>
+      <li>n_records: <b>{traj.n_records}</b></li>
+      <li>detected carboxyls: <b>{summary['n_carboxyls']}</b>
+          (in {summary['n_mols_with_carboxyl']} mols)</li>
+      <li>detected amides: <b>{summary['n_amides']}</b>
+          (in {summary['n_mols_with_amide']} mols)</li>
+    </ul>
+    """)
+
+    # Try to render mol[0] 2D structure with functional groups highlighted
+    svg_view = widgets.HTML(value="<i>(RDKit not available — 2D structure skipped)</i>")
+    try:
+        frame0 = traj.get_frame(0)
+        mol0 = _build_rdkit_mol_from_topology(
+            traj.molecules[0], frame0.positions[0]
+        )
+        if mol0 is not None:
+            carb0 = [g for g in detect_carboxyls(traj.molecules) if g.mol_index == 0]
+            amid0 = [g for g in detect_amides(traj.molecules) if g.mol_index == 0]
+            highlights = {}
+            if carb0:
+                cg = carb0[0]
+                highlights["red"] = [cg.c_atom, cg.o_atom, cg.oh_atom, cg.ho_atom]
+            if amid0:
+                ag = amid0[0]
+                highlights["blue"] = [ag.c_atom, ag.o_atom, ag.n_atom]
+            svg = _render_mol_svg(mol0, highlight_atoms_by_color=highlights)
+            if svg:
+                svg_view.value = (
+                    "<h4>mol[0] structure (carboxyl=red, amide=blue)</h4>"
+                    + svg
+                )
+    except Exception as e:
+        svg_view.value = f"<i>2D render failed: {e}</i>"
+
+    # Config widgets
+    criteria_dd = widgets.Dropdown(
+        options=["luzar-chandler", "strict", "custom"],
+        value="luzar-chandler",
+        description="Criteria:",
+    )
+    d_da_slider = widgets.FloatSlider(
+        value=3.5, min=2.5, max=4.5, step=0.1,
+        description="d(D-A) max:", disabled=True,
+    )
+    angle_slider = widgets.FloatSlider(
+        value=120.0, min=90.0, max=180.0, step=5.0,
+        description="∠ min:", disabled=True,
+    )
+    d_ha_slider = widgets.FloatSlider(
+        value=2.5, min=1.5, max=3.5, step=0.1,
+        description="d(H-A) max:", disabled=True,
+    )
+
+    def _on_criteria_change(change):
+        is_custom = change.new == "custom"
+        d_da_slider.disabled = not is_custom
+        angle_slider.disabled = not is_custom
+        d_ha_slider.disabled = not is_custom
+    criteria_dd.observe(_on_criteria_change, names="value")
+
+    rec_start = widgets.IntText(value=0, description="rec start:")
+    rec_end = widgets.IntText(value=-1, description="rec end:")
+    mol_name = widgets.Text(value="IMC", description="mol prefix:")
+    out_prefix = widgets.Text(
+        value=os.path.join(tempfile.gettempdir(), "hbond_result"),
+        description="out prefix:",
+        layout=widgets.Layout(width="500px"),
+    )
+    run_button = widgets.Button(description="Run", button_style="primary")
+    output = widgets.Output()
+
+    def _on_run(_):
+        with output:
+            clear_output()
+            custom = None
+            if criteria_dd.value == "custom":
+                custom = HBondCriteria(
+                    d_da_max=d_da_slider.value,
+                    d_ha_max=d_ha_slider.value,
+                    angle_min=angle_slider.value,
+                )
+            cfg = AnalyzerConfig(
+                bdf_path=bdf_path,
+                out_prefix=out_prefix.value,
+                criteria_mode=criteria_dd.value,
+                custom_criteria=custom,
+                record_start=rec_start.value,
+                record_end=rec_end.value,
+                base_mol_name=mol_name.value,
+                verbose=True,
+            )
+            analyzer = Analyzer(cfg)
+            analyzer.traj = traj
+            from .functional_groups import detect_amides, detect_carboxyls
+            analyzer.carboxyls = detect_carboxyls(traj.molecules)
+            analyzer.amides = detect_amides(traj.molecules)
+            analyzer.run()
+            paths = analyzer.write_outputs()
+
+            # stats table
+            fr = analyzer.frame_results[-1]
+            total = fr.n_dual_mols + fr.n_single_mols + fr.n_free_mols
+            print("\n--- Last frame summary ---")
+            print(f"  dual:   {fr.n_dual_mols:4d}  ({100*fr.n_dual_mols/total:.1f}%)")
+            print(f"  single: {fr.n_single_mols:4d}  ({100*fr.n_single_mols/total:.1f}%)")
+            print(f"  free:   {fr.n_free_mols:4d}  ({100*fr.n_free_mols/total:.1f}%)")
+            print(f"  H-bonds: cc={fr.n_hbonds_cc}, ca={fr.n_hbonds_ca}")
+            print("\nOutputs:")
+            for kind, path in paths.items():
+                print(f"  {kind}: {path}")
+            if "colored" in paths:
+                print(f"\n→ Open {paths['colored']!r} in OCTA gourmet to see"
+                      " molecules colored by H-bond role (red=dual, "
+                      "blue=single, gray=free).")
+
+            if "plot" in paths:
+                display(HTML(
+                    f'<img src="{paths["plot"]}" style="max-width:600px;"/>'
+                ))
+
+    run_button.on_click(_on_run)
+
+    panel = widgets.VBox([
+        info_html,
+        svg_view,
+        widgets.HBox([criteria_dd]),
+        widgets.HBox([d_da_slider, d_ha_slider, angle_slider]),
+        widgets.HBox([rec_start, rec_end, mol_name]),
+        out_prefix,
+        run_button,
+        output,
+    ])
+    display(panel)
+    return panel

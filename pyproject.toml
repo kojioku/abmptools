@@ -113,6 +113,14 @@ jupyter = [
     "ipykernel",        # Jupyter notebook server カーネル
     # 注: A 経路 (Jupyter UI) を使う場合のみ必要。CLI ヘッドレス経路 (C) では不要。
 ]
+hbond = [
+    "matplotlib>=3.5",  # count vs record プロット (任意)
+    # 必須: numpy (本体)、UDFManager (OCTA 同梱、PyPI には無い)
+    # Jupyter UI を使う場合は [jupyter] + [fragmenter] (rdkit) を併用。
+    # External tools (任意):
+    #   OCTA gourmet — 生成された colored.bdf の可視化に使う
+    # See abmptools/hbond/__init__.py + docs/hbond.md.
+]
 geomopt = [
     "pyscf",
     "ase",

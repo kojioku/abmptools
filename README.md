@@ -118,6 +118,30 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 - Public-molecule MP2/6-31G(d) reference set: `sample/crystal/{urea,glycine,benzene,naphthalene}/` with `reference/expected_layer3_mp2_631gd_{ifiesum,ifiedt}.csv` + isolated-monomer total. Cross-molecule summary in `docs/crystal_public_molecule_references.md`
 - Dependencies: `pip install abmptools[crystal]` (`ase >= 3.22` / `pyyaml >= 6.0`); ABINIT-MP for `--run-local` only
 
+### H-bond Analyzer for COGNAC Trajectories (`hbond`)
+
+- **OCTA COGNAC `.udf` / `.bdf` 専用** の H-bond 解析サブパッケージ。非晶質 MD で
+  カルボキシル基同士の dual H-bond (環状二量体) と COOH→アミド C=O の single H-bond
+  を区別して数え、gourmet で 3 色可視化できる UDF を出力する
+- 検出基準は **Luzar-Chandler** (`d(D-A) ≤ 3.5 Å`, `∠(D-H-A) ≥ 120°`) を default、
+  **strict** (`d(H-A) ≤ 2.5 Å`, `∠ ≥ 150°`)、**custom** (任意閾値) も選択可能。
+  直交 cubic box の minimum image PBC 対応
+- 官能基自動検出: GAFF2 atomtype (`c`/`oh`/`ho`/`o`/`n`) + bond graph で carboxyl /
+  amide / hydroxyl を機械的に同定 (SMARTS 不要)。Tertiary amide 判定付き
+- 3 経路: CLI (`python -m abmptools.hbond <bdf> -o prefix`) / Python API
+  (`Analyzer`, `AnalyzerConfig`) / Jupyter ipywidgets UI (`open_panel(bdf_path)`、
+  RDKit 2D 構造図上で carboxyl/amide ハイライト + matplotlib count plot)
+- 出力: per-record summary CSV + H-bond pair CSV + 3-color-grouped colored BDF
+  (gourmet で `show` するだけで Red/Blue/Gray に塗り分け) + count vs record PNG
+- gourmet 色付け: `Set_of_Molecules.molecule[i].Mol_Name` を 3 グループ
+  (`IMC_DUAL` / `IMC_SINGLE` / `IMC_FREE`) にリネームし、`Draw_Attributes.Molecule[]`
+  に named color (Red/Blue/Gray) を書き込む。**GOURMET Draw_Attributes の color は
+  select 型 (9 色名のみ)、RGBA tuple 不可** を実機検証で確認
+- バンドル sample: `sample/hbond/imc_amorphous/` (非晶質インドメタシン T=450 K、
+  125 分子 → dual=10 / single=73 / free=42)
+- 依存: `pip install abmptools[hbond]` (matplotlib for plot)、Jupyter UI を使うなら
+  `[jupyter]` + `[fragmenter]` (rdkit) を併用。UDFManager は OCTA に同梱
+
 ### Peptide-Bilayer Umbrella Sampling (`membrane`)
 
 - End-to-end PMF builder for peptide membrane permeation: bilayer + peptide + water + ions → AMBER (`ff19SB` + `Lipid21` + TIP3P / Joung-Cheatham) or CHARMM36 backend → semiisotropic NPT equilibration → z-pulling → per-window umbrella MDPs → `gmx wham` PMF
@@ -235,6 +259,7 @@ Use `-h` with any module for full option details.
 - **[peptide_builders](docs/peptide_builders.md)** — Selection guide across 3 peptide-from-sequence builders (AA membrane / CG peptide / CG membrane)
 - **[fragmenter](docs/fragmenter.md)** — FMO automatic fragment splitter for small molecules / lipids / polymers (canonical SMILES grouping + C-C MW walk + Jupyter UI / headless CLI; v1.21.0+)
 - **[cg_segmenter](docs/cg_segmenter.md)** — CG (coarse-grained) segment builder + DPDgen input exporter. Physically splits a molecule into ring / chain segments with H or CH3 caps; allows atom sharing across fused-ring segments. Exports DPDgen `{name}_monomer` + `{name}_calc_sett` with path-based bond hierarchy (bond12 / bond13_150 / bond14_150) and angle potentials (cognac 余角 convention, eq=30/60/0 for ring-bend / cis-double-bond / linear) (v1.24.0+)
+- **[hbond](docs/hbond.md)** — Carboxyl/amide hydrogen-bond analyzer for COGNAC `.udf` / `.bdf` trajectories. Detects dual COOH-COOH dimers and single COOH→amide H-bonds via Luzar-Chandler geometry (d_DA ≤ 3.5 Å, ∠ ≥ 120°) with orthogonal PBC, classifies each molecule into dual/single/free, and writes a 3-color-grouped UDF for gourmet visualization. CLI + Python API + Jupyter ipywidgets UI; sample on amorphous indomethacin (T=450 K, 125 molecules) (v1.25.0+)
 - **[grest](docs/grest.md)** / **[tutorial_grest](docs/tutorial_grest.md)** — GENESIS gREST_SSCR replica-exchange with solute tempering (REST + SSCR, AMBER ff19SB + TIP3P; v1.20.0+)
 - **[mmgbsa](docs/mmgbsa.md)** / **[tutorial_mmgbsa](docs/tutorial_mmgbsa.md)** — GENESIS atdyn-based MM/GBSA single-point ΔG_bind for protein-ligand complexes (AMBER ff14SB + GAFF/GAFF2 via acpype; v1.22.0+)
 - **[crystal](docs/crystal.md)** / **[tutorial_crystal_fmo](docs/tutorial_crystal_fmo.md)** — Organic-crystal FMO pipeline (CIF → supercell → fragment cut → ABINIT-MP AJF + HPC jobscripts, `abmp-crystal` CLI; v1.23.0+)
