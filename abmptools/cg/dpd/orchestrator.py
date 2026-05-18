@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from .aij_io import read_aij
 from .calc_sett_io import read_calc_sett
@@ -97,6 +97,72 @@ class CGDpdBuilder:
             "CGDpdBuilder: %d monomer(s), %d aij pair(s), %s calc_sett",
             len(spec.monomers), len(aij_matrix.pairs),
             "with" if sett else "without",
+        )
+        return cls(spec=spec)
+
+    @classmethod
+    def from_multi_files(
+        cls,
+        monomer_specs: List[Dict[str, Any]],
+        aij: Union[str, Path],
+        calc_sett: Optional[Union[str, Path]] = None,
+        *,
+        project_name: str = "abmptools-cg-dpd",
+    ) -> "CGDpdBuilder":
+        """複数 monomer の混合系 (cholesterol + water 等) を構築する。
+
+        Parameters
+        ----------
+        monomer_specs : List[Dict[str, Any]]
+            各要素 ``{"monomer_file": "path/to/xxx_monomer", "particle_names": [...]}``。
+            ``particle_names`` を ``None`` or 省略すれば cg_segmenter 出力の汎用ラベル
+            (P0..Pn-1) を維持。
+        aij : str | Path
+            混合系全体での fcews aij.dat (全 monomer の segment 名を含む必要あり)。
+        calc_sett : str | Path, optional
+            R1 (UDF) で必要、 R2 (DPM) のみなら省略可。
+        project_name : str
+            dpm / UDF の ProjectName ヘッダ。
+        """
+        monomers: List[MonomerSpec] = []
+        for spec_dict in monomer_specs:
+            if "monomer_file" not in spec_dict:
+                raise ValueError(
+                    f"monomer_specs entry missing 'monomer_file' key: {spec_dict}"
+                )
+            mono = read_monomer(spec_dict["monomer_file"])
+            names = spec_dict.get("particle_names")
+            if names is not None and len(names) > 0:
+                mono = assign_particle_names(mono, list(names))
+            monomers.append(mono)
+
+        aii_val = 25.0
+        sett: Optional[CalcSett] = None
+        if calc_sett is not None:
+            sett = read_calc_sett(calc_sett)
+            aii_val = sett.aii_val
+        aij_matrix = read_aij(aij, aii=aii_val)
+
+        spec = DpdSystemSpec(
+            monomers=monomers, aij=aij_matrix, calc_sett=sett,
+            project_name=project_name,
+        )
+
+        # 整合性 warning: monomer の segment 名が aij.dat にあるか
+        seg_set = set(spec.segment_names())
+        aij_set = set(aij_matrix.segments)
+        missing = seg_set - aij_set
+        if missing:
+            logger.warning(
+                "CGDpdBuilder.from_multi_files: %d segment(s) not in aij.dat: %s "
+                "(R1/R2 出力で default aii=%g が fallback されます)",
+                len(missing), sorted(missing), aii_val,
+            )
+
+        logger.info(
+            "CGDpdBuilder.from_multi_files: %d monomers, %d aij pair(s), "
+            "%d unique segments",
+            len(spec.monomers), len(aij_matrix.pairs), len(seg_set),
         )
         return cls(spec=spec)
 

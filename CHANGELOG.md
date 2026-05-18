@@ -40,10 +40,20 @@
   brace+bracket balance OK。
 - **cholesterol 検証 (R2)**: dpm 18.6 KB、 def section 温存、 SegmentModel 5 (P0..P4)、
   DpdBond 4 / DpdAngle 3、 `monomer-lib/{P0..P4}/Virtual.mom` 5 個 + `#Message.txt`。
-- **テスト**: 30 件 (`tests/cg_dpd/`、 ~1.2s で全 PASS):
+- **多 monomer 混合系対応** (`from_multi_files`、 CLI ``--multi-monomer JSON``):
+  cholesterol + water、 lipid + protein 等を 1 builder で扱う。 各 monomer に独立した
+  particle 名指定。 segment 名が aij.dat に未定義なら ``logger.warning`` で通知し、
+  default ``aii=25.0`` に fallback。 single (`--monomer`) と排他、 どちらか必須。
+- **Particle 名マッピング docs**: cg_segmenter 汎用ラベル (P0..Pn-1) と fcews aij の
+  segment 名対応を `docs/cg_dpd.md` で命名規約 + 不一致時症状込みで明文化。
+- **NOTICE 追記**: DPDgen (本人作品) のロジック移植を「Re-implementation attribution」
+  section で明記、 ABMPTools リポジトリ内に DPDgen ソースを含まないことを宣言。
+- **テスト**: 35 件 (`tests/cg_dpd/`、 ~1.3s で全 PASS):
   - models + I/O round-trip 12 件 (chi → a 変換、 missing file エラー、 symmetric lookup 含む)
   - R1 UDF writer 3 件 (cholesterol e2e、 chi mode auto-convert、 custom include)
   - R2 DPM writer 7 件 (propagate_virtual_mom、 patch_dpm 5 block、 invalid template/field)
+  - 多 monomer 5 件 (`from_multi_files` e2e、 missing key エラー、 aij mismatch warning、
+    CLI ``--multi-monomer`` JSON、 ``--monomer``/``--multi-monomer`` 排他)
   - orchestrator + CLI 8 件 (`build-udf` / `build-dpm` subprocess test 含む)
 - **サンプル**: `sample/cg_dpd/cholesterol/` に cholesterol → R1 UDF の生成例 (再現コマンド付き)。
 

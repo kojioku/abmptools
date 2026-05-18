@@ -68,16 +68,70 @@ dpm = builder.build_dpm(
 ### CLI
 
 ```bash
-# R1: UDF 生成
+# R1: UDF 生成 (single monomer)
 python -m abmptools.cg.dpd build-udf \
     --monomer chol_monomer --aij aij.dat --calc-sett chol_calc_sett \
     --output chol_uin.udf
 
-# R2: DPM 生成 (B 案)
+# R2: DPM 生成 (B 案、 single monomer)
 python -m abmptools.cg.dpd build-dpm \
     --monomer chol_monomer --aij aij.dat \
     --template empty.dpm --virtual-mom Virtual.mom \
     --output-dir ./chol_proj --dpm-filename chol.dpm
+```
+
+## 多 monomer 混合系 (C1)
+
+cholesterol + water、 lipid + protein など複数 monomer を含む系は ``from_multi_files``
+で構築する。 各 monomer の particle 名はそれぞれ独立に指定可能。
+
+### Python API
+
+```python
+from abmptools.cg.dpd import CGDpdBuilder
+
+builder = CGDpdBuilder.from_multi_files(
+    monomer_specs=[
+        {"monomer_file": "chol_monomer",
+         "particle_names": ["A_Chol","B_Chol","C_Chol","D_Chol","Tail_Chol"]},
+        {"monomer_file": "wat_monomer",
+         "particle_names": ["W"]},
+    ],
+    aij="aij_mixed.dat",          # 全 6 segment (A_Chol..Tail_Chol + W) を含む
+    calc_sett="mixed_calc_sett",
+)
+udf = builder.build_udf("chol_wat_uin.udf")
+```
+
+### CLI (JSON で渡す)
+
+`monomers.json`:
+```json
+[
+  {"monomer_file": "chol_monomer",
+   "particle_names": ["A_Chol", "B_Chol", "C_Chol", "D_Chol", "Tail_Chol"]},
+  {"monomer_file": "wat_monomer",
+   "particle_names": ["W"]}
+]
+```
+
+```bash
+python -m abmptools.cg.dpd build-udf \
+    --multi-monomer monomers.json \
+    --aij aij_mixed.dat --calc-sett mixed_calc_sett \
+    --output chol_wat_uin.udf
+```
+
+> ``--monomer`` (single) と ``--multi-monomer`` (multi) は **排他**、 どちらか必須。
+
+### 整合性 warning
+
+``from_multi_files`` は monomer の segment 名が aij.dat に含まれていない場合、
+**logging.WARNING** で警告する (R1/R2 出力では `aii=25.0` default にフォールバック):
+
+```
+WARNING [...] CGDpdBuilder.from_multi_files: 2 segment(s) not in aij.dat:
+['X_Chol', 'Y_Chol'] (R1/R2 出力で default aii=25 が fallback されます)
 ```
 
 ## データクラス (`models.py`)
@@ -160,9 +214,69 @@ pytest tests/cg_dpd/ -v
 
 `sample/cg_dpd/cholesterol/` に cholesterol → R1 UDF の生成例一式 (再現コマンド含む)。
 
+## Particle 名のマッピング (cg_segmenter → fcews aij)
+
+cg_segmenter `dpdgen_exporter` は particle に `P0..Pn-1` の汎用ラベルを与えるだけで、
+fcews の aij.dat 側で実際に使う segment 名 (例 `A_Asp` / `segA` / `W`) との **対応は
+user が明示的に行う**。
+
+### Python API
+
+```python
+from abmptools.cg.dpd import CGDpdBuilder
+
+builder = CGDpdBuilder.from_files(
+    monomer="chol_monomer", aij="aij.dat", calc_sett="chol_calc_sett",
+    particle_names=["A_Chol", "B_Chol", "C_Chol", "D_Chol", "Tail_Chol"],
+)
+```
+
+または直接 `assign_particle_names`:
+
+```python
+from abmptools.cg.dpd import read_monomer, assign_particle_names
+mono = assign_particle_names(read_monomer("chol_monomer"),
+                              ["A_Chol", "B_Chol", "C_Chol", "D_Chol", "Tail_Chol"])
+```
+
+### CLI
+
+```bash
+python -m abmptools.cg.dpd build-udf \
+    --monomer chol_monomer --aij aij.dat --calc-sett chol_calc_sett \
+    --output chol_uin.udf \
+    --particle-names "A_Chol,B_Chol,C_Chol,D_Chol,Tail_Chol"
+```
+
+### 命名規約 (推奨)
+
+| Segment 種別 | 例 | 備考 |
+|---|---|---|
+| Cholesterol 環 (4 環 fused) | `A_Chol` / `B_Chol` / `C_Chol` / `D_Chol` | 構造的に区別、 dpdgen sample 流儀 |
+| Cholesterol tail (acyl chain) | `Tail_Chol` | 環と区別 |
+| Water | `W` / `WAT` | 標準慣習 (dpdgen template も `W`) |
+| Amino acid (peptide CG) | `A_Asp` / `B_Glu` / ... | fcews ssPalm/protein sample に対応 |
+
+### 名前不一致の症状
+
+`particle_names` と aij.dat の `segments` が完全一致しない場合:
+- **R1 UDF**: `Pair_Interaction[]` の DPD pair 名前が aij と異なる → COGNAC 実行時
+  lookup 失敗 (no-force or segfault)
+- **R2 DPM**: `SegmentPairModel[]` で aij の値が反映されず、 default `aii=25.0` で fallback
+
+整合性チェック (実装側で warning する用):
+
+```python
+seg_names = set(builder.spec.segment_names())
+aij_segs = set(builder.spec.aij.segments)
+missing = seg_names - aij_segs
+if missing:
+    print(f"WARNING: aij に未定義の segment: {missing}")
+```
+
 ## 関連
 
 - [`docs/cg_segmenter.md`](cg_segmenter.md) — 上流の CG segment builder (本パッケージの R0)
 - `abmptools/cg/dpd/` — 実装本体 (~1435 行、 9 ファイル)
 - `tests/cg_dpd/` — pytest 回帰テスト 30 件
-- [DPDgen](https://github.com/kojioku/dpdgen) — Koji Okuwaki 本人作の DPD UDF generator (本実装の参考、 logic を移植)
+- [DPDgen](https://github.com/kojioku/dpdgen) — Koji Okuwaki 本人作の DPD UDF generator (本実装の参考、 logic を移植 — 詳細 attribution は abmptools NOTICE 参照)
