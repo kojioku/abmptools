@@ -48,13 +48,24 @@
   segment 名対応を `docs/cg_dpd.md` で命名規約 + 不一致時症状込みで明文化。
 - **NOTICE 追記**: DPDgen (本人作品) のロジック移植を「Re-implementation attribution」
   section で明記、 ABMPTools リポジトリ内に DPDgen ソースを含まないことを宣言。
-- **テスト**: 35 件 (`tests/cg_dpd/`、 ~1.3s で全 PASS):
+- **a → chi 逆変換 (G2)** (`AijMatrix.to_chi_values`): Groot-Warren 逆向き
+  ``chi = (a - aii) * 0.306``。 ``write_aij`` に ``out_mode='auto'/'a'/'chi'`` 追加で
+  出力形式を強制変換可能 (a モード保存の aij.dat を chi で再保存等)。 同種ペア (a==aii) は
+  chi=0 になり、 a ↔ chi の round-trip は完全可逆。
+- **整合性検証 (`validate` / `verify` CLI)**: 実機 `build-udf` / `build-dpm` 前の
+  dry-run。 `CGDpdBuilder.validate()` で warning list を返却 + CLI
+  ``python -m abmptools.cg.dpd verify`` (整合 OK = return 0、 missing/extra
+  segment あり = return 1)。 監査項目: ① monomer particle 名が aij.dat にあるか
+  (missing) ② aij.dat に monomer 未使用 segment が無いか (extra)。
+- **テスト**: 46 件 (`tests/cg_dpd/`、 ~1.9s で全 PASS):
   - models + I/O round-trip 12 件 (chi → a 変換、 missing file エラー、 symmetric lookup 含む)
   - R1 UDF writer 3 件 (cholesterol e2e、 chi mode auto-convert、 custom include)
   - R2 DPM writer 7 件 (propagate_virtual_mom、 patch_dpm 5 block、 invalid template/field)
   - 多 monomer 5 件 (`from_multi_files` e2e、 missing key エラー、 aij mismatch warning、
     CLI ``--multi-monomer`` JSON、 ``--monomer``/``--multi-monomer`` 排他)
   - orchestrator + CLI 8 件 (`build-udf` / `build-dpm` subprocess test 含む)
+  - a→chi 逆変換 + validate / verify 11 件 (to_chi_values round-trip、 out_mode 強制変換、
+    validate ok/missing/extra、 verify CLI return 0/1)
 - **サンプル**: `sample/cg_dpd/cholesterol/` に cholesterol → R1 UDF の生成例 (再現コマンド付き)。
 
 ### Added (`abmptools.hbond` 拡張 — v1.26.0 候補)
