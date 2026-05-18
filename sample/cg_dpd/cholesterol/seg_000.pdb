@@ -1,0 +1,20 @@
+REMARK    abmptools.fragmenter.cg_segmenter segment 0 (ring_with_substituent)
+ATOM      1 A8   SEG A   1       1.411   1.028  -0.747  1.00  0.00           C
+ATOM      2 H45  SEG A   1       1.795   1.671   0.052  1.00  0.00           H
+ATOM      3 A9   SEG A   1       0.700   1.922  -1.780  1.00  0.00           C
+ATOM      4 H46  SEG A   1       1.351   2.399  -2.515  1.00  0.00           H
+ATOM      5 H47  SEG A   1       0.206   2.759  -1.273  1.00  0.00           H
+ATOM      6 A10  SEG A   1      -0.357   1.043  -2.434  1.00  0.00           C
+ATOM      7 H48  SEG A   1      -0.002   0.684  -3.407  1.00  0.00           H
+ATOM      8 H49  SEG A   1      -1.266   1.623  -2.623  1.00  0.00           H
+ATOM      9 A11  SEG A   1      -0.585  -0.166  -1.497  1.00  0.00           C
+ATOM     10 H50  SEG A   1      -0.104  -1.026  -1.985  1.00  0.00           H
+ATOM     11 A12  SEG A   1       0.198   0.174  -0.195  1.00  0.00           C
+ATOM     12 A27  SEG A   1       0.641  -1.082   0.576  1.00  0.00           C
+ATOM     13 H71  SEG A   1       1.307  -0.812   1.402  1.00  0.00           H
+ATOM     14 H72  SEG A   1       1.153  -1.807  -0.063  1.00  0.00           H
+ATOM     15 H73  SEG A   1      -0.198  -1.605   1.040  1.00  0.00           H
+ATOM     16 Cap0 SEG A   1       2.240   0.455  -1.163  1.00  0.00           H
+ATOM     17 Cap1 SEG A   1      -1.646  -0.395  -1.399  1.00  0.00           H
+ATOM     18 Cap2 SEG A   1      -0.406   0.770   0.489  1.00  0.00           H
+END

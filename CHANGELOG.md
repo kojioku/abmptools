@@ -2,6 +2,51 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.cg.dpd` サブパッケージ — v1.26.0 候補)
+
+- **DPD 系入力ファイルビルダー**: `cg_segmenter` (R0) で生成した CG segment + fcews
+  `aij.dat` (Python 辞書 script) から Cognac DPD 入力 UDF / J-OCTA dpm を生成する
+  `abmptools.cg.dpd` サブパッケージを追加。 dpdgen (Koji Okuwaki 本人作品) のロジックを
+  参考に **subprocess も import もせず abmptools 内で自前実装**。
+- **3 ルート構成**:
+  - R0 (既存): `cg_segmenter dpdgen` で `{name}_monomer` + `{name}_calc_sett` 生成
+  - R1 (新): `monomer + calc_sett + aij.dat` → Cognac DPD 入力 UDF (`*_uin.udf`)、
+    plain text writer、 UDFManager 非依存 (abmptoolsenv 等 non-OCTA 環境でも動く)
+  - R2 (新): `monomer + aij.dat` → J-OCTA dpm + `monomer-lib/<seg>/Virtual.mom` +
+    `#Message.txt`、 **B 案 (user template + abmptools patch)** で権利配慮
+- **権利配慮の設計**:
+  - **R1**: 冒頭 1 行 `\include{"cognac112.udf"}` で class 定義を J-OCTA install dir 経由で
+    resolve、 abmptools は OCTA / J-OCTA spec を一切持たない
+  - **R2**: user が J-OCTA で空 dpm template を 1 回作成 → abmptools が `\begin{data}` 内の
+    5 ブロック (SegmentModel / SegmentPairModel / PolymerModel / DpdInput / FcewsParam)
+    のみを `patch_dpm` で brace-aware に差し替え。 class 定義 (商用 J-OCTA spec) は
+    template のまま温存。
+  - **Virtual.mom**: 全 segment dir に user 提供を copy するのみ
+- **モジュール構成** (`abmptools/cg/dpd/`, 9 files, ~1435 行):
+  - `models.py`: `AijMatrix` / `MonomerSpec` / `CalcSett` / `DpdSystemSpec` データクラス
+  - `aij_io.py`: fcews aij.dat read/write + chi → a 自動変換 (Groot-Warren: `a = aii + chi/0.306`)
+  - `monomer_io.py` / `calc_sett_io.py`: cg_segmenter 出力との互換 reader
+  - `dpm_writer.py`: R2 = B 案 patch (5 block) + `propagate_virtual_mom` + `write_message_txt`
+  - `udf_writer.py`: R1 = plain text Cognac DPD UDF writer
+  - `orchestrator.py`: `CGDpdBuilder` クラス
+  - `__main__.py`: CLI (`build-udf` / `build-dpm`)
+- **Cognac PDF → md 変換**: `man/octa/Cognac_jpn_old.pdf` (2.1 MB, 253 ページ) を
+  `pdfminer.six` で `Cognac_jpn_old.md` (504 KB) に変換、 ABMPTools repo 外の `man/octa/`
+  に保存 (TOC + 254 ページ本文)。
+- **fcews aij.dat 統一形式 (確定)**: `aij = [['seg_i','seg_j', value], ...]` または
+  `chi = [...]` の Python list of [str, str, float]、 `exec()` で読み込み。
+- **cholesterol 検証 (R1)**: UDF 10.5 KB / 615 行、 `\include cognac112.udf` 1 行、
+  4 top-level sections、 Bond_Potential 4 / Angle_Potential 3 / Pair_Interaction DPD 15、
+  brace+bracket balance OK。
+- **cholesterol 検証 (R2)**: dpm 18.6 KB、 def section 温存、 SegmentModel 5 (P0..P4)、
+  DpdBond 4 / DpdAngle 3、 `monomer-lib/{P0..P4}/Virtual.mom` 5 個 + `#Message.txt`。
+- **テスト**: 30 件 (`tests/cg_dpd/`、 ~1.2s で全 PASS):
+  - models + I/O round-trip 12 件 (chi → a 変換、 missing file エラー、 symmetric lookup 含む)
+  - R1 UDF writer 3 件 (cholesterol e2e、 chi mode auto-convert、 custom include)
+  - R2 DPM writer 7 件 (propagate_virtual_mom、 patch_dpm 5 block、 invalid template/field)
+  - orchestrator + CLI 8 件 (`build-udf` / `build-dpm` subprocess test 含む)
+- **サンプル**: `sample/cg_dpd/cholesterol/` に cholesterol → R1 UDF の生成例 (再現コマンド付き)。
+
 ### Added (`abmptools.hbond` 拡張 — v1.26.0 候補)
 
 - **FF 抽象化** (`func_tags.py`): GAFF2/OPLS-AA/CHARMM36/OpenFF の 4 force field

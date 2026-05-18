@@ -1,0 +1,290 @@
+{
+  "n_segments": 5,
+  "total_atoms_with_cap": 99,
+  "shared_atom_pairs": [
+    [
+      11,
+      0,
+      1
+    ],
+    [
+      12,
+      0,
+      1
+    ],
+    [
+      15,
+      1,
+      2
+    ],
+    [
+      16,
+      1,
+      2
+    ],
+    [
+      19,
+      2,
+      3
+    ],
+    [
+      20,
+      2,
+      3
+    ]
+  ],
+  "segments": [
+    {
+      "segment_id": 0,
+      "atom_indices": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        27
+      ],
+      "cap_atoms": [
+        {
+          "parent_atom_idx": 8,
+          "element": "H",
+          "position": [
+            2.239848856842023,
+            0.4553533796087278,
+            -1.1631555246132463
+          ],
+          "is_methyl_cap": false
+        },
+        {
+          "parent_atom_idx": 11,
+          "element": "H",
+          "position": [
+            -1.6462356000571616,
+            -0.3947145689778365,
+            -1.3991805381910176
+          ],
+          "is_methyl_cap": false
+        },
+        {
+          "parent_atom_idx": 12,
+          "element": "H",
+          "position": [
+            -0.40597769597998273,
+            0.7702613723379621,
+            0.4889468682700155
+          ],
+          "is_methyl_cap": false
+        }
+      ],
+      "smiles": "",
+      "kind": "ring_with_substituent",
+      "ring_indices": [
+        0
+      ]
+    },
+    {
+      "segment_id": 1,
+      "atom_indices": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "cap_atoms": [
+        {
+          "parent_atom_idx": 11,
+          "element": "H",
+          "position": [
+            -0.42430069980227425,
+            0.6861291839432035,
+            -2.1574177380932853
+          ],
+          "is_methyl_cap": false
+        },
+        {
+          "parent_atom_idx": 12,
+          "element": "H",
+          "position": [
+            1.0333139141025205,
+            0.7620940499946847,
+            -0.5751263648677587
+          ],
+          "is_methyl_cap": false
+        },
+        {
+          "parent_atom_idx": 12,
+          "element": "H",
+          "position": [
+            0.5117752265177744,
+            -0.7156200553190173,
+            0.3510963874609572
+          ],
+          "is_methyl_cap": false
+        },
+        {
+          "parent_atom_idx": 15,
+          "element": "H",
+          "position": [
+            -3.897986320532162,
+            0.2290876027931547,
+            -0.3333791428584933
+          ],
+          "is_methyl_cap": false
+        },
+        {
+          "parent_atom_idx": 16,
+          "element": "H",
+          "position": [
+            -2.2575482309810178,
+            -1.5404363572437432,
+            -1.113649408071107
+          ],
+          "is_methyl_cap": false
+        }
+      ],
+      "smiles": "",
+      "kind": "ring",
+      "ring_indices": [
+        1
+      ]
+    },
+    {
+      "segment_id": 2,
+      "atom_indices": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        26
+      ],
+      "cap_atoms": [
+        {
+          "parent_atom_idx": 15,
+          "element": "H",
+          "position": [
+            -2.3108861526051228,
+            0.4984311259271964,
+            0.5646881133904167
+          ],
+          "is_methyl_cap": false
+        },
+        {
+          "parent_atom_idx": 16,
+          "element": "H",
+          "position": [
+            -1.0317643999428383,
+            -0.2622854310221635,
+            -1.4558194618089826
+          ],
+          "is_methyl_cap": false
+        },
+        {
+          "parent_atom_idx": 19,
+          "element": "H",
+          "position": [
+            -5.545781195892495,
+            -1.6541905189729045,
+            0.3483378205104774
+          ],
+          "is_methyl_cap": false
+        },
+        {
+          "parent_atom_idx": 20,
+          "element": "H",
+          "position": [
+            -4.883634980257943,
+            0.6888816492732196,
+            0.4711132026957056
+          ],
+          "is_methyl_cap": false
+        }
+      ],
+      "smiles": "",
+      "kind": "ring_with_substituent",
+      "ring_indices": [
+        2
+      ]
+    },
+    {
+      "segment_id": 3,
+      "atom_indices": [
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25
+      ],
+      "cap_atoms": [
+        {
+          "parent_atom_idx": 19,
+          "element": "H",
+          "position": [
+            -3.8444029517057983,
+            -2.119540787210359,
+            -0.3682794748833375
+          ],
+          "is_methyl_cap": false
+        },
+        {
+          "parent_atom_idx": 20,
+          "element": "H",
+          "position": [
+            -3.312013679467838,
+            0.3609123972068453,
+            -0.3646208571415067
+          ],
+          "is_methyl_cap": false
+        },
+        {
+          "parent_atom_idx": 20,
+          "element": "H",
+          "position": [
+            -4.839825968528306,
+            0.39911032766367577,
+            -1.2536828397231263
+          ],
+          "is_methyl_cap": false
+        }
+      ],
+      "smiles": "",
+      "kind": "ring_with_substituent",
+      "ring_indices": [
+        3
+      ]
+    },
+    {
+      "segment_id": 4,
+      "atom_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "cap_atoms": [
+        {
+          "parent_atom_idx": 6,
+          "element": "H",
+          "position": [
+            1.7791511431579772,
+            0.7736466203912722,
+            -0.9318444753867539
+          ],
+          "is_methyl_cap": false
+        }
+      ],
+      "smiles": "",
+      "kind": "chain",
+      "ring_indices": []
+    }
+  ]
+}
