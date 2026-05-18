@@ -85,6 +85,15 @@ def main(argv=None) -> int:
     p2.add_argument("--particle-names", default=None,
                     help="comma-separated segment 名 (single monomer 時、 例 'segA,segB,WAT')")
 
+    # verify: spec 整合性チェック (実機 dry-run 用)
+    pv = sub.add_parser("verify", help="cg.dpd spec の整合性をチェック (実機 build 前 dry-run)")
+    pv.add_argument("--monomer", default=None, help="single monomer file")
+    pv.add_argument("--multi-monomer", default=None, help="multi-monomer JSON file")
+    pv.add_argument("--aij", required=True)
+    pv.add_argument("--calc-sett", default=None)
+    pv.add_argument("--particle-names", default=None)
+    pv.add_argument("--project-name", default="abmptools-cg-dpd")
+
     # build-udf (R1)
     p1 = sub.add_parser("build-udf", help="R1: Cognac DPD 入力 UDF を生成")
     p1.add_argument("--monomer", default=None, help="cg_segmenter monomer file (single)")
@@ -100,6 +109,21 @@ def main(argv=None) -> int:
     p1.add_argument("--project-name", default="abmptools-cg-dpd")
 
     args = parser.parse_args(argv)
+
+    if args.cmd == "verify":
+        builder = _build_builder(args)
+        warnings = builder.validate()
+        if not warnings:
+            print(
+                f"OK: {len(builder.spec.monomers)} monomer(s), "
+                f"{len(builder.spec.aij.pairs)} aij pair(s), "
+                f"{len(builder.spec.segment_names())} unique segment(s) — 整合性 OK"
+            )
+            return 0
+        print(f"WARNING: {len(warnings)} issue(s) found:")
+        for w in warnings:
+            print(f"  - {w}")
+        return 1
 
     if args.cmd == "build-dpm":
         builder = _build_builder(args)

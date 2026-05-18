@@ -214,6 +214,61 @@ pytest tests/cg_dpd/ -v
 
 `sample/cg_dpd/cholesterol/` に cholesterol → R1 UDF の生成例一式 (再現コマンド含む)。
 
+## 整合性チェック (`verify` subcommand)
+
+実機 build (`build-udf` / `build-dpm`) の **前 dry-run** として、 spec の整合性を
+チェックする `verify` subcommand を提供:
+
+```bash
+python -m abmptools.cg.dpd verify \
+    --monomer chol_monomer --aij aij.dat --calc-sett chol_calc_sett
+# 整合性 OK: 出力例
+# OK: 1 monomer(s), 15 aij pair(s), 5 unique segment(s) — 整合性 OK
+# return 0
+
+# Warning ある場合:
+# WARNING: 2 issue(s) found:
+#   - 2 segment(s) used by monomer but NOT in aij.dat: ['P2', 'P3'] — R1/R2 出力で default aii=25.0 に fallback
+#   - 1 segment(s) defined in aij.dat but NOT used by any monomer: ['X'] — 余分なペアが Pair_Interaction[] / SegmentPairModel[] に残る
+# return 1
+```
+
+Python API:
+```python
+warnings = builder.validate()    # List[str]、 空なら整合性 OK
+for w in warnings:
+    print(w)
+```
+
+検査項目:
+1. monomer の particle 名が aij.dat の segments に **すべて存在するか** (missing)
+2. aij.dat の segments で monomer が **使わない segment** が無いか (extra)
+
+## a → chi 逆変換 (G2)
+
+`AijMatrix.to_chi_values()` で **a → chi の逆変換** を取得できる (Groot-Warren 逆向き:
+``chi = (a - aii) * 0.306``)。 a モードで生成された aij.dat を chi モードで再保存
+したい場合に使う:
+
+```python
+from abmptools.cg.dpd import AijMatrix, write_aij
+
+# 既存 aij.dat (a モード) を chi モードで書き直し
+aij_a = read_aij("aij_a.dat")        # mode='a'
+write_aij("aij_chi.dat", aij_a, out_mode="chi")  # chi に強制変換
+```
+
+`write_aij` の `out_mode` パラメータ:
+
+| `out_mode` | 挙動 |
+|---|---|
+| ``'auto'`` (default) | ``aij.mode`` をそのまま使う (既存挙動) |
+| ``'a'`` | ``aij`` 変数として a 値で出力 (chi → a 変換含む) |
+| ``'chi'`` | ``chi`` 変数として chi 値で出力 (a → chi 逆変換含む) |
+
+`a ↔ chi` の round-trip は Groot-Warren 公式により完全可逆 (`a → chi → a` で値一致)。
+同種ペア (a == aii) は chi=0 になる。
+
 ## Particle 名のマッピング (cg_segmenter → fcews aij)
 
 cg_segmenter `dpdgen_exporter` は particle に `P0..Pn-1` の汎用ラベルを与えるだけで、

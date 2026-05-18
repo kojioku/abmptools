@@ -166,6 +166,35 @@ class CGDpdBuilder:
         )
         return cls(spec=spec)
 
+    def validate(self) -> List[str]:
+        """spec の整合性を検証して warning メッセージ list を返す。
+
+        チェック項目:
+        - monomer の particle 名が aij.dat の segments にあるか (missing)
+        - aij.dat の segments で monomer から参照されないものがあるか (extra)
+
+        Returns
+        -------
+        List[str]
+            warning メッセージ (空 list なら問題なし)。
+        """
+        warnings: List[str] = []
+        seg_set = set(self.spec.segment_names())
+        aij_set = set(self.spec.aij.segments)
+        missing = seg_set - aij_set
+        if missing:
+            warnings.append(
+                f"{len(missing)} segment(s) used by monomer but NOT in aij.dat: "
+                f"{sorted(missing)} — R1/R2 出力で default aii={self.spec.aij.aii} に fallback"
+            )
+        extra = aij_set - seg_set
+        if extra:
+            warnings.append(
+                f"{len(extra)} segment(s) defined in aij.dat but NOT used by any monomer: "
+                f"{sorted(extra)} — 余分なペアが Pair_Interaction[] / SegmentPairModel[] に残る"
+            )
+        return warnings
+
     def build_dpm(
         self,
         template: Union[str, Path],

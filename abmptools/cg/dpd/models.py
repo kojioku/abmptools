@@ -58,6 +58,18 @@ class AijMatrix:
             return list(self.pairs)
         return [(i, j, self.aii + v / 0.306) for (i, j, v) in self.pairs]
 
+    def to_chi_values(self) -> List[Tuple[str, str, float]]:
+        """a → chi 逆変換 (Groot-Warren 逆向き: chi_ij = (a_ij - a_ii) * 0.306)。
+
+        Returns
+        -------
+        List of (seg_i, seg_j, chi_ij)。 mode='chi' の場合は self.pairs をそのまま返す。
+        a モードからの変換時、 同種ペア (a == aii) は chi=0 になる。
+        """
+        if self.mode == "chi":
+            return list(self.pairs)
+        return [(i, j, (v - self.aii) * 0.306) for (i, j, v) in self.pairs]
+
     def get(self, seg_i: str, seg_j: str) -> Optional[float]:
         """対称 lookup: (i, j) または (j, i) の値を返す。 なければ None。"""
         for (a, b, v) in self.pairs:
