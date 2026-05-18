@@ -41,3 +41,17 @@ modification).
 
 When redistributing ABMPTools, recipients must retain this NOTICE file
 verbatim per Apache-2.0 §4(d).
+
+================================================================================
+
+Re-implementation attribution
+-----------------------------
+
+The `abmptools.cg.dpd` subpackage (v1.26.0+) re-implements the DPD input
+generation logic of DPDgen (https://github.com/kojioku/dpdgen) for the
+Cognac DPD UDF (R1) and J-OCTA dpm patch (R2) routes. DPDgen is authored
+by the same author (Koji Okuwaki), so the porting is in-house. No DPDgen
+source code is bundled; `abmptools.cg.dpd` provides an independent
+implementation that consumes the same fcews-unified aij.dat format
+(Python dict script: `aij = [[seg_i, seg_j, value], ...]` or `chi = [...]`).
+For reference DPDgen samples, see /home/okuwaki/repos/dpdgen (private).
