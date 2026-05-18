@@ -146,6 +146,64 @@ def write_aij(
     )
 
 
+def create_empty_aij(
+    segments: List[str],
+    *,
+    aii: float = 25.0,
+    mode: str = "a",
+    off_diagonal: float = 25.0,
+) -> AijMatrix:
+    """全 segment ペア (i ≤ j) を含む :class:`AijMatrix` skeleton を生成する。
+
+    aij.dat を hand-craft する際の出発点。 後で個別ペアの値を編集 (例えば
+    cholesterol-water 疎水性 mismatch を設定) する想定。
+
+    Parameters
+    ----------
+    segments : List[str]
+        対象 segment 名のリスト (順序維持)。
+    aii : float, default 25.0
+        同種ペア (i==j) のデフォルト値。 a モードでは a パラメータ自体、 chi モードでは
+        変換用 aii として持つ。
+    mode : str, default 'a'
+        ``'a'`` または ``'chi'``。 mode='chi' なら同種ペアは chi=0 で初期化、 他は 0。
+    off_diagonal : float, default 25.0
+        異種ペア (i!=j) のデフォルト値。 mode='a' なら a 値、 mode='chi' なら chi 値。
+
+    Returns
+    -------
+    AijMatrix
+        全 N*(N+1)/2 ペアを含む aij (同種は aii (mode='a') / 0 (mode='chi')、
+        異種は off_diagonal)。
+
+    Examples
+    --------
+    >>> from abmptools.cg.dpd import create_empty_aij, write_aij
+    >>> aij = create_empty_aij(["A", "B", "W"], aii=25.0, off_diagonal=30.0)
+    >>> write_aij("aij_skel.dat", aij)  # → hand-craft 用 skeleton
+
+    Notes
+    -----
+    fcews の自動生成 aij.dat が使えない (FMO 計算未実施 / chi 値が手元にない) 場合の
+    fallback として、 物理的合理性のある初期値で skeleton を作る用途。
+    """
+    if mode not in ("a", "chi"):
+        raise ValueError(f"mode must be 'a' or 'chi', got {mode!r}")
+
+    pairs: List[Tuple[str, str, float]] = []
+    same_val = aii if mode == "a" else 0.0
+    for i, si in enumerate(segments):
+        pairs.append((si, si, same_val))
+        for sj in segments[i + 1:]:
+            pairs.append((si, sj, off_diagonal))
+
+    logger.info(
+        "create_empty_aij: %d segments → %d pairs (mode=%s, aii=%g, off-diagonal=%g)",
+        len(segments), len(pairs), mode, aii, off_diagonal,
+    )
+    return AijMatrix(segments=list(segments), pairs=pairs, mode=mode, aii=aii)
+
+
 def aij_to_dict(aij: AijMatrix) -> Dict[Tuple[str, str], float]:
     """対称 lookup 用に (seg_i, seg_j) → a value の辞書を構築。
 

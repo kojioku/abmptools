@@ -27,8 +27,10 @@ Public API
 from __future__ import annotations
 
 from .models import AijMatrix, CalcSett, DpdSystemSpec, MonomerSpec
-from .aij_io import read_aij, write_aij, aij_to_dict
-from .monomer_io import read_monomer, read_monomers_dict, assign_particle_names
+from .aij_io import read_aij, write_aij, aij_to_dict, create_empty_aij
+from .monomer_io import (
+    read_monomer, read_monomers_dict, assign_particle_names, build_monomer,
+)
 from .calc_sett_io import read_calc_sett
 from .dpm_writer import (
     patch_dpm, propagate_virtual_mom, write_message_txt,
@@ -37,13 +39,22 @@ from .dpm_writer import (
 from .udf_writer import write_dpd_udf
 from .orchestrator import CGDpdBuilder
 
+
+def open_panel(builder):
+    """Lazy import of :func:`notebook_ui.open_panel` (ipywidgets が必須)."""
+    from .notebook_ui import open_panel as _open_panel
+    return _open_panel(builder)
+
+
 __all__ = [
     "AijMatrix", "CalcSett", "DpdSystemSpec", "MonomerSpec",
-    "read_aij", "write_aij", "aij_to_dict",
+    "read_aij", "write_aij", "aij_to_dict", "create_empty_aij",
     "read_monomer", "read_monomers_dict", "assign_particle_names",
+    "build_monomer",
     "read_calc_sett",
     "patch_dpm", "propagate_virtual_mom", "write_message_txt",
     "DEFAULT_PATCH_FIELDS", "MESSAGE_TXT_CONTENT",
     "write_dpd_udf",
     "CGDpdBuilder",
+    "open_panel",
 ]

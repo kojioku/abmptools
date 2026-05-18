@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from .models import MonomerSpec
 
@@ -96,6 +96,76 @@ def read_monomer(path: Union[str, Path], name: Optional[str] = None) -> MonomerS
     logger.info(
         "read_monomer: %s (n_particles=%d, bond12=%d, bond13_150=%d, bond14_150=%d, angle13=%d)",
         name, n, len(bond12), len(bond13_150), len(bond14_150), len(angle13),
+    )
+    return spec
+
+
+def build_monomer(
+    name: str,
+    particle_names: Sequence[str],
+    *,
+    bond12: Optional[Sequence[Tuple[int, int]]] = None,
+    bond12_dist: float = 0.86,
+    bond12_stiff: float = 50.0,
+    angle13: Optional[Sequence[Tuple[int, int, int]]] = None,
+    angle13_eq: float = 0.0,
+    angle13_stiff: float = 5.0,
+) -> MonomerSpec:
+    """cg_segmenter なしで :class:`MonomerSpec` を hand-craft する helper。
+
+    cg_segmenter `dpdgen` subcommand が利用できない (例: 単一 1-粒子 solvent や
+    手で組んだ簡単な model) 場合の monomer 構築。 bond / angle の potential 値は
+    全 entry 共通 default で生成、 個別に変えたい場合は返却 spec を直接編集。
+
+    Parameters
+    ----------
+    name : str
+        Monomer 名 (例 "wat", "salt")。
+    particle_names : Sequence[str]
+        各 CG 粒子のラベル。
+    bond12 : Sequence of (i, j), optional
+        path 1 (隣接) bond ペアの index (0-origin)。 None なら bond なし (= 1-粒子)。
+    bond12_dist, bond12_stiff : float
+        全 bond12 共通 distance / stiffness (default 0.86 / 50.0)。
+    angle13 : Sequence of (a, b, c), optional
+        angle13 (中央 b) のトリプル。 None なら angle なし。
+    angle13_eq, angle13_stiff : float
+        全 angle13 共通 平衡余角 (cognac 流: 0=180°、 30=150°、 60=120° cis) / stiffness。
+
+    Returns
+    -------
+    MonomerSpec
+        ``bond13_150`` / ``bond14_150`` は空 (cg_segmenter 専用機能)。 必要なら spec
+        を直接編集して埋める。
+
+    Examples
+    --------
+    >>> wat = build_monomer("wat", particle_names=["W"])    # 1-粒子 solvent
+    >>> dim = build_monomer("dim", particle_names=["A","B"], bond12=[(0,1)])
+    >>> tri = build_monomer(
+    ...     "tri", particle_names=["A","B","C"],
+    ...     bond12=[(0,1),(1,2)], angle13=[(0,1,2)],
+    ... )
+    """
+    bond12_list = list(bond12) if bond12 else []
+    bond12h_list = [
+        [1, i, j, bond12_dist, bond12_stiff, 0] for (i, j) in bond12_list
+    ]
+    angle13_list = list(angle13) if angle13 else []
+    angle13data_list = [
+        [a, b, c, angle13_eq, angle13_stiff] for (a, b, c) in angle13_list
+    ]
+    spec = MonomerSpec(
+        name=name,
+        particle_names=list(particle_names),
+        bond12=bond12_list,
+        bond12h=bond12h_list,
+        angle13=angle13_list,
+        angle13data=angle13data_list,
+    )
+    logger.info(
+        "build_monomer: %s (n=%d, bond12=%d, angle13=%d) hand-crafted",
+        name, len(particle_names), len(bond12_list), len(angle13_list),
     )
     return spec
 

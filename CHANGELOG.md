@@ -48,6 +48,17 @@
   segment 名対応を `docs/cg_dpd.md` で命名規約 + 不一致時症状込みで明文化。
 - **NOTICE 追記**: DPDgen (本人作品) のロジック移植を「Re-implementation attribution」
   section で明記、 ABMPTools リポジトリ内に DPDgen ソースを含まないことを宣言。
+- **Jupyter UI (`open_panel`、 G1)** (`notebook_ui.py`): ipywidgets で
+  interactive build panel。 Summary (monomer 一覧 + aij segments + validate
+  結果) / R1 UDF build / R2 DPM build (template path 入力付き) / Re-verify
+  ボタンを 1 画面に集約。 `from abmptools.cg.dpd import open_panel; open_panel(builder)`。
+- **aij skeleton 生成** (`create_empty_aij(segments, aii, mode, off_diagonal)`):
+  fcews の自動 aij.dat が使えない場合の hand-craft 出発点。 全 N*(N+1)/2 ペアを
+  default 値で生成 (mode='a' なら同種 aii / 異種 off_diagonal、 mode='chi' なら
+  同種 0 / 異種 off_diagonal)。
+- **Monomer hand-craft** (`build_monomer(name, particle_names, bond12, angle13, ...)`):
+  cg_segmenter なしで MonomerSpec を構築する helper。 1-粒子 solvent、 simple
+  dimer/trimer 等。 bond/angle potential 値は default 共通 (0.86/50.0 / 余角 0=180°/5.0)。
 - **a → chi 逆変換 (G2)** (`AijMatrix.to_chi_values`): Groot-Warren 逆向き
   ``chi = (a - aii) * 0.306``。 ``write_aij`` に ``out_mode='auto'/'a'/'chi'`` 追加で
   出力形式を強制変換可能 (a モード保存の aij.dat を chi で再保存等)。 同種ペア (a==aii) は
@@ -57,7 +68,7 @@
   ``python -m abmptools.cg.dpd verify`` (整合 OK = return 0、 missing/extra
   segment あり = return 1)。 監査項目: ① monomer particle 名が aij.dat にあるか
   (missing) ② aij.dat に monomer 未使用 segment が無いか (extra)。
-- **テスト**: 46 件 (`tests/cg_dpd/`、 ~1.9s で全 PASS):
+- **テスト**: 59 件 (`tests/cg_dpd/`、 ~1.9s で全 PASS):
   - models + I/O round-trip 12 件 (chi → a 変換、 missing file エラー、 symmetric lookup 含む)
   - R1 UDF writer 3 件 (cholesterol e2e、 chi mode auto-convert、 custom include)
   - R2 DPM writer 7 件 (propagate_virtual_mom、 patch_dpm 5 block、 invalid template/field)
@@ -66,6 +77,9 @@
   - orchestrator + CLI 8 件 (`build-udf` / `build-dpm` subprocess test 含む)
   - a→chi 逆変換 + validate / verify 11 件 (to_chi_values round-trip、 out_mode 強制変換、
     validate ok/missing/extra、 verify CLI return 0/1)
+  - notebook_ui 3 件 (import + signature + panel 構築 with ipywidgets)
+  - helper (create_empty_aij + build_monomer) 10 件 (default / chi mode / write-roundtrip /
+    1-粒子 solvent / dimer / trimer / custom params / CGDpdBuilder 連携)
 - **サンプル**: `sample/cg_dpd/cholesterol/` に cholesterol → R1 UDF の生成例 (再現コマンド付き)。
 
 ### Added (`abmptools.hbond` 拡張 — v1.26.0 候補)

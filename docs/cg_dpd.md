@@ -214,6 +214,76 @@ pytest tests/cg_dpd/ -v
 
 `sample/cg_dpd/cholesterol/` に cholesterol → R1 UDF の生成例一式 (再現コマンド含む)。
 
+## Jupyter UI (`open_panel`) (G1)
+
+`open_panel(builder)` で Jupyter notebook 上に interactive panel を表示。 build
+結果や warning を画面で確認しながら R1/R2 を発火できる。
+
+```python
+from abmptools.cg.dpd import CGDpdBuilder, open_panel
+
+builder = CGDpdBuilder.from_files(
+    monomer="chol_monomer", aij="aij.dat", calc_sett="chol_calc_sett",
+)
+open_panel(builder)
+```
+
+UI 構成:
+- **Summary**: monomer 一覧 (name / n_particles / particle_names / bond / angle count) + aij segment 一覧 + `validate()` 結果 (warning または OK)
+- **R1**: UDF 出力 path + `\include` file 名 + `[Build R1 UDF]` ボタン
+- **R2**: dpm template path + Virtual.mom path + 出力 dir + dpm filename + `[Build R2 DPM]` ボタン (template path 必須、 J-OCTA で作成)
+- **Verify**: validate() を再実行して Summary を refresh
+
+依存: `ipywidgets >= 8` + `IPython` (`pip install 'abmptools[jupyter]'`)。 未 install
+時は `ImportError` で install 手順を提示。
+
+## aij skeleton 生成 (`create_empty_aij`)
+
+fcews の自動生成 aij.dat が使えない (FMO 計算未実施 / chi 値が手元にない) 場合の
+**hand-craft 出発点**を作る helper:
+
+```python
+from abmptools.cg.dpd import create_empty_aij, write_aij
+
+# 3 segment の skeleton (同種 25.0、 異種 30.0)
+aij = create_empty_aij(["A", "B", "W"], aii=25.0, off_diagonal=30.0)
+write_aij("aij_skel.dat", aij)
+# → 後で特定ペア (例 A-W 疎水性 mismatch) を手で書き換え
+```
+
+mode='chi' なら同種は chi=0、 異種は off_diagonal で初期化される (chi=0 = a==aii、 中性):
+
+```python
+aij = create_empty_aij(["A", "B"], mode="chi", off_diagonal=1.5)
+# A-A: chi=0, A-B: chi=1.5
+```
+
+## Monomer hand-craft (`build_monomer`)
+
+cg_segmenter `dpdgen` が利用できない場合 (1-粒子 solvent、 簡単な dimer / trimer 等)
+の monomer hand-craft helper:
+
+```python
+from abmptools.cg.dpd import build_monomer
+
+# 1-粒子 water
+wat = build_monomer("wat", particle_names=["W"])
+
+# 2-粒子 dimer (1 bond)
+dim = build_monomer("dim", particle_names=["A", "B"], bond12=[(0, 1)])
+
+# 3-粒子 linear chain (2 bond + 1 angle、 デフォルトは 180° = 余角 0)
+tri = build_monomer(
+    "trimer", particle_names=["A", "B", "C"],
+    bond12=[(0, 1), (1, 2)], angle13=[(0, 1, 2)],
+    angle13_eq=0.0,    # 余角: 0=180°(直線), 30=150°, 60=120°(cis)
+)
+```
+
+bond / angle の potential 値は全 entry 共通 default。 個別調整したい場合は返却 spec
+の `bond12h` / `angle13data` を直接編集。 `bond13_150` / `bond14_150` は cg_segmenter
+専用なので hand-craft 経路では空のまま。
+
 ## 整合性チェック (`verify` subcommand)
 
 実機 build (`build-udf` / `build-dpm`) の **前 dry-run** として、 spec の整合性を
