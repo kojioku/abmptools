@@ -218,6 +218,44 @@ def test_c_heteroatom_cut_assigns_bda_to_c_side(propane_acetone_mix_pdb):
     assert len(cands_meoh) == 1, f"expected 1 C-O candidate, got {cands_meoh}"
 
 
+def test_walk_side_chains_flag_smoke(propane_acetone_mix_pdb):
+    """walk_side_chains=True が config に渡り、suggest_cuts が完走する。"""
+    from abmptools.fragmenter import (
+        FragmenterConfig, load_pdb_molecules, group_by_smiles,
+        suggest_cuts_for_groups,
+    )
+    config = FragmenterConfig(
+        pdb_path=str(propane_acetone_mix_pdb),
+        target_mw=10.0,
+        walk_side_chains=True,
+        exclude_heteroneighbor=False,
+    )
+    assert config.walk_side_chains is True
+    loaded = load_pdb_molecules(config.pdb_path)
+    groups = group_by_smiles(loaded)
+    # walk_side_chains=True でも error なく動作することを確認
+    suggest_cuts_for_groups(groups, loaded, config)
+
+
+def test_walk_side_chain_function_internal():
+    """_walk_side_chains_from_main の internal smoke: 長い ester 側鎖を持つ分子で
+    main 短く / side 長く構成し、side chain walk から少なくとも 1 cut が出る。"""
+    from rdkit import Chem
+    from abmptools.fragmenter.auto_split import (
+        _walk_side_chains_from_main, _enumerate_candidate_bonds,
+    )
+    from abmptools.fragmenter import FragmenterConfig
+    # propane main (3 C) に長い C12 アルキル side chain
+    # main_path=[0,1,2] (propane backbone)、side chain は atom 1 の長い鎖
+    mol = Chem.MolFromSmiles("CC(CCCCCCCCCCCC)C")
+    config = FragmenterConfig(pdb_path="x", target_mw=50.0, exclude_heteroneighbor=False)
+    cands = _enumerate_candidate_bonds(mol, config)
+    main_path = [0, 1, 14]  # propane backbone (atom 0 = 1st CH3, atom 1 = central CH, atom 14 = last CH3)
+    cuts = _walk_side_chains_from_main(mol, main_path, cands, target_mw=50.0)
+    # C12 side chain → target_mw=50 (~3-4 C 毎) で複数 cut が期待される
+    assert len(cuts) >= 1, f"side chain walk should produce cuts, got {cuts}"
+
+
 def test_c_heteroatom_disabled_by_default(propane_acetone_mix_pdb):
     """default (include_c_heteroatom=False) では C-O 等の C-X bond は候補にならない。"""
     from abmptools.fragmenter import FragmenterConfig

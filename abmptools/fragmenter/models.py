@@ -47,6 +47,12 @@ class FragmenterConfig:
         ``exclude_heteroneighbor`` フィルタは C-C bond にのみ適用され、
         C-X bond は別途切断対象。BDA/BAA 役割は ABINIT-MP の慣習に従い
         **C 側を BDA、X 側を BAA** に固定 (walk 方向に依存しない)。
+    walk_side_chains
+        主鎖 walk に加えて、**各 main atom の side chain も BFS walk** して
+        cut を提案する。デフォルト False (主鎖のみ)。True にすると ester /
+        amine などの長い側鎖でも累積 MW が target_mw を越えれば cut が追加
+        される。BDA = walk 起点側、BAA = walk 進行方向側 (C-X bond の場合は
+        C 側固定)。
     """
 
     pdb_path: str
@@ -59,6 +65,7 @@ class FragmenterConfig:
     polymer_groups: List[List[str]] = field(default_factory=list)
     include_residue_name: bool = False
     include_c_heteroatom: bool = False
+    walk_side_chains: bool = False
 
     def to_json(self, path: Optional[str] = None) -> str:
         text = json.dumps(asdict(self), indent=2, ensure_ascii=False)

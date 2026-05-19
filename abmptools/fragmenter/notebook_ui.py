@@ -141,6 +141,36 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
         indent=False,
         layout=widgets.Layout(width="500px"),
     )
+    layout_straight = widgets.Checkbox(
+        value=False,
+        description="Linear main chain layout (polymer 向け、主鎖を水平 zigzag に固定)",
+        indent=False,
+        layout=widgets.Layout(width="600px"),
+    )
+    bond_length_slider = widgets.FloatSlider(
+        value=1.5, min=0.5, max=3.0, step=0.1,
+        description="Bond length:",
+        readout_format=".1f",
+        layout=widgets.Layout(width="500px"),
+    )
+    main_angle_slider = widgets.FloatSlider(
+        value=110.0, min=90.0, max=170.0, step=5.0,
+        description="Main angle°:",
+        readout_format=".0f",
+        layout=widgets.Layout(width="500px"),
+    )
+    atom_font_slider = widgets.FloatSlider(
+        value=0.5, min=0.3, max=1.2, step=0.05,
+        description="Atom font:",
+        readout_format=".2f",
+        layout=widgets.Layout(width="500px"),
+    )
+    display_scale_slider = widgets.FloatSlider(
+        value=100.0, min=20.0, max=200.0, step=10.0,
+        description="Display %:",
+        readout_format=".0f",
+        layout=widgets.Layout(width="500px"),
+    )
 
     svg_output = widgets.HTML(value="")
     cuts_box = widgets.VBox([])
@@ -174,6 +204,12 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
         indent=False,
         layout=widgets.Layout(width="600px"),
     )
+    cb_walk_side = widgets.Checkbox(
+        value=fragmenter.config.walk_side_chains,
+        description="walk_side_chains (主鎖だけでなく side chain も BFS walk して cut 提案)",
+        indent=False,
+        layout=widgets.Layout(width="600px"),
+    )
     re_suggest_button = widgets.Button(
         description="Re-suggest (overwrite)",
         button_style="warning",
@@ -190,12 +226,19 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
 
     def _refresh_svg(group: MoleculeGroup):
         rep = fragmenter.molecules[group.representative_mol_idx]
+        # width/height は _render_svg 側で分子 bbox から auto-decide させる (0 を渡す)
         svg = _render_svg(
             rep.mol, group.cut_sites,
+            width=0, height=0,
             show_bond_numbers=show_bond_nums.value,
+            layout_mode=("main_chain_straight" if layout_straight.value else "default"),
+            bond_length=bond_length_slider.value,
+            main_angle_deg=main_angle_slider.value,
+            atom_font_size=atom_font_slider.value,
+            scale_percent=display_scale_slider.value,
         )
         svg_output.value = (
-            '<div style="border:1px solid #ccc;padding:10px;background:#fff;">'
+            '<div style="border:1px solid #ccc;padding:10px;background:#fff;overflow-x:auto;">'
             + svg + "</div>"
         )
 
@@ -282,6 +325,10 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
         if change.get("name") == "value":
             _refresh_svg(fragmenter.groups[state["group_idx"]])
 
+    def on_layout_change(change):
+        if change.get("name") == "value":
+            _refresh_svg(fragmenter.groups[state["group_idx"]])
+
     def on_add_cut_click(_btn):
         from .auto_split import decide_bda_baa_for_manual_cut
         from .models import CutSite
@@ -354,6 +401,7 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
             fragmenter.config.target_mw = new_mw
             fragmenter.config.exclude_heteroneighbor = bool(cb_exclude_hetero.value)
             fragmenter.config.include_c_heteroatom = bool(cb_include_c_hetero.value)
+            fragmenter.config.walk_side_chains = bool(cb_walk_side.value)
             fragmenter.suggest_cuts()
             total = sum(len(g.cut_sites) for g in fragmenter.groups)
             re_suggest_status.value = (
@@ -382,6 +430,11 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
 
     group_dropdown.observe(on_group_change)
     show_bond_nums.observe(on_show_bond_nums_change)
+    layout_straight.observe(on_layout_change)
+    bond_length_slider.observe(on_layout_change)
+    main_angle_slider.observe(on_layout_change)
+    atom_font_slider.observe(on_layout_change)
+    display_scale_slider.observe(on_layout_change)
     add_cut_button.on_click(on_add_cut_click)
     re_suggest_button.on_click(on_re_suggest_click)
     export_button.on_click(on_export_click)
@@ -394,6 +447,12 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
             group_dropdown,
             info_label,
             show_bond_nums,
+            layout_straight,
+            widgets.HTML('<b>Display tuning</b> (bond length / main angle は Linear layout 時、Atom font と Display % は両 layout 共通):'),
+            bond_length_slider,
+            main_angle_slider,
+            atom_font_slider,
+            display_scale_slider,
             svg_output,
             widgets.HTML("<b>Cut sites (toggle = enable/disable, Remove = delete):</b>"),
             cuts_box,
@@ -410,6 +469,7 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
             widgets.HBox([target_mw_input, re_suggest_button]),
             cb_exclude_hetero,
             cb_include_c_hetero,
+            cb_walk_side,
             re_suggest_status,
             widgets.HTML("<hr>"),
             export_button,

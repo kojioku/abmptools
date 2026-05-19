@@ -30,6 +30,69 @@ logger = logging.getLogger(__name__)
 HETERO_ELEMENTS = {7, 8, 16, 15, 9, 17, 35, 53}  # N, O, S, P, F, Cl, Br, I
 
 
+def _walk_side_chains_from_main(
+    mol: Any,
+    main_path: List[int],
+    candidate_bonds: Set[int],
+    target_mw: float,
+) -> List[Tuple[int, int, int]]:
+    """主鎖 main_path の各 atom から side chain を BFS walk して cut を提案。
+
+    Returns
+    -------
+    List[Tuple[bond_idx, bda_atom, baa_atom]]
+        side chain 内で target_mw 累積に達した bond を cut として提案する。
+        BDA = walk 起点側 (= main atom 側)、BAA = walk 進行方向側 (= side chain
+        の terminal 側)。C-X bond なら C 側を BDA に固定。
+    """
+    main_set = set(main_path)
+    selected: List[Tuple[int, int, int]] = []
+
+    for main_atom in main_path:
+        # main atom から伸びる各 side chain を独立に BFS walk
+        for nb in mol.GetAtomWithIdx(main_atom).GetNeighbors():
+            if nb.GetAtomicNum() == 1 or nb.GetIdx() in main_set:
+                continue
+            start = nb.GetIdx()
+            visited = set(main_set) | {start}
+            # queue 各要素: (current atom, cum_mw)
+            queue = deque([(start, _atom_total_mw(mol.GetAtomWithIdx(start)))])
+            while queue:
+                cur, cum = queue.popleft()
+                cur_atom = mol.GetAtomWithIdx(cur)
+                # 次の heavy 隣接 (main / visited を除く) を探索
+                nbrs = sorted([
+                    n.GetIdx() for n in cur_atom.GetNeighbors()
+                    if n.GetAtomicNum() != 1 and n.GetIdx() not in visited
+                ])
+                for nb_idx in nbrs:
+                    if nb_idx in visited:
+                        continue
+                    visited.add(nb_idx)
+                    bond = mol.GetBondBetweenAtoms(cur, nb_idx)
+                    if bond is None:
+                        continue
+                    new_cum = cum + _atom_total_mw(mol.GetAtomWithIdx(nb_idx))
+                    bond_idx = bond.GetIdx()
+                    cut_here = (bond_idx in candidate_bonds and new_cum >= target_mw)
+                    if cut_here:
+                        # BDA / BAA: C-X case は C 側、それ以外は walk 起点側 (cur)
+                        a_cur = mol.GetAtomWithIdx(cur)
+                        a_nb = mol.GetAtomWithIdx(nb_idx)
+                        zc, zn = a_cur.GetAtomicNum(), a_nb.GetAtomicNum()
+                        if zc == 6 and zn != 6:
+                            bda, baa = cur, nb_idx
+                        elif zn == 6 and zc != 6:
+                            bda, baa = nb_idx, cur
+                        else:
+                            bda, baa = cur, nb_idx  # walk 起点側
+                        selected.append((bond_idx, bda, baa))
+                        queue.append((nb_idx, 0.0))
+                    else:
+                        queue.append((nb_idx, new_cum))
+    return selected
+
+
 def suggest_cuts(mol: Any, config: FragmenterConfig) -> List[CutSite]:
     """1 分子に対する切断候補を提案する。
 
@@ -54,6 +117,21 @@ def suggest_cuts(mol: Any, config: FragmenterConfig) -> List[CutSite]:
         return []
 
     cut_results = _select_cuts_along_path(mol, main_chain, candidate, config.target_mw)
+
+    # walk_side_chains=True なら主鎖 walk 後に各 main atom の side chain も walk
+    if config.walk_side_chains:
+        cut_results = cut_results + _walk_side_chains_from_main(
+            mol, main_chain, candidate, config.target_mw,
+        )
+        # 同じ bond が両 walk で追加されないよう dedupe
+        seen_bonds: Set[int] = set()
+        dedup: List[Tuple[int, int, int]] = []
+        for bond_idx, bda, baa in cut_results:
+            if bond_idx in seen_bonds:
+                continue
+            seen_bonds.add(bond_idx)
+            dedup.append((bond_idx, bda, baa))
+        cut_results = dedup
 
     cuts: List[CutSite] = []
     for bond_idx, bda_atom, baa_atom in cut_results:
