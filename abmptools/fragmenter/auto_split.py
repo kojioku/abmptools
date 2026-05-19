@@ -30,6 +30,34 @@ logger = logging.getLogger(__name__)
 HETERO_ELEMENTS = {7, 8, 16, 15, 9, 17, 35, 53}  # N, O, S, P, F, Cl, Br, I
 
 
+def _check_remaining_mw_ok(
+    mol: Any, source_atom: int, exclude: Set[int], min_mw: float,
+) -> bool:
+    """source_atom から exclude 以外の heavy atom MW 累積が min_mw 以上に達するか。
+
+    early-exit BFS で `min_mw` に達した時点で True を返す。`min_mw <= 0` なら
+    常に True (= 制約無効)。
+    """
+    if min_mw <= 0:
+        return True
+    cum = 0.0
+    visited = set(exclude) | {source_atom}
+    queue = deque([source_atom])
+    while queue:
+        cur = queue.popleft()
+        cum += _atom_total_mw(mol.GetAtomWithIdx(cur))
+        if cum >= min_mw:
+            return True
+        for nb in mol.GetAtomWithIdx(cur).GetNeighbors():
+            if nb.GetAtomicNum() == 1:
+                continue
+            if nb.GetIdx() in visited:
+                continue
+            visited.add(nb.GetIdx())
+            queue.append(nb.GetIdx())
+    return False
+
+
 def _enumerate_side_chain_candidate_bonds(
     mol: Any, config: FragmenterConfig,
 ) -> Set[int]:
@@ -69,6 +97,7 @@ def _walk_side_chains_from_main(
     main_path: List[int],
     candidate_bonds: Set[int],
     target_mw: float,
+    min_terminal_ratio: float = 0.5,
 ) -> List[Tuple[int, int, int]]:
     """主鎖 main_path の各 atom から side chain を BFS walk して cut を提案。
 
@@ -109,6 +138,15 @@ def _walk_side_chains_from_main(
                     new_cum = cum + _atom_total_mw(mol.GetAtomWithIdx(nb_idx))
                     bond_idx = bond.GetIdx()
                     cut_here = (bond_idx in candidate_bonds and new_cum >= target_mw)
+                    if cut_here and min_terminal_ratio > 0:
+                        # 進行方向 (nb_idx 側) の残り fragment が
+                        # target_mw * ratio 未満なら cut 抑制
+                        ok = _check_remaining_mw_ok(
+                            mol, nb_idx, visited - {nb_idx},
+                            target_mw * min_terminal_ratio,
+                        )
+                        if not ok:
+                            cut_here = False
                     if cut_here:
                         # BDA / BAA: C-X case は C 側、それ以外は walk 起点側 (cur)
                         a_cur = mol.GetAtomWithIdx(cur)
@@ -150,7 +188,10 @@ def suggest_cuts(mol: Any, config: FragmenterConfig) -> List[CutSite]:
     if len(main_chain) < 2:
         return []
 
-    cut_results = _select_cuts_along_path(mol, main_chain, candidate, config.target_mw)
+    cut_results = _select_cuts_along_path(
+        mol, main_chain, candidate, config.target_mw,
+        min_terminal_ratio=config.min_terminal_fragment_ratio,
+    )
 
     # walk_side_chains=True なら主鎖 walk 後に各 main atom の side chain も walk
     # side chain 用に candidate を別途構築 (ester/amine 隣接でも C-C や C-X を許可)
@@ -158,6 +199,7 @@ def suggest_cuts(mol: Any, config: FragmenterConfig) -> List[CutSite]:
         side_candidate = _enumerate_side_chain_candidate_bonds(mol, config)
         cut_results = cut_results + _walk_side_chains_from_main(
             mol, main_chain, side_candidate, config.target_mw,
+            min_terminal_ratio=config.min_terminal_fragment_ratio,
         )
         # 同じ bond が両 walk で追加されないよう dedupe
         seen_bonds: Set[int] = set()
@@ -400,6 +442,7 @@ def _select_cuts_along_path(
     path: List[int],
     candidate_bonds: Set[int],
     target_mw: float,
+    min_terminal_ratio: float = 0.5,
 ) -> List[Tuple[int, int, int]]:
     """主鎖 path を辿りつつ、累積 MW ≥ target_mw のたびに candidate bond で切断。
 
@@ -415,7 +458,19 @@ def _select_cuts_along_path(
         return []
     selected: List[Tuple[int, int, int]] = []
     main_chain_set = set(path)
+
+    # Pre-compute: 各 path 位置以降の残り MW (main + side chain)。
+    # cut 判定で「進行方向 fragment が target_mw * ratio 未満なら抑制」に使う。
+    remaining_mw = [0.0] * (len(path) + 1)
+    for i in range(len(path) - 1, -1, -1):
+        remaining_mw[i] = (
+            remaining_mw[i + 1]
+            + _atom_total_mw(mol.GetAtomWithIdx(path[i]))
+            + _sidechain_mw(mol, path[i], main_chain_set)
+        )
+
     cum_mw = 0.0
+    min_terminal_mw = max(0.0, target_mw * min_terminal_ratio)
     for i in range(len(path) - 1):
         atom = mol.GetAtomWithIdx(path[i])
         cum_mw += _atom_total_mw(atom)
@@ -425,7 +480,11 @@ def _select_cuts_along_path(
         if bond is None:
             continue
         bond_idx = bond.GetIdx()
-        if bond_idx in candidate_bonds and cum_mw >= target_mw:
+        if (
+            bond_idx in candidate_bonds
+            and cum_mw >= target_mw
+            and remaining_mw[i + 1] >= min_terminal_mw
+        ):
             # BDA / BAA 役割の決定:
             #   - C-X (X = N/O/S/...): C 側を BDA、X 側を BAA (ABINIT-MP 慣習)
             #   - C-C: walk 起点側 (path[i]) を BDA、進行方向側 (path[i+1]) を BAA

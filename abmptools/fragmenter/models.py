@@ -53,6 +53,12 @@ class FragmenterConfig:
         amine などの長い側鎖でも累積 MW が target_mw を越えれば cut が追加
         される。BDA = walk 起点側、BAA = walk 進行方向側 (C-X bond の場合は
         C 側固定)。
+    min_terminal_fragment_ratio
+        cut した時に **末端 (進行方向) fragment の MW が target_mw × ratio
+        未満なら cut を抑制**するための閾値 (0.0 - 1.0、デフォルト 0.5)。
+        例: target_mw=80、ratio=0.5 → 末端 fragment が 40 g/mol 未満になる
+        cut は抑制される。小さすぎる N(CH3)2 等の末端の生成を防ぐ。
+        0 にすると無効 (= 旧挙動)。
     """
 
     pdb_path: str
@@ -66,6 +72,7 @@ class FragmenterConfig:
     include_residue_name: bool = False
     include_c_heteroatom: bool = False
     walk_side_chains: bool = False
+    min_terminal_fragment_ratio: float = 0.5
 
     def to_json(self, path: Optional[str] = None) -> str:
         text = json.dumps(asdict(self), indent=2, ensure_ascii=False)
