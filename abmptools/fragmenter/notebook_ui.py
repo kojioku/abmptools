@@ -150,6 +150,16 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
         value=0, description="Bond idx:",
         layout=widgets.Layout(width="220px"),
     )
+    add_cut_bda_choice = widgets.Dropdown(
+        options=[
+            ("auto (rule-based: C-X→C side, C-C→smaller idx)", "auto"),
+            ("atom1 = BDA", "atom1"),
+            ("atom2 = BDA", "atom2"),
+        ],
+        value="auto",
+        description="BDA:",
+        layout=widgets.Layout(width="500px"),
+    )
     add_cut_button = widgets.Button(
         description="Add cut",
         button_style="info",
@@ -161,6 +171,18 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
         value=fragmenter.config.target_mw,
         description="Target MW:",
         layout=widgets.Layout(width="220px"),
+    )
+    cb_exclude_hetero = widgets.Checkbox(
+        value=fragmenter.config.exclude_heteroneighbor,
+        description="exclude_heteroneighbor (C-C bonds adjacent to N/O/S/... 除外)",
+        indent=False,
+        layout=widgets.Layout(width="600px"),
+    )
+    cb_include_c_hetero = widgets.Checkbox(
+        value=fragmenter.config.include_c_heteroatom,
+        description="include_c_heteroatom (C-X 単結合も切断対象に: X 側が BAA)",
+        indent=False,
+        layout=widgets.Layout(width="600px"),
     )
     re_suggest_button = widgets.Button(
         description="Re-suggest (overwrite)",
@@ -296,7 +318,14 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
                     )
                     return
 
-            bda, baa = decide_bda_baa_for_manual_cut(rep.mol, a1_orig, a2_orig)
+            # BDA / BAA 決定: dropdown が "auto" なら rule-based、それ以外は手動指定
+            bda_choice = add_cut_bda_choice.value
+            if bda_choice == "atom1":
+                bda, baa = a1_orig, a2_orig
+            elif bda_choice == "atom2":
+                bda, baa = a2_orig, a1_orig
+            else:
+                bda, baa = decide_bda_baa_for_manual_cut(rep.mol, a1_orig, a2_orig)
             new_cut = CutSite(
                 bond_idx=orig_bond_idx,
                 atom1_idx=a1_orig,
@@ -310,7 +339,8 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
             add_cut_status.value = (
                 f'<span style="color:#28a745;">Added cut: heavy bond '
                 f'{target_bond_idx}, orig bond {orig_bond_idx}, atoms '
-                f'{a1_orig}-{a2_orig}, BDA={bda}, BAA={baa}</span>'
+                f'{a1_orig}-{a2_orig}, BDA={bda}, BAA={baa} '
+                f'(mode={bda_choice})</span>'
             )
             _refresh_dropdown()
             render(state["group_idx"])
@@ -321,11 +351,15 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
         try:
             new_mw = float(target_mw_input.value)
             fragmenter.config.target_mw = new_mw
+            fragmenter.config.exclude_heteroneighbor = bool(cb_exclude_hetero.value)
+            fragmenter.config.include_c_heteroatom = bool(cb_include_c_hetero.value)
             fragmenter.suggest_cuts()
             total = sum(len(g.cut_sites) for g in fragmenter.groups)
             re_suggest_status.value = (
                 f'<span style="color:#28a745;">Re-suggested with target_mw='
-                f'{new_mw}: {total} cut(s) total across {len(fragmenter.groups)} '
+                f'{new_mw}, exclude_hetero={cb_exclude_hetero.value}, '
+                f'include_c_hetero={cb_include_c_hetero.value}: '
+                f'{total} cut(s) total across {len(fragmenter.groups)} '
                 f'group(s)</span>'
             )
             _refresh_dropdown()
@@ -364,15 +398,18 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
             cuts_box,
             widgets.HTML(
                 '<hr><b>Add cut by heavy-mol bond index</b> '
-                '(see numbers on the SVG):'
+                '(see numbers on the SVG; BDA を "auto" 以外で固定可):'
             ),
             widgets.HBox([add_cut_input, add_cut_button]),
+            add_cut_bda_choice,
             add_cut_status,
             widgets.HTML(
                 '<hr><b>Re-suggest auto cuts</b> '
                 '(<i>overwrites all current cuts in all groups</i>):'
             ),
             widgets.HBox([target_mw_input, re_suggest_button]),
+            cb_exclude_hetero,
+            cb_include_c_hetero,
             re_suggest_status,
             widgets.HTML("<hr>"),
             export_button,

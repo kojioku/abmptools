@@ -85,7 +85,17 @@ def load_pdb_molecules(
 
     # Strategy 1: 標準 (proximityBonding=True, sanitize=True)
     # CONECT があれば優先、不足分は座標近接から推定。
-    mol = Chem.MolFromPDBFile(str(path), removeHs=False, sanitize=True)
+    # 近接推定が valence を超える場合 RDKit が "Explicit valence ..." を stderr に
+    # 吐くが、その後 Strategy 2 で正しく load されるため harmless。ユーザーが
+    # 不安にならないよう、Strategy 1 試行時のみ rdkit log を抑制する。
+    from rdkit import RDLogger
+    _rdkit_logger = RDLogger.logger()
+    _prev_level = _rdkit_logger.level if hasattr(_rdkit_logger, "level") else None
+    RDLogger.DisableLog("rdApp.error")
+    try:
+        mol = Chem.MolFromPDBFile(str(path), removeHs=False, sanitize=True)
+    finally:
+        RDLogger.EnableLog("rdApp.error")
 
     # Strategy 2: sanitize 失敗 → proximity bonding を切って CONECT 厳密モードで再試行
     # 近接推定で誤結合 (例: 隣接分子間の C 同士をつないでしまう) が原因のことが多い。
