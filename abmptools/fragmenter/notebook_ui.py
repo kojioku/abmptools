@@ -150,16 +150,6 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
         value=0, description="Bond idx:",
         layout=widgets.Layout(width="220px"),
     )
-    add_cut_bda_choice = widgets.Dropdown(
-        options=[
-            ("auto (rule-based: C-X→C side, C-C→smaller idx)", "auto"),
-            ("atom1 = BDA", "atom1"),
-            ("atom2 = BDA", "atom2"),
-        ],
-        value="auto",
-        description="BDA:",
-        layout=widgets.Layout(width="500px"),
-    )
     add_cut_button = widgets.Button(
         description="Add cut",
         button_style="info",
@@ -234,6 +224,16 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
             render(state["group_idx"])
         return _on_click
 
+    def _make_swap_handler(group: MoleculeGroup, cs_idx: int):
+        def _on_click(_btn):
+            cs = group.cut_sites[cs_idx]
+            if cs.bda_atom_idx is None or cs.baa_atom_idx is None:
+                # legacy CutSite (BDA/BAA 未設定) は swap できない
+                return
+            cs.bda_atom_idx, cs.baa_atom_idx = cs.baa_atom_idx, cs.bda_atom_idx
+            render(state["group_idx"])
+        return _on_click
+
     def render(group_idx: int):
         group = fragmenter.groups[group_idx]
         info_label.value = (
@@ -257,13 +257,20 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
                 layout=widgets.Layout(width="600px"),
             )
             cb.observe(_make_cb_handler(group, k))
+            swap_btn = widgets.Button(
+                description="Swap BDA/BAA",
+                button_style="info",
+                layout=widgets.Layout(width="130px"),
+                disabled=(cs.bda_atom_idx is None or cs.baa_atom_idx is None),
+            )
+            swap_btn.on_click(_make_swap_handler(group, k))
             rm_btn = widgets.Button(
                 description="Remove",
                 button_style="danger",
                 layout=widgets.Layout(width="100px"),
             )
             rm_btn.on_click(_make_remove_handler(group, k))
-            rows.append(widgets.HBox([cb, rm_btn]))
+            rows.append(widgets.HBox([cb, swap_btn, rm_btn]))
         cuts_box.children = rows
 
     def on_group_change(change):
@@ -318,14 +325,8 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
                     )
                     return
 
-            # BDA / BAA 決定: dropdown が "auto" なら rule-based、それ以外は手動指定
-            bda_choice = add_cut_bda_choice.value
-            if bda_choice == "atom1":
-                bda, baa = a1_orig, a2_orig
-            elif bda_choice == "atom2":
-                bda, baa = a2_orig, a1_orig
-            else:
-                bda, baa = decide_bda_baa_for_manual_cut(rep.mol, a1_orig, a2_orig)
+            # BDA / BAA は rule-based で auto-decide (Swap BDA/BAA ボタンで反転可能)
+            bda, baa = decide_bda_baa_for_manual_cut(rep.mol, a1_orig, a2_orig)
             new_cut = CutSite(
                 bond_idx=orig_bond_idx,
                 atom1_idx=a1_orig,
@@ -340,7 +341,7 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
                 f'<span style="color:#28a745;">Added cut: heavy bond '
                 f'{target_bond_idx}, orig bond {orig_bond_idx}, atoms '
                 f'{a1_orig}-{a2_orig}, BDA={bda}, BAA={baa} '
-                f'(mode={bda_choice})</span>'
+                f'(use "Swap BDA/BAA" to flip)</span>'
             )
             _refresh_dropdown()
             render(state["group_idx"])
@@ -398,10 +399,9 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
             cuts_box,
             widgets.HTML(
                 '<hr><b>Add cut by heavy-mol bond index</b> '
-                '(see numbers on the SVG; BDA を "auto" 以外で固定可):'
+                '(BDA/BAA は rule-based で自動決定、各行の "Swap BDA/BAA" で反転可):'
             ),
             widgets.HBox([add_cut_input, add_cut_button]),
-            add_cut_bda_choice,
             add_cut_status,
             widgets.HTML(
                 '<hr><b>Re-suggest auto cuts</b> '
