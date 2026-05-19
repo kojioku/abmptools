@@ -30,6 +30,40 @@ logger = logging.getLogger(__name__)
 HETERO_ELEMENTS = {7, 8, 16, 15, 9, 17, 35, 53}  # N, O, S, P, F, Cl, Br, I
 
 
+def _enumerate_side_chain_candidate_bonds(
+    mol: Any, config: FragmenterConfig,
+) -> Set[int]:
+    """walk_side_chains 用の relaxed candidate set。
+
+    主鎖 walk と違って、side chain は通常 ester / amine 隣接のため
+    `exclude_heteroneighbor` で全 bond が除外されてしまう。side chain walk では
+    その filter を **無視** し、C-X (X = N/O/S/...) 単結合も許可する
+    (ABINIT-MP 慣習 C-side BDA に基づき、`_walk_side_chains_from_main` 内で
+    BDA/BAA を決定する)。環内 / 多重結合除外は維持。
+    """
+    from rdkit import Chem
+
+    candidates: Set[int] = set()
+    for bond in mol.GetBonds():
+        if config.exclude_multibond and bond.GetBondType() != Chem.BondType.SINGLE:
+            continue
+        a1 = bond.GetBeginAtom()
+        a2 = bond.GetEndAtom()
+        z1, z2 = a1.GetAtomicNum(), a2.GetAtomicNum()
+        is_cc = z1 == 6 and z2 == 6
+        is_cx = (
+            (z1 == 6 and z2 in HETERO_ELEMENTS)
+            or (z2 == 6 and z1 in HETERO_ELEMENTS)
+        )
+        if not (is_cc or is_cx):
+            continue
+        if config.exclude_ring_cc and bond.IsInRing():
+            continue
+        # ヘテロ隣接フィルタは無視 (side chain walk 用)
+        candidates.add(bond.GetIdx())
+    return candidates
+
+
 def _walk_side_chains_from_main(
     mol: Any,
     main_path: List[int],
@@ -119,9 +153,11 @@ def suggest_cuts(mol: Any, config: FragmenterConfig) -> List[CutSite]:
     cut_results = _select_cuts_along_path(mol, main_chain, candidate, config.target_mw)
 
     # walk_side_chains=True なら主鎖 walk 後に各 main atom の side chain も walk
+    # side chain 用に candidate を別途構築 (ester/amine 隣接でも C-C や C-X を許可)
     if config.walk_side_chains:
+        side_candidate = _enumerate_side_chain_candidate_bonds(mol, config)
         cut_results = cut_results + _walk_side_chains_from_main(
-            mol, main_chain, candidate, config.target_mw,
+            mol, main_chain, side_candidate, config.target_mw,
         )
         # 同じ bond が両 walk で追加されないよう dedupe
         seen_bonds: Set[int] = set()
