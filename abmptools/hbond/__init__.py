@@ -47,7 +47,7 @@ from .classifier import (
 )
 from .colorizer import (
     DEFAULT_ACTION_COLORS, DEFAULT_COLORS, DrawAttribute, VALID_COLORS,
-    colorize_udf, colorize_udf_action,
+    colorize_udf, colorize_udf_action, write_show_python_script,
 )
 from .func_tags import (
     BUILTIN_MAPPINGS, CHARMM36, GAFF2, OPENFF_SAGE, OPLS_AA,
@@ -89,7 +89,7 @@ __all__ = [
     "ClassificationResult", "MolRole", "classify",
     # colorizer
     "DrawAttribute", "DEFAULT_COLORS", "VALID_COLORS", "colorize_udf",
-    "DEFAULT_ACTION_COLORS", "colorize_udf_action",
+    "DEFAULT_ACTION_COLORS", "colorize_udf_action", "write_show_python_script",
     # lifetime (v1.26+ multi-record)
     "PairKey", "PairLifetime",
     "compute_lifetimes", "compute_autocorrelation",

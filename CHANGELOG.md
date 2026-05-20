@@ -43,6 +43,13 @@
   sphere overlay 描画。1 分子内に複数官能基が異なる役割で参加するケースも
   正しく可視化される。CLI `--colorize-mode {molname,action,both}`、default は
   backward compat の `molname`。`colorize_udf_action()` API 新規 export。
+- **`<prefix>_show.py` 併出** (J-OCTA Viewer 対応): J-OCTA Viewer は
+  `<prefix>_show.act` の autorun action 形式で落ちることがあるため、同じ描画
+  ロジックを autorun ラッパー無しの **プレーン Python script** として
+  `<prefix>_show.py` に出力。J-OCTA で `<prefix>.bdf` (Mol_Name 維持 copy)
+  を開いた後、Python パネルから `Load…` → `Run` で同じ役割色 overlay が描画
+  される。`write_show_python_script()` API 新規 export。`colorize_mode in
+  {action, both}` で .act / .py 両方を併出。
 
 ### Added (`abmptools.cg.dpd` サブパッケージ — v1.26.0 候補)
 

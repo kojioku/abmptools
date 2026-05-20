@@ -21,6 +21,7 @@ python -m abmptools.hbond "$BDF" \
 
 echo ""
 echo "Done."
-echo "  - imc_hbond_action.bdf : Mol_Name preserved + Python action overlay (recommended)"
-echo "  - imc_hbond_colored.bdf: Mol_Name renamed (v1.25 legacy, post-render only)"
-echo "  - imc_hbond.bdf        : plain copy (J-OCTA pre-render only, no color)"
+echo "  Visualization options:"
+echo "  - OCTA gourmet:    open imc_hbond_action.bdf (autorun via imc_hbond_show.act)"
+echo "  - J-OCTA Viewer:   open imc_hbond.bdf, then Python panel -> Load imc_hbond_show.py -> Run"
+echo "  - Legacy (v1.25):  open imc_hbond_colored.bdf and edit show.all 'mol' to 'molname'"

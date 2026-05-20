@@ -23,7 +23,7 @@ from .classifier import (
 )
 from .colorizer import (
     DEFAULT_ACTION_COLORS, DEFAULT_COLORS, DrawAttribute,
-    colorize_udf, colorize_udf_action,
+    colorize_udf, colorize_udf_action, write_show_python_script,
 )
 from .func_tags import FunctionalTagMapping, detect_force_field, get_mapping
 from .functional_groups import (
@@ -369,6 +369,23 @@ class Analyzer:
                 )
                 out_paths["action_bdf"] = action_bdf
                 out_paths["action_act"] = action_act
+
+                # Companion plain Python script for Python-panel execution
+                # (J-OCTA Viewer often crashes on the autorun form above).
+                # Target is the Mol_Name-preserved copy <prefix>.bdf.
+                script_py = f"{c.out_prefix}_show.py"
+                target_basename = (
+                    os.path.basename(f"{c.out_prefix}.bdf")
+                    if c.do_copy_uncolored
+                    else os.path.basename(c.bdf_path)
+                )
+                write_show_python_script(
+                    script_py, last_cls,
+                    carboxyls=self.carboxyls, amides=self.amides,
+                    target_bdf_basename=target_basename,
+                    action_colors=c.action_colors,
+                )
+                out_paths["action_script"] = script_py
 
         # plot
         if c.do_plot and len(self.frame_results) >= 1:
