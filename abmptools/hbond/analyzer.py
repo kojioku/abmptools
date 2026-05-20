@@ -23,7 +23,8 @@ from .classifier import (
 )
 from .colorizer import (
     DEFAULT_ACTION_COLORS, DEFAULT_COLORS, DrawAttribute,
-    colorize_udf, colorize_udf_action, write_show_python_script,
+    colorize_udf, colorize_udf_action, write_hbond_attributes,
+    write_show_python_script,
 )
 from .func_tags import FunctionalTagMapping, detect_force_field, get_mapping
 from .functional_groups import (
@@ -72,6 +73,11 @@ class AnalyzerConfig:
     color_attrs: Optional[Dict[str, DrawAttribute]] = None
     do_colorize: bool = True
     do_copy_uncolored: bool = True   # writes ``<prefix>.bdf`` with Mol_Name kept
+    # Append per-atom Attributes[] entries (Name=attribute, Value=role) on
+    # functional-group atoms of the uncolored copy. Useful for J-OCTA Viewer
+    # category filtering when sphere overlay rendering is unavailable.
+    do_write_attributes: bool = True
+    attributes_name: str = "hbond"
     # Coloring strategy:
     #   "molname" — rename Mol_Name + Draw_Attributes.Molecule[] (v1.25 legacy)
     #   "action"  — emit Python action .act that paints per functional group
@@ -335,6 +341,7 @@ class Analyzer:
         out_paths["pairs"] = pairs_path
 
         # Uncolored copy (Mol_Name preserved, J-OCTA pre-render compatible)
+        uncolored_path = None
         if c.do_copy_uncolored:
             uncolored_path = f"{c.out_prefix}.bdf"
             if os.path.abspath(uncolored_path) != os.path.abspath(c.bdf_path):
@@ -343,6 +350,17 @@ class Analyzer:
             else:
                 if c.verbose:
                     print(f"  (uncolored copy skipped: out path == input)")
+                uncolored_path = None
+
+        # Per-atom Attributes[] tagging on the uncolored copy (J-OCTA filter)
+        if (c.do_write_attributes and uncolored_path
+                and self.frame_results and self.carboxyls):
+            last_cls = self.frame_results[-1].classification
+            write_hbond_attributes(
+                uncolored_path, last_cls,
+                carboxyls=self.carboxyls, amides=self.amides,
+                attribute_name=c.attributes_name,
+            )
 
         # colorized BDF (uses last frame's classification by default)
         if c.do_colorize and self.frame_results:

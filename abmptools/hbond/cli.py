@@ -73,6 +73,15 @@ def main(argv=None) -> int:
              "which is intended for J-OCTA pre-render compatibility"
     )
     parser.add_argument(
+        "--no-write-attributes", action="store_true",
+        help="Skip appending per-atom Attributes[] hbond=Dual/Single/Free/Accept "
+             "tags to <prefix>.bdf"
+    )
+    parser.add_argument(
+        "--attributes-name", default="hbond",
+        help="Attribute Name to write (default: hbond)"
+    )
+    parser.add_argument(
         "--no-plot", action="store_true",
         help="Skip writing count plot"
     )
@@ -146,6 +155,8 @@ def main(argv=None) -> int:
         do_colorize=not args.no_colorize,
         colorize_mode=args.colorize_mode,
         do_copy_uncolored=not args.no_copy_uncolored,
+        do_write_attributes=not args.no_write_attributes,
+        attributes_name=args.attributes_name,
         do_plot=not args.no_plot,
         verbose=not args.quiet,
         force_field=args.force_field,

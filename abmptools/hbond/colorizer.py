@@ -391,6 +391,89 @@ def colorize_udf_action(
     return output_bdf_path, output_act_path
 
 
+def write_hbond_attributes(
+    bdf_path: str,
+    classification: FunctionalGroupClassification,
+    carboxyls: List[CarboxylGroup],
+    amides: List[AmideGroup],
+    attribute_name: str = "hbond",
+    value_map: Optional[Dict[str, str]] = None,
+) -> str:
+    """Append per-atom ``Attributes[]`` entries tagging each functional-group
+    atom with its role (carboxyl: Dual/Single/Free, amide: Accept/Free).
+
+    The new entry is **appended to the tail** of each atom's ``Attributes[]``;
+    existing entries (the ``Name='1' Value='molecular:<id>'`` mol identifier
+    that J-OCTA writes by default, plus any other pre-existing fields) are
+    left untouched.
+
+    Atoms tagged:
+    - carboxyl ``c`` / ``o`` / ``oh`` / ``ho`` — value from COOH role
+    - amide   ``c`` / ``o`` / ``n``        — value from amide role
+    Other atoms are not modified. This lets J-OCTA filter / highlight by the
+    ``hbond`` Attribute (e.g. show only ``Dual`` atoms).
+
+    Default value_map keeps Title-case strings consistent across roles:
+    ``{'dual':'Dual','single':'Single','free':'Free','accept':'Accept'}``.
+    """
+    if value_map is None:
+        value_map = {
+            "dual": "Dual", "single": "Single",
+            "free": "Free", "accept": "Accept",
+        }
+
+    atom_value: Dict[Tuple[int, int], str] = {}
+    for cg, role in zip(carboxyls, classification.carboxyl_roles):
+        v = value_map.get(role.role, role.role)
+        for ai in (cg.c_atom, cg.o_atom, cg.oh_atom, cg.ho_atom):
+            atom_value[(cg.mol_index, ai)] = v
+    for ag, role in zip(amides, classification.amide_roles):
+        v = value_map.get(role.role, role.role)
+        for ai in (ag.c_atom, ag.o_atom, ag.n_atom):
+            # carboxyl > amide priority on rare overlap (shouldn't happen)
+            atom_value.setdefault((ag.mol_index, ai), v)
+
+    from UDFManager import UDFManager
+    u = UDFManager(bdf_path)
+    n_records = u.totalRecord()
+    for rec in [-1] + list(range(n_records)):
+        try:
+            u.jump(rec)
+        except Exception:
+            continue
+        n_mol = u.size("Set_of_Molecules.molecule[]")
+        if not n_mol:
+            continue
+        for mi in range(n_mol):
+            n_at = u.size(f"Set_of_Molecules.molecule[{mi}].atom[]") or 0
+            for ai in range(n_at):
+                key = (mi, ai)
+                if key not in atom_value:
+                    continue
+                base = f"Set_of_Molecules.molecule[{mi}].atom[{ai}].Attributes"
+                cur_n = u.size(f"{base}[]") or 0
+                # Skip if we've already appended (idempotent re-runs)
+                already = False
+                for j in range(cur_n):
+                    try:
+                        if u.get(f"{base}[{j}].Name") == attribute_name:
+                            already = True
+                            break
+                    except Exception:
+                        pass
+                if already:
+                    continue
+                slot = cur_n
+                try:
+                    u.put(attribute_name, f"{base}[{slot}].Name")
+                    u.put(atom_value[key], f"{base}[{slot}].Value")
+                except Exception as e:
+                    print(f"Warn: failed Attributes[{slot}] at "
+                          f"mol[{mi}].atom[{ai}]: {e}")
+    u.write(bdf_path)
+    return bdf_path
+
+
 def write_show_python_script(
     output_py_path: str,
     classification: FunctionalGroupClassification,

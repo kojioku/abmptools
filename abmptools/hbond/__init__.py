@@ -47,7 +47,8 @@ from .classifier import (
 )
 from .colorizer import (
     DEFAULT_ACTION_COLORS, DEFAULT_COLORS, DrawAttribute, VALID_COLORS,
-    colorize_udf, colorize_udf_action, write_show_python_script,
+    colorize_udf, colorize_udf_action, write_hbond_attributes,
+    write_show_python_script,
 )
 from .func_tags import (
     BUILTIN_MAPPINGS, CHARMM36, GAFF2, OPENFF_SAGE, OPLS_AA,
@@ -90,6 +91,7 @@ __all__ = [
     # colorizer
     "DrawAttribute", "DEFAULT_COLORS", "VALID_COLORS", "colorize_udf",
     "DEFAULT_ACTION_COLORS", "colorize_udf_action", "write_show_python_script",
+    "write_hbond_attributes",
     # lifetime (v1.26+ multi-record)
     "PairKey", "PairLifetime",
     "compute_lifetimes", "compute_autocorrelation",

@@ -43,6 +43,17 @@
   sphere overlay 描画。1 分子内に複数官能基が異なる役割で参加するケースも
   正しく可視化される。CLI `--colorize-mode {molname,action,both}`、default は
   backward compat の `molname`。`colorize_udf_action()` API 新規 export。
+- **`<prefix>.bdf` の Attributes[] に hbond タグを append** (J-OCTA Attribute
+  フィルタ対応): 各 functional-group atom (carboxyl c/o/oh/ho、amide c/o/n)
+  の `Set_of_Molecules.molecule[].atom[].Attributes[]` 末尾に
+  `Name='hbond' Value='Dual'/'Single'/'Free'/'Accept'` を append。既存
+  Attributes (`Name='1' Value='molecular:<id>'` 等の J-OCTA 内部用) は
+  touch せず idempotent (再実行で重複 entry 作らない)。J-OCTA で
+  `<prefix>.bdf` を開いた後、Attribute フィルタで `hbond=Dual` 等の atom
+  のみ可視化できる (色分けではなくカテゴリフィルタ)。CLI
+  `--no-write-attributes` / `--attributes-name NAME` option、default `hbond`。
+  `write_hbond_attributes()` API 新規 export、`AnalyzerConfig` に
+  `do_write_attributes=True` / `attributes_name='hbond'` フィールド追加。
 - **`<prefix>_show.py` 併出** (J-OCTA Viewer 対応): J-OCTA Viewer は
   `<prefix>_show.act` の autorun action 形式で落ちることがあるため、同じ描画
   ロジックを autorun ラッパー無しの **プレーン Python script** として
