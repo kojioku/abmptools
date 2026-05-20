@@ -21,7 +21,10 @@ from .classifier import (
     AmideRole, CarboxylRole, ClassificationResult,
     FunctionalGroupClassification, classify,
 )
-from .colorizer import DEFAULT_COLORS, DrawAttribute, colorize_udf
+from .colorizer import (
+    DEFAULT_ACTION_COLORS, DEFAULT_COLORS, DrawAttribute,
+    colorize_udf, colorize_udf_action,
+)
 from .func_tags import FunctionalTagMapping, detect_force_field, get_mapping
 from .functional_groups import (
     AmideGroup, AmineDonorGroup, CarboxylGroup,
@@ -69,6 +72,13 @@ class AnalyzerConfig:
     color_attrs: Optional[Dict[str, DrawAttribute]] = None
     do_colorize: bool = True
     do_copy_uncolored: bool = True   # writes ``<prefix>.bdf`` with Mol_Name kept
+    # Coloring strategy:
+    #   "molname" — rename Mol_Name + Draw_Attributes.Molecule[] (v1.25 legacy)
+    #   "action"  — emit Python action .act that paints per functional group
+    #               (Mol_Name preserved; J-OCTA pre-render compatible)
+    #   "both"    — write both <prefix>_colored.bdf and <prefix>_action.bdf
+    colorize_mode: str = "molname"
+    action_colors: Optional[Dict[str, List[float]]] = None
     do_plot: bool = True
     verbose: bool = True
     # Force field (None = auto-detect from atom types)
@@ -337,11 +347,28 @@ class Analyzer:
         # colorized BDF (uses last frame's classification by default)
         if c.do_colorize and self.frame_results:
             last_cls = self.frame_results[-1].classification
-            colored_path = f"{c.out_prefix}_colored.bdf"
-            colorize_udf(c.bdf_path, colored_path, last_cls,
-                         base_mol_name=c.base_mol_name,
-                         color_attrs=c.color_attrs)
-            out_paths["colored"] = colored_path
+            mode = (c.colorize_mode or "molname").lower()
+            if mode not in {"molname", "action", "both"}:
+                raise ValueError(
+                    f"Unknown colorize_mode {c.colorize_mode!r}; "
+                    "must be one of: molname, action, both"
+                )
+            if mode in {"molname", "both"}:
+                colored_path = f"{c.out_prefix}_colored.bdf"
+                colorize_udf(c.bdf_path, colored_path, last_cls,
+                             base_mol_name=c.base_mol_name,
+                             color_attrs=c.color_attrs)
+                out_paths["colored"] = colored_path
+            if mode in {"action", "both"}:
+                action_bdf = f"{c.out_prefix}_action.bdf"
+                action_act = f"{c.out_prefix}_show.act"
+                colorize_udf_action(
+                    c.bdf_path, action_bdf, action_act, last_cls,
+                    carboxyls=self.carboxyls, amides=self.amides,
+                    action_colors=c.action_colors,
+                )
+                out_paths["action_bdf"] = action_bdf
+                out_paths["action_act"] = action_act
 
         # plot
         if c.do_plot and len(self.frame_results) >= 1:

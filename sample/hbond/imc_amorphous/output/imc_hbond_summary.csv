@@ -1,2 +1,2 @@
-record,n_dual_mols,n_single_mols,n_free_mols,n_hbonds_cc,n_hbonds_ca
-0,10,73,42,31,50
+record,n_carboxyls,n_carb_dual,n_carb_single,n_carb_free,n_amides,n_amide_accept,n_amide_free,ratio_carb_dual,ratio_carb_single,ratio_carb_free,ratio_amide_accept,ratio_amide_free,n_hbonds_cc,n_hbonds_ca,n_dual_mols,n_single_mols,n_free_mols
+0,125,10,49,66,125,49,76,0.0800,0.3920,0.5280,0.3920,0.6080,31,50,10,49,66

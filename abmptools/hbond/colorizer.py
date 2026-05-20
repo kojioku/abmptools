@@ -2,30 +2,43 @@
 colorizer.py
 ------------
 Write H-bond classification results back to a COGNAC UDF/BDF so that
-gourmet renders the participating molecules with three distinct colors.
+gourmet renders the participating functional groups with role-based colors.
 
-Strategy: rename ``Set_of_Molecules.molecule[i].Mol_Name`` per classification,
-then add ``Draw_Attributes.Molecule[]`` entries colored for each new Mol_Name.
+Two strategies:
 
-Schema (verified via queryDefine on Draw_Attributes.Molecule[]):
+(A) ``colorize_udf`` — **Mol_Name rename** + ``Draw_Attributes.Molecule[]``.
+    Renames ``Set_of_Molecules.molecule[i].Mol_Name`` per molecule role
+    (``IMC_DUAL`` / ``IMC_SINGLE`` / ``IMC_FREE``) and adds 3 entries to
+    ``Draw_Attributes.Molecule[]``. Works in gourmet show + OCTA post-render
+    but breaks J-OCTA pre-render (Mol_Name lookup fails on renamed names).
+
+(B) ``colorize_udf_action`` — **Python action (.act)** + Mol_Name kept.
+    Emits a `_show.act` file that the gourmet ``show`` action loads to
+    paint each functional group (carboxyl / amide) individually with
+    sphere overlays on its atoms. The BDF text header's ``Action:`` line
+    is patched to reference the new .act file (binary section untouched).
+    Compatible with J-OCTA pre-render (no Mol_Name rename) and lets one
+    molecule contribute to multiple roles via different functional groups.
+
+Schema notes (Draw_Attributes.Molecule[] for strategy A):
 - ``color`` is a ``select`` type with 9 named colors only:
     Red, Green, Blue, Magenta, Cyan, Yellow, White, Black, Gray.
-  (The RGBA float syntax `[r,g,b,a]` in GOURMET docs applies only to the
-   Python viewer's drawing functions like ``sphere()``, NOT to the
-   ``Draw_Attributes`` schema.)
 - ``transparency`` is a float [0.0, 1.0]; **1.0 = NO transparency (opaque)**.
 - ``radius`` is a float (sphere radius scale).
-
-Output file: ``<bdf_stem>_colored.bdf`` (or user-supplied path).
 """
 from __future__ import annotations
 
 import os
+import re
 import shutil
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
-from .classifier import ClassificationResult, MolRole
+from .classifier import (
+    AmideRole, CarboxylRole, ClassificationResult,
+    FunctionalGroupClassification, MolRole,
+)
+from .functional_groups import AmideGroup, CarboxylGroup
 
 
 VALID_COLORS = {
@@ -142,3 +155,167 @@ def colorize_udf(
 
     u.write(output_path)
     return output_path
+
+
+# ---------------------------------------------------------------------------
+# Strategy (B): Python action (.act) coloring — Mol_Name preserved
+# ---------------------------------------------------------------------------
+
+# RGBA float palette for action-mode coloring (gourmet draw functions accept
+# `[r, g, b, a]` or `[r, g, b, a, radius]`).
+DEFAULT_ACTION_COLORS: Dict[str, List[float]] = {
+    "dual":   [1.0, 0.0, 0.0, 1.0],     # red
+    "single": [0.0, 0.0, 1.0, 1.0],     # blue
+    "free":   [0.7, 0.7, 0.7, 0.3],     # translucent gray
+    "accept": [0.0, 0.8, 0.8, 1.0],     # cyan (amide acceptor)
+}
+
+
+def _patch_action_header(bdf_path: str, act_basename: str) -> None:
+    """Append ``act_basename`` to the BDF text header's ``Action:`` field.
+
+    Only the leading text section (before ``\\end{header}``) is rewritten;
+    the binary section is left byte-for-byte untouched. Idempotent if
+    ``act_basename`` is already listed.
+    """
+    with open(bdf_path, "rb") as f:
+        data = f.read()
+    end_marker = b"\\end{header}"
+    idx = data.find(end_marker)
+    if idx < 0:
+        raise RuntimeError(
+            f"Cannot find \\end{{header}} in {bdf_path}; "
+            "is this a valid UDF/BDF file?"
+        )
+    header = data[:idx].decode("ascii")
+    rest = data[idx:]
+
+    m = re.search(r'^Action:"([^"]*)"', header, re.MULTILINE)
+    if m:
+        existing = m.group(1)
+        parts = [p for p in existing.split(";") if p]
+        if act_basename in parts:
+            return  # already wired
+        parts.append(act_basename)
+        new_line = f'Action:"{";".join(parts)}"'
+        header = header[:m.start()] + new_line + header[m.end():]
+    else:
+        # No Action line — insert right before \end{data} of the header block.
+        header = header.replace(
+            "\\end{data}", f'Action:"{act_basename}"\n\\end{{data}}', 1
+        )
+
+    with open(bdf_path, "wb") as f:
+        f.write(header.encode("ascii") + rest)
+
+
+def _render_show_action(
+    classification: FunctionalGroupClassification,
+    carboxyls: List[CarboxylGroup],
+    amides: List[AmideGroup],
+    colors: Dict[str, List[float]],
+) -> str:
+    """Build the body of the ``_root: show()`` action embedding per-group data."""
+    carb_entries = []
+    for cg, role in zip(carboxyls, classification.carboxyl_roles):
+        carb_entries.append(
+            f"    ({cg.mol_index}, {cg.c_atom}, {cg.o_atom}, "
+            f"{cg.oh_atom}, {cg.ho_atom}, '{role.role}'),"
+        )
+    amide_entries = []
+    for ag, role in zip(amides, classification.amide_roles):
+        amide_entries.append(
+            f"    ({ag.mol_index}, {ag.c_atom}, {ag.o_atom}, "
+            f"{ag.n_atom}, '{role.role}'),"
+        )
+
+    color_lines = []
+    for role, c in colors.items():
+        rgba = ", ".join(f"{v:.3f}" for v in c)
+        color_lines.append(f"    '{role}': [{rgba}],")
+
+    # NOTE: gourmet's action body is run as Python under the GraphSheet; we
+    # use `$path` syntax for UDF access and the draw functions documented in
+    # the gourmet manual (sphere / line). Sphere radius is appended to the
+    # color tuple as the 5th element.
+    body = [
+        "# Auto-generated by abmptools.hbond.colorize_udf_action.",
+        "# Renders functional groups with role-based color overlay.",
+        "# Carboxyl: dual=red, single=blue, free=gray.",
+        "# Amide:   accept=cyan, free=gray.",
+        "# autorun fires on file open and on each record change, so the",
+        "# overlay refreshes automatically when navigating frames.",
+        "",
+        "autorun : showHbond() : \\begin",
+        "carboxyls = [",
+        *carb_entries,
+        "]",
+        "amides = [",
+        *amide_entries,
+        "]",
+        "role_color = {",
+        *color_lines,
+        "}",
+        "sphere_radius = 0.55",
+        "",
+        "# Backbone bonds in light gray",
+        "n_mol = sizeArray($Set_of_Molecules.molecule[])",
+        "for mi in range(n_mol):",
+        "    n_bonds = sizeArray($Set_of_Molecules.molecule[mi].bond[])",
+        "    for bi in range(n_bonds):",
+        "        a1 = $Set_of_Molecules.molecule[mi].bond[bi].atom1",
+        "        a2 = $Set_of_Molecules.molecule[mi].bond[bi].atom2",
+        "        p1 = $Structure.Position.mol[mi].atom[a1]",
+        "        p2 = $Structure.Position.mol[mi].atom[a2]",
+        "        line(p1, p2, [0.5, 0.5, 0.5, 0.4])",
+        "",
+        "# Carboxyl atoms (c, o, oh, ho) coloured by role",
+        "for mi, c_at, o_at, oh_at, ho_at, role in carboxyls:",
+        "    col = role_color.get(role, role_color['free']) + [sphere_radius]",
+        "    for ai in (c_at, o_at, oh_at, ho_at):",
+        "        sphere($Structure.Position.mol[mi].atom[ai], col)",
+        "",
+        "# Amide atoms (c, o, n) coloured by accept/free",
+        "for mi, c_at, o_at, n_at, role in amides:",
+        "    key = 'accept' if role == 'accept' else 'free'",
+        "    col = role_color[key] + [sphere_radius]",
+        "    for ai in (c_at, o_at, n_at):",
+        "        sphere($Structure.Position.mol[mi].atom[ai], col)",
+        "\\end",
+        "",
+    ]
+    return "\n".join(body)
+
+
+def colorize_udf_action(
+    input_path: str,
+    output_bdf_path: str,
+    output_act_path: str,
+    classification: FunctionalGroupClassification,
+    carboxyls: List[CarboxylGroup],
+    amides: List[AmideGroup],
+    action_colors: Optional[Dict[str, List[float]]] = None,
+) -> Tuple[str, str]:
+    """Emit a Mol_Name-preserved BDF + Python action that paints each
+    functional group with a role-based color overlay.
+
+    Returns
+    -------
+    (bdf_path, act_path)
+    """
+    if action_colors is None:
+        action_colors = DEFAULT_ACTION_COLORS
+
+    if input_path != output_bdf_path:
+        shutil.copy(input_path, output_bdf_path)
+
+    act_text = _render_show_action(
+        classification, carboxyls, amides, action_colors,
+    )
+    with open(output_act_path, "w", encoding="ascii") as f:
+        f.write(act_text)
+
+    act_basename = os.path.basename(output_act_path)
+    _patch_action_header(output_bdf_path, act_basename)
+
+    return output_bdf_path, output_act_path

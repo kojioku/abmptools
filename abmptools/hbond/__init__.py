@@ -45,7 +45,10 @@ from .classifier import (
     AmideRole, CarboxylRole, ClassificationResult,
     FunctionalGroupClassification, MolRole, classify,
 )
-from .colorizer import DEFAULT_COLORS, DrawAttribute, VALID_COLORS, colorize_udf
+from .colorizer import (
+    DEFAULT_ACTION_COLORS, DEFAULT_COLORS, DrawAttribute, VALID_COLORS,
+    colorize_udf, colorize_udf_action,
+)
 from .func_tags import (
     BUILTIN_MAPPINGS, CHARMM36, GAFF2, OPENFF_SAGE, OPLS_AA,
     FunctionalTagMapping, detect_force_field, get_mapping, tag_atoms,
@@ -86,6 +89,7 @@ __all__ = [
     "ClassificationResult", "MolRole", "classify",
     # colorizer
     "DrawAttribute", "DEFAULT_COLORS", "VALID_COLORS", "colorize_udf",
+    "DEFAULT_ACTION_COLORS", "colorize_udf_action",
     # lifetime (v1.26+ multi-record)
     "PairKey", "PairLifetime",
     "compute_lifetimes", "compute_autocorrelation",

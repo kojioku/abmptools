@@ -34,6 +34,15 @@
 - **gourmet 可視化手順の docs 改訂**: Python パネルで
   `show.all("line","mol","molname",...)` に書換が必要なこと、J-OCTA プリ描画
   には `<prefix>.bdf` を使うことを明記。
+- **Python action 経路の追加** (`colorize_mode="action"`): GOURMET
+  `Draw_Attributes` schema が Mol_Name 維持での per-functional-group
+  色付けに対応していないため、`<prefix>_show.act` (`autorun: showHbond()`)
+  + `<prefix>_action.bdf` (Mol_Name 維持コピー + Action ヘッダパッチ) を
+  併出する経路を追加。各 carboxyl atoms (c/o/oh/ho) と amide atoms (c/o/n)
+  を role に応じた色 (dual=red, single=blue, free=gray, accept=cyan) で
+  sphere overlay 描画。1 分子内に複数官能基が異なる役割で参加するケースも
+  正しく可視化される。CLI `--colorize-mode {molname,action,both}`、default は
+  backward compat の `molname`。`colorize_udf_action()` API 新規 export。
 
 ### Added (`abmptools.cg.dpd` サブパッケージ — v1.26.0 候補)
 

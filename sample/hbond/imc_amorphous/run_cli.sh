@@ -16,7 +16,11 @@ fi
 python -m abmptools.hbond "$BDF" \
     --out-prefix "$HERE/output/imc_hbond" \
     --criteria luzar-chandler \
-    --mol-name IMC
+    --mol-name IMC \
+    --colorize-mode both
 
 echo ""
-echo "Done. Open '$HERE/output/imc_hbond_colored.bdf' in OCTA gourmet."
+echo "Done."
+echo "  - imc_hbond_action.bdf : Mol_Name preserved + Python action overlay (recommended)"
+echo "  - imc_hbond_colored.bdf: Mol_Name renamed (v1.25 legacy, post-render only)"
+echo "  - imc_hbond.bdf        : plain copy (J-OCTA pre-render only, no color)"
