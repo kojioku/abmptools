@@ -268,27 +268,34 @@ role_color = {
 }
 sphere_radius = 0.55
 
+# Helper: get atom position by global indices
+def _pos(mi, ai):
+    return get('Structure.Position.mol[].atom[]', [mi, ai])
+
 # Backbone bonds in light gray
-n_mol = sizeArray($Set_of_Molecules.molecule[])
+n_mol = size('Set_of_Molecules.molecule[]')
 for mi in range(n_mol):
-    n_bonds = sizeArray($Set_of_Molecules.molecule[mi].bond[])
+    n_bonds = size('Set_of_Molecules.molecule[].bond[]', [mi])
     for bi in range(n_bonds):
-        a1 = $Set_of_Molecules.molecule[mi].bond[bi].atom1
-        a2 = $Set_of_Molecules.molecule[mi].bond[bi].atom2
-        p1 = $Structure.Position.mol[mi].atom[a1]
-        p2 = $Structure.Position.mol[mi].atom[a2]
-        line(p1, p2, [0.5, 0.5, 0.5, 0.4])
+        a1 = get('Set_of_Molecules.molecule[].bond[].atom1', [mi, bi])
+        a2 = get('Set_of_Molecules.molecule[].bond[].atom2', [mi, bi])
+        line(_pos(mi, a1), _pos(mi, a2), [0.5, 0.5, 0.5, 0.4])
 
 # Carboxyl atoms (c, o, oh, ho) coloured by role
-for mi, c_at, o_at, oh_at, ho_at, role in carboxyls:
+for entry in carboxyls:
+    mi, c_at, o_at, oh_at, ho_at, role = entry
     col = role_color.get(role, role_color['free']) + [sphere_radius]
     for ai in (c_at, o_at, oh_at, ho_at):
-        sphere($Structure.Position.mol[mi].atom[ai], col)
+        sphere(_pos(mi, ai), col)
 
 # Amide atoms (c, o, n) coloured by accept/free
-for mi, c_at, o_at, n_at, role in amides:
-    key = 'accept' if role == 'accept' else 'free'
+for entry in amides:
+    mi, c_at, o_at, n_at, role = entry
+    if role == 'accept':
+        key = 'accept'
+    else:
+        key = 'free'
     col = role_color[key] + [sphere_radius]
     for ai in (c_at, o_at, n_at):
-        sphere($Structure.Position.mol[mi].atom[ai], col)
+        sphere(_pos(mi, ai), col)
 \end
