@@ -213,16 +213,18 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
     min_terminal_slider = widgets.FloatSlider(
         value=fragmenter.config.min_terminal_fragment_ratio,
         min=0.0, max=1.0, step=0.05,
-        description="Min terminal ratio:",
+        description="Min terminal ratio (×target_mw):",
         readout_format=".2f",
-        layout=widgets.Layout(width="500px"),
+        style={"description_width": "initial"},
+        layout=widgets.Layout(width="640px"),
     )
     min_terminal_mw_slider = widgets.FloatSlider(
         value=fragmenter.config.min_terminal_fragment_mw,
         min=0.0, max=150.0, step=5.0,
-        description="Min terminal MW:",
+        description="Min terminal MW (g/mol):",
         readout_format=".0f",
-        layout=widgets.Layout(width="500px"),
+        style={"description_width": "initial"},
+        layout=widgets.Layout(width="640px"),
     )
     re_suggest_button = widgets.Button(
         description="Re-suggest (overwrite)",
