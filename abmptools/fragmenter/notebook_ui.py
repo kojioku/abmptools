@@ -303,11 +303,31 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
         )
         _refresh_svg(group)
 
+        # 各 cut site で SVG 表示の heavy_mol bond_idx も求めて UI ラベルに併記
+        rep_orig = fragmenter.molecules[group.representative_mol_idx].mol
+        heavy_atom_origs = [
+            a.GetIdx() for a in rep_orig.GetAtoms() if a.GetAtomicNum() != 1
+        ]
+        orig_to_heavy = {o: i for i, o in enumerate(heavy_atom_origs)}
+        try:
+            heavy_local = Chem.RemoveHs(rep_orig)
+        except Exception:
+            heavy_local = None
+
         rows = []
         for k, cs in enumerate(group.cut_sites):
+            h1 = orig_to_heavy.get(cs.atom1_idx)
+            h2 = orig_to_heavy.get(cs.atom2_idx)
+            h_bond_idx = -1
+            if heavy_local is not None and h1 is not None and h2 is not None:
+                hb = heavy_local.GetBondBetweenAtoms(h1, h2)
+                if hb is not None:
+                    h_bond_idx = hb.GetIdx()
             label = (
-                f"bond {cs.bond_idx} (atoms {cs.atom1_idx}-{cs.atom2_idx})  "
-                f"BDA={cs.bda_atom_idx}, BAA={cs.baa_atom_idx}, suggested={cs.suggested}"
+                f"SVG bond {h_bond_idx}  (orig bond {cs.bond_idx}, "
+                f"atoms {cs.atom1_idx}-{cs.atom2_idx})  "
+                f"BDA={cs.bda_atom_idx}, BAA={cs.baa_atom_idx}, "
+                f"suggested={cs.suggested}"
             )
             cb = widgets.Checkbox(
                 value=cs.enabled,
