@@ -192,8 +192,18 @@ def suggest_cuts(mol: Any, config: FragmenterConfig) -> List[CutSite]:
     if len(main_chain) < 2:
         return []
 
+    # walk_side_chains=True のときは main walk も relaxed candidate (ester / amine
+    # 隣接 C-C や C-X も許可) を使う。graph diameter で取った main path には
+    # polymer の末端 amine 等が含まれていることがあり、その bond は strict filter
+    # で除外されてしまうため、walk_side_chains を ON にしたユーザーの期待
+    # (= 主鎖でも側鎖でも適切に切る) に応える。
+    if config.walk_side_chains:
+        main_candidate = _enumerate_side_chain_candidate_bonds(mol, config)
+    else:
+        main_candidate = candidate
+
     cut_results = _select_cuts_along_path(
-        mol, main_chain, candidate, config.target_mw,
+        mol, main_chain, main_candidate, config.target_mw,
         min_terminal_ratio=config.min_terminal_fragment_ratio,
         min_terminal_mw_abs=config.min_terminal_fragment_mw,
     )
