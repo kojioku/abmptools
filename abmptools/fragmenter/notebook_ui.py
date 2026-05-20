@@ -217,6 +217,13 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
         readout_format=".2f",
         layout=widgets.Layout(width="500px"),
     )
+    min_terminal_mw_slider = widgets.FloatSlider(
+        value=fragmenter.config.min_terminal_fragment_mw,
+        min=0.0, max=150.0, step=5.0,
+        description="Min terminal MW:",
+        readout_format=".0f",
+        layout=widgets.Layout(width="500px"),
+    )
     re_suggest_button = widgets.Button(
         description="Re-suggest (overwrite)",
         button_style="warning",
@@ -410,6 +417,7 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
             fragmenter.config.include_c_heteroatom = bool(cb_include_c_hetero.value)
             fragmenter.config.walk_side_chains = bool(cb_walk_side.value)
             fragmenter.config.min_terminal_fragment_ratio = float(min_terminal_slider.value)
+            fragmenter.config.min_terminal_fragment_mw = float(min_terminal_mw_slider.value)
             fragmenter.suggest_cuts()
             total = sum(len(g.cut_sites) for g in fragmenter.groups)
             re_suggest_status.value = (
@@ -479,6 +487,7 @@ def open_panel(fragmenter: AutoFragmenter) -> None:
             cb_include_c_hetero,
             cb_walk_side,
             min_terminal_slider,
+            min_terminal_mw_slider,
             re_suggest_status,
             widgets.HTML("<hr>"),
             export_button,

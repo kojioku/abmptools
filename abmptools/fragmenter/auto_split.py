@@ -98,6 +98,7 @@ def _walk_side_chains_from_main(
     candidate_bonds: Set[int],
     target_mw: float,
     min_terminal_ratio: float = 0.5,
+    min_terminal_mw_abs: float = 0.0,
 ) -> List[Tuple[int, int, int]]:
     """主鎖 main_path の各 atom から side chain を BFS walk して cut を提案。
 
@@ -138,15 +139,18 @@ def _walk_side_chains_from_main(
                     new_cum = cum + _atom_total_mw(mol.GetAtomWithIdx(nb_idx))
                     bond_idx = bond.GetIdx()
                     cut_here = (bond_idx in candidate_bonds and new_cum >= target_mw)
-                    if cut_here and min_terminal_ratio > 0:
-                        # 進行方向 (nb_idx 側) の残り fragment が
-                        # target_mw * ratio 未満なら cut 抑制
-                        ok = _check_remaining_mw_ok(
-                            mol, nb_idx, visited - {nb_idx},
+                    if cut_here:
+                        # 進行方向 (nb_idx 側) の残り fragment が小さすぎないか check
+                        threshold = max(
                             target_mw * min_terminal_ratio,
+                            min_terminal_mw_abs,
                         )
-                        if not ok:
-                            cut_here = False
+                        if threshold > 0:
+                            ok = _check_remaining_mw_ok(
+                                mol, nb_idx, visited - {nb_idx}, threshold,
+                            )
+                            if not ok:
+                                cut_here = False
                     if cut_here:
                         # BDA / BAA: C-X case は C 側、それ以外は walk 起点側 (cur)
                         a_cur = mol.GetAtomWithIdx(cur)
@@ -191,6 +195,7 @@ def suggest_cuts(mol: Any, config: FragmenterConfig) -> List[CutSite]:
     cut_results = _select_cuts_along_path(
         mol, main_chain, candidate, config.target_mw,
         min_terminal_ratio=config.min_terminal_fragment_ratio,
+        min_terminal_mw_abs=config.min_terminal_fragment_mw,
     )
 
     # walk_side_chains=True なら主鎖 walk 後に各 main atom の side chain も walk
@@ -200,6 +205,7 @@ def suggest_cuts(mol: Any, config: FragmenterConfig) -> List[CutSite]:
         cut_results = cut_results + _walk_side_chains_from_main(
             mol, main_chain, side_candidate, config.target_mw,
             min_terminal_ratio=config.min_terminal_fragment_ratio,
+            min_terminal_mw_abs=config.min_terminal_fragment_mw,
         )
         # 同じ bond が両 walk で追加されないよう dedupe
         seen_bonds: Set[int] = set()
@@ -443,6 +449,7 @@ def _select_cuts_along_path(
     candidate_bonds: Set[int],
     target_mw: float,
     min_terminal_ratio: float = 0.5,
+    min_terminal_mw_abs: float = 0.0,
 ) -> List[Tuple[int, int, int]]:
     """主鎖 path を辿りつつ、累積 MW ≥ target_mw のたびに candidate bond で切断。
 
@@ -470,7 +477,10 @@ def _select_cuts_along_path(
         )
 
     cum_mw = 0.0
-    min_terminal_mw = max(0.0, target_mw * min_terminal_ratio)
+    min_terminal_mw = max(
+        0.0,
+        max(target_mw * min_terminal_ratio, min_terminal_mw_abs),
+    )
     for i in range(len(path) - 1):
         atom = mol.GetAtomWithIdx(path[i])
         cum_mw += _atom_total_mw(atom)

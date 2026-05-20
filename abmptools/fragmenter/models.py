@@ -57,8 +57,14 @@ class FragmenterConfig:
         cut した時に **末端 (進行方向) fragment の MW が target_mw × ratio
         未満なら cut を抑制**するための閾値 (0.0 - 1.0、デフォルト 0.5)。
         例: target_mw=80、ratio=0.5 → 末端 fragment が 40 g/mol 未満になる
-        cut は抑制される。小さすぎる N(CH3)2 等の末端の生成を防ぐ。
-        0 にすると無効 (= 旧挙動)。
+        cut は抑制される。0 にすると無効 (= 旧挙動)。
+    min_terminal_fragment_mw
+        末端 fragment の **絶対 MW 下限** (g/mol、デフォルト 0.0 = 無効)。
+        ``min_terminal_fragment_ratio`` と AND で結合され、実際の閾値は
+        ``max(target_mw * ratio, min_terminal_fragment_mw)`` になる。
+        例: target_mw=60、ratio=0.5、mw=50 → 閾値 max(30, 50) = 50 g/mol で、
+        N(CH3)2 (44 g/mol) のような小さい末端の生成を防ぐ。
+        target_mw を小さく (50 以下) して短い分子をテストするときは 0 のままで OK。
     """
 
     pdb_path: str
@@ -73,6 +79,7 @@ class FragmenterConfig:
     include_c_heteroatom: bool = False
     walk_side_chains: bool = False
     min_terminal_fragment_ratio: float = 0.5
+    min_terminal_fragment_mw: float = 0.0
 
     def to_json(self, path: Optional[str] = None) -> str:
         text = json.dumps(asdict(self), indent=2, ensure_ascii=False)
