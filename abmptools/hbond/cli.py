@@ -57,7 +57,12 @@ def main(argv=None) -> int:
     )
     parser.add_argument(
         "--no-colorize", action="store_true",
-        help="Skip writing colored BDF"
+        help="Skip writing colored BDF (<prefix>_colored.bdf)"
+    )
+    parser.add_argument(
+        "--no-copy-uncolored", action="store_true",
+        help="Skip writing uncolored BDF copy (<prefix>.bdf), "
+             "which is intended for J-OCTA pre-render compatibility"
     )
     parser.add_argument(
         "--no-plot", action="store_true",
@@ -131,6 +136,7 @@ def main(argv=None) -> int:
         record_end=args.record_end,
         base_mol_name=args.mol_name,
         do_colorize=not args.no_colorize,
+        do_copy_uncolored=not args.no_copy_uncolored,
         do_plot=not args.no_plot,
         verbose=not args.quiet,
         force_field=args.force_field,

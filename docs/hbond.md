@@ -1,11 +1,14 @@
 # abmptools.hbond — H-bond Analyzer for COGNAC Trajectories
 
 非晶質 MD トラジェクトリ (OCTA COGNAC `.udf` / `.bdf`) から、官能基間 H-bond を
-幾何条件で検出し、各分子を **dual / single / free** の 3 グループに分類して gourmet
-で可視化できる UDF を生成するサブパッケージ。
+幾何条件で検出し、**官能基単位** (COOH / amide ごと) の役割比率を集計し、
+gourmet で可視化できる UDF を生成するサブパッケージ。
 
 v1.26.0+ で **FF 抽象化 (GAFF2/OPLS-AA/CHARMM36/OpenFF) + 任意官能基対選択 +
 multi-record lifetime/autocorrelation + secondary amide donor** に対応。
+v1.27.0 候補 (per-functional-group classification) で「分子単位 1 役割」から
+「官能基単位の役割比率」に統計指標を切り替え。J-OCTA プリ描画用に Mol_Name 維持
+コピー (`<prefix>.bdf`) も併出する。
 
 ## 概要
 
@@ -22,10 +25,14 @@ multi-record lifetime/autocorrelation + secondary amide donor** に対応。
 
 | ファイル | 内容 |
 |---|---|
-| `<prefix>_summary.csv` | per-record の dual/single/free count |
+| `<prefix>_summary.csv` | per-record の **官能基単位** dual/single/free 数 + 比率 + mol-level legacy 数 |
+| `<prefix>_classification.csv` | 全 carboxyl / amide ごとの (mol_index, group_index, role, partners) |
 | `<prefix>_pairs.csv` | 検出された H-bond ペアの一覧 (距離・角度付き) |
-| `<prefix>_colored.bdf` | gourmet で 3 色グループ可視化される UDF |
+| `<prefix>.bdf` | 入力 BDF の単純コピー (Mol_Name 維持、**J-OCTA プリ描画用**) |
+| `<prefix>_colored.bdf` | Mol_Name リネーム + Draw_Attributes (**gourmet / OCTA ポスト描画用**) |
 | `<prefix>_count.png` | count vs record プロット |
+| `<prefix>_lifetime.csv` | (multi-record のみ) per-pair lifetime |
+| `<prefix>_autocorr.{csv,png}` | (multi-record のみ) Luzar-Chandler 自己相関 |
 
 ## 検出アルゴリズム
 
@@ -54,17 +61,45 @@ Tertiary amide (N に H なし) は `tert=True` でマーキング。
 
 参考: A. Luzar, D. Chandler, *Nature* 379, 55-57 (1996).
 
-### 3. 分類 (`classifier.py`)
+### 3. 分類 (`classifier.py`) — 官能基単位
 
-各分子に role を割り当て (優先度: dual > single > free):
+**v1.27.0 候補で per-functional-group ベースに変更**。1 分子に複数の COOH や
+amide がある場合、それぞれ独立に役割判定される (NMR の COOH-C / amide-C 信号
+分離と直接対応)。
 
-- **dual**: 分子ペア (i, j) で **両方向** に COOH→COOH H-bond が成立
-- **single**: COOH 供与体 → アミド受容体の H-bond に関与 (donor/acceptor 区別なし)
-- **free**: いずれにも関与しない
+| 集計対象 | 役割 | 判定基準 | NMR 対応 (IMC 例) |
+|---|---|---|---|
+| **COOH (carboxyl)** | **dual** | この COOH と相手 COOH の間で **両方向** に H-bond | ~180 ppm |
+|  | **single** | (dual ではない) この COOH の OH-H が amide C=O に donate | ~175 ppm |
+|  | **free** | いずれもなし | ~165 ppm |
+| **amide C=O** | **accept** | この amide O が COOH から H-bond 受けている | (acceptor 側) |
+|  | **free** | なし | (free 側) |
+
+**分子代表 role** (色付け用、`colorize_udf` が使用):
+
+- 分子内に **いずれかの dual COOH** があれば → `dual`
+- どれも dual でないが **いずれかの single COOH** があれば → `single`
+- すべての COOH が free → `free` (amide が accept しているかは反映しない)
+
+これは「分子の代表的な状態」であって、官能基単位の比率とは別。`summary.csv`
+には両方が記録される (前者は `n_carb_dual/single/free`、後者は
+`n_dual_mols/single_mols/free_mols`)。
+
+**インドメタシン例** (1 mol = 1 COOH + 1 amide、Luzar-Chandler default、
+T=450 K rec=900):
+
+- carboxyl: dual=10 / single=49 / free=66 (8% / 39% / 53%)
+- amide: accept=49 / free=76 (39% / 61%)
+- mol-level: 上と同じ (1 mol = 1 COOH なので)
+
+**v1.26.0 までは** "分子単位 1 役割" の集計で、COOH→amide H-bond の **両当事者**
+(COOH 側 mol + amide 側 mol) を `single` にカウントしていた (上記 IMC で
+single=73 になる旧仕様)。新仕様は COOH の状態を直接見るので、amide 側 mol
+(COOH 持っていない or COOH free) は `free` に入る。
 
 ### 4. UDF 色付け (`colorizer.py`)
 
-GOURMET の `Draw_Attributes.Molecule[]` schema を利用:
+色付けは **分子代表 role** ベースで Mol_Name リネーム + Draw_Attributes 追加:
 
 ```
 Set_of_Molecules.molecule[i].Mol_Name  ← 'IMC_DUAL' / 'IMC_SINGLE' / 'IMC_FREE'
@@ -83,6 +118,17 @@ RGBA tuple `[r, g, b, a]` は描画関数 (`sphere()` 等) でのみ使用可能
 Draw_Attributes には書き込めない。
 
 `transparency` は **1.0 = 不透明, 0.0 = 完全透明** (直観に反するので注意)。
+
+### 5. J-OCTA プリ描画用コピー (`<prefix>.bdf`)
+
+J-OCTA の「プリ描画」 (起動時の自動描画) は Mol_Name の値を内部で参照しており、
+`molecular` 等の元名前を別の文字列にリネームすると分子が空表示になる。
+そのため、Mol_Name 維持のコピーを `<prefix>.bdf` として併出する:
+
+| ファイル | Mol_Name | 用途 |
+|---|---|---|
+| `<prefix>.bdf` | `molecular` 維持 | **J-OCTA プリ描画** (色付けなし、起動時自動描画される) |
+| `<prefix>_colored.bdf` | `IMC_DUAL/SINGLE/FREE` リネーム | **OCTA ポスト描画** (gourmet または J-OCTA で show アクション実行時に 3 色塗分け) |
 
 ## 使い方
 
@@ -105,9 +151,16 @@ python -m abmptools.hbond <bdf_path> \
 --record-start INT        開始 record (default 0)
 --record-end INT          終了 record (exclusive, default -1 = all)
 --mol-name STR            色付け時の Mol_Name prefix (default "IMC")
---no-colorize             colored.bdf を生成しない
+--no-colorize             <prefix>_colored.bdf を生成しない
+--no-copy-uncolored       <prefix>.bdf (Mol_Name 維持コピー) を生成しない
 --no-plot                 count plot を生成しない
 --quiet, -q               per-frame 出力を抑制
+--force-field FF          GAFF2/OPLS-AA/CHARMM36/OpenFF (default 自動判定)
+--donor-groups            carboxyl,amide_donor,amine_donor,hydroxyl (CSV)
+--acceptor-groups         carboxyl_O,amide_O,hydroxyl_O,ether_O (CSV)
+--no-lifetime             lifetime / autocorrelation を計算しない
+--gap-tolerance INT       intermittent lifetime の gap 許容 frame 数
+--dt FLOAT                record 間時間 (autocorr のτ_HB 単位、default 1.0)
 ```
 
 ### Python API
@@ -125,8 +178,21 @@ analyzer = Analyzer(cfg)
 analyzer.load()
 results = analyzer.run()      # List[FrameResult]
 paths = analyzer.write_outputs()
-print("dual:", results[-1].n_dual_mols)
-print("colored bdf:", paths["colored"])
+
+# Per-functional-group counts (primary)
+cls = results[-1].classification
+print(f"COOH dual/single/free: "
+      f"{cls.n_carboxyls_dual}/{cls.n_carboxyls_single}/{cls.n_carboxyls_free}"
+      f" of {cls.n_carboxyls}")
+print(f"  ratios: {cls.ratio_carboxyl_dual:.2f}/"
+      f"{cls.ratio_carboxyl_single:.2f}/{cls.ratio_carboxyl_free:.2f}")
+print(f"amide accept/free: "
+      f"{cls.n_amides_accept}/{cls.n_amides_free} of {cls.n_amides}")
+
+# Mol-level representative (for color)
+print(f"dual mols: {results[-1].n_dual_mols}")
+print(f"colored bdf: {paths['colored']}")
+print(f"uncolored bdf (J-OCTA pre-render): {paths['uncolored']}")
 ```
 
 ### Jupyter UI
@@ -140,14 +206,33 @@ panel = open_panel("/path/to/imc.bdf")
 - 検出基準・record range・出力 prefix をウィジェットで設定
 - Run ボタン → 統計表 + count plot がインラインで表示
 
-## gourmet での可視化
+## OCTA での可視化
+
+### gourmet (Linux) / J-OCTA ポスト描画
 
 ```bash
 gourmet output/imc_hbond_colored.bdf
 ```
 
-開いたら `show` アクションを実行 → 3 色グループに塗り分けられた分子描画が表示
-される。Picking で分子を選んでアクション実行も可能。
+開いたら **左パネルの Python タブ**で `show` アクションのスクリプトを確認し、
+`show.all("line", "mol", ...)` の 3 番目引数を **"molname"** に書き換えてから
+`Run` する → Mol_Name (`IMC_DUAL/SINGLE/FREE`) と Draw_Attributes に基づき
+3 色グループに塗り分けられた分子描画が表示される。Picking で分子を選んで
+アクション実行も可能。
+
+### J-OCTA プリ描画
+
+`output/imc_hbond_colored.bdf` (Mol_Name リネーム済) は J-OCTA のプリ描画 (起動時の
+自動描画) で **分子が空表示**になる (内部の Mol_Name lookup が壊れるため)。
+
+プリ描画用には `output/imc_hbond.bdf` (Mol_Name 維持) を渡す:
+
+```
+File → Open Particle UDF → output/imc_hbond.bdf
+```
+
+色付けはなしだが、空表示にならず分子形状が確認できる。色付き解析は
+`_colored.bdf` を別途 OCTA ポスト描画で開く。
 
 ## v1.26.0+ の追加機能
 
@@ -235,8 +320,9 @@ donors = detect_amine_donors(molecules, include_amide=True, include_amine=False)
 
 1. **直交 cubic/orthorhombic box のみ対応** (三斜晶/モノクリニックは未対応)
 2. FF mapping は組み込み 4 FF のみ。AMBER ff14SB 等は `add_mapping` で拡張可能
-3. **多分子内多官能基**: 1 分子に複数の COOH/amide があると全て処理対象になり、
-   分類は最も強い役割が優先される
+3. **多分子内多官能基**: 1 分子に複数の COOH/amide がある場合、官能基単位に
+   独立に分類される (v1.27 候補)。**分子代表 role** (色付け用) は
+   「分子内のいずれかの COOH が dual なら dual」優先度で決まる
 4. 大規模 trajectory (1M+ records) でのメモリ効率は未最適化 (`H` 行列が大きくなる)
 
 ## サンプル
@@ -254,5 +340,8 @@ pytest abmptools/tests/hbond/ -v
 
 - `test_functional_groups.py`: IMC BDF から carboxyl/amide が正しく検出されるか
 - `test_hbond_detector.py`: 既知 geometry (8 角度パターン + PBC wrap) の単体テスト
-- `test_classifier.py`: dual/single/free 分類ロジック
-- `test_imc_regression.py`: IMC count ベースライン (dual=10, single=73, free=42)
+- `test_classifier.py`: per-functional-group + per-mol 分類ロジック (11 件)
+- `test_imc_regression.py`: IMC count ベースライン
+  (carb dual/single/free = 10/49/66、amide accept/free = 49/76、
+  hb_cc=31、hb_ca=50、`<prefix>.bdf` の Mol_Name 維持、
+  `<prefix>_classification.csv` の per-group 行数)

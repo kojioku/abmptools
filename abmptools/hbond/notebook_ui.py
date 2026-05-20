@@ -303,19 +303,41 @@ def open_panel(bdf_path: str):
 
             # stats table
             fr = analyzer.frame_results[-1]
-            total = fr.n_dual_mols + fr.n_single_mols + fr.n_free_mols
-            print("\n--- Last frame summary ---")
-            print(f"  dual:   {fr.n_dual_mols:4d}  ({100*fr.n_dual_mols/total:.1f}%)")
-            print(f"  single: {fr.n_single_mols:4d}  ({100*fr.n_single_mols/total:.1f}%)")
-            print(f"  free:   {fr.n_free_mols:4d}  ({100*fr.n_free_mols/total:.1f}%)")
+            cls = fr.classification
+            print("\n--- Last frame summary (per functional group) ---")
+            if cls.n_carboxyls > 0:
+                print(f"  COOH dual:   {cls.n_carboxyls_dual:4d} / "
+                      f"{cls.n_carboxyls}  "
+                      f"({100*cls.ratio_carboxyl_dual:.1f}%)")
+                print(f"  COOH single: {cls.n_carboxyls_single:4d} / "
+                      f"{cls.n_carboxyls}  "
+                      f"({100*cls.ratio_carboxyl_single:.1f}%)")
+                print(f"  COOH free:   {cls.n_carboxyls_free:4d} / "
+                      f"{cls.n_carboxyls}  "
+                      f"({100*cls.ratio_carboxyl_free:.1f}%)")
+            if cls.n_amides > 0:
+                print(f"  amide accept: {cls.n_amides_accept:4d} / "
+                      f"{cls.n_amides}  "
+                      f"({100*cls.ratio_amide_accept:.1f}%)")
+                print(f"  amide free:   {cls.n_amides_free:4d} / "
+                      f"{cls.n_amides}  "
+                      f"({100*cls.ratio_amide_free:.1f}%)")
             print(f"  H-bonds: cc={fr.n_hbonds_cc}, ca={fr.n_hbonds_ca}")
+            print("\n--- Mol-level representative role (for coloring) ---")
+            print(f"  dual mols:   {fr.n_dual_mols:4d}")
+            print(f"  single mols: {fr.n_single_mols:4d}")
+            print(f"  free mols:   {fr.n_free_mols:4d}")
             print("\nOutputs:")
             for kind, path in paths.items():
                 print(f"  {kind}: {path}")
+            if "uncolored" in paths:
+                print(f"\n→ {paths['uncolored']!r}: Mol_Name preserved "
+                      "(open in J-OCTA pre-render).")
             if "colored" in paths:
-                print(f"\n→ Open {paths['colored']!r} in OCTA gourmet to see"
-                      " molecules colored by H-bond role (red=dual, "
-                      "blue=single, gray=free).")
+                print(f"→ {paths['colored']!r}: Mol_Name renamed + "
+                      "Draw_Attributes set (open in gourmet / OCTA "
+                      "post-render; in gourmet Python panel set "
+                      "show.all('line','mol','molname',...)).")
 
             if "plot" in paths:
                 display(HTML(

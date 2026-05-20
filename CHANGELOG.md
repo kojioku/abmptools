@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+### Changed (`abmptools.hbond` per-functional-group 統計 — v1.27.0 候補)
+
+- **分類モデルを per-functional-group に変更**: v1.26 まで「分子単位 1 役割」
+  だった分類を「官能基単位 (COOH ごと / amide ごと)」に置き換え。1 分子内に
+  複数の COOH や amide がある場合に役割が混在するケースに正しく対応する。
+  - 新 dataclass: `CarboxylRole`(role=dual/single/free) + `AmideRole`(role=accept/free)
+  - 旧 `MolRole` には per-mol の `n_carboxyls_dual/single/free` + `n_amides_accept/free`
+    フィールドを追加。`role` 属性は **分子代表 role** (色付け用、優先度
+    dual > single > free)
+  - `ClassificationResult` は `FunctionalGroupClassification` の alias
+    (backward compat、外部 import パス維持)
+- **summary.csv 拡張**: per-functional-group カラム (`n_carb_dual`,
+  `n_carb_single`, `n_carb_free`, `n_amides`, `n_amide_accept`,
+  `n_amide_free`, `ratio_carb_*`, `ratio_amide_*`) を追加。
+  従来の `n_dual_mols/n_single_mols/n_free_mols` (mol-level representative)
+  も末尾に残す。
+- **`<prefix>_classification.csv` 新規追加**: 全 carboxyl / amide ごとの
+  (record, group_type, mol_index, group_index, role, partner_count, partners)
+  テーブル。NMR の COOH-C / amide-C 信号分離と直接対応する物理量。
+- **`<prefix>.bdf` (J-OCTA プリ描画用コピー) 新規出力**: Mol_Name 維持 (元の
+  `molecular` 等) の単純コピー。`<prefix>_colored.bdf` (Mol_Name リネーム済) は
+  J-OCTA のプリ描画で空表示になる問題への対処。CLI option `--no-copy-uncolored`
+  でスキップ可。
+- **IMC ベースライン値の変更**: 旧 single=73 (COOH→amide H-bond の両当事者を
+  カウント) → 新 single=49 (COOH 状態が single の COOH のみカウント、amide
+  acceptor 側 mol は COOH free なら free に入る)。`test_imc_regression.py`
+  の許容値を更新。物理的には新値が NMR の COOH 信号と直接対応する。
+- **verbose log の表現変更**: `COOH dual/single/free=10/49/66 (8%/39%/53%),
+  amide accept/free=49/76 (39%/61%)` のように官能基単位の比率を表示。
+- **gourmet 可視化手順の docs 改訂**: Python パネルで
+  `show.all("line","mol","molname",...)` に書換が必要なこと、J-OCTA プリ描画
+  には `<prefix>.bdf` を使うことを明記。
+
 ### Added (`abmptools.cg.dpd` サブパッケージ — v1.26.0 候補)
 
 - **DPD 系入力ファイルビルダー**: `cg_segmenter` (R0) で生成した CG segment + fcews

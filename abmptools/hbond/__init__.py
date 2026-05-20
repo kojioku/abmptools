@@ -41,7 +41,10 @@ from .bdf_reader import (
     AtomInfo, BDFTrajectory, BondInfo, CellBox,
     MoleculeTopology, TrajectoryFrame
 )
-from .classifier import ClassificationResult, MolRole, classify
+from .classifier import (
+    AmideRole, CarboxylRole, ClassificationResult,
+    FunctionalGroupClassification, MolRole, classify,
+)
 from .colorizer import DEFAULT_COLORS, DrawAttribute, VALID_COLORS, colorize_udf
 from .func_tags import (
     BUILTIN_MAPPINGS, CHARMM36, GAFF2, OPENFF_SAGE, OPLS_AA,
@@ -78,7 +81,8 @@ __all__ = [
     # detector
     "HBond", "HBondCriteria", "DonorSite", "AcceptorSite",
     "detect_hbonds", "minimum_image_vector",
-    # classifier
+    # classifier (per-functional-group)
+    "CarboxylRole", "AmideRole", "FunctionalGroupClassification",
     "ClassificationResult", "MolRole", "classify",
     # colorizer
     "DrawAttribute", "DEFAULT_COLORS", "VALID_COLORS", "colorize_udf",

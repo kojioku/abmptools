@@ -10,13 +10,17 @@ from __future__ import annotations
 
 import csv
 import os
+import shutil
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 
 from .bdf_reader import BDFTrajectory
-from .classifier import ClassificationResult, classify
+from .classifier import (
+    AmideRole, CarboxylRole, ClassificationResult,
+    FunctionalGroupClassification, classify,
+)
 from .colorizer import DEFAULT_COLORS, DrawAttribute, colorize_udf
 from .func_tags import FunctionalTagMapping, detect_force_field, get_mapping
 from .functional_groups import (
@@ -34,14 +38,20 @@ from .lifetime import (
 
 @dataclass
 class FrameResult:
-    """Result for one record/frame."""
+    """Result for one record/frame.
+
+    The ``n_*_mols`` fields are the mol-level representative role counts
+    (used by ``colorize_udf``). The primary metrics are the per-functional
+    -group counts inside ``classification`` (``n_carboxyls_dual``,
+    ``ratio_amide_accept``, etc.).
+    """
     record: int
     n_dual_mols: int
     n_single_mols: int
     n_free_mols: int
     n_hbonds_cc: int
     n_hbonds_ca: int
-    classification: ClassificationResult
+    classification: FunctionalGroupClassification
     hbonds_cc: List[HBond]
     hbonds_ca: List[HBond]
 
@@ -58,6 +68,7 @@ class AnalyzerConfig:
     base_mol_name: str = "IMC"
     color_attrs: Optional[Dict[str, DrawAttribute]] = None
     do_colorize: bool = True
+    do_copy_uncolored: bool = True   # writes ``<prefix>.bdf`` with Mol_Name kept
     do_plot: bool = True
     verbose: bool = True
     # Force field (None = auto-detect from atom types)
@@ -205,9 +216,20 @@ class Analyzer:
             )
             results.append(fr)
             if c.verbose:
-                print(f"  rec={rec}: dual={fr.n_dual_mols}, "
-                      f"single={fr.n_single_mols}, free={fr.n_free_mols} "
-                      f"(cc={fr.n_hbonds_cc}, ca={fr.n_hbonds_ca})")
+                print(
+                    f"  rec={rec}: "
+                    f"COOH dual/single/free="
+                    f"{cls.n_carboxyls_dual}/{cls.n_carboxyls_single}"
+                    f"/{cls.n_carboxyls_free} "
+                    f"({cls.ratio_carboxyl_dual*100:.0f}%/"
+                    f"{cls.ratio_carboxyl_single*100:.0f}%/"
+                    f"{cls.ratio_carboxyl_free*100:.0f}%), "
+                    f"amide accept/free="
+                    f"{cls.n_amides_accept}/{cls.n_amides_free} "
+                    f"({cls.ratio_amide_accept*100:.0f}%/"
+                    f"{cls.ratio_amide_free*100:.0f}%), "
+                    f"hb_cc={fr.n_hbonds_cc}, hb_ca={fr.n_hbonds_ca}"
+                )
         self.frame_results = results
         return results
 
@@ -218,16 +240,66 @@ class Analyzer:
                     exist_ok=True)
         out_paths = {}
 
-        # summary CSV
+        # summary CSV (per-functional-group ratios + mol-level legacy counts)
         summary_path = f"{c.out_prefix}_summary.csv"
         with open(summary_path, "w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["record", "n_dual_mols", "n_single_mols",
-                        "n_free_mols", "n_hbonds_cc", "n_hbonds_ca"])
+            w.writerow([
+                "record",
+                "n_carboxyls", "n_carb_dual", "n_carb_single", "n_carb_free",
+                "n_amides", "n_amide_accept", "n_amide_free",
+                "ratio_carb_dual", "ratio_carb_single", "ratio_carb_free",
+                "ratio_amide_accept", "ratio_amide_free",
+                "n_hbonds_cc", "n_hbonds_ca",
+                "n_dual_mols", "n_single_mols", "n_free_mols",
+            ])
             for fr in self.frame_results:
-                w.writerow([fr.record, fr.n_dual_mols, fr.n_single_mols,
-                            fr.n_free_mols, fr.n_hbonds_cc, fr.n_hbonds_ca])
+                cls = fr.classification
+                w.writerow([
+                    fr.record,
+                    cls.n_carboxyls, cls.n_carboxyls_dual,
+                    cls.n_carboxyls_single, cls.n_carboxyls_free,
+                    cls.n_amides, cls.n_amides_accept, cls.n_amides_free,
+                    f"{cls.ratio_carboxyl_dual:.4f}",
+                    f"{cls.ratio_carboxyl_single:.4f}",
+                    f"{cls.ratio_carboxyl_free:.4f}",
+                    f"{cls.ratio_amide_accept:.4f}",
+                    f"{cls.ratio_amide_free:.4f}",
+                    fr.n_hbonds_cc, fr.n_hbonds_ca,
+                    fr.n_dual_mols, fr.n_single_mols, fr.n_free_mols,
+                ])
         out_paths["summary"] = summary_path
+
+        # classification CSV (per-functional-group role table)
+        cls_path = f"{c.out_prefix}_classification.csv"
+        with open(cls_path, "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow([
+                "record", "group_type", "mol_index", "group_index",
+                "role", "partner_count", "partners",
+            ])
+            for fr in self.frame_results:
+                for r in fr.classification.carboxyl_roles:
+                    partners = (r.dual_partners if r.role == "dual"
+                                else r.single_acceptors)
+                    partner_str = ";".join(
+                        f"{m}:{g}" for (m, g) in sorted(partners)
+                    )
+                    w.writerow([
+                        fr.record, "carboxyl",
+                        r.mol_index, r.carboxyl_index,
+                        r.role, len(partners), partner_str,
+                    ])
+                for r in fr.classification.amide_roles:
+                    partner_str = ";".join(
+                        f"{m}:{g}" for (m, g) in sorted(r.donor_carboxyls)
+                    )
+                    w.writerow([
+                        fr.record, "amide",
+                        r.mol_index, r.amide_index,
+                        r.role, len(r.donor_carboxyls), partner_str,
+                    ])
+        out_paths["classification"] = cls_path
 
         # pairs CSV
         pairs_path = f"{c.out_prefix}_pairs.csv"
@@ -251,6 +323,16 @@ class Analyzer:
                         f"{hb.d_da:.4f}", f"{hb.d_ha:.4f}", f"{hb.angle:.2f}"
                     ])
         out_paths["pairs"] = pairs_path
+
+        # Uncolored copy (Mol_Name preserved, J-OCTA pre-render compatible)
+        if c.do_copy_uncolored:
+            uncolored_path = f"{c.out_prefix}.bdf"
+            if os.path.abspath(uncolored_path) != os.path.abspath(c.bdf_path):
+                shutil.copy(c.bdf_path, uncolored_path)
+                out_paths["uncolored"] = uncolored_path
+            else:
+                if c.verbose:
+                    print(f"  (uncolored copy skipped: out path == input)")
 
         # colorized BDF (uses last frame's classification by default)
         if c.do_colorize and self.frame_results:
