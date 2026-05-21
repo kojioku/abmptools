@@ -30,7 +30,11 @@ Built-in mappings: GAFF2, OPLS-AA-2005, CHARMM36, OpenFF-Sage-2.
 For atom types not in the built-in table, users can extend at runtime:
     GAFF2.add_mapping("my_custom_type", "carbonyl_C")
 
-Or supply a SMARTS-based fallback via RDKit (see ``smarts_fallback.py``).
+Or rely on the **element + bond-graph fallback** (``fallback_tag_by_element``)
+which kicks in automatically for any atom whose ``atom_type`` is unknown
+(``None`` or a per-atom unique name like OpenFF SMIRNOFF's ``MOL0_0``). This
+makes the package usable with OpenFF Sage trajectories without needing an
+extra antechamber pass to assign GAFF type names.
 """
 from __future__ import annotations
 
@@ -313,3 +317,79 @@ def tag_atoms(
     Returns a list of tags (same length as input); ``None`` for unmapped types.
     """
     return [mapping.get_tag(t) for t in atom_types]
+
+
+def fallback_tag_by_element(
+    atom_names: List[str],
+    bonds: List[tuple],
+    initial_tags: List[Optional[str]],
+) -> List[Optional[str]]:
+    """Element + bond-graph fallback for atoms whose ``atom_type`` is unknown.
+
+    Used when the force field (e.g. OpenFF SMIRNOFF) writes per-atom unique
+    names like ``MOL0_0`` into the UDF ``Atom_Type_Name`` field, leaving the
+    canonical-type lookup with no hit. Tags only the atoms whose entry in
+    ``initial_tags`` is ``None``; entries already tagged by the FF mapping
+    are left untouched (mapping wins over fallback).
+
+    Parameters
+    ----------
+    atom_names : ``Atom_Name`` strings (element symbol prefix, e.g. ``"O"``,
+                 ``"C1"``, ``"HO"``).
+    bonds : list of ``(atom1_local_index, atom2_local_index)`` pairs.
+    initial_tags : per-atom tag list; ``None`` for atoms needing fallback.
+
+    Rules (element symbol = first uppercase letter of ``Atom_Name``):
+
+    - **O**: bonded to ≥1 H → ``hydroxyl_O`` (alcohol or carboxyl OH side).
+             No H → ``carbonyl_O``.
+    - **H**: bonded to O → ``hydroxyl_H``; bonded to N → ``amide_H``.
+    - **N**: bonded to C → ``amide_N`` (amide / amine distinction is done by
+             the higher-level ``detect_amides`` / ``detect_amine_donors``).
+    - **C**: bonded to a ``carbonyl_O`` neighbor (= O without H, tagged in
+             pass 1) → ``carbonyl_C``.
+    """
+    from collections import defaultdict
+
+    adj: Dict[int, List[int]] = defaultdict(list)
+    for (a, b) in bonds:
+        adj[a].append(b)
+        adj[b].append(a)
+
+    def _elem(name: Optional[str]) -> str:
+        s = (name or "").strip()
+        return s[0].upper() if s else ""
+
+    out_tags = list(initial_tags)
+    # Pass 1: tag O / H / N by their immediate-neighbour element symbols.
+    for i, nm in enumerate(atom_names):
+        if out_tags[i] is not None:
+            continue
+        e = _elem(nm)
+        ne = [_elem(atom_names[j]) for j in adj[i]]
+        if e == "O":
+            if "H" in ne:
+                out_tags[i] = TAG_HYDROXYL_O
+            elif ne:  # bonded but no H → carbonyl-like
+                out_tags[i] = TAG_CARBONYL_O
+        elif e == "H":
+            if "O" in ne:
+                out_tags[i] = TAG_HYDROXYL_H
+            elif "N" in ne:
+                out_tags[i] = TAG_AMIDE_H
+        elif e == "N":
+            if "C" in ne:
+                out_tags[i] = TAG_AMIDE_N
+
+    # Pass 2: tag C using the O tags assigned in pass 1.
+    # A C atom bonded to a TAG_CARBONYL_O (O with no H) is a carbonyl_C.
+    for i, nm in enumerate(atom_names):
+        if out_tags[i] is not None:
+            continue
+        e = _elem(nm)
+        if e == "C":
+            for j in adj[i]:
+                if out_tags[j] == TAG_CARBONYL_O:
+                    out_tags[i] = TAG_CARBONYL_C
+                    break
+    return out_tags

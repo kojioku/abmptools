@@ -33,14 +33,29 @@ cd md && bash run_all.sh && bash wrap_pbc.sh
 
 ## H-bond 解析 (generic mode)
 
+xtc → multi-record UDF へ変換してから hbond CLI を呼ぶ:
+
 ```bash
-python -m abmptools.hbond md/test_05_output_rec*.bdf \
+# 1) xtc -> UDF (101 records)
+cd md
+python build_bdf.py
+
+# 2) hbond generic-mode 解析 (antechamber patch 不要)
+cd ..
+python -m abmptools.hbond md/05_npt_final.udf \
     --out-prefix output/pva_hbond \
     --classify-mode generic \
     --donor-groups hydroxyl \
     --acceptor-groups hydroxyl_O \
     --colorize-mode both
 ```
+
+**Element + bond-graph fallback について**: OpenFF Sage は UDF の
+``Atom_Type_Name`` に per-atom unique な ``MOL0_X`` を書く (SMIRNOFF が atom
+type の概念を持たないため)。``abmptools.hbond`` v1.28+ では fallback (default
+ON) が自動で element + bond graph から ``hydroxyl_O`` / ``hydroxyl_H`` 等を
+推定するので、**antechamber で GAFF type を別途生成して UDF に patch する
+必要はない**。strict mode が必要なら ``--no-element-fallback`` で無効化。
 
 出力:
 - `output/pva_hbond_pair_stats.csv`: per-record の `hydroxyl -> hydroxyl_O` 集計

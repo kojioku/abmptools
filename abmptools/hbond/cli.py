@@ -61,6 +61,13 @@ def main(argv=None) -> int:
              "generic: donor-type x acceptor-type pair stats (PVA/peptide/etc.)"
     )
     parser.add_argument(
+        "--no-element-fallback", action="store_true",
+        help="Disable element + bond-graph fallback tagging. Strict mode: "
+             "only atoms whose atom_type is in the FF mapping get tagged. "
+             "Default ON (fallback is helpful for OpenFF SMIRNOFF UDF where "
+             "Atom_Type_Name is per-atom unique like MOL0_0)."
+    )
+    parser.add_argument(
         "--no-colorize", action="store_true",
         help="Skip writing any colored output"
     )
@@ -160,6 +167,7 @@ def main(argv=None) -> int:
         do_colorize=not args.no_colorize,
         colorize_mode=args.colorize_mode,
         classify_mode=args.classify_mode,
+        use_element_fallback=not args.no_element_fallback,
         do_copy_uncolored=not args.no_copy_uncolored,
         do_write_attributes=not args.no_write_attributes,
         attributes_name=args.attributes_name,

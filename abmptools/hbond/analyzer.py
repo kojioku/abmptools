@@ -93,6 +93,12 @@ class AnalyzerConfig:
     #               (PVA, peptide, alcohol, mixtures, ...). No dual/chain/single
     #               concept; output is donor->acceptor pair counts.
     classify_mode: str = "imc"
+    # Element + bond-graph fallback (default ON): when ``Atom_Type_Name``
+    # is None or per-atom unique (OpenFF SMIRNOFF case), tag O/H/N/C from
+    # element + neighbours so detect_carboxyls / detect_amides /
+    # detect_hydroxyls still work. Set to False to require FF-mapped tags
+    # only (strict mode for debugging / partial mappings).
+    use_element_fallback: bool = True
     # Append per-atom Attributes[] entries (Name=attribute, Value=role) on
     # functional-group atoms of the uncolored copy. Useful for J-OCTA Viewer
     # category filtering when sphere overlay rendering is unavailable.
@@ -148,6 +154,10 @@ class Analyzer:
 
     def load(self) -> None:
         c = self.config
+        # Propagate the element-fallback flag to the module-scope switch
+        # used inside detect_carboxyls / detect_amides / ...
+        from . import functional_groups as _fg
+        _fg.USE_ELEMENT_FALLBACK = bool(c.use_element_fallback)
         self.traj = BDFTrajectory(c.bdf_path)
         self.traj.load_topology()
         # Resolve force field

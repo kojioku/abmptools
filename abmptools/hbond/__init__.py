@@ -58,7 +58,8 @@ from .pair_type_stats import (
 )
 from .func_tags import (
     BUILTIN_MAPPINGS, CHARMM36, GAFF2, OPENFF_SAGE, OPLS_AA,
-    FunctionalTagMapping, detect_force_field, get_mapping, tag_atoms,
+    FunctionalTagMapping, detect_force_field, fallback_tag_by_element,
+    get_mapping, tag_atoms,
 )
 from .functional_groups import (
     AmideGroup, AmineDonorGroup, CarboxylGroup, HydroxylGroup,
@@ -83,7 +84,8 @@ __all__ = [
     "MoleculeTopology", "AtomInfo", "BondInfo",
     # functional tag mapping (v1.26+ FF abstraction)
     "FunctionalTagMapping", "GAFF2", "OPLS_AA", "CHARMM36", "OPENFF_SAGE",
-    "BUILTIN_MAPPINGS", "detect_force_field", "get_mapping", "tag_atoms",
+    "BUILTIN_MAPPINGS", "detect_force_field", "fallback_tag_by_element",
+    "get_mapping", "tag_atoms",
     # functional groups
     "CarboxylGroup", "AmideGroup", "HydroxylGroup", "AmineDonorGroup",
     "detect_carboxyls", "detect_amides", "detect_hydroxyls",

@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.hbond` element + bond-graph fallback — v1.28.0 候補)
+
+- **`fallback_tag_by_element()` 新規追加** (``func_tags.py``): atom_type が
+  ``None`` または per-atom unique な値 (OpenFF SMIRNOFF の ``MOL0_X`` 等) の
+  atom について、element + bond graph で機能タグを自動付与:
+  - O atom: H と bond → ``hydroxyl_O``、H なし → ``carbonyl_O``
+  - H atom: O と bond → ``hydroxyl_H``、N と bond → ``amide_H``
+  - N atom: C と bond → ``amide_N`` (amide/amine 区別は後段)
+  - C atom: ``carbonyl_O`` (= O without H) と bond → ``carbonyl_C``
+- ``AnalyzerConfig.use_element_fallback`` フィールド (default True) +
+  CLI ``--no-element-fallback`` (strict mode への切替) 追加
+- ``functional_groups._tag_atoms_of_mol`` が None tag のみ fallback で補完
+  (FF mapping が hit した atom は touch せず、mapping 優先)
+- 効果: **OpenFF Sage 経由の UDF を antechamber 経由の GAFF type patch なし
+  で直接解析できる**。PVA amorphous sample の手順から antechamber step が
+  消える (build_bdf.py 実行 + hbond CLI 直叩きで完結)
+- 実機検証: PVA 10-mer × 30 で element fallback ON / antechamber patch なし
+  と OFF / antechamber patch ありで完全同一の結果 (rec=0 で 188 H-bonds、
+  ratio_donor_busy=62%、ratio_acceptor_busy=60%)
+- IMC は GAFF2 type が既に正しく付いているので fallback は no-op (既存
+  baseline dual=10 / chain=41 / single=38 / free=36 を維持、57 → 64 tests
+  PASS)
+- ``tests/hbond/test_element_fallback.py`` 7 件追加:
+  alcohol_OH / carboxyl pattern / amide NH / preserves_existing /
+  detect_carboxyls_unknown / detect_hydroxyls_unknown / disabled_no_groups
+
 ### Added (`abmptools.hbond` generic mode — v1.28.0 候補)
 
 - **`classify_mode={imc, generic}` を新規追加** (`AnalyzerConfig.classify_mode`、

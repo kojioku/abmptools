@@ -31,8 +31,14 @@ from .func_tags import (
     TAG_AMIDE_H, TAG_AMIDE_N, TAG_AMINE_N,
     TAG_CARBONYL_C, TAG_CARBONYL_O,
     TAG_HYDROXYL_H, TAG_HYDROXYL_O,
-    detect_force_field, get_mapping,
+    detect_force_field, fallback_tag_by_element, get_mapping,
 )
+
+
+# Module-level flag (mirrors ``AnalyzerConfig.use_element_fallback``); the
+# analyzer flips it per run, but it can also be toggled directly for callers
+# that bypass the analyzer.
+USE_ELEMENT_FALLBACK = True
 
 
 @dataclass
@@ -88,8 +94,20 @@ class AmineDonorGroup:
 def _tag_atoms_of_mol(
     topo: MoleculeTopology, mapping: FunctionalTagMapping,
 ) -> List[Optional[str]]:
-    """Return per-atom tag list (local-index ordered)."""
-    return [mapping.get_tag(a.atom_type) for a in topo.atoms]
+    """Return per-atom tag list (local-index ordered).
+
+    Falls back to element + bond-graph heuristics for atoms whose
+    ``atom_type`` is not in the mapping (e.g. OpenFF SMIRNOFF's per-atom
+    unique ``MOL0_0`` names). The fallback can be disabled by setting
+    ``USE_ELEMENT_FALLBACK = False`` at module scope (typically set by
+    ``AnalyzerConfig.use_element_fallback`` for a single run).
+    """
+    tags = [mapping.get_tag(a.atom_type) for a in topo.atoms]
+    if USE_ELEMENT_FALLBACK and any(t is None for t in tags):
+        atom_names = [a.atom_name for a in topo.atoms]
+        bonds = [(b.atom1, b.atom2) for b in topo.bonds]
+        tags = fallback_tag_by_element(atom_names, bonds, tags)
+    return tags
 
 
 def _build_adjacency(
