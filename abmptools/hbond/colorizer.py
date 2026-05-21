@@ -196,10 +196,27 @@ def _patch_action_header(bdf_path: str, act_basename: str) -> None:
     end_marker = b"\\end{header}"
     idx = data.find(end_marker)
     if idx < 0:
-        raise RuntimeError(
-            f"Cannot find \\end{{header}} in {bdf_path}; "
-            "is this a valid UDF/BDF file?"
-        )
+        # No \begin{header} section (e.g. gro2udf UDF). Inject one right
+        # after the leading \include line so gourmet/J-OCTA can pick the
+        # Action up. Position: first \begin{...} or \end_of_first_line.
+        include_idx = data.find(b"\\include")
+        if include_idx >= 0:
+            line_end = data.find(b"\n", include_idx)
+            insert_pos = (line_end + 1) if line_end >= 0 else len(data)
+        else:
+            insert_pos = 0
+        header_block = (
+            f'\\begin{{header}}\n'
+            f'\\begin{{data}}\n'
+            f'Action:"{act_basename}"\n'
+            f'\\end{{data}}\n'
+            f'\\end{{header}}\n'
+        ).encode("ascii")
+        new_data = data[:insert_pos] + header_block + data[insert_pos:]
+        with open(bdf_path, "wb") as f:
+            f.write(new_data)
+        return
+
     header = data[:idx].decode("ascii")
     rest = data[idx:]
 
