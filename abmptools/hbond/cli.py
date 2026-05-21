@@ -56,6 +56,11 @@ def main(argv=None) -> int:
         help="Base molecule name for renamed groups (default: IMC)"
     )
     parser.add_argument(
+        "--classify-mode", choices=["imc", "generic"], default="imc",
+        help="imc: COOH-centric 4-species (dual/chain/single/free, IMC default). "
+             "generic: donor-type x acceptor-type pair stats (PVA/peptide/etc.)"
+    )
+    parser.add_argument(
         "--no-colorize", action="store_true",
         help="Skip writing any colored output"
     )
@@ -154,6 +159,7 @@ def main(argv=None) -> int:
         base_mol_name=args.mol_name,
         do_colorize=not args.no_colorize,
         colorize_mode=args.colorize_mode,
+        classify_mode=args.classify_mode,
         do_copy_uncolored=not args.no_copy_uncolored,
         do_write_attributes=not args.no_write_attributes,
         attributes_name=args.attributes_name,

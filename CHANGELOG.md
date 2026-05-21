@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.hbond` generic mode — v1.28.0 候補)
+
+- **`classify_mode={imc, generic}` を新規追加** (`AnalyzerConfig.classify_mode`、
+  CLI `--classify-mode`、Jupyter UI dropdown)。default = imc で既存挙動維持
+- **`imc` mode** (既存): COOH 中心 4-species (dual/chain/single/free)
+- **`generic` mode** (新規): donor-type × acceptor-type の pair 統計 + atom
+  単位の role tag (Donor/Acceptor/Both/Candidate)。PVA / peptide / アルコール /
+  混合系等、COOH を持たない任意系で動作
+- 新規 module `abmptools/hbond/pair_type_stats.py`:
+  `PairTypeStat` + `GenericPairClassification` dataclass、`classify_generic()` /
+  `summarize_pair_stats()`
+- colorizer に generic 版 3 関数: `write_hbond_attributes_generic` /
+  `colorize_udf_action_generic` / `write_show_python_script_generic`
+- `DEFAULT_GENERIC_COLORS`: Donor=red / Acceptor=cyan / Both=magenta /
+  Candidate=faint gray
+- 新規出力: `<prefix>_pair_stats.csv` (generic mode のみ)、
+  pairs.csv の `kind` 列は generic では `<donor_type>-><acceptor_type>` 形式、
+  Attributes 値は `Donor` / `Acceptor` / `Both` (Candidate は skip)
+- tests: `test_pair_type_stats.py` 5 件追加 (no_hbonds / single_pair / both_role /
+  multiple_pair / unique_dedup)、計 57/57 PASS
+- IMC 系での generic mode 動作確認 (`--donor-groups carboxyl
+  --acceptor-groups carboxyl_O,amide_O`): carboxyl→amide_O=50, carboxyl→carboxyl_O=31
+  が pair_stats に出る (= imc mode の hb_cc=31 + hb_ca=50 と一致)
+
 ### Changed (`abmptools.hbond` 4-species classifier + NMR 比較 plot — v1.27.0 候補)
 
 - **per-COOH 分類を 4 species に拡張**: dual / **chain** / single / free。

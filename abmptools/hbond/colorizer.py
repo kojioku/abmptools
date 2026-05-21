@@ -175,6 +175,15 @@ DEFAULT_ACTION_COLORS: Dict[str, List[float]] = {
 }
 
 
+# Generic-mode palette: atom-role-driven (no IMC-specific semantics).
+DEFAULT_GENERIC_COLORS: Dict[str, List[float]] = {
+    "Donor":     [1.0, 0.0, 0.0, 1.0],   # red    — atom acting as H-bond donor
+    "Acceptor":  [0.0, 0.8, 0.8, 1.0],   # cyan   — atom acting as H-bond acceptor
+    "Both":      [0.85, 0.0, 0.85, 1.0], # magenta — donor + acceptor simultaneously
+    "Candidate": [0.7, 0.7, 0.7, 0.25],  # faint gray — listed candidate, no H-bond
+}
+
+
 def _patch_action_header(bdf_path: str, act_basename: str) -> None:
     """Append ``act_basename`` to the BDF text header's ``Action:`` field.
 
@@ -393,6 +402,186 @@ def colorize_udf_action(
     _patch_action_header(output_bdf_path, act_basename)
 
     return output_bdf_path, output_act_path
+
+
+def write_hbond_attributes_generic(
+    bdf_path: str,
+    atom_role: Dict[Tuple[int, int], str],
+    attribute_name: str = "hbond",
+    include_candidate: bool = False,
+) -> str:
+    """Generic-mode counterpart to :func:`write_hbond_attributes`.
+
+    Append ``Name=attribute_name`` / ``Value=<role>`` (role ∈
+    {``Donor``, ``Acceptor``, ``Both``, ``Candidate``}) to each atom's
+    ``Attributes[]`` for atoms listed in ``atom_role``. Existing entries
+    (e.g. J-OCTA's ``Name='1' Value='molecular:<id>'``) are left intact;
+    re-runs are idempotent (skip if ``attribute_name`` is already present).
+
+    ``include_candidate=False`` (default) skips atoms whose role is
+    ``Candidate`` so the BDF stays slim and the J-OCTA filter only shows
+    actively H-bonded atoms.
+    """
+    from UDFManager import UDFManager
+    u = UDFManager(bdf_path)
+    n_records = u.totalRecord()
+    for rec in [-1] + list(range(n_records)):
+        try:
+            u.jump(rec)
+        except Exception:
+            continue
+        n_mol = u.size("Set_of_Molecules.molecule[]")
+        if not n_mol:
+            continue
+        for mi in range(n_mol):
+            n_at = u.size(f"Set_of_Molecules.molecule[{mi}].atom[]") or 0
+            for ai in range(n_at):
+                role = atom_role.get((mi, ai))
+                if role is None:
+                    continue
+                if role == "Candidate" and not include_candidate:
+                    continue
+                base = f"Set_of_Molecules.molecule[{mi}].atom[{ai}].Attributes"
+                cur_n = u.size(f"{base}[]") or 0
+                already = False
+                for j in range(cur_n):
+                    try:
+                        if u.get(f"{base}[{j}].Name") == attribute_name:
+                            already = True
+                            break
+                    except Exception:
+                        pass
+                if already:
+                    continue
+                slot = cur_n
+                try:
+                    u.put(attribute_name, f"{base}[{slot}].Name")
+                    u.put(role, f"{base}[{slot}].Value")
+                except Exception as e:
+                    print(f"Warn: failed Attributes[{slot}] at "
+                          f"mol[{mi}].atom[{ai}]: {e}")
+    u.write(bdf_path)
+    return bdf_path
+
+
+def _render_generic_body_lines(
+    atom_role: Dict[Tuple[int, int], str],
+    colors: Dict[str, List[float]],
+) -> List[str]:
+    """Generic-mode body: atoms with role overlay (no functional-group concept)."""
+    atom_entries = []
+    for (mi, ai), role in sorted(atom_role.items()):
+        if role == "Candidate":
+            continue  # do not draw the faint candidates by default
+        atom_entries.append(f"    ({mi}, {ai}, '{role}'),")
+
+    color_lines = []
+    for role, c in colors.items():
+        rgba = ", ".join(f"{v:.3f}" for v in c)
+        color_lines.append(f"    '{role}': [{rgba}],")
+
+    return [
+        "atom_roles = [",
+        *atom_entries,
+        "]",
+        "role_color = {",
+        *color_lines,
+        "}",
+        "sphere_radius = 0.55",
+        "",
+        "# Backbone bonds in light gray",
+        "n_mol = size('Set_of_Molecules.molecule[]')",
+        "for mi in range(n_mol):",
+        "    n_bonds = size('Set_of_Molecules.molecule[].bond[]', [mi])",
+        "    for bi in range(n_bonds):",
+        "        a1 = get('Set_of_Molecules.molecule[].bond[].atom1', [mi, bi])",
+        "        a2 = get('Set_of_Molecules.molecule[].bond[].atom2', [mi, bi])",
+        "        p1 = get('Structure.Position.mol[].atom[]', [mi, a1])",
+        "        p2 = get('Structure.Position.mol[].atom[]', [mi, a2])",
+        "        line(p1, p2, [0.5, 0.5, 0.5, 0.4])",
+        "",
+        "# Active atoms (Donor / Acceptor / Both): role-coloured sphere overlay",
+        "for entry in atom_roles:",
+        "    mi, ai, role = entry",
+        "    col = role_color.get(role, role_color.get('Candidate', "
+        "[0.5, 0.5, 0.5, 0.3])) + [sphere_radius]",
+        "    p = get('Structure.Position.mol[].atom[]', [mi, ai])",
+        "    sphere(p, col)",
+    ]
+
+
+def colorize_udf_action_generic(
+    input_path: str,
+    output_bdf_path: str,
+    output_act_path: str,
+    atom_role: Dict[Tuple[int, int], str],
+    action_colors: Optional[Dict[str, List[float]]] = None,
+) -> Tuple[str, str]:
+    """Generic counterpart to :func:`colorize_udf_action` (autorun .act + BDF).
+
+    Use this when ``classify_mode="generic"``. Each atom's role is colored
+    based on Donor / Acceptor / Both, with Candidate atoms skipped.
+    """
+    if action_colors is None:
+        action_colors = DEFAULT_GENERIC_COLORS
+
+    if input_path != output_bdf_path:
+        shutil.copy(input_path, output_bdf_path)
+
+    body = _render_generic_body_lines(atom_role, action_colors)
+    lines = [
+        "# Auto-generated by abmptools.hbond.colorize_udf_action_generic.",
+        "# Generic mode: per-atom role overlay.",
+        "# Colors: Donor=red, Acceptor=cyan, Both=magenta, Candidate=gray.",
+        "# Candidate atoms are not drawn by default.",
+        "# NOTE: OCTA gourmet only. J-OCTA may crash on this form;",
+        "# use the companion <prefix>_show.py via the Python panel instead.",
+        "",
+        "autorun : showHbond() : \\begin",
+        *body,
+        "\\end",
+        "",
+    ]
+    with open(output_act_path, "w", encoding="ascii") as f:
+        f.write("\n".join(lines))
+
+    act_basename = os.path.basename(output_act_path)
+    _patch_action_header(output_bdf_path, act_basename)
+    return output_bdf_path, output_act_path
+
+
+def write_show_python_script_generic(
+    output_py_path: str,
+    atom_role: Dict[Tuple[int, int], str],
+    target_bdf_basename: str,
+    action_colors: Optional[Dict[str, List[float]]] = None,
+) -> str:
+    """Generic counterpart to :func:`write_show_python_script`.
+
+    Plain Python script (no autorun wrap) for direct Python-panel execution
+    on the Mol_Name-preserved BDF. Use this when the .act autorun form
+    crashes the J-OCTA Viewer.
+    """
+    if action_colors is None:
+        action_colors = DEFAULT_GENERIC_COLORS
+    body = _render_generic_body_lines(atom_role, action_colors)
+    lines = [
+        "# Auto-generated by abmptools.hbond.write_show_python_script_generic.",
+        "# Generic mode: per-atom role overlay.",
+        "# Colors: Donor=red, Acceptor=cyan, Both=magenta, Candidate=gray.",
+        "# Candidate atoms are not drawn by default.",
+        "#",
+        "# How to use (J-OCTA Viewer / OCTA gourmet):",
+        f"#   1. File -> Open {target_bdf_basename} (Mol_Name preserved copy)",
+        "#   2. Python panel -> Load this file (or paste its contents)",
+        "#   3. Click Run",
+        "",
+        *body,
+        "",
+    ]
+    with open(output_py_path, "w", encoding="ascii") as f:
+        f.write("\n".join(lines))
+    return output_py_path
 
 
 def write_hbond_attributes(

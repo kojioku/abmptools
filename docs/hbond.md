@@ -25,9 +25,10 @@ v1.27.0 候補 (per-functional-group classification) で「分子単位 1 役割
 
 | ファイル | 内容 |
 |---|---|
-| `<prefix>_summary.csv` | per-record の **官能基単位** dual/single/free 数 + 比率 + mol-level legacy 数 |
-| `<prefix>_classification.csv` | 全 carboxyl / amide ごとの (mol_index, group_index, role, partners) |
-| `<prefix>_pairs.csv` | 検出された H-bond ペアの一覧 (距離・角度付き) |
+| `<prefix>_summary.csv` (imc mode) | per-record の **官能基単位** dual/chain/single/free 数 + 比率 + mol-level legacy 数 |
+| `<prefix>_pair_stats.csv` (generic mode) | per-record の donor_type × acceptor_type 集計 (n_hbonds, n_uniq_donors, n_uniq_acceptors, ratio_*_busy) |
+| `<prefix>_classification.csv` (imc mode) | 全 carboxyl / amide ごとの (mol_index, group_index, role, partners) |
+| `<prefix>_pairs.csv` | 検出された H-bond ペアの一覧 (距離・角度付き)。`kind` 列は imc では `cc/ca`、generic では `<donor_type>-><acceptor_type>` |
 | `<prefix>.bdf` | 入力 BDF を Mol_Name 維持でコピー + 各 functional-group atom の `Attributes[]` に `Name='hbond' Value='Dual'/'Single'/'Free'/'Accept'` を append (**J-OCTA プリ描画用**、Attribute フィルタで官能基カテゴリ可視化可) |
 | `<prefix>_colored.bdf` | Mol_Name リネーム + Draw_Attributes (`colorize_mode` が `molname` / `both` の時) |
 | `<prefix>_action.bdf` + `<prefix>_show.act` | Mol_Name 維持 + autorun action (OCTA gourmet 用、`colorize_mode` が `action` / `both` の時) |
@@ -209,6 +210,10 @@ python -m abmptools.hbond <bdf_path> \
 --record-start INT        開始 record (default 0)
 --record-end INT          終了 record (exclusive, default -1 = all)
 --mol-name STR            色付け時の Mol_Name prefix (default "IMC")
+--classify-mode {imc,generic}
+                          imc (default): COOH 中心 4-species (dual/chain/single/free)
+                          generic: donor-type x acceptor-type pair 統計
+                          (PVA/peptide/アルコール等の任意系向け)
 --no-colorize             color 出力を一切生成しない
 --colorize-mode {molname,action,both}
                           molname (default): Mol_Name rename + Draw_Attributes;
@@ -380,6 +385,47 @@ from abmptools.hbond import detect_amine_donors
 donors = detect_amine_donors(molecules, include_amide=True, include_amine=False)
 # → AmineDonorGroup(mol_index, n_atom, h_atom, from_amide=True) のリスト
 ```
+
+## Generic mode (任意系向け) — v1.28 候補
+
+COOH 中心の `imc` mode (dual/chain/single/free) ではなく、**donor type × acceptor
+type の pair 統計** を出すモード。PVA (hydroxyl × hydroxyl_O)、peptide (amide_donor
+× amide_O)、アルコール / ester 混合系等、COOH を持たない系で使う。
+
+### 切替
+
+```bash
+python -m abmptools.hbond traj.bdf \
+    --classify-mode generic \
+    --donor-groups hydroxyl \
+    --acceptor-groups hydroxyl_O
+```
+
+Jupyter UI からも `Mode:` dropdown で切替可能 (`open_panel(bdf_path)`)。
+
+### 出力
+
+| ファイル | 内容 |
+|---|---|
+| `<prefix>_pair_stats.csv` | per-record、donor_type × acceptor_type 集計 |
+| `<prefix>_pairs.csv` | H-bond ペア (kind 列が `<donor>-><acceptor>` 形式) |
+| `<prefix>.bdf` の Attributes | 各 atom に `hbond=Donor/Acceptor/Both` (active のみ書込、Candidate は skip) |
+| `<prefix>_action.bdf` + `_show.act` | autorun overlay (gourmet 用)、atom role 色付け |
+| `<prefix>_show.py` | Python パネル用 plain script (J-OCTA 用) |
+
+### atom role の色 (`DEFAULT_GENERIC_COLORS`)
+
+| role | 色 (RGBA) | 意味 |
+|---|---|---|
+| `Donor` | `[1.0, 0.0, 0.0, 1.0]` (red) | atom が H-bond donor として active |
+| `Acceptor` | `[0.0, 0.8, 0.8, 1.0]` (cyan) | atom が H-bond acceptor として active |
+| `Both` | `[0.85, 0.0, 0.85, 1.0]` (magenta) | donor + acceptor 兼任 (例: alcohol O が donor で別 H-bond の acceptor) |
+| `Candidate` | `[0.7, 0.7, 0.7, 0.25]` (faint gray) | donor/acceptor 候補だが active でない (描画 skip) |
+
+### J-OCTA Attribute フィルタとの組合せ
+
+`<prefix>.bdf` を J-OCTA で開いて Attribute フィルタで `hbond=Donor` / `Acceptor` /
+`Both` の atom のみ選択表示可能。
 
 ## 既知の制限
 

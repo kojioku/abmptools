@@ -235,6 +235,18 @@ def open_panel(bdf_path: str):
         layout=widgets.Layout(width="500px"),
     )
 
+    # Classification mode (v1.28+): IMC (4-species COOH-centric) vs generic
+    # (donor-type x acceptor-type pair stats, for PVA / peptide / alcohol etc.)
+    classify_mode_dd = widgets.Dropdown(
+        options=[
+            ("imc (COOH 4-species: dual/chain/single/free)", "imc"),
+            ("generic (donor-type x acceptor-type pair stats)", "generic"),
+        ],
+        value="imc",
+        description="Mode:",
+        layout=widgets.Layout(width="400px"),
+    )
+
     # Functional group pair selection (Phase 3 enhancement)
     donor_cb = {
         "carboxyl":     widgets.Checkbox(value=True,  description="COOH (carboxyl OH)"),
@@ -290,6 +302,7 @@ def open_panel(bdf_path: str):
                 record_end=rec_end.value,
                 base_mol_name=mol_name.value,
                 verbose=True,
+                classify_mode=classify_mode_dd.value,
                 donor_groups=selected_donors,
                 acceptor_groups=selected_acceptors,
                 compute_lifetime=do_lifetime.value,
@@ -304,6 +317,25 @@ def open_panel(bdf_path: str):
             # stats table
             fr = analyzer.frame_results[-1]
             cls = fr.classification
+            if classify_mode_dd.value == "generic":
+                gcls = fr.generic_classification
+                print("\n--- Last frame summary (generic, donor x acceptor) ---")
+                if gcls is not None:
+                    for (dt, at), st in sorted(gcls.pair_stats.items()):
+                        denom_d = gcls.n_donor_candidates.get(dt, 0) or 1
+                        denom_a = gcls.n_acceptor_candidates.get(at, 0) or 1
+                        print(
+                            "  {:>13s} -> {:<13s}  n={:4d}  "
+                            "donors={}/{}  acceptors={}/{}".format(
+                                dt, at, st.n_hbonds,
+                                st.n_uniq_donors, denom_d,
+                                st.n_uniq_acceptors, denom_a,
+                            )
+                        )
+                print("\nOutputs:")
+                for kind, path in paths.items():
+                    print(f"  {kind}: {path}")
+                return
             print("\n--- Last frame summary (per functional group) ---")
             if cls.n_carboxyls > 0:
                 print(f"  COOH dual:   {cls.n_carboxyls_dual:4d} / "
@@ -353,6 +385,7 @@ def open_panel(bdf_path: str):
     panel = widgets.VBox([
         info_html,
         svg_view,
+        classify_mode_dd,
         widgets.HBox([donor_box, acceptor_box]),
         widgets.HBox([criteria_dd]),
         widgets.HBox([d_da_slider, d_ha_slider, angle_slider]),

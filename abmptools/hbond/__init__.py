@@ -46,9 +46,15 @@ from .classifier import (
     FunctionalGroupClassification, MolRole, classify,
 )
 from .colorizer import (
-    DEFAULT_ACTION_COLORS, DEFAULT_COLORS, DrawAttribute, VALID_COLORS,
-    colorize_udf, colorize_udf_action, write_hbond_attributes,
-    write_show_python_script,
+    DEFAULT_ACTION_COLORS, DEFAULT_COLORS, DEFAULT_GENERIC_COLORS,
+    DrawAttribute, VALID_COLORS,
+    colorize_udf, colorize_udf_action, colorize_udf_action_generic,
+    write_hbond_attributes, write_hbond_attributes_generic,
+    write_show_python_script, write_show_python_script_generic,
+)
+from .pair_type_stats import (
+    GenericPairClassification, PairTypeStat,
+    classify_generic, summarize_pair_stats,
 )
 from .func_tags import (
     BUILTIN_MAPPINGS, CHARMM36, GAFF2, OPENFF_SAGE, OPLS_AA,
@@ -92,6 +98,11 @@ __all__ = [
     "DrawAttribute", "DEFAULT_COLORS", "VALID_COLORS", "colorize_udf",
     "DEFAULT_ACTION_COLORS", "colorize_udf_action", "write_show_python_script",
     "write_hbond_attributes",
+    # generic mode
+    "DEFAULT_GENERIC_COLORS", "colorize_udf_action_generic",
+    "write_hbond_attributes_generic", "write_show_python_script_generic",
+    "GenericPairClassification", "PairTypeStat",
+    "classify_generic", "summarize_pair_stats",
     # lifetime (v1.26+ multi-record)
     "PairKey", "PairLifetime",
     "compute_lifetimes", "compute_autocorrelation",
