@@ -2,15 +2,16 @@
 Regression test: IMC BDF at rec=900 should give a stable classification.
 
 Baseline (Luzar-Chandler defaults, T=450 K IMC amorphous, per-COOH state):
-  dual=10, single=49, free=66  (sum=125, one mol = one COOH)
+  dual=10, chain=41, single=38, free=36  (sum=125, one mol = one COOH)
+  amide accept=49, amide free=76
   n_hbonds_cc=31, n_hbonds_ca=50
 
-Note: prior to the per-functional-group refactor (v1.27 candidate), the
-``single`` count was 73 because both the carboxyl-side mol AND the
-amide-side mol of every COOH→amide H-bond were counted. The new
-``single`` (49) counts only molecules whose COOH state is ``single``
-(i.e. donates to an amide) — molecules whose only role is "amide
-accepts a carboxyl" land in ``free`` (their COOH, if any, is free).
+The 4-species split mirrors Yuan et al. (2015) Mol. Pharm. 12, 4518 NMR
+deconvolution:
+  cyclic dimer (~179 ppm) → dual
+  carboxylic acid chain (~176 ppm, disordered chains) → chain
+  COOH-amide (~172 ppm) → single
+  free COOH (~170 ppm) → free
 """
 import os
 
@@ -42,31 +43,35 @@ def test_imc_counts_luzar_chandler():
     cls = fr.classification
     # Mol-level fields (representative role used by colorizer)
     assert abs(fr.n_dual_mols - 10) <= 2, f"dual={fr.n_dual_mols}"
-    assert abs(fr.n_single_mols - 49) <= 5, f"single={fr.n_single_mols}"
-    assert abs(fr.n_free_mols - 66) <= 5, f"free={fr.n_free_mols}"
+    assert abs(fr.n_chain_mols - 41) <= 5, f"chain={fr.n_chain_mols}"
+    assert abs(fr.n_single_mols - 38) <= 5, f"single={fr.n_single_mols}"
+    assert abs(fr.n_free_mols - 36) <= 5, f"free={fr.n_free_mols}"
     assert abs(fr.n_hbonds_cc - 31) <= 3, f"cc={fr.n_hbonds_cc}"
     assert abs(fr.n_hbonds_ca - 50) <= 5, f"ca={fr.n_hbonds_ca}"
-    assert fr.n_dual_mols + fr.n_single_mols + fr.n_free_mols == 125
+    assert (fr.n_dual_mols + fr.n_chain_mols
+            + fr.n_single_mols + fr.n_free_mols) == 125
 
     # Per-functional-group fields (new in v1.27 candidate)
     assert cls.n_carboxyls == 125
     assert cls.n_amides == 125
     # IMC: 1 mol = 1 COOH + 1 amide, so per-COOH counts == per-mol counts
     assert cls.n_carboxyls_dual == fr.n_dual_mols
+    assert cls.n_carboxyls_chain == fr.n_chain_mols
     assert cls.n_carboxyls_single == fr.n_single_mols
     assert cls.n_carboxyls_free == fr.n_free_mols
-    assert (cls.n_carboxyls_dual + cls.n_carboxyls_single
-            + cls.n_carboxyls_free) == 125
+    assert (cls.n_carboxyls_dual + cls.n_carboxyls_chain
+            + cls.n_carboxyls_single + cls.n_carboxyls_free) == 125
     # Amide accept count ≤ ca H-bond count (one amide can accept multiple)
     assert cls.n_amides_accept <= fr.n_hbonds_ca
     assert cls.n_amides_accept + cls.n_amides_free == 125
-    # Ratios in [0, 1]
-    assert 0.0 <= cls.ratio_carboxyl_dual <= 1.0
-    assert 0.0 <= cls.ratio_carboxyl_single <= 1.0
-    assert 0.0 <= cls.ratio_carboxyl_free <= 1.0
-    assert 0.0 <= cls.ratio_amide_accept <= 1.0
-    assert abs(cls.ratio_carboxyl_dual + cls.ratio_carboxyl_single
-               + cls.ratio_carboxyl_free - 1.0) < 1e-9
+    # Ratios in [0, 1] and sum to 1.0
+    for ratio in (cls.ratio_carboxyl_dual, cls.ratio_carboxyl_chain,
+                  cls.ratio_carboxyl_single, cls.ratio_carboxyl_free,
+                  cls.ratio_amide_accept):
+        assert 0.0 <= ratio <= 1.0
+    assert abs(cls.ratio_carboxyl_dual + cls.ratio_carboxyl_chain
+               + cls.ratio_carboxyl_single + cls.ratio_carboxyl_free
+               - 1.0) < 1e-9
 
 
 def test_imc_strict_yields_fewer_hbonds():
@@ -178,6 +183,8 @@ def test_classification_csv_per_group(tmp_path):
     amide_rows = [r for r in rows if r["group_type"] == "amide"]
     assert len(carb_rows) == 125
     assert len(amide_rows) == 125
-    # roles drawn from expected sets
-    assert all(r["role"] in {"dual", "single", "free"} for r in carb_rows)
+    # roles drawn from expected sets (v1.27 4-species)
+    assert all(
+        r["role"] in {"dual", "chain", "single", "free"} for r in carb_rows
+    )
     assert all(r["role"] in {"accept", "free"} for r in amide_rows)

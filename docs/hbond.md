@@ -63,41 +63,49 @@ Tertiary amide (N に H なし) は `tert=True` でマーキング。
 
 参考: A. Luzar, D. Chandler, *Nature* 379, 55-57 (1996).
 
-### 3. 分類 (`classifier.py`) — 官能基単位
+### 3. 分類 (`classifier.py`) — 官能基単位、4 species
 
-**v1.27.0 候補で per-functional-group ベースに変更**。1 分子に複数の COOH や
-amide がある場合、それぞれ独立に役割判定される (NMR の COOH-C / amide-C 信号
-分離と直接対応)。
+**v1.27.0 候補で per-functional-group ベース + 4 species 分類**。1 分子に複数の
+COOH や amide がある場合、それぞれ独立に役割判定される。4 species 分類は
+Yuan et al. (2015) *Mol. Pharm.* 12, 4518 (DOI 10.1021/acs.molpharmaceut.5b00705)
+の amorphous IMC NMR deconvolution に対応:
 
-| 集計対象 | 役割 | 判定基準 | NMR 対応 (IMC 例) |
+| 集計対象 | 役割 | 判定基準 | NMR 対応 (Yuan 2015 Fig 5 / Table 1) |
 |---|---|---|---|
-| **COOH (carboxyl)** | **dual** | この COOH と相手 COOH の間で **両方向** に H-bond | ~180 ppm |
-|  | **single** | (dual ではない) この COOH の OH-H が amide C=O に donate | ~175 ppm |
-|  | **free** | いずれもなし | ~165 ppm |
+| **COOH (carboxyl)** | **dual** | この COOH と相手 COOH の間で **両方向** に H-bond | ~179.3 ppm — cyclic dimer (58.5%) |
+|  | **chain** | (dual ではない) cc 一方向 H-bond に参加 (donor または acceptor 側) | ~176.3 ppm — disordered chain (15.2%) |
+|  | **single** | (dual / chain ではない) この COOH の OH-H が amide C=O に donate | ~172.4 ppm — COOH-amide (18.9%) |
+|  | **free** | いずれもなし | ~170.4 ppm — free COOH (7.5%) |
 | **amide C=O** | **accept** | この amide O が COOH から H-bond 受けている | (acceptor 側) |
 |  | **free** | なし | (free 側) |
 
-**分子代表 role** (色付け用、`colorize_udf` が使用):
+**`chain` の定義**: cyclic dimer ではない COOH-COOH 一方向 H-bond の片端
+(donor or acceptor)。論文の "disordered chains" は「長さ様々の COOH 連鎖、
+chain 末端、二量体より大きな ring」を含むとされ、`cc_relations` で逆方向が
+無い arrow をすべて chain として拾う設計と一致。
+
+**分子代表 role** (色付け用、`colorize_udf` が使用、優先度: dual > chain > single > free):
 
 - 分子内に **いずれかの dual COOH** があれば → `dual`
-- どれも dual でないが **いずれかの single COOH** があれば → `single`
-- すべての COOH が free → `free` (amide が accept しているかは反映しない)
-
-これは「分子の代表的な状態」であって、官能基単位の比率とは別。`summary.csv`
-には両方が記録される (前者は `n_carb_dual/single/free`、後者は
-`n_dual_mols/single_mols/free_mols`)。
+- 上記でなく **いずれかの chain COOH** があれば → `chain`
+- 上記でなく **いずれかの single COOH** があれば → `single`
+- 上記すべて該当しない → `free`
 
 **インドメタシン例** (1 mol = 1 COOH + 1 amide、Luzar-Chandler default、
 T=450 K rec=900):
 
-- carboxyl: dual=10 / single=49 / free=66 (8% / 39% / 53%)
-- amide: accept=49 / free=76 (39% / 61%)
-- mol-level: 上と同じ (1 mol = 1 COOH なので)
+| species | NMR (Yuan 2015) | MD (本実装) |
+|---|---|---|
+| dual (cyclic dimer) | 58.5% | 8.0% (10/125) |
+| chain (disordered) | 15.2% | 32.8% (41/125) |
+| single (COOH-amide) | 18.9% | 30.4% (38/125) |
+| free | 7.5% | 28.8% (36/125) |
 
-**v1.26.0 までは** "分子単位 1 役割" の集計で、COOH→amide H-bond の **両当事者**
-(COOH 側 mol + amide 側 mol) を `single` にカウントしていた (上記 IMC で
-single=73 になる旧仕様)。新仕様は COOH の状態を直接見るので、amide 側 mol
-(COOH 持っていない or COOH free) は `free` に入る。
+amide: accept=49 / free=76 (39% / 61%)、mol-level は per-COOH と同じ
+(1 mol = 1 COOH なので)。
+
+比較プロットは `sample/hbond/imc_amorphous/plot_nmr_comparison.py` で生成可能
+(出力: `output/imc_hbond_nmr_comparison.png`)。
 
 ### 4. UDF 色付け (`colorizer.py`)
 
@@ -111,6 +119,7 @@ Draw_Attributes.Molecule[].{Mol_Name, color, transparency, radius}
 | Role | 色 | transparency |
 |---|---|---|
 | dual | Red | 1.0 (不透明) |
+| chain | Magenta | 1.0 (不透明) |
 | single | Blue | 1.0 (不透明) |
 | free | Gray | 0.3 (薄く) |
 

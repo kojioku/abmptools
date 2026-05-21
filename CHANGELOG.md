@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Changed (`abmptools.hbond` 4-species classifier + NMR 比較 plot — v1.27.0 候補)
+
+- **per-COOH 分類を 4 species に拡張**: dual / **chain** / single / free。
+  Yuan et al. (2015) *Mol. Pharm.* 12, 4518 (DOI 10.1021/acs.molpharmaceut.5b00705)
+  の amorphous IMC 13C SSNMR deconvolution (cyclic dimer ~179 / disordered chain
+  ~176 / COOH-amide ~172 / free ~170 ppm) に対応する分類軸。
+  - **chain** = cyclic dimer ではない COOH-COOH 一方向 H-bond の参加者 (donor or
+    acceptor 側)。論文の "disordered chains having various lengths" + chain end
+    + ring-larger-than-dimer を一括して捕捉
+  - 優先度: dual > chain > single > free (per-COOH も mol 代表 role も同じ)
+  - `CarboxylRole.chain_partners` / `FunctionalGroupClassification.n_carboxyls_chain`
+    + `ratio_carboxyl_chain` + `MolRole.n_carboxyls_chain` を新規追加
+  - summary.csv に `n_carb_chain` / `ratio_carb_chain` / `n_chain_mols` カラム追加
+  - colorizer: Mol_Name リネーム経路に `_CHAIN` (Magenta)、action/script 経路に
+    `chain: [0.85, 0, 0.85, 1]` (magenta) を追加、write_hbond_attributes の
+    value_map にも `chain: Chain` を追加
+- **IMC ベースライン値の再変更**: 旧 (3-species) single=49 / free=66 → 新 (4-species)
+  chain=41 / single=38 / free=36 (合計 125 = 旧 single+free 115 のうち chain に
+  41 が分流)。dual=10、amide accept=49 / free=76 は不変。
+- **`sample/hbond/imc_amorphous/plot_nmr_comparison.py` 新規追加**: 3-row
+  plot (Yuan Figure 5 image / Yuan Table 1 deconv bars / MD per-COOH bars) を
+  同一 ppm 軸で並列描画。生成 PNG `output/imc_hbond_nmr_comparison.png` を
+  同梱。比較で大きいギャップ (NMR dual 58.5% vs MD 8.0% 等) が視覚化される
+
 ### Changed (`abmptools.hbond` per-functional-group 統計 — v1.27.0 候補)
 
 - **分類モデルを per-functional-group に変更**: v1.26 まで「分子単位 1 役割」

@@ -309,6 +309,9 @@ def open_panel(bdf_path: str):
                 print(f"  COOH dual:   {cls.n_carboxyls_dual:4d} / "
                       f"{cls.n_carboxyls}  "
                       f"({100*cls.ratio_carboxyl_dual:.1f}%)")
+                print(f"  COOH chain:  {cls.n_carboxyls_chain:4d} / "
+                      f"{cls.n_carboxyls}  "
+                      f"({100*cls.ratio_carboxyl_chain:.1f}%)")
                 print(f"  COOH single: {cls.n_carboxyls_single:4d} / "
                       f"{cls.n_carboxyls}  "
                       f"({100*cls.ratio_carboxyl_single:.1f}%)")
@@ -325,6 +328,7 @@ def open_panel(bdf_path: str):
             print(f"  H-bonds: cc={fr.n_hbonds_cc}, ca={fr.n_hbonds_ca}")
             print("\n--- Mol-level representative role (for coloring) ---")
             print(f"  dual mols:   {fr.n_dual_mols:4d}")
+            print(f"  chain mols:  {fr.n_chain_mols:4d}")
             print(f"  single mols: {fr.n_single_mols:4d}")
             print(f"  free mols:   {fr.n_free_mols:4d}")
             print("\nOutputs:")

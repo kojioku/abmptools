@@ -92,13 +92,43 @@ def test_dual_precedence_over_single():
     assert r.n_amides_accept == 1
 
 
-def test_one_way_carb_carb_not_dual():
-    """One-direction carb-carb is not dual; both COOHs are free."""
+def test_one_way_carb_carb_is_chain():
+    """One-direction COOH-COOH is now classified as 'chain' (v1.27 4-species)."""
     carbs = [_carb(0), _carb(1)]
     cc = [_hb(0, 0, 1, 1, 11)]
     r = classify(3, cc, [], carbs)
     assert r.n_carboxyls_dual == 0
-    assert all(c.role == "free" for c in r.carboxyl_roles)
+    assert r.n_carboxyls_chain == 2
+    assert r.n_carboxyls_free == 0
+    assert all(c.role == "chain" for c in r.carboxyl_roles)
+    # mol-level: both mol 0 and mol 1 are chain, mol 2 is free
+    assert r.roles[0].role == "chain"
+    assert r.roles[1].role == "chain"
+    assert r.roles[2].role == "free"
+
+
+def test_chain_open_trimer():
+    """A→B→C open chain: all three COOHs are 'chain'."""
+    carbs = [_carb(0), _carb(1), _carb(2)]
+    # A->B and B->C (no reverse), no dual
+    cc = [_hb(0, 0, 1, 1, 11), _hb(1, 0, 1, 2, 11)]
+    r = classify(3, cc, [], carbs)
+    assert r.n_carboxyls_chain == 3
+    assert r.n_carboxyls_dual == 0
+    assert r.n_carboxyls_single == 0
+    assert r.n_carboxyls_free == 0
+
+
+def test_dual_takes_priority_over_chain():
+    """COOH in a dual pair stays 'dual' even if it also has a chain donor."""
+    # cooh0 <-> cooh1 are dual; cooh2 donates one-way to cooh0 (chain edge)
+    carbs = [_carb(0), _carb(1), _carb(2)]
+    cc = [_hb(0, 0, 1, 1, 11), _hb(1, 0, 1, 0, 11),  # dual 0<->1
+          _hb(2, 0, 1, 0, 11)]                        # 2 -> 0 chain
+    r = classify(3, cc, [], carbs)
+    assert r.carboxyl_roles[0].role == "dual"   # priority dual over chain
+    assert r.carboxyl_roles[1].role == "dual"
+    assert r.carboxyl_roles[2].role == "chain"  # only one-way, no dual
 
 
 def test_multi_cooh_per_mol():

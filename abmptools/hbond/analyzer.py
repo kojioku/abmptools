@@ -58,6 +58,7 @@ class FrameResult:
     classification: FunctionalGroupClassification
     hbonds_cc: List[HBond]
     hbonds_ca: List[HBond]
+    n_chain_mols: int = 0
 
 
 @dataclass
@@ -222,6 +223,7 @@ class Analyzer:
             fr = FrameResult(
                 record=rec,
                 n_dual_mols=cls.n_dual_mols,
+                n_chain_mols=cls.n_chain_mols,
                 n_single_mols=cls.n_single_mols,
                 n_free_mols=cls.n_free_mols,
                 n_hbonds_cc=len(hb_cc),
@@ -234,10 +236,11 @@ class Analyzer:
             if c.verbose:
                 print(
                     f"  rec={rec}: "
-                    f"COOH dual/single/free="
-                    f"{cls.n_carboxyls_dual}/{cls.n_carboxyls_single}"
-                    f"/{cls.n_carboxyls_free} "
+                    f"COOH dual/chain/single/free="
+                    f"{cls.n_carboxyls_dual}/{cls.n_carboxyls_chain}/"
+                    f"{cls.n_carboxyls_single}/{cls.n_carboxyls_free} "
                     f"({cls.ratio_carboxyl_dual*100:.0f}%/"
+                    f"{cls.ratio_carboxyl_chain*100:.0f}%/"
                     f"{cls.ratio_carboxyl_single*100:.0f}%/"
                     f"{cls.ratio_carboxyl_free*100:.0f}%), "
                     f"amide accept/free="
@@ -262,27 +265,32 @@ class Analyzer:
             w = csv.writer(f)
             w.writerow([
                 "record",
-                "n_carboxyls", "n_carb_dual", "n_carb_single", "n_carb_free",
+                "n_carboxyls",
+                "n_carb_dual", "n_carb_chain", "n_carb_single", "n_carb_free",
                 "n_amides", "n_amide_accept", "n_amide_free",
-                "ratio_carb_dual", "ratio_carb_single", "ratio_carb_free",
+                "ratio_carb_dual", "ratio_carb_chain",
+                "ratio_carb_single", "ratio_carb_free",
                 "ratio_amide_accept", "ratio_amide_free",
                 "n_hbonds_cc", "n_hbonds_ca",
-                "n_dual_mols", "n_single_mols", "n_free_mols",
+                "n_dual_mols", "n_chain_mols", "n_single_mols", "n_free_mols",
             ])
             for fr in self.frame_results:
                 cls = fr.classification
                 w.writerow([
                     fr.record,
-                    cls.n_carboxyls, cls.n_carboxyls_dual,
+                    cls.n_carboxyls,
+                    cls.n_carboxyls_dual, cls.n_carboxyls_chain,
                     cls.n_carboxyls_single, cls.n_carboxyls_free,
                     cls.n_amides, cls.n_amides_accept, cls.n_amides_free,
                     f"{cls.ratio_carboxyl_dual:.4f}",
+                    f"{cls.ratio_carboxyl_chain:.4f}",
                     f"{cls.ratio_carboxyl_single:.4f}",
                     f"{cls.ratio_carboxyl_free:.4f}",
                     f"{cls.ratio_amide_accept:.4f}",
                     f"{cls.ratio_amide_free:.4f}",
                     fr.n_hbonds_cc, fr.n_hbonds_ca,
-                    fr.n_dual_mols, fr.n_single_mols, fr.n_free_mols,
+                    fr.n_dual_mols, fr.n_chain_mols,
+                    fr.n_single_mols, fr.n_free_mols,
                 ])
         out_paths["summary"] = summary_path
 
@@ -416,6 +424,8 @@ class Analyzer:
                 fig, ax = plt.subplots(figsize=(7, 4))
                 ax.plot(recs, [fr.n_dual_mols for fr in self.frame_results],
                         "o-", color="red", label="dual COOH-COOH mols")
+                ax.plot(recs, [fr.n_chain_mols for fr in self.frame_results],
+                        "D-", color="magenta", label="chain COOH-COOH mols")
                 ax.plot(recs, [fr.n_single_mols for fr in self.frame_results],
                         "s-", color="blue", label="single COOH-amide mols")
                 ax.plot(recs, [fr.n_free_mols for fr in self.frame_results],

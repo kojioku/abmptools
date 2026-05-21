@@ -11,8 +11,11 @@ molecule.
 Per-COOH roles:
 - dual:   participates in a cyclic dimer with another COOH
           (i.e. both i→j and j→i carboxyl-carboxyl H-bonds exist for this COOH)
-- single: not in a dual; donates an O-H to one or more amide carbonyls
-- free:   neither dual nor single donor
+- chain:  participates in a one-way COOH-COOH H-bond that is not part of a
+          cyclic dimer (as either donor or acceptor side). Includes open
+          chains, ring-larger-than-dimer, and disordered chain ends.
+- single: not in a dual / chain; donates an O-H to one or more amide carbonyls
+- free:   neither dual, chain, nor single donor
 
 Per-amide roles:
 - accept: receives at least one carboxyl OH→C=O H-bond
@@ -20,8 +23,14 @@ Per-amide roles:
 
 Per-molecule representative role (for coloring only):
 - ``dual``   if the molecule has any dual carboxyl
+- ``chain``  else if the molecule has any chain carboxyl
 - ``single`` else if the molecule has any single donor carboxyl
 - ``free``   otherwise
+
+The four COOH species mirror the NMR deconvolution of amorphous indomethacin
+in Yuan et al. (2015) Mol. Pharmaceutics 12, 4518: cyclic dimer (~179 ppm,
+58.5%), carboxylic acid chain (~176 ppm, 15.2%), COOH–amide (~172 ppm, 18.9%),
+free (~170 ppm, 7.5%).
 """
 from __future__ import annotations
 
@@ -44,8 +53,9 @@ class CarboxylRole:
     """
     mol_index: int
     carboxyl_index: int
-    role: str                                              # "dual" / "single" / "free"
+    role: str                                              # "dual" / "chain" / "single" / "free"
     dual_partners: Set[Tuple[int, int]] = field(default_factory=set)
+    chain_partners: Set[Tuple[int, int]] = field(default_factory=set)
     single_acceptors: Set[Tuple[int, int]] = field(default_factory=set)
 
 
@@ -62,9 +72,10 @@ class AmideRole:
 class MolRole:
     """Per-molecule representative role (for coloring) + per-group counts."""
     mol_index: int
-    role: str                                              # "dual" / "single" / "free"
+    role: str                                              # "dual" / "chain" / "single" / "free"
     partners: Set[int] = field(default_factory=set)        # mol-level partners under role
     n_carboxyls_dual: int = 0
+    n_carboxyls_chain: int = 0
     n_carboxyls_single: int = 0
     n_carboxyls_free: int = 0
     n_amides_accept: int = 0
@@ -87,9 +98,11 @@ class FunctionalGroupClassification:
     n_dual_mols: int
     n_single_mols: int
     n_free_mols: int
+    n_chain_mols: int = 0
     # Per-functional-group counts (primary metric)
     n_carboxyls: int = 0
     n_carboxyls_dual: int = 0
+    n_carboxyls_chain: int = 0
     n_carboxyls_single: int = 0
     n_carboxyls_free: int = 0
     n_amides: int = 0
@@ -97,6 +110,7 @@ class FunctionalGroupClassification:
     n_amides_free: int = 0
     # Ratios over total group counts
     ratio_carboxyl_dual: float = 0.0
+    ratio_carboxyl_chain: float = 0.0
     ratio_carboxyl_single: float = 0.0
     ratio_carboxyl_free: float = 0.0
     ratio_amide_accept: float = 0.0
@@ -176,6 +190,20 @@ def classify(
         carb_dual_partners[i].add(j)
         carb_dual_partners[j].add(i)
 
+    # Chain partners: cc participants that are NOT in any dual pair.
+    # A COOH is a chain participant if it has a cc relation (donor or acceptor)
+    # with another COOH and at least one such relation lacks a reciprocal arrow.
+    carb_chain_partners: Dict[int, Set[int]] = defaultdict(set)
+    for (i, j) in cc_relations:
+        if (j, i) in cc_relations:
+            continue  # this arrow is part of a dual
+        # i is the donor, j is the acceptor; record the partnership on both
+        # COOHs unless that COOH is already classified as dual-only.
+        if i not in carb_dual_partners:
+            carb_chain_partners[i].add(j)
+        if j not in carb_dual_partners:
+            carb_chain_partners[j].add(i)
+
     # COOH→amide relations ----------------------------------------------------
     ca_relations: List[Tuple[int, int]] = []
     for hb in hbonds_carb_amide:
@@ -195,6 +223,8 @@ def classify(
     for i, cg in enumerate(carboxyls):
         if i in carb_dual_partners:
             role = "dual"
+        elif i in carb_chain_partners:
+            role = "chain"
         elif i in carb_to_amides:
             role = "single"
         else:
@@ -202,6 +232,10 @@ def classify(
         dual_partners = {
             (carboxyls[j].mol_index, carb_idx_in_mol[j])
             for j in carb_dual_partners.get(i, set())
+        }
+        chain_partners = {
+            (carboxyls[j].mol_index, carb_idx_in_mol[j])
+            for j in carb_chain_partners.get(i, set())
         }
         single_acceptors = {
             (amides[k].mol_index, amide_idx_in_mol[k])
@@ -212,6 +246,7 @@ def classify(
             carboxyl_index=carb_idx_in_mol[i],
             role=role,
             dual_partners=dual_partners,
+            chain_partners=chain_partners,
             single_acceptors=single_acceptors,
         ))
 
@@ -233,6 +268,7 @@ def classify(
     # Aggregate counts --------------------------------------------------------
     n_carboxyls = len(carboxyls)
     n_carb_dual = sum(1 for r in carboxyl_roles if r.role == "dual")
+    n_carb_chain = sum(1 for r in carboxyl_roles if r.role == "chain")
     n_carb_single = sum(1 for r in carboxyl_roles if r.role == "single")
     n_carb_free = sum(1 for r in carboxyl_roles if r.role == "free")
     n_amides_n = len(amides)
@@ -241,7 +277,7 @@ def classify(
 
     # Per-mol aggregation (representative role) -------------------------------
     mol_carb_counts: Dict[int, Dict[str, int]] = defaultdict(
-        lambda: {"dual": 0, "single": 0, "free": 0}
+        lambda: {"dual": 0, "chain": 0, "single": 0, "free": 0}
     )
     for r in carboxyl_roles:
         mol_carb_counts[r.mol_index][r.role] += 1
@@ -260,6 +296,14 @@ def classify(
             dual_mol_partners[mj].add(mi)
             dual_mol_pairs.add((min(mi, mj), max(mi, mj)))
 
+    chain_mol_partners: Dict[int, Set[int]] = defaultdict(set)
+    for r in carboxyl_roles:
+        if r.role == "chain":
+            for (partner_mol, _) in r.chain_partners:
+                if partner_mol != r.mol_index:
+                    chain_mol_partners[r.mol_index].add(partner_mol)
+                    chain_mol_partners[partner_mol].add(r.mol_index)
+
     single_mol_partners: Dict[int, Set[int]] = defaultdict(set)
     for r in carboxyl_roles:
         if r.role == "single":
@@ -269,13 +313,18 @@ def classify(
                     single_mol_partners[acc_mol].add(r.mol_index)
 
     mol_roles: List[MolRole] = []
-    n_dual = n_single = n_free = 0
+    n_dual = n_chain = n_single = n_free = 0
     for m in range(n_molecules):
-        ccnt = mol_carb_counts.get(m, {"dual": 0, "single": 0, "free": 0})
+        ccnt = mol_carb_counts.get(
+            m, {"dual": 0, "chain": 0, "single": 0, "free": 0}
+        )
         acnt = mol_amide_counts.get(m, {"accept": 0, "free": 0})
         if ccnt["dual"] > 0:
             role, partners = "dual", dual_mol_partners.get(m, set())
             n_dual += 1
+        elif ccnt["chain"] > 0:
+            role, partners = "chain", chain_mol_partners.get(m, set())
+            n_chain += 1
         elif ccnt["single"] > 0:
             role, partners = "single", single_mol_partners.get(m, set())
             n_single += 1
@@ -287,6 +336,7 @@ def classify(
             role=role,
             partners=partners,
             n_carboxyls_dual=ccnt["dual"],
+            n_carboxyls_chain=ccnt["chain"],
             n_carboxyls_single=ccnt["single"],
             n_carboxyls_free=ccnt["free"],
             n_amides_accept=acnt["accept"],
@@ -303,16 +353,19 @@ def classify(
         dual_pairs=sorted(dual_mol_pairs),
         single_pairs=single_pairs_mol,
         n_dual_mols=n_dual,
+        n_chain_mols=n_chain,
         n_single_mols=n_single,
         n_free_mols=n_free,
         n_carboxyls=n_carboxyls,
         n_carboxyls_dual=n_carb_dual,
+        n_carboxyls_chain=n_carb_chain,
         n_carboxyls_single=n_carb_single,
         n_carboxyls_free=n_carb_free,
         n_amides=n_amides_n,
         n_amides_accept=n_amide_acc,
         n_amides_free=n_amide_free,
         ratio_carboxyl_dual=_safe_ratio(n_carb_dual, n_carboxyls),
+        ratio_carboxyl_chain=_safe_ratio(n_carb_chain, n_carboxyls),
         ratio_carboxyl_single=_safe_ratio(n_carb_single, n_carboxyls),
         ratio_carboxyl_free=_safe_ratio(n_carb_free, n_carboxyls),
         ratio_amide_accept=_safe_ratio(n_amide_acc, n_amides_n),

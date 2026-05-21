@@ -25,20 +25,24 @@ bash run_cli.sh
 jupyter notebook run_notebook.ipynb
 ```
 
-## 出力 (typical results, T=450 K, per-functional-group, v1.27 候補)
+## 出力 (typical results, T=450 K, per-functional-group 4-species, v1.27 候補)
 
-| 量 | 値 |
-|---|---|
-| COOH dual (cyclic dimer 参加 COOH 数) | 10 (5 pair) |
-| COOH single (amide に donate している COOH 数) | 49 |
-| COOH free | 66 |
-| amide accept (COOH から H-bond 受けている amide 数) | 49 |
-| amide free | 76 |
-| 総 H-bond 数 (cc / ca) | 31 / 50 |
-| 検出基準 | Luzar-Chandler: d_DA ≤ 3.5 Å, ∠ ≥ 120° |
+| species (Yuan 2015 NMR 帰属) | MD count | MD % | NMR % (Yuan Table 1) |
+|---|---|---|---|
+| dual (cyclic COOH dimer, ~179 ppm) | 10 (5 pair) | 8.0% | 58.5% |
+| chain (disordered, ~176 ppm) | 41 | 32.8% | 15.2% |
+| single (COOH-amide, ~172 ppm) | 38 | 30.4% | 18.9% |
+| free (~170 ppm) | 36 | 28.8% | 7.5% |
+| amide accept | 49 | 39.2% | — |
+| amide free | 76 | 60.8% | — |
+| 総 H-bond 数 (cc / ca) | 31 / 50 | — | — |
+| 検出基準 | Luzar-Chandler: d_DA ≤ 3.5 Å, ∠ ≥ 120° | | |
 
 mol-level 代表 role (色付け用): 1 mol = 1 COOH なので per-COOH と同じ
-(dual=10 / single=49 / free=66 mols)。
+(dual=10 / chain=41 / single=38 / free=36 mols)。
+
+比較プロット (NMR Figure 5 + Yuan Table 1 + MD bar) は
+`plot_nmr_comparison.py` で `output/imc_hbond_nmr_comparison.png` を生成。
 
 出力ファイル:
 - `output/imc_hbond_summary.csv`: per-record の官能基単位集計 + mol-level legacy
