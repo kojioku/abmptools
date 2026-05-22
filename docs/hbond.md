@@ -214,6 +214,9 @@ python -m abmptools.hbond <bdf_path> \
                           imc (default): COOH 中心 4-species (dual/chain/single/free)
                           generic: donor-type x acceptor-type pair 統計
                           (PVA/peptide/アルコール等の任意系向け)
+--no-element-fallback     element + bond-graph fallback を無効化 (strict mode)。
+                          default ON で atom_type 不明な atom も自動 tag
+                          (OpenFF SMIRNOFF UDF の `MOL0_X` 対応)
 --no-colorize             color 出力を一切生成しない
 --colorize-mode {molname,action,both}
                           molname (default): Mol_Name rename + Draw_Attributes;
@@ -457,10 +460,21 @@ fallback ON で antechamber GAFF patch ありと完全同等 (rec=0 で
 
 ## サンプル
 
-`abmptools/sample/hbond/imc_amorphous/`:
+### `abmptools/sample/hbond/imc_amorphous/` (imc mode、COOH 4-species)
+
 - `run_cli.sh`: CLI ワンライナー
 - `run_notebook.ipynb`: Jupyter UI デモ
-- `README.md`: 期待値 + gourmet 表示方法
+- `plot_nmr_comparison.py`: Yuan 2015 NMR vs MD 比較 plot (3-row layout)
+- `README.md`: 期待値 (dual=10 / chain=41 / single=38 / free=36) + gourmet 表示方法
+
+### `abmptools/sample/amorphous/pva_amorphous/` (generic mode、PVA, v1.28+)
+
+- `input/pva_10mer.sdf`: PVA 10-mer atactic (rdkit 生成、75 atoms incl. H)
+- `run_sample.sh`: OpenFF Sage build + 5-stage MD + xtc 生成 (AmberTools25 PATH 追加で AM1-BCC 有効化)
+- `md/build_bdf.py`: 05_npt_final_pbc.xtc → multi-record UDF (101 frames) 変換
+- `output/pva_hbond_pair_stats.csv`: hydroxyl→hydroxyl_O の per-record 集計
+- 平均値 (101 records): n_hbonds=198.8, ratio_donor_busy=65.2%, ratio_acceptor_busy=61.7%
+- **antechamber GAFF type patch 不要** (v1.28 の element + bond-graph fallback により)
 
 ## テスト
 
@@ -470,8 +484,24 @@ pytest abmptools/tests/hbond/ -v
 
 - `test_functional_groups.py`: IMC BDF から carboxyl/amide が正しく検出されるか
 - `test_hbond_detector.py`: 既知 geometry (8 角度パターン + PBC wrap) の単体テスト
-- `test_classifier.py`: per-functional-group + per-mol 分類ロジック (11 件)
-- `test_imc_regression.py`: IMC count ベースライン
-  (carb dual/single/free = 10/49/66、amide accept/free = 49/76、
-  hb_cc=31、hb_ca=50、`<prefix>.bdf` の Mol_Name 維持、
-  `<prefix>_classification.csv` の per-group 行数)
+- `test_classifier.py` (13 件): per-functional-group + per-mol 4-species 分類
+  ロジック (no_hbonds / single_only / dual_pair / dual_precedence / one-way が
+  chain / open trimer / dual priority over chain / multi_cooh_per_mol /
+  partner 記録 / ratio_zero / back_compat alias 等)
+- `test_func_tags.py` (9 件): 4 FF tag lookup + auto-detect + case-insensitive +
+  validation (`add_mapping` の上書き / 競合検出)
+- `test_lifetime.py` (8 件): continuous / intermittent / multiple pairs / gap
+  tolerance / autocorr unbiased estimator / τ_HB integral / summary
+- `test_amine_donor.py` (5 件): 合成 N-methylacetamide (GAFF2 + CHARMM36) +
+  IMC tert amide 否定 + filter (include_amide / include_amine)
+- `test_pair_type_stats.py` (5 件, v1.28+): generic mode の集約 (no_hbonds /
+  single_pair / both_role / multiple_pair / unique_dedup)
+- `test_element_fallback.py` (7 件, v1.28+): alcohol_OH / carboxyl pattern /
+  amide_NH / preserves_existing / detect_carboxyls_unknown /
+  detect_hydroxyls_unknown / disabled_no_groups
+- `test_imc_regression.py` (5 件): IMC count ベースライン **(4-species)**
+  carb dual / chain / single / free = 10 / 41 / 38 / 36 (sum=125)、
+  amide accept / free = 49 / 76、hb_cc=31、hb_ca=50、
+  `<prefix>.bdf` の Mol_Name 維持、`<prefix>_classification.csv` の per-group 行数
+
+合計 **64 tests PASS** (2026-05-22 時点)。
