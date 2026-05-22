@@ -134,6 +134,11 @@ def _render_mol_svg(mol, highlight_atoms_by_color=None, size=(400, 300)) -> str:
     )
     drawer.FinishDrawing()
     svg = drawer.GetDrawingText()
+    # Strip the XML preamble so the inline <svg> embeds cleanly inside an
+    # ipywidgets.HTML widget. JupyterLab sanitises documents that start with
+    # `<?xml ...?>` and falls back to an "image" placeholder.
+    if svg.startswith("<?xml"):
+        svg = svg.split("?>", 1)[1].lstrip()
     return svg
 
 
