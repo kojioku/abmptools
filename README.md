@@ -139,8 +139,13 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
   `Draw_Attributes.Molecule[]` に named color (Red/Blue/Gray) を書き込む
   (**GOURMET Draw_Attributes の color は select 型 9 色名のみ、RGBA tuple 不可**)。
   `<prefix>.bdf` は Mol_Name 維持コピーで **J-OCTA プリ描画でも分子が空表示にならない**
-- バンドル sample: `sample/hbond/imc_amorphous/` (非晶質インドメタシン T=450 K、
-  125 分子。Per-COOH: dual=10 / single=49 / free=66; per-amide: accept=49 / free=76)
+- バンドル sample (IMC): `sample/hbond/imc_amorphous/` (非晶質インドメタシン
+  T=450 K、125 分子。**4-species per-COOH**: dual=10 / chain=41 / single=38 /
+  free=36; per-amide: accept=49 / free=76。Yuan et al. 2015 Mol. Pharm. 12, 4518
+  の NMR deconvolution と直接比較可能)
+- バンドル sample (PVA, v1.28+): `sample/amorphous/pva_amorphous/` — PVA 10-mer
+  × 30、OpenFF Sage + AM1-BCC + 5-stage MD + xtc→UDF + hbond generic mode の
+  end-to-end 例 (平均 198.8 H-bonds/record、ratio_donor_busy=65.2%)
 - 依存: `pip install abmptools[hbond]` (matplotlib for plot)、Jupyter UI を使うなら
   `[jupyter]` + `[fragmenter]` (rdkit) を併用。UDFManager は OCTA に同梱
 - **v1.26.0+ 拡張**: FF 抽象化 (GAFF2/OPLS-AA/CHARMM36/OpenFF)、任意官能基対選択
@@ -149,7 +154,18 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
   Luzar-Chandler 自己相関 `C(t)` + τ_HB 算出
 - **v1.27.0 候補**: per-functional-group classification (1 分子内に複数 COOH/amide
   がある場合に役割が混在するケースに正しく対応)、`<prefix>.bdf` 併出
-  (J-OCTA プリ描画用)、`<prefix>_classification.csv` 新規追加
+  (J-OCTA プリ描画用)、`<prefix>_classification.csv` 新規追加、
+  **4-species 分類** (dual/chain/single/free) で Yuan 2015 IMC NMR Table 1 と
+  直接比較可能。NMR 比較 plot script (`plot_nmr_comparison.py`) 同梱
+- **v1.28.0 候補**: **generic mode** (`--classify-mode generic`) で COOH を持た
+  ない任意系 (PVA / peptide / アルコール / 混合系) の donor-type × acceptor-type
+  pair 統計に対応 (新規 `<prefix>_pair_stats.csv` + atom-role `Donor/Acceptor/Both`
+  色付け)。**element + bond-graph fallback** (default ON) で OpenFF SMIRNOFF UDF
+  (per-atom unique `MOL0_X`) を **antechamber GAFF patch 不要**で直接解析可能。
+  Jupyter UI に `Mode:` dropdown 追加。J-OCTA Viewer 用 plain `.py` script 併出
+  (autorun crash 回避用)、`<prefix>.bdf` Attributes に `hbond=Dual/Chain/Single/
+  Free/Accept` (imc mode) または `Donor/Acceptor/Both` (generic mode) を append
+  (J-OCTA Attribute フィルタでカテゴリ可視化)
 
 ### Peptide-Bilayer Umbrella Sampling (`membrane`)
 
@@ -269,7 +285,7 @@ Use `-h` with any module for full option details.
 - **[fragmenter](docs/fragmenter.md)** — FMO automatic fragment splitter for small molecules / lipids / polymers (canonical SMILES grouping + C-C MW walk + Jupyter UI / headless CLI; v1.21.0+)
 - **[cg_segmenter](docs/cg_segmenter.md)** — CG (coarse-grained) segment builder + DPDgen input exporter. Physically splits a molecule into ring / chain segments with H or CH3 caps; allows atom sharing across fused-ring segments. Exports DPDgen `{name}_monomer` + `{name}_calc_sett` with path-based bond hierarchy (bond12 / bond13_150 / bond14_150) and angle potentials (cognac 余角 convention, eq=30/60/0 for ring-bend / cis-double-bond / linear) (v1.24.0+)
 - **[cg.dpd](docs/cg_dpd.md)** — CG → DPD 系入力ビルダー (v1.26.0 候補). `cg_segmenter` 出力 (`{name}_monomer` + `{name}_calc_sett`) と fcews `aij.dat` (Python 辞書) から、 **R1 (Cognac DPD 入力 UDF `*_uin.udf`)** と **R2 (J-OCTA `*.dpm` + `monomer-lib/<seg>/Virtual.mom` + `#Message.txt`、 B 案=user template patch)** の 2 ルートを生成。 R1 は plain text writer (UDFManager 非依存)、 R2 は user 提供 dpm template の `\begin{data}` 内 5 ブロックを brace-aware patch (class 定義 = 商用 J-OCTA spec は温存)。 dpdgen ロジックを参考に abmptools 内で自前実装、 subprocess も import もなし
-- **[hbond](docs/hbond.md)** — Carboxyl/amide hydrogen-bond analyzer for COGNAC `.udf` / `.bdf` trajectories. Detects dual COOH-COOH dimers and single COOH→amide H-bonds via Luzar-Chandler geometry (d_DA ≤ 3.5 Å, ∠ ≥ 120°) with orthogonal PBC, classifies each **functional group** into dual/single/free (carboxyl) or accept/free (amide), and writes both a Mol_Name-preserved BDF (for J-OCTA pre-render) and a 3-color-grouped BDF (for gourmet / OCTA post-render). CLI + Python API + Jupyter ipywidgets UI; sample on amorphous indomethacin (T=450 K, 125 molecules) (v1.25.0+, per-group statistics in v1.27.0 candidate)
+- **[hbond](docs/hbond.md)** — Hydrogen-bond analyzer for COGNAC `.udf` / `.bdf` trajectories with two analysis modes: **imc mode** classifies COOH into the **4 species** (dual cyclic dimer / chain / single COOH→amide / free) matching Yuan 2015 NMR Table 1, and **generic mode** (v1.28+) reports donor-type × acceptor-type pair statistics for arbitrary systems (PVA / peptide / alcohols). Luzar-Chandler geometry (d_DA ≤ 3.5 Å, ∠ ≥ 120°) with orthogonal PBC. **Element + bond-graph fallback** (v1.28+) lets OpenFF SMIRNOFF UDFs (per-atom unique `MOL0_X`) work without an antechamber GAFF patch. Writes Mol_Name-preserved BDF (J-OCTA pre-render) + 3-color BDF (gourmet) + Python panel `.py` script (J-OCTA post-render) + Attributes-tagged BDF (J-OCTA filter). CLI + Python API + Jupyter ipywidgets UI; samples on amorphous indomethacin (`sample/hbond/imc_amorphous/`) and PVA (`sample/amorphous/pva_amorphous/`) (v1.25.0+, 4-species + generic + element fallback in v1.27/v1.28.0 candidate)
 - **[grest](docs/grest.md)** / **[tutorial_grest](docs/tutorial_grest.md)** — GENESIS gREST_SSCR replica-exchange with solute tempering (REST + SSCR, AMBER ff19SB + TIP3P; v1.20.0+)
 - **[mmgbsa](docs/mmgbsa.md)** / **[tutorial_mmgbsa](docs/tutorial_mmgbsa.md)** — GENESIS atdyn-based MM/GBSA single-point ΔG_bind for protein-ligand complexes (AMBER ff14SB + GAFF/GAFF2 via acpype; v1.22.0+)
 - **[crystal](docs/crystal.md)** / **[tutorial_crystal_fmo](docs/tutorial_crystal_fmo.md)** — Organic-crystal FMO pipeline (CIF → supercell → fragment cut → ABINIT-MP AJF + HPC jobscripts, `abmp-crystal` CLI; v1.23.0+)

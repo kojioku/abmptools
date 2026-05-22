@@ -46,6 +46,17 @@ Author: Koji Okuwaki
     - CHARMM36 backend (MacKerell 公式 / Klauda port 経由、CGenFF 不使用) も対応済
     - 操作手順: [tutorial_membrane_us.md](tutorial_membrane_us.md) / 詳細リファレンス: [membrane.md](membrane.md)
 
+- 非晶質 MD の H-bond 解析 (hbond)
+    - OCTA COGNAC `.udf` / `.bdf` トラジェクトリから水素結合を検出・分類・可視化するサブパッケージ
+    - 2 つの解析モード切替 (`--classify-mode {imc,generic}`):
+        - **imc mode**: COOH を 4 species (cyclic dimer / chain / COOH→amide / free) に分類、Yuan 2015 (Mol. Pharm. 12, 4518) の 13C SSNMR Table 1 と直接比較可能
+        - **generic mode** (v1.28+): 任意の donor-type × acceptor-type ペア統計 (PVA / peptide / アルコール / 混合系向け)
+    - Luzar-Chandler 幾何判定 (d_DA ≤ 3.5 Å, ∠ ≥ 120°) + 直交 PBC 最短像
+    - **Element + bond-graph fallback** (v1.28+, default ON) で OpenFF SMIRNOFF UDF (per-atom unique `MOL0_X`) を **antechamber 不要**で直接解析
+    - 4 経路の可視化: Mol_Name リネーム + Draw_Attributes (gourmet) / autorun action `.act` (gourmet) / plain Python panel `.py` (J-OCTA) / Attributes[] タグ (J-OCTA Attribute フィルタ)
+    - CLI + Python API + Jupyter ipywidgets UI (`open_panel(bdf_path)`、Mode dropdown + 官能基 checkbox + RDKit 2D 構造プレビュー)
+    - 詳細: [hbond.md](hbond.md)
+
 
 ### 各種IFIE情報の取得(getifiepieda)
 log ファイルから各種IFIE情報を取得するモジュール
