@@ -148,7 +148,7 @@ def open_panel(bdf_path: str):
     Must be called from a Jupyter notebook cell.
     """
     import ipywidgets as widgets
-    from IPython.display import HTML, clear_output, display
+    from IPython.display import HTML, Image, clear_output, display
 
     from .analyzer import Analyzer, AnalyzerConfig
     from .functional_groups import (
@@ -380,10 +380,13 @@ def open_panel(bdf_path: str):
                       "post-render; in gourmet Python panel set "
                       "show.all('line','mol','molname',...)).")
 
-            if "plot" in paths:
-                display(HTML(
-                    f'<img src="{paths["plot"]}" style="max-width:600px;"/>'
-                ))
+            if "plot" in paths and os.path.exists(paths["plot"]):
+                # Embed via IPython.display.Image so the PNG is base64-encoded
+                # into the notebook. Passing a local filesystem path to
+                # `<img src="...">` does not work in Jupyter because the
+                # browser cannot fetch arbitrary local files from the
+                # notebook server.
+                display(Image(filename=paths["plot"], width=600))
 
     run_button.on_click(_on_run)
 
