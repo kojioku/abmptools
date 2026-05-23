@@ -4,6 +4,10 @@
 幾何条件で検出し、**官能基単位** (COOH / amide ごと) の役割比率を集計し、
 gourmet で可視化できる UDF を生成するサブパッケージ。
 
+**End-to-end チュートリアル**: IMC を例にした step-by-step は
+[`tutorial_hbond_imc.md`](./tutorial_hbond_imc.md) を参照 (環境構築 →
+CLI 実行 → 可視化 3 経路 → Jupyter UI → NMR 比較 → トラブルシューティング)。
+
 v1.26.0+ で **FF 抽象化 (GAFF2/OPLS-AA/CHARMM36/OpenFF) + 任意官能基対選択 +
 multi-record lifetime/autocorrelation + secondary amide donor** に対応。
 v1.27.0 候補 (per-functional-group classification) で「分子単位 1 役割」から
