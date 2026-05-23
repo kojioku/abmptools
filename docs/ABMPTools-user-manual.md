@@ -55,7 +55,7 @@ Author: Koji Okuwaki
     - **Element + bond-graph fallback** (v1.28+, default ON) で OpenFF SMIRNOFF UDF (per-atom unique `MOL0_X`) を **antechamber 不要**で直接解析
     - 4 経路の可視化: Mol_Name リネーム + Draw_Attributes (gourmet) / autorun action `.act` (gourmet) / plain Python panel `.py` (J-OCTA) / Attributes[] タグ (J-OCTA Attribute フィルタ)
     - CLI + Python API + Jupyter ipywidgets UI (`open_panel(bdf_path)`、Mode dropdown + 官能基 checkbox + RDKit 2D 構造プレビュー)
-    - 詳細: [hbond.md](hbond.md)
+    - 操作手順 (IMC 例): [tutorial_hbond_imc.md](tutorial_hbond_imc.md) / 詳細リファレンス: [hbond.md](hbond.md)
 
 
 ### 各種IFIE情報の取得(getifiepieda)
