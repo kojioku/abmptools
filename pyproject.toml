@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abmptools"
-version = "1.22.0"
+version = "1.30.0"
 description = "Pre/post-processing and analysis toolkit for ABINIT-MP Fragment Molecular Orbital calculations"
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "Apache-2.0"
@@ -120,6 +120,28 @@ hbond = [
     # External tools (任意):
     #   OCTA gourmet — 生成された colored.bdf の可視化に使う
     # See abmptools/hbond/__init__.py + docs/hbond.md.
+]
+formulation = [
+    "parmed>=4.0",          # prmtop → GROMACS top コンバート
+    "rdkit-pypi>=2022.09",  # SMILES → 3D embed (small molecule の初期座標)
+    "matplotlib>=3.5",      # 解析プロット
+    # External tools (subprocess only, never bundled):
+    #   ambertools (>=22) — tleap (必須, ff14SB + GAFF2)
+    #   acpype (>=2022.7.21) — GPL-3.0, GAFF2 + AM1-BCC, mere aggregation
+    #     pip install acpype  または  conda install -c conda-forge acpype
+    #   packmol — multi-component cubic-box random placement
+    #   gromacs (>=2021) — gmx grompp / mdrun / hbond / sasa / dssp / wham
+    # Force field default: ff14SB (peptide) + GAFF2 (small mol) + TIP3P + JC ions
+    # (CHARMM36 + CGenFF は学術ライセンスのため採用せず — 商用利用可能な OSS のみ)
+    # See abmptools/formulation/__init__.py + docs/formulation.md.
+]
+formulation-analysis = [
+    # MDAnalysis is GPL-2.0 → user opt-in install only; abmptools wheel
+    # itself does not ship or link MDAnalysis code.
+    "MDAnalysis>=2.6,<3.0",
+    "networkx>=3.0",
+    "matplotlib>=3.5",
+    # See docs/licenses_third_party.md for the GPL posture rationale.
 ]
 geomopt = [
     "pyscf",

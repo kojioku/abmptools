@@ -1,0 +1,68 @@
+{
+  "system": {
+    "peptides": [
+      {
+        "name": "kggggg",
+        "sequence": "KGGGG",
+        "n_copies": 2,
+        "cap_n": "ACE",
+        "cap_c": "NME",
+        "disulfide_bonds": []
+      }
+    ],
+    "enhancers": [
+      {
+        "name": "Na-caprate",
+        "resname": "CPR",
+        "smiles_neutral": "CCCCCCCCCC(=O)O",
+        "smiles_charged": "CCCCCCCCCC(=O)[O-]",
+        "n_neutral": 8,
+        "n_charged": 8
+      }
+    ],
+    "bile_salts": [
+      {
+        "name": "taurocholate",
+        "resname": "TCH",
+        "smiles": "C[C@H](CCC(=O)NCCS(=O)(=O)[O-])[C@H]1CC[C@H]2[C@@H]3[C@@H](O)C[C@@H]4C[C@H](O)CC[C@]4(C)[C@H]3CC(O)[C@]12C",
+        "n_copies": 2,
+        "net_charge": -1
+      }
+    ],
+    "box_size_nm": 6.0,
+    "salt_concentration_M": 0.15,
+    "neutralize": true
+  },
+  "equilibration": {
+    "em_steps": 5000,
+    "em_tol": 1000.0,
+    "nvt_nsteps": 5000,
+    "npt_nsteps": 5000,
+    "dt_ps": 0.002,
+    "temperature_K": 310.0,
+    "pressure_bar": 1.0,
+    "tau_t_ps": 0.5,
+    "tau_p_ps": 5.0,
+    "nstxout_compressed": 1000,
+    "nstenergy": 500
+  },
+  "production": {
+    "nsteps": 100000,
+    "dt_ps": 0.002,
+    "temperature_K": 310.0,
+    "pressure_bar": 1.0,
+    "nstxout_compressed": 1000,
+    "nstenergy": 500
+  },
+  "seed": 42,
+  "output_dir": ".",
+  "tleap_path": "tleap",
+  "acpype_path": "acpype",
+  "packmol_path": "packmol",
+  "gmx_path": "gmx",
+  "amber_protein_ff": "leaprc.protein.ff14SB",
+  "amber_water_ff": "leaprc.water.tip3p",
+  "gaff_version": "gaff2",
+  "packmol_tolerance_A": 2.0,
+  "packmol_inner_box_margin_nm": 0.5
+}

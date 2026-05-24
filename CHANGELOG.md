@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+### Added — `abmptools.formulation` (v1.30.0 候補)
+
+- AA mixed-solution peptide-formulation builder modeled after Hossain et al.
+  2023 (*Nanoscale* 15, 19180-19195) — peptide drug + permeation enhancer +
+  intestinal bile salt in a cubic water box. **Commercial-permissive force
+  fields only**: AMBER ff14SB + GAFF2 + TIP3P + Joung-Cheatham ions
+  (CHARMM36 + CGenFF は学術ライセンスのため不採用).
+- `FormulationBuilder.build()` 7-stage orchestrator:
+  ff_staging → peptide_atomistic (tleap) → small_mol_parameterize
+  (acpype GAFF2/AM1-BCC, lazy RDKit SMILES → 3D) → packmol multi-component
+  → solvate_ions (tleap solvatebox + parmed) → index (Python resname table)
+  → mdp_render → run_script.
+- `python -m abmptools.formulation {example, validate, build, analyze, release_us}`
+  argparse CLI; `example` emits a smoke JSON, `release_us` writes pull +
+  N-window US MDPs for peptide-from-aggregate PMF.
+- Analysis stack (opt-in `[formulation-analysis]` extra): aggregate
+  transition matrix + cluster timeseries (MDAnalysis + networkx, lazy
+  import), per-residue contact map, `gmx dssp` / `gmx sasa` / `gmx hbond`
+  wrappers, matplotlib heatmap + timeseries plots.
+- Sample configs in `sample/formulation/`: `kggggg_smoke/` (6 nm box,
+  ~8k atoms, 200 ps smoke; runs in ~10 min on 4-core CPU) and
+  `insulin_smoke/` (10 nm box, 99k atoms, 1 ns; PDB 2G4M downloaded
+  on demand from RCSB, not redistributed).
+- License posture: acpype (GPL-3.0) and MDAnalysis (GPL-2.0) are mere
+  aggregation — acpype via subprocess only, MDAnalysis via lazy import
+  inside `analysis/` modules with `pip install abmptools[formulation-analysis]`
+  opt-in install (precedent: `amorphous/trajectory_ingest.py`). The
+  abmptools wheel itself remains Apache-2.0 with zero GPL code shipped.
+- Tests: 51 (models + mdp + ndx) + 19 (packer + small_molecule + peptide_atomistic)
+  + 9 (topology) + 5 (builder) + 11 (analysis) + 5 (umbrella_release)
+  = 100 unit tests, all mock-based (no gmx/tleap/acpype required). Slow
+  integration smoke is gated by `@pytest.mark.slow + skipif(tool missing)`.
+
 ### Added (`abmptools.hbond` element + bond-graph fallback — v1.28.0 候補)
 
 - **`fallback_tag_by_element()` 新規追加** (``func_tags.py``): atom_type が
