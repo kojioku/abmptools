@@ -56,13 +56,12 @@ constraint-algorithm     = LINCS
 pull                     = yes
 pull-ngroups             = 2
 pull-ncoords             = 1
-pull-group1-name         = Non_Peptide
+pull-group1-name         = Enhancer
 pull-group2-name         = Peptide
 pull-pbc-ref-prev-step-com = yes
 pull-coord1-type         = umbrella
-pull-coord1-geometry     = direction-periodic
-pull-coord1-dim          = N N Y
-pull-coord1-vec          = 0 0 1
+pull-coord1-geometry     = distance
+pull-coord1-dim          = Y Y Y
 pull-coord1-groups       = 1 2
 pull-coord1-rate         = {pull_rate}
 pull-coord1-k            = {pull_k}
@@ -107,13 +106,12 @@ constraint-algorithm     = LINCS
 pull                     = yes
 pull-ngroups             = 2
 pull-ncoords             = 1
-pull-group1-name         = Non_Peptide
+pull-group1-name         = Enhancer
 pull-group2-name         = Peptide
 pull-pbc-ref-prev-step-com = yes
 pull-coord1-type         = umbrella
-pull-coord1-geometry     = direction
-pull-coord1-dim          = N N Y
-pull-coord1-vec          = 0 0 1
+pull-coord1-geometry     = distance
+pull-coord1-dim          = Y Y Y
 pull-coord1-groups       = 1 2
 pull-coord1-rate         = 0.0
 pull-coord1-k            = {k}
@@ -188,17 +186,29 @@ NDX="../system.ndx"
     -o pull.tpr -po pull.mdp_out -maxwarn "$MAXWARN"
 "$GMX" mdrun -deffnm pull -ntmpi 1 -ntomp "$NT" $MDRUN_OPTS
 
-# --- 2. extract window initial frames from pull trajectory ---
+# --- 2. extract window initial frames from pull trajectory + rewrite window mdps ---
+# pull の actual COM distance range は config 指定の target と符号が異なる
+# 可能性がある (peptide initial 位置や pull 方向に依存)。 ここで pull traj の
+# 実距離レンジを見て target を初期距離 + i*spacing に動的設定し、 各 window
+# mdp の pull-coord1-init を上書きする。
 GMX="$GMX" python3 - <<'PYEOF'
-import os, subprocess
+import os, subprocess, re
 import numpy as np
 
-targets = __TARGETS__
+spacing = __SPACING__
+n_windows = __N_WINDOWS__
 pullx_path = "pull_pullx.xvg" if os.path.exists("pull_pullx.xvg") else "pullx.xvg"
 pullx = np.loadtxt(pullx_path, comments=["#", "@"])
 times = pullx[:, 0]
 distances = pullx[:, 1]
 gmx = os.environ["GMX"]
+
+d_start = float(distances[0])
+d_end = float(distances[-1])
+direction = 1.0 if d_end > d_start else -1.0
+targets = [d_start + direction * spacing * i for i in range(n_windows)]
+print(f"pull traj: d[0]={d_start:.3f} → d[-1]={d_end:.3f} nm (direction sign={direction:+.0f})")
+print(f"computed targets: {[f'{t:.3f}' for t in targets]}")
 
 for i, t in enumerate(targets):
     j = int(np.argmin(np.abs(distances - t)))
@@ -208,7 +218,16 @@ for i, t in enumerate(targets):
         f'echo 0 | {gmx} trjconv -f pull.xtc -s pull.tpr -dump {frame_time_ps:.1f} -o {out_gro}',
         shell=True, check=True,
     )
-    print(f"window {i:02d}: target={t:.2f} nm at t={frame_time_ps:.1f} ps -> {out_gro}")
+    # Overwrite pull-coord1-init in the window mdp with the actual target
+    mdp = f"window_{i:02d}.mdp"
+    text = open(mdp).read()
+    text = re.sub(
+        r"pull-coord1-init\s*=\s*[-+0-9.e]+",
+        f"pull-coord1-init         = {t:.4f}",
+        text,
+    )
+    open(mdp, "w").write(text)
+    print(f"window {i:02d}: target={t:.3f} nm at t={frame_time_ps:.1f} ps -> {out_gro}")
 PYEOF
 
 # --- 3. window mdrun (each window: NPT umbrella) ---
@@ -236,10 +255,13 @@ def render_run_us_script(
     n_windows: int,
     targets_nm: List[float],
     temperature_K: float,
+    spacing_nm: float = 0.2,
 ) -> str:
     txt = _RUN_US_SH_TEMPLATE
     txt = txt.replace("__GMX__", gmx_path)
     txt = txt.replace("__N_MINUS_1__", str(n_windows - 1))
+    txt = txt.replace("__N_WINDOWS__", str(n_windows))
+    txt = txt.replace("__SPACING__", str(spacing_nm))
     txt = txt.replace("__TARGETS__", repr(targets_nm))
     txt = txt.replace("__TEMP__", str(temperature_K))
     return txt
@@ -304,19 +326,37 @@ def write_release_us_layout(
     if pbcatom_group1 == 0 and ndx_path.is_file():
         try:
             pbcatom_group1 = _find_median_atom_in_ndx_group(
-                str(ndx_path), "Non_Peptide"
+                str(ndx_path), "Enhancer"
             )
         except RuntimeError:
             pbcatom_group1 = 0
+
+    # Auto-pick pbcatom for group 2 (Peptide) as well — pick the first atom
+    # of the Peptide group as a stable reference.
+    if pbcatom_group2 == 0 and ndx_path.is_file():
+        try:
+            pbcatom_group2 = _find_median_atom_in_ndx_group(
+                str(ndx_path), "Peptide"
+            )
+        except RuntimeError:
+            pbcatom_group2 = 0
 
     pull_mdp = od / "pull.mdp"
     pull_text = render_pull_mdp(us)
     if pbcatom_group1:
         pull_text = pull_text.replace(
-            "pull-group1-name         = Non_Peptide",
+            "pull-group1-name         = Enhancer",
             (
-                "pull-group1-name         = Non_Peptide\n"
+                "pull-group1-name         = Enhancer\n"
                 f"pull-group1-pbcatom      = {pbcatom_group1}"
+            ),
+        )
+    if pbcatom_group2:
+        pull_text = pull_text.replace(
+            "pull-group2-name         = Peptide",
+            (
+                "pull-group2-name         = Peptide\n"
+                f"pull-group2-pbcatom      = {pbcatom_group2}"
             ),
         )
     write_text(pull_mdp, pull_text)
@@ -330,10 +370,18 @@ def write_release_us_layout(
         win_text = render_window_mdp(us, target_dist_nm=dist)
         if pbcatom_group1:
             win_text = win_text.replace(
-                "pull-group1-name         = Non_Peptide",
+                "pull-group1-name         = Enhancer",
                 (
-                    "pull-group1-name         = Non_Peptide\n"
+                    "pull-group1-name         = Enhancer\n"
                     f"pull-group1-pbcatom      = {pbcatom_group1}"
+                ),
+            )
+        if pbcatom_group2:
+            win_text = win_text.replace(
+                "pull-group2-name         = Peptide",
+                (
+                    "pull-group2-name         = Peptide\n"
+                    f"pull-group2-pbcatom      = {pbcatom_group2}"
                 ),
             )
         write_text(mdp, win_text)
@@ -347,6 +395,7 @@ def write_release_us_layout(
             n_windows=us.n_windows,
             targets_nm=targets,
             temperature_K=config.production.temperature_K,
+            spacing_nm=us.window_spacing_nm,
         ),
     )
     run_path.chmod(0o755)

@@ -51,12 +51,12 @@
   },
   "release_us": {
     "n_windows": 6,
-    "window_spacing_nm": 0.4,
-    "window_nsteps": 50000,
+    "window_spacing_nm": 0.2,
+    "window_nsteps": 100000,
     "window_dt_ps": 0.002,
-    "force_constant_kj_mol_nm2": 500.0,
-    "pull_rate_nm_per_ps": 0.002,
-    "pull_nsteps": 100000,
+    "force_constant_kj_mol_nm2": 2000.0,
+    "pull_rate_nm_per_ps": 0.001,
+    "pull_nsteps": 200000,
     "target_peptide_idx": 0,
     "enhancer_tc_group": "peptide"
   },

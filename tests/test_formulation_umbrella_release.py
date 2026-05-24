@@ -47,7 +47,7 @@ def test_render_pull_mdp_contains_umbrella_section():
     text = render_pull_mdp(us)
     assert "pull                     = yes" in text
     assert "pull-coord1-type         = umbrella" in text
-    assert "pull-group1-name         = Non_Peptide" in text
+    assert "pull-group1-name         = Enhancer" in text
     assert "pull-group2-name         = Peptide" in text
     assert "pull-coord1-k            = 1000.0" in text
 
