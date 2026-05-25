@@ -178,7 +178,20 @@ class BileSaltSpec:
 
 @dataclass
 class SystemSpec:
-    """Composition + geometry of one formulation box."""
+    """Composition + geometry of one formulation box.
+
+    *packmol_layout* controls the initial geometry:
+
+    - ``"random"`` (default): all species are packed uniformly into the
+      cubic box (Hossain 2023 starting configuration A).
+    - ``"cluster_core"``: peptide(s) are placed at the box centre
+      (within *cluster_core_radius_nm*), enhancers are packed into
+      the surrounding shell (between *cluster_core_radius_nm* and
+      *cluster_shell_radius_nm*), and bile salts + remaining volume
+      are filled outside. This produces a **pre-formed micelle-like
+      aggregate** at t=0, suitable for short-production release-PMF
+      smokes (Hossain 2023 starting configuration B).
+    """
 
     peptides: List[PeptideSpec] = field(default_factory=list)
     enhancers: List[EnhancerSpec] = field(default_factory=list)
@@ -186,6 +199,9 @@ class SystemSpec:
     box_size_nm: float = 10.0
     salt_concentration_M: float = 0.15
     neutralize: bool = True
+    packmol_layout: str = "random"        # "random" | "cluster_core"
+    cluster_core_radius_nm: float = 1.0   # peptide placement sphere radius
+    cluster_shell_radius_nm: float = 3.0  # enhancer outer sphere radius
 
     def __post_init__(self) -> None:
         if not self.peptides:
@@ -208,6 +224,21 @@ class SystemSpec:
             raise ValueError(
                 f"SystemSpec resnames must be unique across enhancers/bile "
                 f"salts, got duplicates in {resnames}."
+            )
+        if self.packmol_layout not in ("random", "cluster_core"):
+            raise ValueError(
+                f"SystemSpec packmol_layout must be 'random' or "
+                f"'cluster_core', got {self.packmol_layout!r}."
+            )
+        if self.cluster_core_radius_nm <= 0:
+            raise ValueError(
+                f"SystemSpec cluster_core_radius_nm must be > 0, "
+                f"got {self.cluster_core_radius_nm}."
+            )
+        if self.cluster_shell_radius_nm <= self.cluster_core_radius_nm:
+            raise ValueError(
+                "SystemSpec cluster_shell_radius_nm must be > "
+                "cluster_core_radius_nm."
             )
 
     @property

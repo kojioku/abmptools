@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 from .mdp_templates import write_equilibration_mdps
 from .models import FormulationBuildConfig, PeptideSpec
 from .ndx import write_index_from_gro
-from .packer import pack_mixed_solution
+from .packer import pack_cluster_templated, pack_mixed_solution
 from .peptide_atomistic import (
     build_peptide_from_sequence,
     normalize_existing_pdb,
@@ -299,16 +299,54 @@ class FormulationBuilder:
             counts.append(bspec.n_copies)
             smr_idx += 1
         out_pdb = self.output_dir / "build" / "mixture.pdb"
-        pack_mixed_solution(
-            component_pdbs=component_pdbs,
-            counts=counts,
-            box_size_nm=self.config.system.box_size_nm,
-            out_pdb=str(out_pdb),
-            tolerance_A=self.config.packmol_tolerance_A,
-            inner_box_margin_nm=self.config.packmol_inner_box_margin_nm,
-            seed=self.config.seed,
-            packmol_path=self.config.packmol_path,
-        )
+
+        if self.config.system.packmol_layout == "cluster_core":
+            # Partition component_pdbs / counts back into peptide /
+            # enhancer / bile salt buckets in the same order the
+            # builder created them.
+            pep_pdbs = component_pdbs[: len(self.config.system.peptides)]
+            pep_counts = counts[: len(self.config.system.peptides)]
+            idx = len(self.config.system.peptides)
+            enh_pdbs: List[str] = []
+            enh_counts: List[int] = []
+            for espec in self.config.system.enhancers:
+                if espec.n_neutral > 0:
+                    enh_pdbs.append(component_pdbs[idx])
+                    enh_counts.append(counts[idx]); idx += 1
+                if espec.n_charged > 0:
+                    enh_pdbs.append(component_pdbs[idx])
+                    enh_counts.append(counts[idx]); idx += 1
+            bile_pdbs: List[str] = []
+            bile_counts: List[int] = []
+            for bspec in self.config.system.bile_salts:
+                if bspec.n_copies <= 0:
+                    continue
+                bile_pdbs.append(component_pdbs[idx])
+                bile_counts.append(counts[idx]); idx += 1
+            pack_cluster_templated(
+                peptide_pdbs=pep_pdbs, peptide_counts=pep_counts,
+                enhancer_pdbs=enh_pdbs, enhancer_counts=enh_counts,
+                bile_pdbs=bile_pdbs, bile_counts=bile_counts,
+                box_size_nm=self.config.system.box_size_nm,
+                out_pdb=str(out_pdb),
+                core_radius_nm=self.config.system.cluster_core_radius_nm,
+                shell_radius_nm=self.config.system.cluster_shell_radius_nm,
+                tolerance_A=self.config.packmol_tolerance_A,
+                inner_box_margin_nm=self.config.packmol_inner_box_margin_nm,
+                seed=self.config.seed,
+                packmol_path=self.config.packmol_path,
+            )
+        else:
+            pack_mixed_solution(
+                component_pdbs=component_pdbs,
+                counts=counts,
+                box_size_nm=self.config.system.box_size_nm,
+                out_pdb=str(out_pdb),
+                tolerance_A=self.config.packmol_tolerance_A,
+                inner_box_margin_nm=self.config.packmol_inner_box_margin_nm,
+                seed=self.config.seed,
+                packmol_path=self.config.packmol_path,
+            )
         return out_pdb
 
     def _stage4_solvate_ions(
