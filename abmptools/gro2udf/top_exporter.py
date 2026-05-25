@@ -139,17 +139,26 @@ class TopExporter:
                 uobj.put(ncount,
                          "Set_of_Molecules.molecule[].atom[].Atom_ID",
                          [imol, iatom])
-                # Atom_Name は element symbol を書く (元素記号として ABINIT-MP
-                # の read_pdb / obabel の xyz→pdb 変換で解釈される)。
-                # GROMACS 由来の atom 名 (e.g. "c30", "hc1") は GAFF 型名
-                # 形式で、obabel が atom type を `*` に変換し、ABINIT-MP が
-                # "Atom type * is not supported" で失敗するため使えない。
-                # 元素は MolAtomSpec.element (TopAdapter が mass から決定済み)。
-                # GAFF 型名は Atom_Type_Name (下の column) に残る。
+                # Atom_Name と Atom_Type_Name は両方 element symbol を書く:
+                # - Atom_Name: ABINIT-MP の read_pdb / obabel の xyz→pdb 変換
+                #   で元素として解釈される
+                # - Atom_Type_Name: J-OCTA viewer の atom テーブル `type_name`
+                #   列に表示され、ここに per-atom unique な ``MOL0_X`` (OpenFF
+                #   SMIRNOFF 由来) が入っていると element として認識されず
+                #   色付け / フィルタが機能しない (2026-05-26 ユーザー報告)。
+                #   よって element symbol を書く。
+                # GROMACS 由来の atom 名 (e.g. "c30", "hc1") は GAFF 型名形式
+                # で、obabel が atom type を `*` に変換し ABINIT-MP が "Atom
+                # type * is not supported" で失敗するため使えない。
+                # GAFF / SMIRNOFF の元の per-atom unique type は引き続き
+                # ``Set_of_Molecules.molecule[].interaction_Site[].Type_Name``
+                # と ``Molecular_Attributes.Atom_Type[]`` 側に保持されるので、
+                # LJ Pair_Interaction (per-atom-type の σ/ε) や MD 実行に
+                # 必要な per-atom unique typing は壊れない。
                 uobj.put(atom.element,
                          "Set_of_Molecules.molecule[].atom[].Atom_Name",
                          [imol, iatom])
-                uobj.put(atom.type_name,
+                uobj.put(atom.element,
                          "Set_of_Molecules.molecule[].atom[].Atom_Type_Name",
                          [imol, iatom])
                 uobj.put(0,
