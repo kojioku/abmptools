@@ -7,9 +7,13 @@ set -euo pipefail
 HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 mkdir -p "$HERE/output"
 
-BDF="$HOME/llm-project/SI/IMC_result450.0_out_rec900.bdf"
+# Input trajectory: bundled at sample/hbond/imc_amorphous/input/.
+# To analyse a different BDF, override BDF=... when invoking this script:
+#   BDF=/path/to/my.bdf bash run_cli.sh
+BDF="${BDF:-$HERE/input/IMC_result450.0_out_rec900.bdf}"
 if [[ ! -f "$BDF" ]]; then
     echo "Error: BDF not found at $BDF" >&2
+    echo "  The bundled input lives at sample/hbond/imc_amorphous/input/" >&2
     exit 1
 fi
 

@@ -29,7 +29,7 @@ from matplotlib.image import imread
 
 HERE = Path(__file__).resolve().parent
 SUMMARY_CSV = HERE / "output" / "imc_hbond_summary.csv"
-NMR_IMG = Path("/home/okuwaki/llm-project/SI/imc-bond-nmr.png")
+NMR_IMG = HERE / "input" / "imc-bond-nmr.png"     # Yuan 2015 Figure 5 (bundled)
 OUT_PNG = HERE / "output" / "imc_hbond_nmr_comparison.png"
 
 # Yuan 2015 Table 1 — amorphous IMC deconvolution

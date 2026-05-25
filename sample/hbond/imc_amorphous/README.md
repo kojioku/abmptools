@@ -4,12 +4,17 @@
 
 ## 入力
 
-- BDF: `~/llm-project/SI/IMC_result450.0_out_rec900.bdf`
+本サンプルディレクトリの `input/` に bundle されている:
+
+- `input/IMC_result450.0_out_rec900.bdf` (1.5 MB)
   - 125 分子 (GAFF2 atomtypes)、47.34 Å cubic box (initial)、record=900 単一スナップショット
   - T=450 K MD で平衡化された amorphous state
+- `input/imc-bond-nmr.png` (Yuan 2015 Mol. Pharm. 12, 4518 Figure 5、64 KB)
+  - 13C CPMAS NMR で 4 種類のカルボニル環境 (cyclic dimer / chain / COOH-amide / free)
+    に分離する H-bond network 帰属
 
-参考画像: `~/llm-project/SI/imc-bond-nmr.png`
-13C CPMAS NMR で 3 種類のカルボニル環境 (~180/175/165 ppm) に分離する H-bond network。
+別の trajectory で解析したい場合は `BDF=/path/to/my.bdf bash run_cli.sh`
+または `input/IMC_result450.0_out_rec900.bdf` を差替えてください。
 
 ## 実行
 

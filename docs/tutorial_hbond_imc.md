@@ -13,8 +13,11 @@ API / 設計の reference は [`hbond.md`](./hbond.md) を参照。NMR 帰属の
 ## 0. このチュートリアルで使うサンプルの構成
 
 ```
-abmptools repo (軽量、~3 MB)
+abmptools repo (軽量、~5 MB)
   sample/hbond/imc_amorphous/
+    input/                           # ★ 入力ファイル (bundle 済み、本 tutorial の前提)
+      IMC_result450.0_out_rec900.bdf # 1.5 MB、T=450 K, 125 mols, rec=900 単一スナップショット
+      imc-bond-nmr.png               # Yuan 2015 Figure 5 (NMR 比較 plot 用)
     run_cli.sh                       # CLI ワンライナー
     run_notebook.ipynb               # Jupyter UI
     plot_nmr_comparison.py           # Yuan 2015 NMR vs MD 比較 plot
@@ -34,10 +37,12 @@ abmptools-sample repo (重量 artifact、~5 MB、再生成可能)
       imc_hbond.bdf                  # Mol_Name 維持 + Attributes (J-OCTA pre-render)
       imc_hbond_action.bdf           # Action ヘッダ patch (gourmet autorun)
       imc_hbond_colored.bdf          # Mol_Name renamed (v1.25 legacy)
-
-入力 trajectory (本 tutorial の前提、~1.5 MB)
-  ~/llm-project/SI/IMC_result450.0_out_rec900.bdf  (T=450 K, 125 mols, rec=900 単一スナップショット)
 ```
+
+**入力ファイルは `sample/hbond/imc_amorphous/input/` に bundle 済み**なので、
+本 tutorial の手順は abmptools repo を clone してすぐに走らせられる。別の
+trajectory で解析したい場合は同じ `input/` 配下に置いて `BDF=...` 環境変数で
+override する (詳細は 2 章)。
 
 ---
 
@@ -100,14 +105,17 @@ python -c "from UDFManager import UDFManager; print('UDFManager OK')"
 ```bash
 cd <abmptools>/sample/hbond/imc_amorphous
 
-# CLI ワンライナー (約 10 秒)
+# CLI ワンライナー (約 10 秒) — bundle 済みの input/IMC_*.bdf を使う
 bash run_cli.sh
+
+# 別の BDF を解析したい場合
+BDF=/path/to/my.bdf bash run_cli.sh
 ```
 
 中身:
 
 ```bash
-python -m abmptools.hbond ~/llm-project/SI/IMC_result450.0_out_rec900.bdf \
+python -m abmptools.hbond input/IMC_result450.0_out_rec900.bdf \
     --out-prefix output/imc_hbond \
     --criteria luzar-chandler \
     --mol-name IMC \
@@ -117,7 +125,7 @@ python -m abmptools.hbond ~/llm-project/SI/IMC_result450.0_out_rec900.bdf \
 実行ログ (要点):
 
 ```
-Loaded ~/llm-project/SI/IMC_result450.0_out_rec900.bdf
+Loaded input/IMC_result450.0_out_rec900.bdf
   125 molecules, 1 record(s)
   force field: GAFF2
   detected 125 carboxyls, 125 amides (125 tert), 0 N-H donors

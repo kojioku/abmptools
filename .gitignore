@@ -1,4 +1,8 @@
 *bdf
+# Exception: lightweight input BDF bundled with tutorial samples (< 2 MB each).
+# Heavy intermediate / colored BDF outputs are kept in the abmptools-sample
+# repository (see feedback_artifact_placement).
+!sample/hbond/imc_amorphous/input/*.bdf
 bkp
 ABMPTools.egg-info
 abmptools.egg-info
