@@ -37,21 +37,32 @@ from ..core.system_model import CellGeometry
 # ---------------------------------------------------------------------------
 # Built-in atomic-mass → element-symbol map (avoids external conf/mass.conf)
 # ---------------------------------------------------------------------------
+# Each entry corresponds to round(atomic_mass) for the dominant natural-abundance
+# isotope of that element, as it appears in common GROMACS / AMBER force fields.
+# Earlier versions of this map carried entries for mass 3/4/5/6 that mapped to
+# Li/Be/B, which were physically incorrect: 3 amu is tritium / He-3,
+# 4 amu is He-4 (Be is ~9 amu), 5 amu has no stable element (B is ~11 amu).
+# Those entries are removed so that an unexpected mass yields the explicit
+# fallback ``"X"`` rather than a misleading symbol.
 _MASS_TO_ELEMENT: Dict[int, str] = {
-    1: "H",   2: "He",  3: "Li",  4: "Be",  5: "B",
-    6: "Li",  7: "Li",  9: "Be",  10: "B",  11: "B",
-    12: "C",  14: "N",  16: "O",  19: "F",  20: "Ne",
+    1: "H",                                   # H-1 (1.008)
+    4: "He",                                  # He-4 (4.0026)
+    7: "Li",                                  # Li (6.94 → round=7)
+    9: "Be",                                  # Be-9 (9.012)
+    11: "B",                                  # B (10.81 → round=11)
+    12: "C",                                  # C (12.011)
+    14: "N",                                  # N (14.007)
+    16: "O",                                  # O (15.999)
+    19: "F",                                  # F (18.998)
+    20: "Ne",                                 # Ne (20.180)
     23: "Na", 24: "Mg", 27: "Al", 28: "Si", 31: "P",
     32: "S",  35: "Cl", 36: "Ar", 39: "K",  40: "Ca",
     45: "Sc", 48: "Ti", 51: "V",  52: "Cr", 55: "Mn",
     56: "Fe", 59: "Co", 58: "Ni", 64: "Cu", 65: "Zn",
-    80: "Br", 108: "Ag", 127: "I",
+    80: "Br",
+    108: "Ag",
+    127: "I",
 }
-# Patch ambiguous entries for common force-field masses
-_MASS_TO_ELEMENT[1] = "H"    # 1 amu  → H
-_MASS_TO_ELEMENT[12] = "C"   # 12 amu → C
-_MASS_TO_ELEMENT[14] = "N"   # 14 amu → N
-_MASS_TO_ELEMENT[16] = "O"   # 16 amu → O
 
 
 def mass_to_element(mass: float) -> str:
