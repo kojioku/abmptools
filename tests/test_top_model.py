@@ -38,6 +38,38 @@ class TestMassToElement:
     def test_unknown_mass(self):
         assert mass_to_element(999.0) == "X"
 
+    @pytest.mark.parametrize("mass, expected", [
+        (1.008, "H"),       # GAFF h1/hc/ho/hn 等
+        (4.0026, "He"),     # He-4 (rare)
+        (6.94, "Li"),       # Li (rounds to 7)
+        (9.012, "Be"),      # Be-9
+        (10.81, "B"),       # B (rounds to 11)
+        (12.011, "C"),      # GAFF c/c3/ca 等
+        (14.007, "N"),      # GAFF n/n3/n4 等
+        (15.999, "O"),      # GAFF o/oh/os 等
+        (18.998, "F"),      # GAFF f
+        (32.065, "S"),      # GAFF s/sh 等
+        (35.453, "Cl"),     # GAFF cl
+        (79.904, "Br"),     # GAFF br
+        (126.904, "I"),     # GAFF i
+    ])
+    def test_force_field_typical_masses(self, mass, expected):
+        """Common GROMACS / AMBER FF masses (the ones GAFF / GAFF2 / OpenFF
+        actually emit) must map to the correct element."""
+        assert mass_to_element(mass) == expected
+
+    @pytest.mark.parametrize("mass", [
+        3.0,    # was incorrectly mapped to 'Li' in pre-fix table
+        5.0,    # was incorrectly mapped to 'B'
+        6.0,    # was incorrectly mapped to 'Li' (overlapped 7 amu entry)
+        8.0,    # no element at this mass
+    ])
+    def test_unphysical_masses_yield_X(self, mass):
+        """3/5/6/8 amu have no naturally-occurring element. A bogus mass
+        from a broken topology should yield the explicit fallback "X",
+        not silently mislabel atoms as Li/B (pre-2026-05-25 bug)."""
+        assert mass_to_element(mass) == "X"
+
 
 # ---------------------------------------------------------------------------
 # Constant test
