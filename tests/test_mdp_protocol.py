@@ -14,7 +14,7 @@ from abmptools.amorphous.mdp_protocol import (
     generate_anneal_mdp,
     generate_npt_final_mdp,
     write_all_mdp,
-    write_jocta_export_script,
+    write_udf_export_script,
     write_wrap_script,
 )
 
@@ -144,13 +144,13 @@ def test_write_wrap_script_includes_ndx_when_given(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# write_jocta_export_script
+# write_udf_export_script
 # ---------------------------------------------------------------------------
 
-def test_write_jocta_export_script_default(tmp_path):
-    """gen_for_jocta.sh が default 設定で生成される。"""
-    path = write_jocta_export_script(str(tmp_path))
-    assert path.endswith("gen_for_jocta.sh")
+def test_write_udf_export_script_default(tmp_path):
+    """gen_for_udf.sh が default 設定で生成される。"""
+    path = write_udf_export_script(str(tmp_path))
+    assert path.endswith("gen_for_udf.sh")
     assert Path(path).exists()
     text = Path(path).read_text()
     # default stage は 05_npt_final
@@ -164,9 +164,9 @@ def test_write_jocta_export_script_default(tmp_path):
     assert "system.ndx" in text
 
 
-def test_write_jocta_export_script_custom_stage(tmp_path):
+def test_write_udf_export_script_custom_stage(tmp_path):
     """stage / n_energy_terms を override できる。"""
-    path = write_jocta_export_script(
+    path = write_udf_export_script(
         str(tmp_path),
         stage="04_nvt_sampling",
         n_energy_terms=80,
@@ -176,9 +176,9 @@ def test_write_jocta_export_script_custom_stage(tmp_path):
     assert "N_ENERGY_TERMS=80" in text
 
 
-def test_write_jocta_export_script_omits_ndx_when_none(tmp_path):
+def test_write_udf_export_script_omits_ndx_when_none(tmp_path):
     """ndx=None 時は gmx trjconv に -n flag を付けない。"""
-    path = write_jocta_export_script(str(tmp_path), ndx=None)
+    path = write_udf_export_script(str(tmp_path), ndx=None)
     text = Path(path).read_text()
     # gmx trjconv のコマンド行に `-n "<path>/system.ndx"` のような flag が
     # 現れないことを確認 (bash の `[ -n "${INPUT}" ]` test は別件)
@@ -188,10 +188,10 @@ def test_write_jocta_export_script_omits_ndx_when_none(tmp_path):
     assert "system.ndx" not in text
 
 
-def test_write_jocta_export_script_is_executable(tmp_path):
+def test_write_udf_export_script_is_executable(tmp_path):
     """生成された script に実行 bit が立っている。"""
     import os
     import stat
-    path = write_jocta_export_script(str(tmp_path))
+    path = write_udf_export_script(str(tmp_path))
     mode = os.stat(path).st_mode
     assert mode & stat.S_IXUSR

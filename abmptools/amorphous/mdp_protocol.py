@@ -365,14 +365,14 @@ def write_wrap_script(output_dir: str,
     return script_path
 
 
-def write_jocta_export_script(output_dir: str,
-                              ndx: Optional[str] = "system.ndx",
-                              stage: Optional[str] = None,
-                              n_energy_terms: int = 50) -> str:
-    """Write a J-OCTA export script (``gen_for_jocta.sh``).
+def write_udf_export_script(output_dir: str,
+                            ndx: Optional[str] = "system.ndx",
+                            stage: Optional[str] = None,
+                            n_energy_terms: int = 50) -> str:
+    """Write a UDF / J-OCTA export script (``gen_for_udf.sh``).
 
-    Dumps two J-OCTA compatible inputs from the production stage of the
-    OpenFF amorphous protocol:
+    Dumps two OCTA / J-OCTA compatible inputs from the production stage of
+    the OpenFF amorphous protocol:
 
     * ``<stage>_energy.xvg`` — output of ``gmx energy`` with ``seq <n_energy_terms>``
       piped in, which selects all term indices from 1 up to ``n_energy_terms``
@@ -380,7 +380,8 @@ def write_jocta_export_script(output_dir: str,
       bound like 50 captures every term).
     * ``<stage>_nojump.gro`` — multi-frame ``.gro`` from
       ``gmx trjconv -pbc nojump``, keeping molecules continuous across
-      periodic boundaries so the trajectory plays back smoothly in J-OCTA.
+      periodic boundaries so the trajectory plays back smoothly in OCTA /
+      J-OCTA Viewer (and any downstream UDF conversion via gro2udf).
 
     Parameters
     ----------
@@ -407,10 +408,11 @@ def write_jocta_export_script(output_dir: str,
     ndx_flag = f' -n "{build}/{ndx}"' if ndx else ""
     lines = [
         "#!/bin/bash",
-        "# Post-processing: export J-OCTA compatible inputs from MD outputs.",
+        "# Post-processing: export UDF / J-OCTA compatible inputs from MD outputs.",
         "#",
         "#   gmx energy             : dump every energy term (1..N) to <stage>_energy.xvg",
-        "#   gmx trjconv -pbc nojump: keep molecules continuous across PBC for J-OCTA",
+        "#   gmx trjconv -pbc nojump: keep molecules continuous across PBC for OCTA",
+        "#                            / J-OCTA Viewer and downstream UDF conversion",
         "#                            (in contrast to wrap_pbc.sh, which uses -pbc mol",
         "#                            for VMD-compatible compact unit-cell rendering)",
         "#",
@@ -440,11 +442,11 @@ def write_jocta_export_script(output_dir: str,
         "fi",
         "",
         'echo ""',
-        'echo "J-OCTA export complete:"',
+        'echo "UDF / J-OCTA export complete:"',
         'echo "  ${STAGE}_energy.xvg   (gmx energy)"',
         'echo "  ${STAGE}_nojump.gro   (gmx trjconv -pbc nojump)"',
     ]
-    script_path = os.path.join(output_dir, "gen_for_jocta.sh")
+    script_path = os.path.join(output_dir, "gen_for_udf.sh")
     Path(script_path).write_text("\n".join(lines) + "\n")
     os.chmod(script_path, 0o755)
     return script_path

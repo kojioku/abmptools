@@ -211,7 +211,7 @@ cells` を回避するため。override したい場合は
     ├── 05_npt_final.mdp    # 最終NPT平衡化
     ├── run_all.sh          # GROMACS実行スクリプト (5-stage 順次)
     ├── wrap_pbc.sh         # PBC ラップ後処理 (VMD 向け, 1.15.2+)
-    └── gen_for_jocta.sh    # J-OCTA 用 energy.xvg + nojump gro 抽出 (1.30+)
+    └── gen_for_udf.sh    # J-OCTA 用 energy.xvg + nojump gro 抽出 (1.30+)
 ```
 
 ビルド後に MD を走らせ、`wrap_pbc.sh` を実行すると以下も生成されます:
@@ -225,7 +225,7 @@ md/
 └── 05_npt_final_pbc.gro    # 最終構造 (VMD 初期フレーム用)
 ```
 
-`gen_for_jocta.sh` を実行すると、J-OCTA で読み込み可能な以下も生成されます:
+`gen_for_udf.sh` を実行すると、J-OCTA で読み込み可能な以下も生成されます:
 
 ```
 md/
@@ -261,14 +261,14 @@ vmd 05_npt_final_pbc.gro -xtc 05_npt_final_pbc.xtc
 # アニーリング過程を見たい場合:
 vmd 04_anneal.tpr -xtc 04_anneal_pbc.xtc
 # 5. J-OCTA 用 energy.xvg + nojump gro を抽出
-bash gen_for_jocta.sh
+bash gen_for_udf.sh
 # → 05_npt_final_energy.xvg + 05_npt_final_nojump.gro を生成
 ```
 
 `wrap_pbc.sh` は `gmx trjconv -pbc mol -ur compact` を各 xtc と最終 gro に適用し、
 箱境界で分断された分子を修復したうえで compact box 表示に揃えます。
 
-`gen_for_jocta.sh` は J-OCTA で読み込み可能な 2 種類の出力を生成します:
+`gen_for_udf.sh` は J-OCTA で読み込み可能な 2 種類の出力を生成します:
 
 - `<stage>_energy.xvg` : `seq 50 | gmx energy -f <stage>.edr -o <stage>_energy.xvg`
   で全 energy term を一括取得 (1〜50 番、存在しない番号は gmx が無視)
