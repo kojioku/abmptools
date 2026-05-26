@@ -17,6 +17,7 @@ import logging
 import os
 import shutil
 from contextlib import contextmanager
+from pathlib import Path
 from typing import List, Optional
 
 from .top_model import KB_AMU_A2_PS2_K, GROFrameData, TopModel
@@ -36,6 +37,30 @@ class UDFExportError(RuntimeError):
     """
 
 
+def _rewrite_cognac_include(udf_path: str, cognac_version: str) -> None:
+    """Rewrite the ``\\include{"cognac<N>.udf"}`` directive in *udf_path*.
+
+    Used so OCTA84 / J-OCTA 9.1 users (which only ship cognac110.udf or
+    earlier) can still consume the bundled default_template.udf — which
+    requests cognac112.udf — by passing ``--cognac-version 110``.
+
+    The substitution targets the first occurrence of a ``\\include{"cognac
+    <digits>.udf"}`` token; non-cognac includes are left untouched.
+    """
+    import re
+    path = Path(udf_path)
+    text = path.read_text()
+    pattern = re.compile(r'\\include\{\s*"cognac\d+\.udf"\s*\}')
+    if pattern.search(text) is None:
+        # No cognac include to rewrite — silently leave the template alone
+        # so non-cognac templates aren't disturbed.
+        return
+    new_directive = '\\include{"cognac' + str(cognac_version) + '.udf"}'
+    # Pass replacement via lambda to bypass `re.sub`'s backslash interpretation.
+    new_text = pattern.sub(lambda _m: new_directive, text, count=1)
+    path.write_text(new_text)
+
+
 @contextmanager
 def _section(name: str, template_path: str, out_path: str):
     """Wrap an export section so UDFManager errors carry diagnostic context.
@@ -51,17 +76,26 @@ def _section(name: str, template_path: str, out_path: str):
     except UDFExportError:
         raise
     except Exception as exc:
+        hint = (
+            "this often means the template UDF schema (or its `\\include{cognac<N>.udf}` "
+            "directive) is not available in your OCTA install.\n"
+            "    The bundled template requests `cognac112.udf` (OCTA85). If you are\n"
+            "    on OCTA84 / J-OCTA-9.1-Student, that file does not exist and\n"
+            "    UDFManager fails at template-open time. Options:\n"
+            "      (a) Use a UDF saved by your OCTA's GOURMET (any minimal\n"
+            "          COGNAC UDF works) and pass it via `--template <path>`.\n"
+            "      (b) Regenerate the bundled template with your OCTA's\n"
+            "          `udfdef.py` so the data section matches the schema.\n"
+            "      (c) Try `--cognac-version 110` to rewrite only the include\n"
+            "          directive — works only when the data structure is\n"
+            "          unchanged across cognac versions (often it is NOT)."
+        )
         raise UDFExportError(
             f"gro2udf: failed while writing section {name!r}.\n"
             f"  template UDF: {template_path}\n"
             f"  output  UDF: {out_path}\n"
             f"  underlying  : {type(exc).__name__}: {exc}\n"
-            f"  hint        : this often means the template UDF schema does "
-            f"not contain a field this section needs. If you are using a "
-            f"different OCTA version (e.g. OCTA84 vs OCTA85), try regenerating "
-            f"the template with that OCTA's `udfreader` / `udfdef.py`, or use "
-            f"the bundled template at "
-            f"`abmptools/gro2udf/default_template.udf`."
+            f"  hint        : {hint}"
         ) from exc
 
 
@@ -84,6 +118,7 @@ class TopExporter:
         template_path: str,
         out_path: str,
         mdp_path: Optional[str] = None,
+        cognac_version: Optional[str] = None,
     ) -> None:
         """
         Parse *top_path* + *gro_path*, build :class:`TopModel`, write to *out_path*.
@@ -96,10 +131,15 @@ class TopExporter:
         out_path      : destination UDF path (created / overwritten)
         mdp_path      : optional path to GROMACS .mdp file; when provided,
                         Nose-Hoover Q and Ewald cutoff are computed from its values.
+        cognac_version : optional override for the cognac<N>.udf include
+                        directive in the template (e.g. ``"110"`` to fall back
+                        from the bundled cognac112 default to the cognac110 schema
+                        shipped with OCTA84 / J-OCTA 9.1).
         """
         raw = TopParser().parse(top_path)
         model = TopAdapter().build(raw, gro_path, mdp_path=mdp_path)
-        self.export_model(model, template_path, out_path)
+        self.export_model(model, template_path, out_path,
+                          cognac_version=cognac_version)
 
     def export_model(
         self,
@@ -107,6 +147,7 @@ class TopExporter:
         template_path: str,
         out_path: str,
         frames: Optional[List[GROFrameData]] = None,
+        cognac_version: Optional[str] = None,
     ) -> None:
         """
         Write *model* into a new UDF at *out_path* using *template_path* as schema.
@@ -152,6 +193,8 @@ class TopExporter:
 
         with _section("template-copy", template_path, out_path):
             shutil.copy(template_path, out_path)
+            if cognac_version is not None:
+                _rewrite_cognac_include(out_path, cognac_version)
 
         with _section("UDFManager-open", template_path, out_path):
             uobj = UDFManager(out_path)
