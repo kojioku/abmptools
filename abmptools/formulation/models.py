@@ -267,7 +267,15 @@ class EquilibrationProtocol:
 
 @dataclass
 class ProductionProtocol:
-    """Production NPT (Parrinello-Rahman, isotropic)."""
+    """Production NPT (Parrinello-Rahman, isotropic).
+
+    If *restraint_to_aggregate* is True, a soft umbrella restraint
+    (k=*restraint_k_kj_mol_nm2*) is applied between the ``Enhancer``
+    and ``Peptide`` groups with target distance 0 nm, so that the
+    peptide remains inside the cluster during equilibration / short
+    smoke production runs that cannot wait for the natural
+    aggregation timescale (Hossain 500 ns).
+    """
 
     nsteps: int = 500000              # 1 ns smoke at dt=2 fs
     dt_ps: float = 0.002
@@ -278,6 +286,8 @@ class ProductionProtocol:
     compressibility: float = 4.5e-5
     nstxout_compressed: int = 5000
     nstenergy: int = 1000
+    restraint_to_aggregate: bool = False
+    restraint_k_kj_mol_nm2: float = 1000.0
 
 
 @dataclass

@@ -51,7 +51,9 @@
     "dt_ps": 0.002,
     "temperature_K": 310.0,
     "nstxout_compressed": 1000,
-    "nstenergy": 500
+    "nstenergy": 500,
+    "restraint_to_aggregate": true,
+    "restraint_k_kj_mol_nm2": 1000.0
   },
   "release_us": {
     "n_windows": 6,

@@ -30,7 +30,7 @@
         "net_charge": -1
       }
     ],
-    "box_size_nm": 12.0,
+    "box_size_nm": 10.0,
     "salt_concentration_M": 0.15,
     "neutralize": true,
     "packmol_layout": "cluster_core",
@@ -50,10 +50,12 @@
     "dt_ps": 0.002,
     "temperature_K": 310.0,
     "nstxout_compressed": 1000,
-    "nstenergy": 500
+    "nstenergy": 500,
+    "restraint_to_aggregate": true,
+    "restraint_k_kj_mol_nm2": 1000.0
   },
   "release_us": {
-    "n_windows": 4,
+    "n_windows": 6,
     "window_spacing_nm": 0.2,
     "window_nsteps": 100000,
     "window_dt_ps": 0.002,

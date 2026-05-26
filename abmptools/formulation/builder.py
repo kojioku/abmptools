@@ -396,10 +396,32 @@ class FormulationBuilder:
 
     def _stage6_mdp_render(self) -> Dict[str, str]:
         logger.info("=== Stage 6/7: MDP render ===")
+        restraint_text = ""
+        if self.config.production.restraint_to_aggregate:
+            # Auto-pick pbcatom for the Enhancer + Peptide groups from
+            # the just-built system.ndx so the restraint pull block
+            # doesn't trip the 0.5*half-box safety check.
+            from .mdp_templates import render_aggregate_restraint_block
+            from .umbrella_release import _find_median_atom_in_ndx_group
+            ndx_path = self.output_dir / "system.ndx"
+            try:
+                pba1 = _find_median_atom_in_ndx_group(str(ndx_path), "Enhancer")
+            except RuntimeError:
+                pba1 = 0
+            try:
+                pba2 = _find_median_atom_in_ndx_group(str(ndx_path), "Peptide")
+            except RuntimeError:
+                pba2 = 0
+            restraint_text = render_aggregate_restraint_block(
+                k_kj_mol_nm2=self.config.production.restraint_k_kj_mol_nm2,
+                pbcatom_group1=pba1,
+                pbcatom_group2=pba2,
+            )
         return write_equilibration_mdps(
             equilibration=self.config.equilibration,
             production=self.config.production,
             out_dir=str(self.output_dir / "md"),
+            restraint_pull_text=restraint_text,
         )
 
     def _stage7_run_script(self) -> Path:
