@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.gro2udf` 診断付きエラー — v1.x.x 候補)
+
+- `top_exporter.UDFExportError` 例外クラス + `_section()` context manager を
+  追加。`TopExporter.export_model()` の各 stage (`template-copy`,
+  `UDFManager-open`, `erase-existing-records`, `Set_of_Molecules`,
+  `Structure[record=N]`, `default_condition`, `Molecular_Attributes`,
+  `Interactions`) を context manager で wrap して、UDFManager の cryptic な
+  例外 (RuntimeError 等) を **どの section / どの template / どの output / 元の
+  underlying error / 対処 hint** を含む `UDFExportError` に再 raise する。
+- 主な動機: OCTA84 で gro2udf がエラーになった時、UDFManager がどの field
+  で落ちたか分からず原因特定が困難。section 名で範囲を絞り、hint で OCTA
+  version 差異を案内 (bundled template の利用 / 当該 OCTA から template を
+  再生成等)。
+- `import UDFManager` 失敗時は `UDFExportError` で OCTA PATH 設定 hint を表示。
+- 存在しない template path 渡し時は明示的に `UDFExportError` を pre-flight
+  check で投げる。
+- docs/gro2udf.md にトラブルシューティング section 追加。
+- tests/test_top_exporter_frames_override.py に 2 件追加 (missing template /
+  section failure context)、5/5 PASS。
+
 ### Added (`abmptools.amorphous` J-OCTA export — v1.x.x 候補)
 
 - `mdp_protocol.write_udf_export_script(output_dir, ndx, stage, n_energy_terms)`

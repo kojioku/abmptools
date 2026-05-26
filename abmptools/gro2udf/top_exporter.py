@@ -14,7 +14,9 @@ This module ports the following functions from convert_gromacs_udf.py:
 from __future__ import annotations
 
 import logging
+import os
 import shutil
+from contextlib import contextmanager
 from typing import List, Optional
 
 from .top_model import KB_AMU_A2_PS2_K, GROFrameData, TopModel
@@ -22,6 +24,45 @@ from .top_parser import TopParser
 from .top_adapter import TopAdapter
 
 logger = logging.getLogger(__name__)
+
+
+class UDFExportError(RuntimeError):
+    """Raised when writing a UDF field via UDFManager fails.
+
+    The message carries the *section* of the export pipeline that was running
+    (e.g. ``"Set_of_Molecules"``), the *template* / *output* paths, and the
+    underlying UDFManager error so users can tell which schema field is
+    incompatible with their UDFManager version (e.g. OCTA84 vs OCTA85).
+    """
+
+
+@contextmanager
+def _section(name: str, template_path: str, out_path: str):
+    """Wrap an export section so UDFManager errors carry diagnostic context.
+
+    UDFManager raises bare ``RuntimeError`` / ``IndexError`` with no hint about
+    which field path was being written. That makes "OCTA84 schema is missing
+    field X" failures very hard to diagnose. This context manager re-raises
+    the original exception as :class:`UDFExportError` with the section name,
+    template path, and output path attached.
+    """
+    try:
+        yield
+    except UDFExportError:
+        raise
+    except Exception as exc:
+        raise UDFExportError(
+            f"gro2udf: failed while writing section {name!r}.\n"
+            f"  template UDF: {template_path}\n"
+            f"  output  UDF: {out_path}\n"
+            f"  underlying  : {type(exc).__name__}: {exc}\n"
+            f"  hint        : this often means the template UDF schema does "
+            f"not contain a field this section needs. If you are using a "
+            f"different OCTA version (e.g. OCTA84 vs OCTA85), try regenerating "
+            f"the template with that OCTA's `udfreader` / `udfdef.py`, or use "
+            f"the bundled template at "
+            f"`abmptools/gro2udf/default_template.udf`."
+        ) from exc
 
 
 class TopExporter:
@@ -93,25 +134,47 @@ class TopExporter:
             xtc-sourced frames here via
             :func:`abmptools.amorphous.trajectory_ingest.frames_from_xtc`).
         """
-        from UDFManager import UDFManager
+        try:
+            from UDFManager import UDFManager
+        except ImportError as exc:
+            raise UDFExportError(
+                "UDFManager module is required but could not be imported. "
+                "Install OCTA and set PYTHONPATH to its python3/ directory.\n"
+                f"  underlying: {type(exc).__name__}: {exc}"
+            ) from exc
 
-        shutil.copy(template_path, out_path)
-        uobj = UDFManager(out_path)
+        if not os.path.exists(template_path):
+            raise UDFExportError(
+                f"Template UDF not found: {template_path}.\n"
+                f"  hint: use the bundled template at "
+                f"`abmptools/gro2udf/default_template.udf`, or supply your own."
+            )
 
-        # Erase existing dynamic (structure) records
-        ntotal = uobj.totalRecord()
-        if ntotal > 0:
-            uobj.eraseRecord(0, ntotal)
+        with _section("template-copy", template_path, out_path):
+            shutil.copy(template_path, out_path)
 
-        self._write_set_of_molecules(uobj, model)
+        with _section("UDFManager-open", template_path, out_path):
+            uobj = UDFManager(out_path)
+
+        with _section("erase-existing-records", template_path, out_path):
+            ntotal = uobj.totalRecord()
+            if ntotal > 0:
+                uobj.eraseRecord(0, ntotal)
+
+        with _section("Set_of_Molecules", template_path, out_path):
+            self._write_set_of_molecules(uobj, model)
 
         frames_to_write = frames if frames is not None else model.frames
-        for frame in frames_to_write:
-            self._append_structure(uobj, model, frame)
+        for i, frame in enumerate(frames_to_write):
+            with _section(f"Structure[record={i}]", template_path, out_path):
+                self._append_structure(uobj, model, frame)
 
-        self._set_default_condition(uobj, model)
-        self._write_molecular_attributes(uobj, model)
-        self._write_interactions(uobj, model)
+        with _section("default_condition", template_path, out_path):
+            self._set_default_condition(uobj, model)
+        with _section("Molecular_Attributes", template_path, out_path):
+            self._write_molecular_attributes(uobj, model)
+        with _section("Interactions", template_path, out_path):
+            self._write_interactions(uobj, model)
 
     # -------------------------------------------------------------------------
     # Writing helpers – all mirror convert_gromacs_udf.py functions

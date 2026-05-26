@@ -252,3 +252,44 @@ GRO ファイル内の `step % N == 0` のフレームのみ UDF レコードと
 |---|---|
 | udf-and-gro | `<udf_stem>_groout.udf`（カレントディレクトリ） |
 | --from-top | `<gro_stem>_fromtop.udf`（カレントディレクトリ） |
+
+## トラブルシューティング
+
+### `UDFExportError: failed while writing section ...`
+
+`top_exporter.py` は UDFManager 経由で UDF を書き出す各 stage を
+`UDFExportError` で wrap している。OCTA のバージョン違い (例: OCTA84 vs
+OCTA85) で template UDF の schema に存在しない field を書こうとした時など、
+UDFManager の cryptic な `RuntimeError` をそのまま投げる代わりに、
+
+- **どの section** で失敗したか (`Set_of_Molecules`, `Structure[record=12]`,
+  `Molecular_Attributes`, `Interactions`, `default_condition` 等)
+- 使った **template UDF / 出力 UDF のパス**
+- **underlying exception** (UDFManager の元エラー)
+- **対処 hint** (異なる OCTA version の場合は当該 OCTA から template を
+  再生成するか、bundled の `abmptools/gro2udf/default_template.udf` を使う)
+
+を含む診断メッセージで再 raise する。エラーが出た時は **section 名 +
+underlying** をまず確認し、当該 OCTA version で当該 field が定義されているか
+を `<OCTA>/ENGINES/udf/*.udf` (UDF schema 定義ファイル) で確認する。
+
+例 (OCTA84 で `Interactions.Pair_Interaction[].Lennard_Jones.sigma` が無い等):
+
+```
+UDFExportError: gro2udf: failed while writing section 'Interactions'.
+  template UDF: /opt/OCTA84/ENGINES/cognac/sample/cognac.udf
+  output  UDF: ./05_npt_final.udf
+  underlying  : RuntimeError: UDFManager: undefined node ...
+  hint        : this often means the template UDF schema does not contain a
+                field this section needs. If you are using a different OCTA
+                version (e.g. OCTA84 vs OCTA85), try regenerating the template
+                with that OCTA's `udfreader` / `udfdef.py`, or use the bundled
+                template at `abmptools/gro2udf/default_template.udf`.
+```
+
+### `UDFExportError: UDFManager module is required but could not be imported`
+
+OCTA の `python3/` ディレクトリへ `PYTHONPATH` を通していない。section 1.2 の
+手順 ([tutorial_hbond_imc.md](tutorial_hbond_imc.md#12-udfmanager-の入手-octa--j-octa))
+通り、`OCTA85_HOME` / `UDF_DEF_PATH` / `PYTHONPATH` × 2 (GOURMET + ENGINES)
+の 4 行を `~/.bashrc` に追記してから `source ~/.bashrc` で反映。
