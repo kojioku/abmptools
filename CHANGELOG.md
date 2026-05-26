@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.amorphous` J-OCTA export — v1.x.x 候補)
+
+- `mdp_protocol.write_jocta_export_script(output_dir, ndx, stage, n_energy_terms)`
+  新規 API。OpenFF amorphous protocol 後に J-OCTA Viewer で読み込み可能な
+  energy.xvg + nojump gro を生成する `gen_for_jocta.sh` を書き出す。
+- 内容:
+  - `seq <N> | gmx energy -f <stage>.edr -o <stage>_energy.xvg`
+    (default N=50、gmx は存在しない term 番号を silently skip するので
+    50 で標準 energy term を網羅)
+  - `echo 0 | gmx trjconv -f <stage>.{trr,xtc} -s <stage>.tpr -pbc nojump
+    -o <stage>_nojump.gro` (`wrap_pbc.sh` の `-pbc mol -ur compact` と
+    違い、分子を box 内に wrap せず PBC を跨いで連続的に追跡。
+    J-OCTA Viewer での軌跡再生に適する)
+- `FormulationBuilder.build()` から `wrap_pbc.sh` の隣に自動生成。
+  返り値 dict に `jocta_script` key を追加。
+- 既存 sample (`pva_amorphous/`、`ketoprofen*/`) の `md/` 配下にも script
+  配置済み。
+- ドキュメント: `docs/amorphous.md` (workflow + tree 図 + 仕様説明)
+- テスト: `tests/test_mdp_protocol.py::test_write_jocta_export_script_*`
+  4 件追加 (default / custom stage + n_energy_terms / omits ndx / executable bit)、
+  17/17 PASS。
+- 実機検証 (ketoprofen amorphous 50 mol × 33 atom):
+  `05_npt_final_energy.xvg` (320 KB) + `05_npt_final_nojump.gro` (7.5 MB,
+  101 frames × 1650 atoms) 生成 OK。
+
 ### Added — `abmptools.formulation` (v1.30.0 候補)
 
 - AA mixed-solution peptide-formulation builder modeled after Hossain et al.

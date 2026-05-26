@@ -14,6 +14,7 @@ from abmptools.amorphous.mdp_protocol import (
     generate_anneal_mdp,
     generate_npt_final_mdp,
     write_all_mdp,
+    write_jocta_export_script,
     write_wrap_script,
 )
 
@@ -140,3 +141,57 @@ def test_write_wrap_script_includes_ndx_when_given(tmp_path):
     text = Path(path).read_text()
     assert "-n " in text
     assert "system.ndx" in text
+
+
+# ---------------------------------------------------------------------------
+# write_jocta_export_script
+# ---------------------------------------------------------------------------
+
+def test_write_jocta_export_script_default(tmp_path):
+    """gen_for_jocta.sh が default 設定で生成される。"""
+    path = write_jocta_export_script(str(tmp_path))
+    assert path.endswith("gen_for_jocta.sh")
+    assert Path(path).exists()
+    text = Path(path).read_text()
+    # default stage は 05_npt_final
+    assert 'STAGE="05_npt_final"' in text
+    # gmx energy term enumeration via seq 50 (default)
+    assert "N_ENERGY_TERMS=50" in text
+    assert 'seq "${N_ENERGY_TERMS}" | gmx energy' in text
+    # gmx trjconv -pbc nojump for J-OCTA
+    assert "-pbc nojump" in text
+    # default で ndx (-n) flag が出る
+    assert "system.ndx" in text
+
+
+def test_write_jocta_export_script_custom_stage(tmp_path):
+    """stage / n_energy_terms を override できる。"""
+    path = write_jocta_export_script(
+        str(tmp_path),
+        stage="04_nvt_sampling",
+        n_energy_terms=80,
+    )
+    text = Path(path).read_text()
+    assert 'STAGE="04_nvt_sampling"' in text
+    assert "N_ENERGY_TERMS=80" in text
+
+
+def test_write_jocta_export_script_omits_ndx_when_none(tmp_path):
+    """ndx=None 時は gmx trjconv に -n flag を付けない。"""
+    path = write_jocta_export_script(str(tmp_path), ndx=None)
+    text = Path(path).read_text()
+    # gmx trjconv のコマンド行に `-n "<path>/system.ndx"` のような flag が
+    # 現れないことを確認 (bash の `[ -n "${INPUT}" ]` test は別件)
+    gmx_line = next(line for line in text.splitlines()
+                    if "gmx trjconv" in line)
+    assert " -n " not in gmx_line
+    assert "system.ndx" not in text
+
+
+def test_write_jocta_export_script_is_executable(tmp_path):
+    """生成された script に実行 bit が立っている。"""
+    import os
+    import stat
+    path = write_jocta_export_script(str(tmp_path))
+    mode = os.stat(path).st_mode
+    assert mode & stat.S_IXUSR
