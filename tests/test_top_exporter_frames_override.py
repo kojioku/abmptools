@@ -124,3 +124,66 @@ def test_export_model_empty_frame_list_writes_no_structure(tmp_path):
         step=0, time=0.0, coord_list=[[0, 0, 0]], cell=[1, 1, 1])])
     written = _collect_frames_written(model, frames_arg=[], tmp_path=tmp_path)
     assert written == []
+
+
+# ---------------------------------------------------------------------------
+# Diagnostic error wrapping (OCTA84 / template mismatch)
+# ---------------------------------------------------------------------------
+
+def test_export_raises_diagnostic_for_missing_template(tmp_path):
+    """存在しない template path で UDFExportError が hint 付きで raise される。"""
+    from abmptools.gro2udf.top_exporter import TopExporter, UDFExportError
+    model = _minimal_topmodel([])
+    exporter = TopExporter()
+    with pytest.raises(UDFExportError) as excinfo:
+        exporter.export_model(
+            model,
+            template_path="/definitely/does/not/exist.udf",
+            out_path=str(tmp_path / "out.udf"),
+        )
+    msg = str(excinfo.value)
+    assert "Template UDF not found" in msg
+    assert "default_template.udf" in msg          # hint で bundled path を案内
+
+
+def test_export_wraps_section_failure_with_context(tmp_path):
+    """UDFManager.put が例外を投げた section が UDFExportError に含まれる。"""
+    from abmptools.gro2udf.top_exporter import TopExporter, UDFExportError
+
+    class _ExplodingUDFManager(_StubUDFManager):
+        def put(self, *_a, **_kw):
+            # Simulate "this field does not exist in OCTA84 schema"
+            raise RuntimeError("UDFManager: undefined node 'Set_of_Molecules...'")
+
+    mod = types.ModuleType("UDFManager")
+    mod.UDFManager = _ExplodingUDFManager
+    # 1 atom 1 mol を持つ minimal model
+    from abmptools.gro2udf.top_model import MolSpec, MolAtomSpec
+    atom = MolAtomSpec(
+        index_1based=1, atom_name="C", element="C",
+        type_name="MOL0_0", charge=0.0, global_atom_id=1,
+    )
+    mol = MolSpec(name="MOL0", atoms=[atom],
+                  bonds=[], angles=[], torsions=[])
+    template = tmp_path / "template.udf"
+    template.write_text("dummy")    # only "exists" matters in this stub path
+    model = TopModel(
+        comb_rule=2, fudge_lj=0.5, fudge_qq=0.8333,
+        atom_type_specs=[], bond_type_specs=[],
+        angle_type_specs=[], torsion_type_specs=[],
+        mass_dict={"MOL0_0": 12.0},
+        mol_type_names=["MOL0"], mol_specs=[mol],
+        mol_instance_list=["MOL0"], frames=[],
+    )
+    with patch.dict(sys.modules, {"UDFManager": mod}):
+        exporter = TopExporter()
+        with pytest.raises(UDFExportError) as excinfo:
+            exporter.export_model(
+                model,
+                template_path=str(template),
+                out_path=str(tmp_path / "out.udf"),
+            )
+    msg = str(excinfo.value)
+    assert "Set_of_Molecules" in msg              # section name に含まれる
+    assert "template UDF" in msg                  # template path も含まれる
+    assert "OCTA84" in msg or "OCTA85" in msg     # hint で version 言及
