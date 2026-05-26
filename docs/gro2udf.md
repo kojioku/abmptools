@@ -287,51 +287,57 @@ UDFExportError: gro2udf: failed while writing section 'Interactions'.
                 template at `abmptools/gro2udf/default_template.udf`.
 ```
 
-### OCTA84 / J-OCTA-9.1-Student で `file not found:cognac112.udf` エラー
+### OCTA8.4 / J-OCTA-9.1-Student で `file not found:cognac112.udf` エラー
 
 bundled template (`abmptools/gro2udf/default_template.udf`) は OCTA85 の
 cognac11.2 schema を前提に `\include{"cognac112.udf"}` を要求する。
-**OCTA84 / J-OCTA-9.1-Student には `cognac112.udf` が同梱されていない**ため、
-UDFManager が template-open 時点で失敗する:
+**OCTA8.4 / J-OCTA-9.1-Student には cognac11.2 schema 定義が無く** (cognac101
+までしか同梱されていない)、UDFManager が template-open 時点で失敗する:
 
 ```
 RuntimeError: file not found:cognac112.udf.
 [error 1] line 7 near ":": No data definition[Simulation_Conditions].
 ```
 
-対処 (推奨度順):
+加えて、cognac10.1 → 11.2 で `Structure` セクションの data structure
+(`Molecular_Coord` や `Energy_element` 等の field 数) にも変更があり、
+**bundled template の data section を OCTA8.4 で parse することはできない**。
+よって `--cognac-version 101` で include 行を書き換えても、`Structure` 書込み
+時点で別エラーが出る (OCTA85 環境で検証済み)。
 
-**(a) OCTA84 で保存した COGNAC UDF を `--template` で渡す** (最推奨)
+### 確実な対処 (OCTA8.4 / 9.1-Student 推奨)
 
-OCTA84 の GOURMET で任意のミニマル COGNAC UDF (例: J-OCTA-9.1-Student
-同梱の `bin/win64/cognac/sample/*.udf` 等) を読み込み、そのまま `Save As`
-した UDF を template として渡す。data section が OCTA84 の cognac schema
-と整合するため確実に動く:
+**OCTA8.4 の GOURMET で保存したミニマル COGNAC UDF を `--template` で渡す**:
 
-```bash
-python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
-    --template path/to/my_octa84_cognac.udf \
-    --mdp md/05_npt_final.mdp --out 05_output.udf
+1. **OCTA8.4 の GOURMET を起動**し、J-OCTA 同梱のミニマル COGNAC sample UDF を
+   読み込む。例えば以下のいずれか:
+   - `C:\J-OCTA-9.1-Student\bin\win64\ENGINES\cognac\sample\*.udf`
+   - `C:\J-OCTA-9.1-Student\GOURMET\sample\cognac*.udf`
+   - 既存の自分の COGNAC 計算 input UDF (小さいもの)
+
+2. **File → Save As** で別名保存 (例: `octa84_template.udf`)。GOURMET が
+   data section を OCTA8.4 互換に書き出すため、parse 失敗しない。
+
+3. その template を `--template` で渡して gro2udf を実行:
+
+```cmd
+python -m abmptools.gro2udf --from-top build\system.top md\05_npt_final.gro ^
+    --template octa84_template.udf ^
+    --mdp md\05_npt_final.mdp --out 05_output.udf
 ```
 
-**(b) `--cognac-version 110` で include 行を書き換え** (動かないケース多)
+この方法だと OCTA8.4 + cognac101 schema 完全互換の data structure が確保される
+ため、Structure / Molecular_Attributes / Interactions 全 section が書ける。
 
-bundled template の `\include` directive だけを `cognac110.udf` に書き換える。
-但し cognac11.0 → 11.2 で **data section の構造**にも変更があり (例: 一部
-flag 配列の要素数)、include 行だけ書き換えても data parse で別のエラーが
-出ることが多い。OCTA85 を含む試験環境では (b) は動かないことを確認済み。
-(a) が確実:
+### その他の option (実用上動かないことが多い)
 
-```bash
-python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
-    --cognac-version 110 --out 05_output.udf
-```
-
-**(c) OCTA84 の `udfdef.py` で template を再生成**
-
-OCTA84 環境で `python <OCTA84_HOME>/GOURMET/python3/udfdef.py` を使って
-cognac11.0 schema 互換の skeleton UDF を生成し、それを `--template` で渡す。
-詳細は OCTA84 GOURMET のマニュアル参照。
+- `--cognac-version 110` / `--cognac-version 101` だけで bundled template の
+  include 行を書き換える方法は **data section 構造差で失敗する** ことを確認済み
+  (OCTA85 + cognac101 で `Structure[record=0]` 書込み時に
+  `RuntimeError: ArgumentError: put data.`)。bundled template が cognac11.2 の
+  data 構造を含むため、古い schema では parse できない。
+- OCTA8.4 の `udfdef.py` で skeleton UDF を生成する方法もあるが、
+  GOURMET の Save As で済むため通常不要。
 
 ### `UDFExportError: UDFManager module is required but could not be imported`
 

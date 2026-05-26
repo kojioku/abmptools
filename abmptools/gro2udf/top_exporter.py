@@ -77,18 +77,16 @@ def _section(name: str, template_path: str, out_path: str):
         raise
     except Exception as exc:
         hint = (
-            "this often means the template UDF schema (or its `\\include{cognac<N>.udf}` "
-            "directive) is not available in your OCTA install.\n"
-            "    The bundled template requests `cognac112.udf` (OCTA85). If you are\n"
-            "    on OCTA84 / J-OCTA-9.1-Student, that file does not exist and\n"
-            "    UDFManager fails at template-open time. Options:\n"
-            "      (a) Use a UDF saved by your OCTA's GOURMET (any minimal\n"
-            "          COGNAC UDF works) and pass it via `--template <path>`.\n"
-            "      (b) Regenerate the bundled template with your OCTA's\n"
-            "          `udfdef.py` so the data section matches the schema.\n"
-            "      (c) Try `--cognac-version 110` to rewrite only the include\n"
-            "          directive — works only when the data structure is\n"
-            "          unchanged across cognac versions (often it is NOT)."
+            "this often means the template UDF schema is incompatible with your\n"
+            "    OCTA's UDFManager. The bundled template requests cognac11.2 (OCTA85).\n"
+            "    OCTA8.4 / J-OCTA-9.1-Student only ships cognac10.1, and both the\n"
+            "    `\\include` directive AND the data-section structure differ.\n"
+            "    Recommended fix:\n"
+            "      Open any minimal COGNAC UDF in your OCTA's GOURMET, hit\n"
+            "      `File -> Save As` to dump it with your OCTA's native schema,\n"
+            "      then pass that file via `--template <path>`. The data section\n"
+            "      saved by GOURMET will match the cognac<N> schema available in\n"
+            "      your install. See docs/gro2udf.md for full instructions."
         )
         raise UDFExportError(
             f"gro2udf: failed while writing section {name!r}.\n"
