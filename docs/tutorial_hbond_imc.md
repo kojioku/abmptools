@@ -50,8 +50,11 @@ override する (詳細は 2 章)。
 
 ### 1.1 Python パッケージ
 
+abmptools editable install 済みの conda / mamba 環境 (以下では `<myenv>` と
+表記) を有効化:
+
 ```bash
-mamba activate abmptoolsenv      # または editable install の置かれている env
+mamba activate <myenv>            # または conda activate / venv activate
 python -c "import abmptools.hbond; print('OK')"
 ```
 
@@ -77,18 +80,31 @@ pip install "abmptools[hbond,jupyter,fragmenter]"
 
 ### 1.2 UDFManager の入手 (OCTA / J-OCTA)
 
-UDFManager は PyPI に無く OCTA に同梱されている。abmptoolsenv に
-`UDFManager` モジュールを通すには **OCTA の `python3/` ディレクトリへ PATH を
-通す**:
+UDFManager は PyPI に無く OCTA に同梱されている。Python から
+`UDFManager` モジュールを通すには **OCTA の `python3/` ディレクトリ + UDF
+定義 PATH** を通す必要がある。以下を `~/.bashrc` (または env の activate
+script) に追記:
 
 ```bash
-# 例 (OCTA85 の場合)
-export PYTHONPATH=/home/okuwaki/OCTA85/GOURMET/python3:$PYTHONPATH
+# OCTA85 の場合 (バージョンが違えば 85 を読み替え、install 先も適宜変更)
+export OCTA85_HOME="$HOME/OCTA85"
+
+# UDF 定義ファイル (engines 同梱の *.udf スキーマ)
+export UDF_DEF_PATH="$OCTA85_HOME/ENGINES/udf:$UDF_DEF_PATH"
+
+# Python module: GOURMET 側 (UDFManager 等) + ENGINES 側 (Cognac/COGNAC helpers 等)
+export PYTHONPATH="$OCTA85_HOME/GOURMET/python3:$PYTHONPATH"
+export PYTHONPATH="$OCTA85_HOME/ENGINES/python3:$PYTHONPATH"
+```
+
+設定後、別シェルを開きなおすか `source ~/.bashrc` で反映、以下で動作確認:
+
+```bash
 python -c "from UDFManager import UDFManager; print('UDFManager OK')"
 ```
 
-実環境では abmptoolsenv 起動時に自動で PATH が通っている想定。通っていない
-場合は上記を `~/.bashrc` か activate script に追加。
+env 起動時に自動で PATH が通っている運用もある。通っていない場合に
+上記の 4 行を `~/.bashrc` に追加する。
 
 ### 1.3 可視化ツール (任意)
 
@@ -310,10 +326,14 @@ Yuan 2015 Table 1 (Mol. Pharm. 12, 4518) と MD の比較:
 
 ### 7.1 `ModuleNotFoundError: No module named 'UDFManager'`
 
-OCTA `python3/` ディレクトリへ PATH を通す:
+section 1.2 の手順に従って OCTA の Python module PATH + UDF 定義 PATH を
+通す (4 行とも `~/.bashrc` に追記):
 
 ```bash
-export PYTHONPATH=/home/okuwaki/OCTA85/GOURMET/python3:$PYTHONPATH
+export OCTA85_HOME="$HOME/OCTA85"
+export UDF_DEF_PATH="$OCTA85_HOME/ENGINES/udf:$UDF_DEF_PATH"
+export PYTHONPATH="$OCTA85_HOME/GOURMET/python3:$PYTHONPATH"
+export PYTHONPATH="$OCTA85_HOME/ENGINES/python3:$PYTHONPATH"
 ```
 
 ### 7.2 Jupyter で mol[0] 2D 構造が "image" alt text しか表示されない
