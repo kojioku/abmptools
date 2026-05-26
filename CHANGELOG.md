@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.gro2udf` OCTA8.4 対応ガイド — v1.x.x 候補)
+
+- `top_exporter._rewrite_cognac_include()` helper + `--cognac-version` CLI
+  option を追加。template の `\include{"cognac<N>.udf"}` directive を runtime
+  に書き換える経路を提供。
+- `UDFExportError` の hint メッセージを OCTA8.4 / J-OCTA-9.1-Student
+  (cognac10.1 までしか同梱されていない環境) 向けの具体ガイドに刷新:
+  「GOURMET で minimal COGNAC UDF を Save As → `--template` で渡す」が
+  唯一確実な手順であることを明記。
+- docs/gro2udf.md にトラブルシューティング section
+  「OCTA8.4 / J-OCTA-9.1-Student で `file not found:cognac112.udf` エラー」
+  を新規追加 (3 段構成: 原因 / 確実な対処手順 / 動かない option 一覧)。
+- 実機検証結果: `--cognac-version 110` / `--cognac-version 101` で include
+  行だけ書き換えた場合、cognac10.1 環境では `Structure[record=0]` 書込み
+  時に `RuntimeError: ArgumentError: put data.` で失敗。これは
+  bundled template の data section が cognac11.2 構造 (Output_Flags 配列の
+  要素数、Molecular_Coord の field 差等) を含むため。`--cognac-version` は
+  「include の version 表記だけが原因」のレア ケース向け保険として残す。
+
 ### Added (`abmptools.gro2udf` 診断付きエラー — v1.x.x 候補)
 
 - `top_exporter.UDFExportError` 例外クラス + `_section()` context manager を
