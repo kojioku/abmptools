@@ -116,8 +116,18 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    import traceback
     try:
         main(sys.argv)
-    except RuntimeError:
-        print("ERROR: gro2udf failed.")
+    except SystemExit:
+        raise
+    except Exception as exc:
+        # Show the full diagnostic message + traceback so users see the
+        # section context attached by top_exporter.UDFExportError instead
+        # of a bare "gro2udf failed".
+        print(f"ERROR: gro2udf failed: {type(exc).__name__}: {exc}",
+              file=sys.stderr)
+        print("", file=sys.stderr)
+        print("--- traceback ---", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         sys.exit(1)
