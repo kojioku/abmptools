@@ -52,6 +52,14 @@ def _run_from_top(argv: list) -> None:
                              "Defaults to <top_stem>.udf → built-in template.")
     parser.add_argument("--out", dest="out_path", default=None,
                         help="Output UDF file path")
+    parser.add_argument("--cognac-version", dest="cognac_version", default=None,
+                        help="Override the cognac<N>.udf include in the template "
+                             "at runtime. Use e.g. `--cognac-version 110` when "
+                             "your OCTA install (e.g. OCTA84 / J-OCTA 9.1) does "
+                             "not ship cognac112.udf. The bundled default "
+                             "template requests cognac112; lower versions like "
+                             "110/111 are compatible because gro2udf only "
+                             "writes fields that exist in all of them.")
 
     # Strip the --from-top flag from argv before parsing
     filtered = [a for a in argv[1:] if a != "--from-top"]
@@ -82,7 +90,8 @@ def _run_from_top(argv: list) -> None:
 
     from .top_exporter import TopExporter
     TopExporter().export(top_path, gro_path, template_path, out_path,
-                         mdp_path=args.mdp_path)
+                         mdp_path=args.mdp_path,
+                         cognac_version=args.cognac_version)
     print("Written: {}".format(out_path))
 
 
