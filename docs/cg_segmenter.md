@@ -354,7 +354,7 @@ pytest tests/cg_segmenter/ -v
 ## 関連ドキュメント
 
 - [`docs/fragmenter.md`](fragmenter.md) — 姉妹モジュール `fragmenter` (FMO 用)
-- [`docs/cg_dpd.md`](cg_dpd.md) — **下流**: 本モジュール出力 (`{name}_monomer` + `{name}_calc_sett`) を fcews `aij.dat` と組み合わせて Cognac DPD 入力 UDF / J-OCTA dpm を生成する `cg.dpd` サブパッケージ (v1.26.0 候補)
+- [`docs/cg_dpd.md`](cg_dpd.md) — **下流**: 本モジュール出力 (`{name}_monomer` + `{name}_calc_sett`) を fcews `aij.dat` と組み合わせて Cognac DPD 入力 UDF / OCTA viewer dpm を生成する `cg.dpd` サブパッケージ (v1.26.0 候補)
 - [`docs/overview.md`](overview.md) — abmptools 全サブパッケージ一覧
 - `abmptools/fragmenter/cg_segmenter/README.md` — モジュール構成早見表
 

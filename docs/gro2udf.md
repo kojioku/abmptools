@@ -257,7 +257,7 @@ GRO ファイル内の `step % N == 0` のフレームのみ UDF レコードと
 
 `gen_for_udf.sh` で出力される multi-frame `.gro` (or `.xtc`) + `.xvg` を
 直接 gro2udf に渡すと、全フレームの座標 + 各フレームのエネルギー値を
-1 つの UDF に書き込める。J-OCTA Viewer で開けば trajectory も energy plot
+1 つの UDF に書き込める。OCTA viewer (GOURMET) で開けば trajectory も energy plot
 も同じ UDF から再生される:
 
 ```bash
@@ -274,7 +274,7 @@ python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
     --energy md/05_npt_final_energy.xvg \
     --out 05_full.udf
 
-# 3. J-OCTA Viewer で:
+# 3. OCTA viewer (GOURMET) で:
 #    File -> Open 05_full.udf
 #    → trajectory + energy plot がそのまま見える
 ```
@@ -345,18 +345,18 @@ rec=100: Bond=353.6, Total=1361.4, T=0.60, P=-0.00, ρ=0.6694, V=18992.4
 ```
 
 Time / Cell.a / Density 等は COGNAC native unit (`[tau]` / `[sigma]` /
-`[mass/sigma³]`) で書かれるが、J-OCTA Viewer は `Unit_Parameter` 経由で
+`[mass/sigma³]`) で書かれるが、OCTA viewer (GOURMET) は `Unit_Parameter` 経由で
 [ps] / [nm] / [g/cm³] 表記に戻して描画する。例えば `ρ=0.7 [mass/sigma³]`
 は `Unit_Parameter.{Length=0.1, Mass=1}` 経由で `0.7 × (1 amu / (0.1 nm)³) =
 0.7 × 1660 kg/m³ ≈ 1162 kg/m³` ≈ 1.16 g/cm³ (ketoprofen の expected density
 1.26 g/cm³ 付近)。
 
-## J-OCTA Viewer 連携: topology-only UDF + 後付け trajectory / energy
+## OCTA viewer (GOURMET) 連携: topology-only UDF + 後付け trajectory / energy
 
-J-OCTA Viewer は **topology だけ含む UDF** を開き、別途 `.gro` (trajectory)
+OCTA viewer (GOURMET) は **topology だけ含む UDF** を開き、別途 `.gro` (trajectory)
 や `.xvg` (energy time-series) を attach するワークフローをサポートする。
 gro2udf を `--topology-only` で呼ぶと、Structure record を **0 件** に
-した skeleton UDF が出力される (J-OCTA で trajectory を attach 経由で扱う):
+した skeleton UDF が出力される (OCTA viewer で trajectory を attach 経由で扱う):
 
 ```bash
 # (a) topology だけの skeleton UDF (initial frame なし) — Structure record 0 件
@@ -370,7 +370,7 @@ python -m abmptools.gro2udf --from-top build/system.top build/system.gro \
     --out 05_topology_with_initial.udf
 ```
 
-その後 J-OCTA で trajectory + energy を attach:
+その後 OCTA viewer で trajectory + energy を attach:
 
 ```bash
 # trajectory + energy は gen_for_udf.sh で生成
@@ -378,7 +378,7 @@ bash gen_for_udf.sh
 # → md/05_npt_final_nojump.gro  (multi-frame trajectory)
 # → md/05_npt_final_energy.xvg  (energy time-series)
 
-# J-OCTA Viewer で:
+# OCTA viewer (GOURMET) で:
 #    File -> Open 05_topology.udf
 #    Trajectory -> Load 05_npt_final_nojump.gro
 #    Energy plot -> Load 05_npt_final_energy.xvg
@@ -387,7 +387,7 @@ bash gen_for_udf.sh
 `--topology-only` 指定時の動作:
 
 - 出力 UDF の `totalRecord` =
-  - **0** (`--initial-gro` 省略時、skeleton モード、J-OCTA で trajectory 全体を attach)
+  - **0** (`--initial-gro` 省略時、skeleton モード、OCTA viewer で trajectory 全体を attach)
   - **1** (`--initial-gro <path>` 指定時、その gro の 1 frame だけ書く)
 - `Set_of_Molecules.molecule[]` には全 mol の atom / bond / angle / torsion
   が書かれる (描画 + topology 認識用)
@@ -396,7 +396,7 @@ bash gen_for_udf.sh
   Output_Interval_Steps}` も mdp から書かれる
 
 `gen_for_udf.sh` の `*_nojump.gro` (`gmx trjconv -pbc nojump`) と組み合わせる
-と、PBC を跨いだ連続軌跡が J-OCTA で滑らかに再生される。J-OCTA の reference
+と、PBC を跨いだ連続軌跡が OCTA viewer で滑らかに再生される。OCTA viewer の reference
 比較や energy plot 機能を使う際は、本 mode の skeleton UDF を **reference**
 として読み込み、別途実トラジェクトリ / xvg を attach する流れ。
 
@@ -434,11 +434,11 @@ UDFExportError: gro2udf: failed while writing section 'Interactions'.
                 template at `abmptools/gro2udf/default_template.udf`.
 ```
 
-### OCTA8.4 / J-OCTA-9.1-Student で `file not found:cognac112.udf` エラー
+### OCTA8.4 / OCTA8.4 で `file not found:cognac112.udf` エラー
 
 bundled template (`abmptools/gro2udf/default_template.udf`) は OCTA85 の
 cognac11.2 schema を前提に `\include{"cognac112.udf"}` を要求する。
-**OCTA8.4 / J-OCTA-9.1-Student には cognac11.2 schema 定義が無く** (cognac101
+**OCTA8.4 / OCTA8.4 には cognac11.2 schema 定義が無く** (cognac101
 までしか同梱されていない)、UDFManager が template-open 時点で失敗する:
 
 ```
@@ -471,10 +471,10 @@ cognac11.2 を使った場合と **出力データは完全に同一** (Cell.a=2
 
 ### 代替: OCTA8.4 の GOURMET で保存したミニマル COGNAC UDF を `--template` で渡す
 
-1. **OCTA8.4 の GOURMET を起動**し、J-OCTA 同梱のミニマル COGNAC sample UDF を
+1. **OCTA8.4 の GOURMET を起動**し、OCTA viewer 同梱のミニマル COGNAC sample UDF を
    読み込む。例えば以下のいずれか:
-   - `C:\J-OCTA-9.1-Student\bin\win64\ENGINES\cognac\sample\*.udf`
-   - `C:\J-OCTA-9.1-Student\GOURMET\sample\cognac*.udf`
+   - `C:\OCTA8.4\bin\win64\ENGINES\cognac\sample\*.udf`
+   - `C:\OCTA8.4\GOURMET\sample\cognac*.udf`
    - 既存の自分の COGNAC 計算 input UDF (小さいもの)
 
 2. **File → Save As** で別名保存 (例: `octa84_template.udf`)。GOURMET が
@@ -504,6 +504,6 @@ python -m abmptools.gro2udf --from-top build\system.top md\05_npt_final.gro ^
 ### `UDFExportError: UDFManager module is required but could not be imported`
 
 OCTA の `python3/` ディレクトリへ `PYTHONPATH` を通していない。section 1.2 の
-手順 ([tutorial_hbond_imc.md](tutorial_hbond_imc.md#12-udfmanager-の入手-octa--j-octa))
+手順 ([tutorial_hbond_imc.md](tutorial_hbond_imc.md#12-udfmanager-の入手-octa--octa-viewer))
 通り、`OCTA85_HOME` / `UDF_DEF_PATH` / `PYTHONPATH` × 2 (GOURMET + ENGINES)
 の 4 行を `~/.bashrc` に追記してから `source ~/.bashrc` で反映。

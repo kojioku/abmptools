@@ -33,7 +33,7 @@ import sys
 #: Built-in fallback template bundled with this package.
 _BUILTIN_TEMPLATE = os.path.join(os.path.dirname(__file__), "default_template.udf")
 
-#: cognac10.1 (OCTA8.4 / J-OCTA-9.1-Student) compatible bundled template.
+#: cognac10.1 (OCTA8.4 / OCTA8.4) compatible bundled template.
 #: Used automatically when ``--cognac-version 101`` / ``102`` is given and no
 #: ``--template`` override is supplied.
 _BUILTIN_TEMPLATE_COGNAC101 = os.path.join(
@@ -62,7 +62,7 @@ def _run_from_top(argv: list) -> None:
     parser.add_argument("--cognac-version", dest="cognac_version", default=None,
                         help="Override the cognac<N>.udf include in the template "
                              "at runtime. Use e.g. `--cognac-version 110` when "
-                             "your OCTA install (e.g. OCTA84 / J-OCTA 9.1) does "
+                             "your OCTA install (e.g. OCTA84 / OCTA viewer 9.1) does "
                              "not ship cognac112.udf. The bundled default "
                              "template requests cognac112; lower versions like "
                              "110/111 are compatible because gro2udf only "
@@ -71,7 +71,7 @@ def _run_from_top(argv: list) -> None:
                         help="Write the topology (Set_of_Molecules / "
                              "Molecular_Attributes / Interactions) only, "
                              "without any Structure record (skeleton UDF). "
-                             "Use this when J-OCTA Viewer will load the "
+                             "Use this when OCTA viewer (GOURMET) will load the "
                              "trajectory and energy separately. Pair with "
                              "`--initial-gro <path>` to also embed a single "
                              "initial frame.")
@@ -116,7 +116,7 @@ def _run_from_top(argv: list) -> None:
             print("Template: {} (auto-detected)".format(template_path))
         else:
             # When the user explicitly asked for a cognac10.x schema
-            # (OCTA8.4 / J-OCTA-9.1-Student), pick the cognac101-compatible
+            # (OCTA8.4 / OCTA8.4), pick the cognac101-compatible
             # bundled template so its data section parses on that install.
             # NOTE: enumerate cognac10.x explicitly — `str.startswith("10")`
             # would erroneously match `"110"`/`"112"` (those are cognac 11.x,
@@ -150,10 +150,10 @@ def _run_from_top(argv: list) -> None:
     if args.topology_only:
         if args.initial_gro_path:
             print(f"  (topology + 1 initial frame from {args.initial_gro_path!s}. "
-                  f"Load further trajectory / energy in J-OCTA Viewer.)")
+                  f"Load further trajectory / energy in OCTA viewer (GOURMET).)")
         else:
             print("  (topology-only — no Structure record. Load trajectory "
-                  "/ energy directly in J-OCTA Viewer.)")
+                  "/ energy directly in OCTA viewer (GOURMET).)")
     elif args.trajectory_path:
         print("  (embedded {} frames{})".format(
             "trajectory",

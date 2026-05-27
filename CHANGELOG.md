@@ -64,7 +64,7 @@
 ### Added (`abmptools.gro2udf` OCTA8.4 対応 + 単位 fallback — v1.x.x 候補)
 
 - **`abmptools/gro2udf/default_template_cognac101.udf` (新規 bundle)** —
-  OCTA8.4 / J-OCTA-9.1-Student (cognac10.1 までしか同梱されていない環境)
+  OCTA8.4 / OCTA8.4 (cognac10.1 までしか同梱されていない環境)
   向けの schema 互換 minimal template。`\include{"cognac101.udf"}` +
   `Unit_Parameter:{"","",1.0,4.184,0.1}` を含み、cognac10.1 でも
   `[nm]` / `[ps]` / `[kJ/mol]` の unit alias が解決される。cognac11.2 default
@@ -81,7 +81,7 @@
 - `UDFExportError` の hint メッセージを cognac10.1 環境向けの具体ガイドに
   刷新 (推奨 `--cognac-version 101`、代替 GOURMET Save As + `--template`)。
 - docs/gro2udf.md にトラブルシューティング section
-  「OCTA8.4 / J-OCTA-9.1-Student で `file not found:cognac112.udf` エラー」
+  「OCTA8.4 / OCTA8.4 で `file not found:cognac112.udf` エラー」
   を新規追加、`--cognac-version 101` を推奨対処として記載。
 - bundled cognac10.1 template の元 (`A20B40A20_in.udf`) はユーザー提供
   (粗視化 sample、`Unit_Parameter` を追加して unit alias を有効化済み)。
@@ -106,10 +106,10 @@
 - tests/test_top_exporter_frames_override.py に 2 件追加 (missing template /
   section failure context)、5/5 PASS。
 
-### Added (`abmptools.amorphous` J-OCTA export — v1.x.x 候補)
+### Added (`abmptools.amorphous` OCTA viewer export — v1.x.x 候補)
 
 - `mdp_protocol.write_udf_export_script(output_dir, ndx, stage, n_energy_terms)`
-  新規 API。OpenFF amorphous protocol 後に J-OCTA Viewer で読み込み可能な
+  新規 API。OpenFF amorphous protocol 後に OCTA viewer (GOURMET) で読み込み可能な
   energy.xvg + nojump gro を生成する `gen_for_udf.sh` を書き出す。
 - 内容:
   - `seq <N> | gmx energy -f <stage>.edr -o <stage>_energy.xvg`
@@ -118,7 +118,7 @@
   - `echo 0 | gmx trjconv -f <stage>.{trr,xtc} -s <stage>.tpr -pbc nojump
     -o <stage>_nojump.gro` (`wrap_pbc.sh` の `-pbc mol -ur compact` と
     違い、分子を box 内に wrap せず PBC を跨いで連続的に追跡。
-    J-OCTA Viewer での軌跡再生に適する)
+    OCTA viewer (GOURMET) での軌跡再生に適する)
 - `FormulationBuilder.build()` から `wrap_pbc.sh` の隣に自動生成。
   返り値 dict に `udf_script` key を追加。
 - 既存 sample (`pva_amorphous/`、`ketoprofen*/`) の `md/` 配下にも script
@@ -257,9 +257,9 @@
 - **`<prefix>_classification.csv` 新規追加**: 全 carboxyl / amide ごとの
   (record, group_type, mol_index, group_index, role, partner_count, partners)
   テーブル。NMR の COOH-C / amide-C 信号分離と直接対応する物理量。
-- **`<prefix>.bdf` (J-OCTA プリ描画用コピー) 新規出力**: Mol_Name 維持 (元の
+- **`<prefix>.bdf` (OCTA viewer プリ描画用コピー) 新規出力**: Mol_Name 維持 (元の
   `molecular` 等) の単純コピー。`<prefix>_colored.bdf` (Mol_Name リネーム済) は
-  J-OCTA のプリ描画で空表示になる問題への対処。CLI option `--no-copy-uncolored`
+  OCTA viewer のプリ描画で空表示になる問題への対処。CLI option `--no-copy-uncolored`
   でスキップ可。
 - **IMC ベースライン値の変更**: 旧 single=73 (COOH→amide H-bond の両当事者を
   カウント) → 新 single=49 (COOH 状態が single の COOH のみカウント、amide
@@ -268,7 +268,7 @@
 - **verbose log の表現変更**: `COOH dual/single/free=10/49/66 (8%/39%/53%),
   amide accept/free=49/76 (39%/61%)` のように官能基単位の比率を表示。
 - **gourmet 可視化手順の docs 改訂**: Python パネルで
-  `show.all("line","mol","molname",...)` に書換が必要なこと、J-OCTA プリ描画
+  `show.all("line","mol","molname",...)` に書換が必要なこと、OCTA viewer プリ描画
   には `<prefix>.bdf` を使うことを明記。
 - **Python action 経路の追加** (`colorize_mode="action"`): GOURMET
   `Draw_Attributes` schema が Mol_Name 維持での per-functional-group
@@ -279,21 +279,21 @@
   sphere overlay 描画。1 分子内に複数官能基が異なる役割で参加するケースも
   正しく可視化される。CLI `--colorize-mode {molname,action,both}`、default は
   backward compat の `molname`。`colorize_udf_action()` API 新規 export。
-- **`<prefix>.bdf` の Attributes[] に hbond タグを append** (J-OCTA Attribute
+- **`<prefix>.bdf` の Attributes[] に hbond タグを append** (OCTA viewer Attribute
   フィルタ対応): 各 functional-group atom (carboxyl c/o/oh/ho、amide c/o/n)
   の `Set_of_Molecules.molecule[].atom[].Attributes[]` 末尾に
   `Name='hbond' Value='Dual'/'Single'/'Free'/'Accept'` を append。既存
-  Attributes (`Name='1' Value='molecular:<id>'` 等の J-OCTA 内部用) は
-  touch せず idempotent (再実行で重複 entry 作らない)。J-OCTA で
+  Attributes (`Name='1' Value='molecular:<id>'` 等の OCTA viewer 内部用) は
+  touch せず idempotent (再実行で重複 entry 作らない)。OCTA viewer で
   `<prefix>.bdf` を開いた後、Attribute フィルタで `hbond=Dual` 等の atom
   のみ可視化できる (色分けではなくカテゴリフィルタ)。CLI
   `--no-write-attributes` / `--attributes-name NAME` option、default `hbond`。
   `write_hbond_attributes()` API 新規 export、`AnalyzerConfig` に
   `do_write_attributes=True` / `attributes_name='hbond'` フィールド追加。
-- **`<prefix>_show.py` 併出** (J-OCTA Viewer 対応): J-OCTA Viewer は
+- **`<prefix>_show.py` 併出** (OCTA viewer (GOURMET) 対応): OCTA viewer (GOURMET) は
   `<prefix>_show.act` の autorun action 形式で落ちることがあるため、同じ描画
   ロジックを autorun ラッパー無しの **プレーン Python script** として
-  `<prefix>_show.py` に出力。J-OCTA で `<prefix>.bdf` (Mol_Name 維持 copy)
+  `<prefix>_show.py` に出力。OCTA viewer で `<prefix>.bdf` (Mol_Name 維持 copy)
   を開いた後、Python パネルから `Load…` → `Run` で同じ役割色 overlay が描画
   される。`write_show_python_script()` API 新規 export。`colorize_mode in
   {action, both}` で .act / .py 両方を併出。
@@ -301,21 +301,21 @@
 ### Added (`abmptools.cg.dpd` サブパッケージ — v1.26.0 候補)
 
 - **DPD 系入力ファイルビルダー**: `cg_segmenter` (R0) で生成した CG segment + fcews
-  `aij.dat` (Python 辞書 script) から Cognac DPD 入力 UDF / J-OCTA dpm を生成する
+  `aij.dat` (Python 辞書 script) から Cognac DPD 入力 UDF / OCTA viewer dpm を生成する
   `abmptools.cg.dpd` サブパッケージを追加。 dpdgen (Koji Okuwaki 本人作品) のロジックを
   参考に **subprocess も import もせず abmptools 内で自前実装**。
 - **3 ルート構成**:
   - R0 (既存): `cg_segmenter dpdgen` で `{name}_monomer` + `{name}_calc_sett` 生成
   - R1 (新): `monomer + calc_sett + aij.dat` → Cognac DPD 入力 UDF (`*_uin.udf`)、
     plain text writer、 UDFManager 非依存 (abmptoolsenv 等 non-OCTA 環境でも動く)
-  - R2 (新): `monomer + aij.dat` → J-OCTA dpm + `monomer-lib/<seg>/Virtual.mom` +
+  - R2 (新): `monomer + aij.dat` → OCTA viewer dpm + `monomer-lib/<seg>/Virtual.mom` +
     `#Message.txt`、 **B 案 (user template + abmptools patch)** で権利配慮
 - **権利配慮の設計**:
-  - **R1**: 冒頭 1 行 `\include{"cognac112.udf"}` で class 定義を J-OCTA install dir 経由で
-    resolve、 abmptools は OCTA / J-OCTA spec を一切持たない
-  - **R2**: user が J-OCTA で空 dpm template を 1 回作成 → abmptools が `\begin{data}` 内の
+  - **R1**: 冒頭 1 行 `\include{"cognac112.udf"}` で class 定義を OCTA viewer install dir 経由で
+    resolve、 abmptools は OCTA / OCTA viewer spec を一切持たない
+  - **R2**: user が OCTA viewer で空 dpm template を 1 回作成 → abmptools が `\begin{data}` 内の
     5 ブロック (SegmentModel / SegmentPairModel / PolymerModel / DpdInput / FcewsParam)
-    のみを `patch_dpm` で brace-aware に差し替え。 class 定義 (商用 J-OCTA spec) は
+    のみを `patch_dpm` で brace-aware に差し替え。 class 定義 (商用 OCTA viewer spec) は
     template のまま温存。
   - **Virtual.mom**: 全 segment dir に user 提供を copy するのみ
 - **モジュール構成** (`abmptools/cg/dpd/`, 9 files, ~1435 行):
