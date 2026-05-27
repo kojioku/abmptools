@@ -263,6 +263,7 @@ vmd 04_anneal.tpr -xtc 04_anneal_pbc.xtc
 # 5. OCTA viewer 用 energy.xvg + nojump gro を抽出
 bash gen_for_udf.sh
 # → 05_npt_final_energy.xvg + 05_npt_final_nojump.gro を生成
+# 6. abmptools.gro2udf で OCTA UDF/BDF に変換 (Step 7 参照)
 ```
 
 `wrap_pbc.sh` は `gmx trjconv -pbc mol -ur compact` を各 xtc と最終 gro に適用し、
@@ -275,6 +276,99 @@ bash gen_for_udf.sh
 - `<stage>_nojump.gro` : `echo 0 | gmx trjconv -f <stage>.{trr,xtc} -s <stage>.tpr
   -pbc nojump -o <stage>_nojump.gro` で分子を box 内に wrap せず、PBC を
   跨いで連続的に追跡した multi-frame gro
+
+## OCTA UDF/BDF への変換 (`abmptools.gro2udf`)
+
+GROMACS の出力 (top + gro + mdp + xvg) を OCTA cognac UDF に変換すると、
+**OCTA viewer (GOURMET)** で topology + trajectory + energy plot を 1 ファイル
+から再生できます。詳細リファレンスは [gro2udf.md](gro2udf.md) を参照。
+
+### 標準フロー (multi-frame + xvg 全部入り)
+
+```bash
+cd run1   # build / md / input/ がある directory
+
+# 全部入り UDF: topology + 101 frame trajectory + xvg energy + mdp Time params
+python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
+    --mdp md/05_npt_final.mdp \
+    --trajectory md/05_npt_final_nojump.gro \
+    --energy md/05_npt_final_energy.xvg \
+    --out 05_full.udf
+```
+
+生成された `05_full.udf` に書込まれる内容:
+
+| section | 内容 |
+|---|---|
+| `Set_of_Molecules.molecule[]` | 全分子の atom (element + 力場 type 名) / bond / angle / torsion |
+| `Molecular_Attributes` | atom type / bond / angle / torsion potential、interaction site type |
+| `Interactions.Pair_Interaction[]` | LJ σ/ε (per atom-type pair) |
+| `Structure (record 0..N-1)` | 各 frame の atom 座標 + Cell + Time + Steps |
+| `Statistics_Data` (record ごと) | Energy.{Bond, Angle, Torsion, Nonbonding, Electrostatic, Potential, Kinetic, Total, Hamiltonian} / Temperature / Pressure / Density / Volume、それぞれ Instantaneous / Batch_Average / Total_Average の 3 field |
+| `Simulation_Conditions.Dynamics_Conditions.Time` | mdp 由来の `delta_T` (= dt) / `Total_Steps` (= nsteps) / `Output_Interval_Steps` (= nstxout-compressed) |
+
+OCTA viewer (GOURMET) で `05_full.udf` を開くと:
+- 3D viewer で trajectory アニメーション再生
+- atom テーブルで `Atom_Name` (`C`/`H`/`O`) + `Atom_Type_Name` (`MOL0_X` / `c3` 等)
+  + per-mol local `Atom_ID` 表示、元素ベース CPK 色描画
+- 統計データプロットで全フレームの Total エネルギー / 温度 / 圧力 / 密度などを
+  時系列表示
+
+### topology のみ (skeleton UDF、reference 用)
+
+trajectory / energy を別途 OCTA viewer で attach する流れにしたい場合は
+`--topology-only` 単独で skeleton UDF を生成 (Structure record 0 件):
+
+```bash
+python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
+    --mdp md/05_npt_final.mdp --topology-only --out 05_topology.udf
+```
+
+初期 1 frame も含めたい場合は `--initial-gro` を併用:
+
+```bash
+python -m abmptools.gro2udf --from-top build/system.top build/system.gro \
+    --mdp md/05_npt_final.mdp --topology-only \
+    --initial-gro md/05_npt_final.gro \
+    --out 05_topology_with_initial.udf
+```
+
+### OCTA8.4 / J-OCTA-9.1-Student 環境向け
+
+OCTA8.4 / J-OCTA-9.1-Student は cognac10.1 までしか同梱していないため、
+default 出力 (cognac11.2 schema 要求) は読めません。`--cognac-version 101` を
+付けて bundled の cognac10.1 互換 template を auto-select させます:
+
+```bash
+python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
+    --mdp md/05_npt_final.mdp --cognac-version 101 \
+    --trajectory md/05_npt_final_nojump.gro \
+    --energy md/05_npt_final_energy.xvg \
+    --out 05_full.udf
+```
+
+cognac10.1 / cognac11.2 とも gro2udf 出力データは **完全に同一** (Cell.a /
+Statistics_Data 各 field 等)。違うのは `\include` する schema 定義 file 名のみ。
+
+### 実機検証 (ketoprofen amorphous、50 mol × 33 atom × 101 frame)
+
+```
+totalRecord = 101
+Simulation_Conditions.Dynamics_Conditions.Time:
+  delta_T              = 0.0205 [tau]  (= mdp dt=0.001 ps)
+  Total_Steps          = 500000
+  Output_Interval_Steps = 5000
+
+各 record で:
+- 各 frame の atom 座標 (1650 atom)
+- Cell.{a, b, c} (≈ 2.63 nm cube)
+- Energy.{Bond, Angle, ..., Total}.{Inst, Batch, Total} (kJ/mol)
+- Temperature ([K]) / Pressure ([bar]) / Density ([kg/m^3]) / Volume ([nm^3])
+  全 3 field embed
+```
+
+詳細仕様 (CLI option / xvg→UDF mapping / unit alias / cognac engine 対応 /
+トラブルシューティング) は [gro2udf.md](gro2udf.md) 参照。
 
 ## PubChem 自動ダウンロード (`abmptools.amorphous.pubchem`)
 
