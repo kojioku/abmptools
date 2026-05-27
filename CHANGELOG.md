@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.gro2udf` multi-frame trajectory + xvg energy — v1.x.x 候補)
+
+- 新規 `abmptools/gro2udf/trajectory_io.py`:
+  - `frames_from_multi_gro(path)` — `gmx trjconv -pbc nojump -o output.gro`
+    形式の multi-frame `.gro` を pure-Python で parse (stdlib only)
+  - `read_xvg(path)` — gmx energy 出力の xvg を `(times, {legend: values})`
+    に parse
+- `TopExporter.export()` / `.export_model()` に
+  `trajectory_path` / `energy_path` / `energy_times` / `energy_series`
+  パラメータを追加。CLI で `--trajectory <.gro/.xtc>` / `--energy <.xvg>`
+  を指定すると全 frame の Structure record + Statistics_Data.Energy が
+  1 UDF に embed される
+- xvg → UDF energy field map (`_XVG_TO_UDF_ENERGY` dict):
+  Bond / Angle / Proper Dih.+Improper Dih.→Torsion / LJ-14+LJ(SR)+
+  Disper.corr.→Nonbonding / Coulomb*→Electrostatic / Potential / Kinetic /
+  Total
+- frame time と xvg time grid は nearest-neighbour で照合 (501 row vs
+  101 frame など denser xvg からも正しく取れる)
+- schema 上に energy field が無い cognac 古版では silently skip (try/except)
+- docs/gro2udf.md にトラブルシューティングの前 section
+  「Multi-frame trajectory + energy を 1 UDF に embed」を新規追加
+- tests: `_capture` helper signature を `energy_values=None` 受け入れに更新
+  + 既存 6/6 PASS
+- 実機検証 (ketoprofen amorphous 50 mol × 33 atom × 101 frame):
+    totalRecord=101、各 frame で Cell.a + Bond + Angle 値が正常に embedding
+
 ### Added (`abmptools.gro2udf` OCTA8.4 対応 + 単位 fallback — v1.x.x 候補)
 
 - **`abmptools/gro2udf/default_template_cognac101.udf` (新規 bundle)** —

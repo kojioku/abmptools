@@ -253,6 +253,72 @@ GRO ファイル内の `step % N == 0` のフレームのみ UDF レコードと
 | udf-and-gro | `<udf_stem>_groout.udf`（カレントディレクトリ） |
 | --from-top | `<gro_stem>_fromtop.udf`（カレントディレクトリ） |
 
+## Multi-frame trajectory + energy を 1 UDF に embed
+
+`gen_for_udf.sh` で出力される multi-frame `.gro` (or `.xtc`) + `.xvg` を
+直接 gro2udf に渡すと、全フレームの座標 + 各フレームのエネルギー値を
+1 つの UDF に書き込める。J-OCTA Viewer で開けば trajectory も energy plot
+も同じ UDF から再生される:
+
+```bash
+# 1. (前提) MD 実行 + gen_for_udf.sh で trajectory + energy を生成
+bash run_all.sh
+bash gen_for_udf.sh
+# → md/05_npt_final_nojump.gro  (multi-frame、gmx trjconv -pbc nojump)
+# → md/05_npt_final_energy.xvg  (gmx energy 全 term)
+
+# 2. gro2udf で全部入りの UDF を生成
+python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
+    --mdp md/05_npt_final.mdp \
+    --trajectory md/05_npt_final_nojump.gro \
+    --energy md/05_npt_final_energy.xvg \
+    --out 05_full.udf
+
+# 3. J-OCTA Viewer で:
+#    File -> Open 05_full.udf
+#    → trajectory + energy plot がそのまま見える
+```
+
+`--trajectory` 指定時の動作:
+
+- `.gro` 拡張子: multi-frame gro を pure-Python parser で読む (各 frame の
+  title 行 `t=<ps> step=<N>` から時刻 / step を抽出、coord は fixed-column)
+- `.xtc` 拡張子: 既存の MDAnalysis 経由 `frames_from_xtc()` 経路 (要
+  `MDAnalysis` install)
+
+`--energy` 指定時の挙動:
+
+- xvg の `@ sN legend "..."` から column 名を取得
+- xvg の time grid と trajectory frame time を nearest-neighbour で照合
+- 各 frame の `Statistics_Data.Energy.Instantaneous` に以下を書込み:
+
+  | xvg legend | UDF field |
+  |---|---|
+  | Bond | Bond |
+  | Angle | Angle |
+  | Proper Dih. + Improper Dih. | Torsion (合算) |
+  | LJ-14 + LJ (SR) + Disper. corr. | Nonbonding (合算) |
+  | Coulomb-14 + Coulomb (SR) + Coul. recip. | Electrostatic (合算) |
+  | Potential | Potential |
+  | Kinetic En. | Kinetic |
+  | Total Energy | Total |
+
+  schema 上に対応 field が無い場合は silently skip (cognac10.1 で field 数が
+  少ない場合)。
+
+- `Hamiltonian` は xvg に直接無いので 0.0 default。
+
+実機検証 (ketoprofen amorphous、50 mol × 33 atom × 101 frame):
+```
+totalRecord = 101
+rec=0:   Time=0.0,    Cell.a=26.286 [sigma], Bond=381.6, Angle=530.6  [kJ/mol]
+rec=50:  Time=5113.7, Cell.a=26.530,         Bond=390.4, Angle=536.4
+rec=100: Time=10227.4, Cell.a=26.680,        Bond=353.6, Angle=591.7
+```
+
+Time / Cell.a は COGNAC native unit (`[tau]` / `[sigma]`) で書かれるが、
+J-OCTA Viewer は `Unit_Parameter` 経由で [ps] / [nm] 表記に戻して描画する。
+
 ## J-OCTA Viewer 連携: topology-only UDF + 後付け trajectory / energy
 
 J-OCTA Viewer は **topology だけ含む UDF** を開き、別途 `.gro` (trajectory)
