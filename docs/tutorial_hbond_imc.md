@@ -268,28 +268,105 @@ gourmet で開いてから Python panel の `show.all('line','mol','molname',...
 
 ## 5. Jupyter UI で操作 (任意)
 
+`sample/hbond/imc_amorphous/run_notebook.ipynb` は IMC 入力 BDF を bundle
+した default で起動するが、**環境変数 `HBOND_BDF` を渡せば任意の BDF / UDF**
+(PVA / peptide / アルコール / 混合系等) に切替できる。
+
+### 5.1 起動コマンド (OS 別)
+
+`abmptools` editable install 済みの env を有効化したシェルから:
+
+#### Linux / macOS (bash / zsh)
+
 ```bash
 cd <abmptools>/sample/hbond/imc_amorphous
-PATH=$(dirname $(which python)):$PATH jupyter notebook --no-browser --port=8888 run_notebook.ipynb
+
+# (a) default (bundle 済み IMC)
+jupyter notebook --no-browser --port=8888 run_notebook.ipynb
+
+# (b) 別 BDF / UDF に切替 (環境変数で 1 行 inline 指定)
+HBOND_BDF=/path/to/pva.udf jupyter notebook --port=8888 run_notebook.ipynb
+
+# (c) 環境変数を export 後に起動
+export HBOND_BDF=/path/to/pva.udf
+jupyter notebook --port=8888 run_notebook.ipynb
+```
+
+#### Windows PowerShell
+
+```powershell
+cd <abmptools>\sample\hbond\imc_amorphous
+
+# (a) default
+jupyter notebook --no-browser --port=8888 run_notebook.ipynb
+
+# (b) 別 BDF / UDF に切替
+$env:HBOND_BDF = "C:\path\to\pva.udf"
+jupyter notebook --port=8888 run_notebook.ipynb
+
+# 後で default に戻す
+Remove-Item Env:HBOND_BDF
+```
+
+#### Windows cmd
+
+```cmd
+cd <abmptools>\sample\hbond\imc_amorphous
+
+REM (a) default
+jupyter notebook --no-browser --port=8888 run_notebook.ipynb
+
+REM (b) 別 BDF / UDF に切替
+set HBOND_BDF=C:\path\to\pva.udf
+jupyter notebook --port=8888 run_notebook.ipynb
+
+REM default に戻す
+set HBOND_BDF=
 ```
 
 (port 8888 が使用中なら `--port=8890` 等に変更)
 
-ブラウザで notebook を開き、最初のセル
-`from abmptools.hbond import open_panel; panel = open_panel(BDF)` を実行する
-と GUI パネル展開:
+### 5.2 パネル展開後の widget
+
+ブラウザで notebook を開き、最初のセルを実行すると最終的に
+`from abmptools.hbond import open_panel; panel = open_panel(BDF)` で
+ipywidgets GUI パネルが展開:
 
 | Widget | 内容 |
 |---|---|
 | info HTML | n_molecules / n_records / 検出 force field / 官能基カウント |
 | **mol[0] 2D 構造図** | RDKit SVG (carboxyl=赤 / amide=青 ハイライト) |
 | **Mode** dropdown | `imc` (4-species、本チュートリアル) / `generic` (PVA 等の任意系) |
-| Donor / Acceptor checkboxes | 任意官能基組合せ |
-| 検出基準 | luzar-chandler / strict / custom |
+| **mol prefix** text | default `IMC`、別系名 (`PVA`, `peptide` 等) に編集可 |
+| **Donor groups** checkboxes | carboxyl / amide_donor / amine_donor / hydroxyl を複数選択可 |
+| **Acceptor groups** checkboxes | carboxyl_O / amide_O / hydroxyl_O / ether_O を複数選択可 |
+| 検出基準 dropdown | luzar-chandler / strict / custom (custom 時 d_DA / d_HA / 角度 slider 有効) |
 | Lifetime checkbox + gap tolerance + dt | multi-record の時 |
 | **Run** ボタン | 解析実行 → stats 表 + count plot inline 表示 |
 
-詳細は `sample/hbond/imc_amorphous/run_notebook.ipynb` を参照。
+### 5.3 別系での使い方例
+
+PVA (アルコール、generic mode) を解析する場合:
+
+```bash
+# Linux
+HBOND_BDF=/path/to/pva_traj.udf jupyter notebook run_notebook.ipynb
+```
+
+ブラウザのパネルで:
+
+1. **Mode dropdown → `generic`** に切替
+2. **mol prefix → `PVA`** に編集
+3. **Donor groups → `hydroxyl` のみチェック** (COOH は無いので外す)
+4. **Acceptor groups → `hydroxyl_O` のみチェック**
+5. 検出基準は luzar-chandler のまま
+6. **Run** をクリック
+
+→ donor-type × acceptor-type pair の per-record 集計が表示される
+(出力 CSV: `<prefix>_pair_stats.csv`)。
+
+詳細は `sample/hbond/imc_amorphous/run_notebook.ipynb` の cell[0] markdown
+にも書かれている。
 
 ---
 
