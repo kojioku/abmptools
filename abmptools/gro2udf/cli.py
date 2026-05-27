@@ -88,8 +88,12 @@ def _run_from_top(argv: list) -> None:
             # When the user explicitly asked for a cognac10.x schema
             # (OCTA8.4 / J-OCTA-9.1-Student), pick the cognac101-compatible
             # bundled template so its data section parses on that install.
+            # NOTE: enumerate cognac10.x explicitly — `str.startswith("10")`
+            # would erroneously match `"110"`/`"112"` (those are cognac 11.x,
+            # not cognac 10.x).
             cv = args.cognac_version
-            if cv is not None and str(cv).startswith("10"):
+            cognac10x = {"100", "101", "102"}
+            if cv is not None and str(cv) in cognac10x:
                 template_path = _BUILTIN_TEMPLATE_COGNAC101
                 print("Template: {} (built-in cognac10.x default)".format(
                     template_path))
