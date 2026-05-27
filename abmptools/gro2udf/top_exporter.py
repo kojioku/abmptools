@@ -61,6 +61,32 @@ def _rewrite_cognac_include(udf_path: str, cognac_version: str) -> None:
     path.write_text(new_text)
 
 
+_OPENFF_TYPE_RE = __import__("re").compile(r"^MOL\d+_(\d+)$")
+
+
+def _display_type_name(type_name: str, element: str) -> str:
+    """Convert an OpenFF interchange-style ``MOL0_<N>`` atom-type name to
+    an ``<element><N>`` form (e.g. ``MOL0_4`` -> ``C4``), so J-OCTA's
+    3D viewer can infer the element from the leading character.
+
+    Non-OpenFF type names (GAFF ``c3``, OPLS ``opls_267``, etc.) are passed
+    through unchanged — they already start with the element letter by
+    convention.
+
+    Why: OpenFF SMIRNOFF / interchange assigns per-atom unique type names
+    starting with the prefix ``MOL0_``. J-OCTA treats the leading character
+    as the element symbol; "M" is interpreted as Mg / Mn and the viewer
+    falls back to assigning a different random color to every atom type,
+    breaking element-based CPK rendering. Prefixing with the actual element
+    letter restores correct rendering while preserving the per-atom uniqueness
+    needed by LJ Pair_Interaction.
+    """
+    m = _OPENFF_TYPE_RE.match(type_name)
+    if m:
+        return f"{element}{m.group(1)}"
+    return type_name
+
+
 def _put_with_unit_fallback(uobj, value, path, indices=None, unit=None):
     """Wrap ``uobj.put`` so callers can request a unit alias (e.g. ``"[nm]"``)
     that may not exist in older cognac schemas.
@@ -267,7 +293,11 @@ class TopExporter:
             uobj.put(mol_name, "Set_of_Molecules.molecule[].Mol_Name", [imol])
 
             for iatom, atom in enumerate(spec.atoms):
-                uobj.put(ncount,
+                # Atom_ID is per-molecule local 0-indexed (matches the COGNAC
+                # convention used by cognac-shipped sample BDFs; using a
+                # global counter here made J-OCTA's atom-table display the
+                # last molecule's offset (1617..1649) which looked off).
+                uobj.put(iatom,
                          "Set_of_Molecules.molecule[].atom[].Atom_ID",
                          [imol, iatom])
                 # Atom_Name と Atom_Type_Name の役割分担 (2026-05-27 最終):
@@ -291,10 +321,11 @@ class TopExporter:
                 # - これにより `Atom_Type_Name` / `interaction_Site[].Type_Name`
                 #   / `Molecular_Attributes.Atom_Type[].Name` が完全に同一値
                 #   となり、UDF 内の atom type 参照整合性が自然に取れる。
+                display_type = _display_type_name(atom.type_name, atom.element)
                 uobj.put(atom.element,
                          "Set_of_Molecules.molecule[].atom[].Atom_Name",
                          [imol, iatom])
-                uobj.put(atom.type_name,
+                uobj.put(display_type,
                          "Set_of_Molecules.molecule[].atom[].Atom_Type_Name",
                          [imol, iatom])
                 uobj.put(0,
@@ -314,7 +345,7 @@ class TopExporter:
                          "Set_of_Molecules.molecule[].electrostatic_Site[].atom[]",
                          [imol, iatom, 0])
 
-                uobj.put(atom.type_name,
+                uobj.put(display_type,
                          "Set_of_Molecules.molecule[].interaction_Site[].Type_Name",
                          [imol, iatom])
                 uobj.put(iatom,
@@ -470,17 +501,24 @@ class TopExporter:
         uobj.jump(-1)
 
         # --- Atom_Type (unique types in order of first appearance) ---
-        seen_types: List[str] = []
+        # Each entry maps a display name (e.g. "C4", "H19") to the mass of the
+        # original OpenFF interchange type (MOL0_X). The display name matches
+        # what we wrote in Set_of_Molecules.atom[].Atom_Type_Name and
+        # interaction_Site[].Type_Name, preserving UDF cross-references.
+        seen_types: List[tuple] = []  # list of (display_name, raw_type_name)
+        seen_keys: set = set()
         for spec in model.mol_specs:
             for atom in spec.atoms:
-                if atom.type_name not in seen_types:
-                    seen_types.append(atom.type_name)
+                if atom.type_name not in seen_keys:
+                    seen_keys.add(atom.type_name)
+                    display = _display_type_name(atom.type_name, atom.element)
+                    seen_types.append((display, atom.type_name))
 
-        for ndata, atype in enumerate(seen_types):
-            uobj.put(atype,
+        for ndata, (display, raw_type) in enumerate(seen_types):
+            uobj.put(display,
                      "Molecular_Attributes.Atom_Type[].Name",
                      [ndata])
-            mass = model.mass_dict.get(atype, 0.0)
+            mass = model.mass_dict.get(raw_type, 0.0)
             uobj.put(mass,
                      "Molecular_Attributes.Atom_Type[].Mass",
                      [ndata])
@@ -569,10 +607,14 @@ class TopExporter:
         uobj.jump(-1)
 
         # Collect atom types actually referenced in Set_of_Molecules
+        # and build raw_type -> display_name lookup (e.g. MOL0_4 -> C4).
         used_types: set = set()
+        display_map: dict = {}
         for spec in model.mol_specs:
             for atom in spec.atoms:
                 used_types.add(atom.type_name)
+                display_map[atom.type_name] = _display_type_name(
+                    atom.type_name, atom.element)
 
         # Molecular_Attributes.Interaction_Site_Type
         ncount = 0
@@ -580,7 +622,7 @@ class TopExporter:
             if at.name not in used_types:
                 continue
             rval = at.sigma * 1.5
-            uobj.put(at.name,
+            uobj.put(display_map.get(at.name, at.name),
                      "Molecular_Attributes.Interaction_Site_Type[].Name",
                      [ncount])
             uobj.put(1,
@@ -622,12 +664,14 @@ class TopExporter:
 
                 epsilon = (e1 * e2) ** 0.5
                 cutoff = sigma * s2c
-                name = "{}-{}".format(at1.name, at2.name)
+                d1 = display_map.get(at1.name, at1.name)
+                d2 = display_map.get(at2.name, at2.name)
+                name = "{}-{}".format(d1, d2)
 
-                uobj.put(name,          location + ".Name",           [ncount])
+                uobj.put(name,            location + ".Name",           [ncount])
                 uobj.put("Lennard_Jones", location + ".Potential_Type", [ncount])
-                uobj.put(at1.name,      location + ".Site1_Name",     [ncount])
-                uobj.put(at2.name,      location + ".Site2_Name",     [ncount])
+                uobj.put(d1,              location + ".Site1_Name",     [ncount])
+                uobj.put(d2,              location + ".Site2_Name",     [ncount])
                 _put_with_unit_fallback(uobj, cutoff,        location + ".Cutoff",         [ncount], "[nm]")
                 uobj.put(scale,         location + ".Scale_1_4_Pair", [ncount])
                 _put_with_unit_fallback(uobj, sigma,         location + ".Lennard_Jones.sigma",
