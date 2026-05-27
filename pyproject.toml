@@ -178,7 +178,7 @@ include = ["abmptools*"]
 exclude = ["tests*", "docs*", "sample*"]
 
 [tool.setuptools.package-data]
-abmptools = ["f90/bin/*.so", "gro2udf/default_template.udf"]
+abmptools = ["f90/bin/*.so", "gro2udf/default_template*.udf"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

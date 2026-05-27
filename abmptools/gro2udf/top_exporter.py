@@ -61,6 +61,33 @@ def _rewrite_cognac_include(udf_path: str, cognac_version: str) -> None:
     path.write_text(new_text)
 
 
+def _put_with_unit_fallback(uobj, value, path, indices=None, unit=None):
+    """Wrap ``uobj.put`` so callers can request a unit alias (e.g. ``"[nm]"``)
+    that may not exist in older cognac schemas.
+
+    cognac11.2 (OCTA85) declares unit aliases ``[nm]`` / ``[ps]``;
+    cognac10.1 (OCTA8.4 / J-OCTA-9.1-Student) does not. Passing ``[nm]`` to
+    UDFManager on cognac10.1 raises ``RuntimeError: ArgumentError: put data.``.
+    We therefore attempt the put with the requested unit first, and if it
+    fails fall back to a unit-less put so the value lands as-is in the
+    schema's native unit (typically ``[sigma]`` for cognac), keeping older
+    OCTA versions working without a separate code path.
+    """
+    if unit is not None:
+        try:
+            if indices is None:
+                uobj.put(value, path, unit)
+            else:
+                uobj.put(value, path, indices, unit)
+            return
+        except Exception:
+            pass  # fall through to the no-unit retry
+    if indices is None:
+        uobj.put(value, path)
+    else:
+        uobj.put(value, path, indices)
+
+
 @contextmanager
 def _section(name: str, template_path: str, out_path: str):
     """Wrap an export section so UDFManager errors carry diagnostic context.
@@ -356,23 +383,29 @@ class TopExporter:
             spec = mol_specs[mol_idx]
             for iatom in range(len(spec.atoms)):
                 posx, posy, posz = frame.coord_list[ncount]
-                uobj.put(posx, "Structure.Position.mol[].atom[].x",
-                         [imol, iatom], "[nm]")
-                uobj.put(posy, "Structure.Position.mol[].atom[].y",
-                         [imol, iatom], "[nm]")
-                uobj.put(posz, "Structure.Position.mol[].atom[].z",
-                         [imol, iatom], "[nm]")
+                _put_with_unit_fallback(
+                    uobj, posx, "Structure.Position.mol[].atom[].x",
+                    [imol, iatom], "[nm]")
+                _put_with_unit_fallback(
+                    uobj, posy, "Structure.Position.mol[].atom[].y",
+                    [imol, iatom], "[nm]")
+                _put_with_unit_fallback(
+                    uobj, posz, "Structure.Position.mol[].atom[].z",
+                    [imol, iatom], "[nm]")
                 ncount += 1
 
         cell = frame.cell
-        uobj.put(cell[0], "Structure.Unit_Cell.Cell_Size.a", "[nm]")
-        uobj.put(cell[1], "Structure.Unit_Cell.Cell_Size.b", "[nm]")
-        uobj.put(cell[2], "Structure.Unit_Cell.Cell_Size.c", "[nm]")
+        _put_with_unit_fallback(uobj, cell[0],
+                                "Structure.Unit_Cell.Cell_Size.a", None, "[nm]")
+        _put_with_unit_fallback(uobj, cell[1],
+                                "Structure.Unit_Cell.Cell_Size.b", None, "[nm]")
+        _put_with_unit_fallback(uobj, cell[2],
+                                "Structure.Unit_Cell.Cell_Size.c", None, "[nm]")
         uobj.put(90.0, "Structure.Unit_Cell.Cell_Size.alpha")
         uobj.put(90.0, "Structure.Unit_Cell.Cell_Size.beta")
         uobj.put(90.0, "Structure.Unit_Cell.Cell_Size.gamma")
         uobj.put(frame.step, "Steps")
-        uobj.put(frame.time, "Time", "[ps]")
+        _put_with_unit_fallback(uobj, frame.time, "Time", None, "[ps]")
         uobj.put(0.0, "Statistics_Data.Energy.Instantaneous.Hamiltonian")
         uobj.write()
 
@@ -453,9 +486,9 @@ class TopExporter:
                      "Molecular_Attributes.Bond_Potential[].Name", [j])
             uobj.put("Harmonic",
                      "Molecular_Attributes.Bond_Potential[].Potential_Type", [j])
-            uobj.put(bt.r0,
+            _put_with_unit_fallback(uobj, bt.r0,
                      "Molecular_Attributes.Bond_Potential[].R0", [j], "[nm]")
-            uobj.put(bt.kb,
+            _put_with_unit_fallback(uobj, bt.kb,
                      "Molecular_Attributes.Bond_Potential[].Harmonic.K",
                      [j], "[kJ/mol/nm^2]")
 
@@ -468,7 +501,7 @@ class TopExporter:
                      "Molecular_Attributes.Angle_Potential[].Potential_Type", [j])
             uobj.put(q0,
                      "Molecular_Attributes.Angle_Potential[].theta0", [j])
-            uobj.put(at.k,
+            _put_with_unit_fallback(uobj, at.k,
                      "Molecular_Attributes.Angle_Potential[].Theta.K",
                      [j], "[kJ/mol/rad^2]")
 
@@ -487,7 +520,7 @@ class TopExporter:
                          "Molecular_Attributes.Torsion_Potential[].Name", [j])
                 uobj.put("Amber",
                          "Molecular_Attributes.Torsion_Potential[].Potential_Type", [j])
-                uobj.put(PK,
+                _put_with_unit_fallback(uobj, PK,
                          "Molecular_Attributes.Torsion_Potential[].Amber.PK",
                          [j], "[kJ/mol]")
                 uobj.put(1,
@@ -512,7 +545,7 @@ class TopExporter:
                 uobj.put(nparams,
                          "Molecular_Attributes.Torsion_Potential[].Cosine_Polynomial.N",
                          [j])
-                uobj.put(1.0,
+                _put_with_unit_fallback(uobj, 1.0,
                          "Molecular_Attributes.Torsion_Potential[].Cosine_Polynomial.K",
                          [j], "[kJ/mol]")
                 for k in range(nparams):
@@ -548,7 +581,7 @@ class TopExporter:
             uobj.put(1,
                      "Molecular_Attributes.Interaction_Site_Type[].Num_of_Atoms",
                      [ncount])
-            uobj.put(rval,
+            _put_with_unit_fallback(uobj, rval,
                      "Molecular_Attributes.Interaction_Site_Type[].Range",
                      [ncount], "[nm]")
             uobj.put(0,
@@ -590,11 +623,11 @@ class TopExporter:
                 uobj.put("Lennard_Jones", location + ".Potential_Type", [ncount])
                 uobj.put(at1.name,      location + ".Site1_Name",     [ncount])
                 uobj.put(at2.name,      location + ".Site2_Name",     [ncount])
-                uobj.put(cutoff,        location + ".Cutoff",         [ncount], "[nm]")
+                _put_with_unit_fallback(uobj, cutoff,        location + ".Cutoff",         [ncount], "[nm]")
                 uobj.put(scale,         location + ".Scale_1_4_Pair", [ncount])
-                uobj.put(sigma,         location + ".Lennard_Jones.sigma",
+                _put_with_unit_fallback(uobj, sigma,         location + ".Lennard_Jones.sigma",
                          [ncount], "[nm]")
-                uobj.put(epsilon,       location + ".Lennard_Jones.epsilon",
+                _put_with_unit_fallback(uobj, epsilon,       location + ".Lennard_Jones.epsilon",
                          [ncount], "[kJ/mol]")
                 ncount += 1
 

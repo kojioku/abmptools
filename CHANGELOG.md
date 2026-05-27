@@ -2,24 +2,30 @@
 
 ## [Unreleased]
 
-### Added (`abmptools.gro2udf` OCTA8.4 対応ガイド — v1.x.x 候補)
+### Added (`abmptools.gro2udf` OCTA8.4 対応 + 単位 fallback — v1.x.x 候補)
 
+- **`abmptools/gro2udf/default_template_cognac101.udf` (新規 bundle)** —
+  OCTA8.4 / J-OCTA-9.1-Student (cognac10.1 までしか同梱されていない環境)
+  向けの schema 互換 minimal template。`\include{"cognac101.udf"}` +
+  `Unit_Parameter:{"","",1.0,4.184,0.1}` を含み、cognac10.1 でも
+  `[nm]` / `[ps]` / `[kJ/mol]` の unit alias が解決される。cognac11.2 default
+  template と **出力データは完全同一** (Cell.a, Unit_Parameter.Length 等)。
+- `top_exporter._put_with_unit_fallback()` helper を追加 — unit 引数つきの
+  put が失敗した場合に unit なしで retry する fallback。`Unit_Parameter` が
+  欠けた template でも動くようにする保険。
 - `top_exporter._rewrite_cognac_include()` helper + `--cognac-version` CLI
-  option を追加。template の `\include{"cognac<N>.udf"}` directive を runtime
-  に書き換える経路を提供。
-- `UDFExportError` の hint メッセージを OCTA8.4 / J-OCTA-9.1-Student
-  (cognac10.1 までしか同梱されていない環境) 向けの具体ガイドに刷新:
-  「GOURMET で minimal COGNAC UDF を Save As → `--template` で渡す」が
-  唯一確実な手順であることを明記。
+  option を追加。
+- CLI: `--cognac-version 101` / `102` 指定時に bundled の cognac10.x template
+  を自動選択 (`--template` を渡さなくても OK)。
+- `pyproject.toml` の `package-data` を `gro2udf/default_template*.udf` に
+  glob 化、両 template を install パッケージに同梱。
+- `UDFExportError` の hint メッセージを cognac10.1 環境向けの具体ガイドに
+  刷新 (推奨 `--cognac-version 101`、代替 GOURMET Save As + `--template`)。
 - docs/gro2udf.md にトラブルシューティング section
   「OCTA8.4 / J-OCTA-9.1-Student で `file not found:cognac112.udf` エラー」
-  を新規追加 (3 段構成: 原因 / 確実な対処手順 / 動かない option 一覧)。
-- 実機検証結果: `--cognac-version 110` / `--cognac-version 101` で include
-  行だけ書き換えた場合、cognac10.1 環境では `Structure[record=0]` 書込み
-  時に `RuntimeError: ArgumentError: put data.` で失敗。これは
-  bundled template の data section が cognac11.2 構造 (Output_Flags 配列の
-  要素数、Molecular_Coord の field 差等) を含むため。`--cognac-version` は
-  「include の version 表記だけが原因」のレア ケース向け保険として残す。
+  を新規追加、`--cognac-version 101` を推奨対処として記載。
+- bundled cognac10.1 template の元 (`A20B40A20_in.udf`) はユーザー提供
+  (粗視化 sample、`Unit_Parameter` を追加して unit alias を有効化済み)。
 
 ### Added (`abmptools.gro2udf` 診断付きエラー — v1.x.x 候補)
 
