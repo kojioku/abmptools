@@ -67,6 +67,17 @@ def _run_from_top(argv: list) -> None:
                              "template requests cognac112; lower versions like "
                              "110/111 are compatible because gro2udf only "
                              "writes fields that exist in all of them.")
+    parser.add_argument("--topology-only", dest="topology_only", action="store_true",
+                        help="Write the topology (Set_of_Molecules / "
+                             "Molecular_Attributes / Interactions) but no "
+                             "Structure record. Use this when you want to "
+                             "load coordinates from a separate trajectory "
+                             "(e.g. multi-frame .gro from `gmx trjconv -pbc "
+                             "nojump`) and energy from a .xvg directly in "
+                             "J-OCTA Viewer, instead of baking a single frame "
+                             "into the UDF. The .gro path is still required "
+                             "(used only to read the box vector and to confirm "
+                             "atom count matches the topology).")
 
     # Strip the --from-top flag from argv before parsing
     filtered = [a for a in argv[1:] if a != "--from-top"]
@@ -111,8 +122,13 @@ def _run_from_top(argv: list) -> None:
     from .top_exporter import TopExporter
     TopExporter().export(top_path, gro_path, template_path, out_path,
                          mdp_path=args.mdp_path,
-                         cognac_version=args.cognac_version)
+                         cognac_version=args.cognac_version,
+                         topology_only=args.topology_only)
     print("Written: {}".format(out_path))
+    if args.topology_only:
+        print("  (topology-only — no Structure record. Load coordinates "
+              "from a .gro/.xtc and energy from a .xvg directly in J-OCTA "
+              "Viewer.)")
 
 
 def main(argv=None):
