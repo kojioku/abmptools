@@ -78,7 +78,9 @@ def _collect_frames_written(model, frames_arg, tmp_path):
     exporter = TopExporter()
     written = []
 
-    def _capture(self_, uobj, model_, frame):
+    def _capture(self_, uobj, model_, frame, energy_values=None):
+        # energy_values may be passed since the introduction of the
+        # `--energy` integration; tests don't assert on it here.
         written.append(frame)
 
     template = tmp_path / "tmpl.udf"

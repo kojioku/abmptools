@@ -78,6 +78,22 @@ def _run_from_top(argv: list) -> None:
                              "into the UDF. The .gro path is still required "
                              "(used only to read the box vector and to confirm "
                              "atom count matches the topology).")
+    parser.add_argument("--trajectory", dest="trajectory_path", default=None,
+                        help="Path to a multi-frame trajectory (.gro from "
+                             "`gmx trjconv -pbc nojump -o output.gro`, or "
+                             "an .xtc). When given, every frame is written "
+                             "as a Structure record in the output UDF, so "
+                             "the trajectory plays back inside the UDF "
+                             "without an external attach step.")
+    parser.add_argument("--energy", dest="energy_path", default=None,
+                        help="Path to an .xvg file (e.g. output of `gmx "
+                             "energy`). Each frame's row is written to the "
+                             "corresponding Structure record's "
+                             "`Statistics_Data.Energy.Instantaneous` "
+                             "(Bond / Angle / Torsion / Nonbonding / "
+                             "Electrostatic terms mapped from xvg legend "
+                             "names). Times in the .xvg are matched to "
+                             "frame times via nearest-neighbour interpolation.")
 
     # Strip the --from-top flag from argv before parsing
     filtered = [a for a in argv[1:] if a != "--from-top"]
@@ -123,12 +139,18 @@ def _run_from_top(argv: list) -> None:
     TopExporter().export(top_path, gro_path, template_path, out_path,
                          mdp_path=args.mdp_path,
                          cognac_version=args.cognac_version,
-                         topology_only=args.topology_only)
+                         topology_only=args.topology_only,
+                         trajectory_path=args.trajectory_path,
+                         energy_path=args.energy_path)
     print("Written: {}".format(out_path))
     if args.topology_only:
         print("  (topology-only — no Structure record. Load coordinates "
               "from a .gro/.xtc and energy from a .xvg directly in J-OCTA "
               "Viewer.)")
+    elif args.trajectory_path:
+        print("  (embedded {} frames{})".format(
+            "trajectory",
+            " + energy" if args.energy_path else ""))
 
 
 def main(argv=None):

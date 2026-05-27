@@ -64,6 +64,103 @@ def _rewrite_cognac_include(udf_path: str, cognac_version: str) -> None:
 _OPENFF_TYPE_RE = __import__("re").compile(r"^MOL\d+_(\d+)$")
 
 
+def _load_trajectory_frames(trajectory_path: str, gro_path: str):
+    """Load multi-frame coordinates from a .gro (multi-frame) or .xtc.
+
+    The single-frame .gro at *gro_path* is only used to provide the atom
+    count expected by the topology (for sanity-checking the trajectory).
+    """
+    ext = os.path.splitext(trajectory_path)[1].lower()
+    if ext == ".gro":
+        from .trajectory_io import frames_from_multi_gro
+        return frames_from_multi_gro(trajectory_path)
+    if ext == ".xtc":
+        # Reuse the existing MDAnalysis-backed loader from abmptools.amorphous.
+        from ..amorphous.trajectory_ingest import frames_from_xtc
+        # frames_from_xtc requires the topology + xtc + the GROMACS .top.
+        # The .top path is reachable via the caller's TopExporter.export
+        # invocation; here we pass gro_path (= topology .gro) only.
+        return frames_from_xtc(topology_path=gro_path,
+                               xtc_path=trajectory_path,
+                               top_path=None)
+    raise ValueError(
+        f"Unsupported --trajectory extension {ext!r}; expected .gro or .xtc"
+    )
+
+
+def _load_energy_series(xvg_path: str):
+    """Read a .xvg energy file into ``(times, {legend: values})``."""
+    from .trajectory_io import read_xvg
+    return read_xvg(xvg_path)
+
+
+# Mapping from common xvg legend names (gmx energy output) to UDF paths
+# under Structure.Statistics_Data.Energy.Instantaneous. Multiple xvg legends
+# can fold into one UDF field (e.g. Proper + Improper -> Torsion); we sum
+# them in :func:`_aggregate_energy_per_frame`.
+_XVG_TO_UDF_ENERGY = {
+    "Bond":         "Bond",
+    "Angle":        "Angle",
+    "Proper Dih.":  "Torsion",
+    "Improper Dih.": "Torsion",
+    "LJ-14":        "Nonbonding",
+    "LJ (SR)":      "Nonbonding",
+    "Disper. corr.": "Nonbonding",
+    "Coulomb-14":   "Electrostatic",
+    "Coulomb (SR)": "Electrostatic",
+    "Coul. recip.": "Electrostatic",
+    "Potential":    "Potential",
+    "Kinetic En.":  "Kinetic",
+    "Total Energy": "Total",
+}
+
+
+def _aggregate_energy_per_frame(frames, energy_times, energy_series):
+    """For each frame, build a ``{udf_field: float}`` dict from the xvg series.
+
+    The xvg time grid (typically denser than the trajectory grid) is matched
+    to each frame's ``frame.time`` via nearest-neighbour lookup. xvg legends
+    that share a UDF field (e.g. Proper + Improper Dih. -> Torsion, all the
+    LJ variants -> Nonbonding) are summed.
+
+    Returns ``None`` when no energy data is available.
+    """
+    if not energy_times or not energy_series:
+        return None
+
+    # Pre-compute the xvg row index for each frame time.
+    row_for_frame = []
+    n_xvg = len(energy_times)
+    for frame in frames:
+        if frame is None:
+            row_for_frame.append(None)
+            continue
+        target = frame.time
+        # Linear nearest-neighbour search (101 vs 501 rows; trivial cost).
+        best = 0
+        best_diff = abs(energy_times[0] - target)
+        for i in range(1, n_xvg):
+            diff = abs(energy_times[i] - target)
+            if diff < best_diff:
+                best = i
+                best_diff = diff
+        row_for_frame.append(best)
+
+    per_frame = []
+    for row_idx in row_for_frame:
+        if row_idx is None:
+            per_frame.append({})
+            continue
+        agg = {}
+        for legend_name, udf_field in _XVG_TO_UDF_ENERGY.items():
+            values = energy_series.get(legend_name)
+            if not values or row_idx >= len(values):
+                continue
+            agg[udf_field] = agg.get(udf_field, 0.0) + values[row_idx]
+        per_frame.append(agg)
+    return per_frame
+
+
 def _display_type_name(type_name: str, element: str) -> str:
     """Convert an OpenFF interchange-style ``MOL0_<N>`` atom-type name to
     an ``<element><N>`` form (e.g. ``MOL0_4`` -> ``C4``), so J-OCTA's
@@ -171,6 +268,8 @@ class TopExporter:
         mdp_path: Optional[str] = None,
         cognac_version: Optional[str] = None,
         topology_only: bool = False,
+        trajectory_path: Optional[str] = None,
+        energy_path: Optional[str] = None,
     ) -> None:
         """
         Parse *top_path* + *gro_path*, build :class:`TopModel`, write to *out_path*.
@@ -195,10 +294,27 @@ class TopExporter:
         """
         raw = TopParser().parse(top_path)
         model = TopAdapter().build(raw, gro_path, mdp_path=mdp_path)
-        frames = [] if topology_only else None
+
+        # Resolve frames: prefer explicit --trajectory > topology-only > gro
+        if topology_only:
+            frames: Optional[List[GROFrameData]] = []
+            energy_series: Optional[dict] = None
+            energy_times: Optional[List[float]] = None
+        elif trajectory_path is not None:
+            frames = _load_trajectory_frames(trajectory_path, gro_path)
+            energy_times, energy_series = (
+                _load_energy_series(energy_path) if energy_path else (None, None)
+            )
+        else:
+            frames = None
+            energy_series = None
+            energy_times = None
+
         self.export_model(model, template_path, out_path,
                           frames=frames,
-                          cognac_version=cognac_version)
+                          cognac_version=cognac_version,
+                          energy_times=energy_times,
+                          energy_series=energy_series)
 
     def export_model(
         self,
@@ -207,6 +323,8 @@ class TopExporter:
         out_path: str,
         frames: Optional[List[GROFrameData]] = None,
         cognac_version: Optional[str] = None,
+        energy_times: Optional[List[float]] = None,
+        energy_series: Optional[dict] = None,
     ) -> None:
         """
         Write *model* into a new UDF at *out_path* using *template_path* as schema.
@@ -267,9 +385,16 @@ class TopExporter:
             self._write_set_of_molecules(uobj, model)
 
         frames_to_write = frames if frames is not None else model.frames
+        # Pre-aggregate per-frame energy values when an .xvg series was given.
+        per_frame_energy = _aggregate_energy_per_frame(
+            frames_to_write, energy_times, energy_series,
+        )
         for i, frame in enumerate(frames_to_write):
             with _section(f"Structure[record={i}]", template_path, out_path):
-                self._append_structure(uobj, model, frame)
+                self._append_structure(
+                    uobj, model, frame,
+                    energy_values=per_frame_energy[i] if per_frame_energy else None,
+                )
 
         with _section("default_condition", template_path, out_path):
             self._set_default_condition(uobj, model)
@@ -414,8 +539,14 @@ class TopExporter:
         uobj.write()
 
     @staticmethod
-    def _append_structure(uobj, model: TopModel, frame: GROFrameData) -> None:
-        """Port of append_structure (one GRO frame → one UDF dynamic record)."""
+    def _append_structure(uobj, model: TopModel, frame: GROFrameData,
+                          energy_values: Optional[dict] = None) -> None:
+        """Port of append_structure (one GRO frame → one UDF dynamic record).
+
+        When *energy_values* is given (mapping UDF field name -> float, e.g.
+        ``{"Bond": 1596.5, "Angle": 2220.1, ...}``), those values land in
+        ``Statistics_Data.Energy.Instantaneous.<field>`` of this record.
+        """
         uobj.newRecord()
 
         mol_type_names = model.mol_type_names
@@ -450,7 +581,22 @@ class TopExporter:
         uobj.put(90.0, "Structure.Unit_Cell.Cell_Size.gamma")
         uobj.put(frame.step, "Steps")
         _put_with_unit_fallback(uobj, frame.time, "Time", None, "[ps]")
+
+        # Statistics_Data.Energy.Instantaneous.{Hamiltonian, Bond, Angle, ...}
+        # Default Hamiltonian to 0.0 (gmx energy doesn't expose it directly).
         uobj.put(0.0, "Statistics_Data.Energy.Instantaneous.Hamiltonian")
+        if energy_values:
+            for udf_field, value in energy_values.items():
+                try:
+                    _put_with_unit_fallback(
+                        uobj, value,
+                        f"Statistics_Data.Energy.Instantaneous.{udf_field}",
+                        None, "[kJ/mol]",
+                    )
+                except Exception:
+                    # Schema may lack this field on older cognac releases;
+                    # skip silently to keep the rest of the record intact.
+                    pass
         uobj.write()
 
     @staticmethod
