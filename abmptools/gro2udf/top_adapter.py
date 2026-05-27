@@ -102,6 +102,10 @@ class TopAdapter:
         mdp: Optional[MdpParams] = load_mdp(mdp_path)
         ref_t = mdp.ref_t if mdp is not None else 300.0
         tau_t = mdp.tau_t if mdp is not None else 0.1
+        dt_ps = mdp.dt if mdp is not None else 0.001
+        nsteps = mdp.nsteps if mdp is not None else 0
+        nstxout_compressed = mdp.nstxout_compressed if mdp is not None else 0
+        nstenergy = mdp.nstenergy if mdp is not None else 0
 
         # --- Ewald R_cutoff: Deserno & Holm (JCP 1998) optimal formula ---
         # R_cutoff = sqrt(11.5) / alpha
@@ -126,6 +130,10 @@ class TopAdapter:
             ref_t=ref_t,
             tau_t=tau_t,
             ewald_r_cutoff=ewald_r_cutoff,
+            dt_ps=dt_ps,
+            nsteps=nsteps,
+            nstxout_compressed=nstxout_compressed,
+            nstenergy=nstenergy,
         )
 
     # ------------------------------------------------------------------

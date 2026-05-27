@@ -232,3 +232,11 @@ class TopModel:
     tau_t: float = 0.1
     #: Ewald real-space cutoff [Å]  (Deserno & Holm formula from GRO box, or default)
     ewald_r_cutoff: float = EWALD_R_CUTOFF_DEFAULT
+    #: Integration step [ps]  (from mdp: dt)
+    dt_ps: float = 0.001
+    #: Total integration steps  (from mdp: nsteps)
+    nsteps: int = 0
+    #: Trajectory output interval, steps  (from mdp: nstxout-compressed)
+    nstxout_compressed: int = 0
+    #: Energy output interval, steps  (from mdp: nstenergy)
+    nstenergy: int = 0
