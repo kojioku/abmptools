@@ -33,6 +33,13 @@ import sys
 #: Built-in fallback template bundled with this package.
 _BUILTIN_TEMPLATE = os.path.join(os.path.dirname(__file__), "default_template.udf")
 
+#: cognac10.1 (OCTA8.4 / J-OCTA-9.1-Student) compatible bundled template.
+#: Used automatically when ``--cognac-version 101`` / ``102`` is given and no
+#: ``--template`` override is supplied.
+_BUILTIN_TEMPLATE_COGNAC101 = os.path.join(
+    os.path.dirname(__file__), "default_template_cognac101.udf"
+)
+
 
 def _run_from_top(argv: list) -> None:
     """Handle --from-top mode."""
@@ -78,9 +85,18 @@ def _run_from_top(argv: list) -> None:
             template_path = candidate
             print("Template: {} (auto-detected)".format(template_path))
         else:
-            # 2nd priority: built-in default_template.udf
-            template_path = _BUILTIN_TEMPLATE
-            print("Template: {} (built-in default)".format(template_path))
+            # When the user explicitly asked for a cognac10.x schema
+            # (OCTA8.4 / J-OCTA-9.1-Student), pick the cognac101-compatible
+            # bundled template so its data section parses on that install.
+            cv = args.cognac_version
+            if cv is not None and str(cv).startswith("10"):
+                template_path = _BUILTIN_TEMPLATE_COGNAC101
+                print("Template: {} (built-in cognac10.x default)".format(
+                    template_path))
+            else:
+                # Default: cognac11.2 (OCTA85)
+                template_path = _BUILTIN_TEMPLATE
+                print("Template: {} (built-in default)".format(template_path))
 
     # --- Resolve output path ---
     out_path = args.out_path

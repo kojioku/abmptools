@@ -305,9 +305,24 @@ RuntimeError: file not found:cognac112.udf.
 よって `--cognac-version 101` で include 行を書き換えても、`Structure` 書込み
 時点で別エラーが出る (OCTA85 環境で検証済み)。
 
-### 確実な対処 (OCTA8.4 / 9.1-Student 推奨)
+### 推奨対処: `--cognac-version 101` で bundled cognac10.1 template を使う
 
-**OCTA8.4 の GOURMET で保存したミニマル COGNAC UDF を `--template` で渡す**:
+`abmptools` には cognac10.1 schema 互換の bundled template
+(`abmptools/gro2udf/default_template_cognac101.udf`) が同梱されています。
+`--cognac-version 101` を指定すれば、`--template` 省略時に自動でこの template
+が選択されます:
+
+```cmd
+python -m abmptools.gro2udf --from-top build\system.top md\05_npt_final.gro ^
+    --mdp md\05_npt_final.mdp --cognac-version 101 --out 05_output.udf
+```
+
+bundled cognac10.1 template は `Unit_Parameter:{"","",1.0,4.184,0.1}` を含み、
+cognac10.1 でも `[nm]` / `[ps]` / `[kJ/mol]` の unit alias が解決されるため、
+cognac11.2 を使った場合と **出力データは完全に同一** (Cell.a=26.6805 [sigma]
+= 2.66805 nm 等)。
+
+### 代替: OCTA8.4 の GOURMET で保存したミニマル COGNAC UDF を `--template` で渡す
 
 1. **OCTA8.4 の GOURMET を起動**し、J-OCTA 同梱のミニマル COGNAC sample UDF を
    読み込む。例えば以下のいずれか:
