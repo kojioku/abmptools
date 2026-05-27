@@ -279,6 +279,7 @@ class TopExporter:
         mdp_path: Optional[str] = None,
         cognac_version: Optional[str] = None,
         topology_only: bool = False,
+        initial_gro_path: Optional[str] = None,
         trajectory_path: Optional[str] = None,
         energy_path: Optional[str] = None,
     ) -> None:
@@ -306,16 +307,29 @@ class TopExporter:
         raw = TopParser().parse(top_path)
         model = TopAdapter().build(raw, gro_path, mdp_path=mdp_path)
 
-        # Resolve frames: prefer explicit --trajectory > topology-only > gro
-        if topology_only:
-            frames: Optional[List[GROFrameData]] = []
-            energy_series: Optional[dict] = None
-            energy_times: Optional[List[float]] = None
-        elif trajectory_path is not None:
-            frames = _load_trajectory_frames(trajectory_path, gro_path)
+        # Resolve frames:
+        #   --trajectory                : multi-frame trajectory from .gro/.xtc
+        #   --topology-only             : single initial frame from initial_gro
+        #                                 (or the positional gro_path)
+        #   default                     : the 1 frame already loaded into
+        #                                 model.frames from gro_path
+        if trajectory_path is not None:
+            frames: Optional[List[GROFrameData]] = _load_trajectory_frames(
+                trajectory_path, gro_path)
             energy_times, energy_series = (
                 _load_energy_series(energy_path) if energy_path else (None, None)
             )
+        elif topology_only:
+            if initial_gro_path is not None and initial_gro_path != gro_path:
+                # Read a single frame from the override gro so we never
+                # depend on the positional gro_path's coordinates here.
+                initial_model = TopAdapter().build(
+                    raw, initial_gro_path, mdp_path=mdp_path)
+                frames = list(initial_model.frames[:1])
+            else:
+                frames = list(model.frames[:1])
+            energy_series = None
+            energy_times = None
         else:
             frames = None
             energy_series = None

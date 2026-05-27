@@ -351,18 +351,23 @@ Time / Cell.a / Density 等は COGNAC native unit (`[tau]` / `[sigma]` /
 0.7 × 1660 kg/m³ ≈ 1162 kg/m³` ≈ 1.16 g/cm³ (ketoprofen の expected density
 1.26 g/cm³ 付近)。
 
-## J-OCTA Viewer 連携: topology-only UDF + 後付け trajectory / energy
+## J-OCTA Viewer 連携: topology-only UDF (初期座標 1 frame + 後付け trajectory / energy)
 
-J-OCTA Viewer は **topology だけ含む UDF** を開き、別途 `.gro` (trajectory)
-や `.xvg` (energy time-series) を attach するワークフローをサポートする。
-gro2udf を `--topology-only` で呼ぶと、Structure record を 0 件にした
-skeleton UDF (Set_of_Molecules / Molecular_Attributes / Interactions のみ) が
-出力される:
+J-OCTA Viewer は **topology + 初期 1 frame だけを含む UDF** を開き、
+別途 `.gro` (trajectory) や `.xvg` (energy time-series) を attach する
+ワークフローをサポートする。gro2udf を `--topology-only` で呼ぶと、
+Structure record を **1 件だけ** (initial frame) 持つ UDF が出力される:
 
 ```bash
-# 1. topology-only UDF を生成
+# 1. topology + 初期 1 frame の UDF を生成
 python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
     --mdp md/05_npt_final.mdp --topology-only --out 05_topology.udf
+
+# 別 .gro を初期 frame source にしたい場合:
+python -m abmptools.gro2udf --from-top build/system.top build/system.gro \
+    --mdp md/05_npt_final.mdp --topology-only \
+    --initial-gro md/05_npt_final.gro \
+    --out 05_topology.udf
 
 # 2. trajectory + energy を生成 (gen_for_udf.sh と同じ手順)
 bash gen_for_udf.sh
@@ -377,14 +382,20 @@ bash gen_for_udf.sh
 
 `--topology-only` 指定時の動作:
 
-- 出力 UDF の `totalRecord` = 0 (Structure record なし)
-- `Set_of_Molecules.molecule[]` には全 50 mol の atom / bond / angle / torsion
+- 出力 UDF の `totalRecord` = **1** (初期 Structure record のみ)
+- `Set_of_Molecules.molecule[]` には全 mol の atom / bond / angle / torsion
   が書かれる (描画 + topology 認識用)
 - `Molecular_Attributes` および `Interactions` も通常通り書かれる
-- gro_path は box vector 取得と atom 数照合のみに使われる (座標は書込まない)
+- `Simulation_Conditions.Dynamics_Conditions.Time.{delta_T, Total_Steps,
+  Output_Interval_Steps}` も mdp から書かれる
+- 初期座標 source の優先順位:
+  - `--initial-gro <path>` を指定 → そちらの 1 frame
+  - 省略時 → positional `gro_path` の 1 frame
 
 `gen_for_udf.sh` の `*_nojump.gro` (`gmx trjconv -pbc nojump`) と組み合わせる
-と、PBC を跨いだ連続軌跡が J-OCTA で滑らかに再生される。
+と、PBC を跨いだ連続軌跡が J-OCTA で滑らかに再生される。J-OCTA の Reference
+比較や energy plot 機能を使う際は、本 mode で 1 frame だけ持った UDF を
+**reference** として読み込み、別途実トラジェクトリ / xvg を attach する流れ。
 
 ## トラブルシューティング
 
