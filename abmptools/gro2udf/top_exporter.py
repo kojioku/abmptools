@@ -124,6 +124,13 @@ _XVG_TO_UDF_STATS = {
     "Pressure":      ("Pressure",    "",         "[bar]"),
     "Density":       ("Density",     "",         "[kg/m^3]"),
     "Volume":        ("Volume",      "",         "[nm^3]"),
+    # NOTE: xvg `Pres. DC` (LJ tail-correction pressure contribution) is
+    # intentionally NOT added to `Pressure` here. GROMACS already includes the
+    # DC contribution inside its reported `Pressure` value, so summing the two
+    # would double-count. A J-OCTA-generated reference UDF was observed to
+    # carry `Pressure = xvg.Pressure + xvg.'Pres. DC'`; we deliberately diverge
+    # from that convention since it appears to be J-OCTA-specific (and likely
+    # incorrect for GROMACS-default tail-correction settings).
 }
 
 
