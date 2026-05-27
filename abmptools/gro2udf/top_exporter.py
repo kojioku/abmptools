@@ -270,29 +270,31 @@ class TopExporter:
                 uobj.put(ncount,
                          "Set_of_Molecules.molecule[].atom[].Atom_ID",
                          [imol, iatom])
-                # Atom_Name と Atom_Type_Name の役割分担 (2026-05-27 改訂):
+                # Atom_Name と Atom_Type_Name の役割分担 (2026-05-27 最終):
                 # - Atom_Name      = element symbol (`C`, `O`, `H`)
                 #   ABINIT-MP の read_pdb / obabel の xyz→pdb 変換で
                 #   元素として解釈される。J-OCTA viewer の元素ベース描画
                 #   (CPK 色, vdW 半径) もここから取得される。
-                # - Atom_Type_Name = PDB 風 element+index 名 (`C1`, `H1`, `O1`)
-                #   GROMACS top の `[ atoms ]` セクション "name" 列の値を
-                #   そのまま使用。頭文字 (C/H/O 等) で J-OCTA が element 認識
-                #   できる + 各 atom に unique 情報が渡る形。OpenFF SMIRNOFF
-                #   経由の `MOL0_X` をここに置くと頭文字が "M" になり
-                #   J-OCTA が描画で誤認 (Mg/Mn 等に分類) する問題を回避。
-                # - GAFF / SMIRNOFF の per-atom unique type (`MOL0_X`) は
-                #   引き続き `interaction_Site[].Type_Name` および
-                #   `Molecular_Attributes.Atom_Type[].Name` に保持される
-                #   ので、LJ Pair_Interaction (σ/ε per-atom) 参照は壊れない。
-                # GROMACS 由来の atom 名 (e.g. "c30", "hc1") は GAFF 型名形式
-                # で、obabel が atom type を `*` に変換し ABINIT-MP が "Atom
-                # type * is not supported" で失敗するため、Atom_Name には
-                # 使えない。Atom_Type_Name は J-OCTA 専用なので許容。
+                #   GROMACS 由来の force-field 型名 (例: "c30", "hc1") は
+                #   obabel が atom type を `*` に変換し ABINIT-MP が
+                #   "Atom type * is not supported" で失敗するため、
+                #   Atom_Name には element symbol のみを使う。
+                # - Atom_Type_Name = GROMACS top の atomtype 列の値
+                #   = 現在使っている力場の型名:
+                #     - OpenFF SMIRNOFF (interchange) → "MOL0_0", "MOL0_1", ...
+                #       (per-atom unique な仮想 type)
+                #     - GAFF / GAFF2 (antechamber / acpype 経由) → "c3", "oh",
+                #       "hc", "h1", "os" 等
+                #     - OPLS-AA → "opls_267" 等
+                #   いずれも各 atom が unique な情報を持つので J-OCTA viewer
+                #   の atom テーブルで type 別フィルタ等が可能。
+                # - これにより `Atom_Type_Name` / `interaction_Site[].Type_Name`
+                #   / `Molecular_Attributes.Atom_Type[].Name` が完全に同一値
+                #   となり、UDF 内の atom type 参照整合性が自然に取れる。
                 uobj.put(atom.element,
                          "Set_of_Molecules.molecule[].atom[].Atom_Name",
                          [imol, iatom])
-                uobj.put(atom.atom_name,
+                uobj.put(atom.type_name,
                          "Set_of_Molecules.molecule[].atom[].Atom_Type_Name",
                          [imol, iatom])
                 uobj.put(0,
