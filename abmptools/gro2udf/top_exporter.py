@@ -95,51 +95,66 @@ def _load_energy_series(xvg_path: str):
 
 
 # Mapping from xvg legend names (gmx energy output) to UDF Statistics_Data
-# paths. Each value is a (relative-path, unit) tuple; multiple legends can
-# fold into the same path (e.g. Proper + Improper -> Energy.Instantaneous
-# .Torsion), in which case :func:`_aggregate_statistics_per_frame` sums them.
-# Unit is passed to UDFManager via _put_with_unit_fallback so it's converted
-# to the schema's native unit (epsilon / P / mass/sigma^3 / T / sigma^3).
+# class paths. Each entry maps an xvg legend to a (class_path, leaf_name,
+# unit) triple. ``class_path`` is everything under ``Statistics_Data.`` up
+# to and including the class (Energy / Temperature / Pressure / ...); the
+# Instantaneous / Batch_Average / Total_Average leaves under that class are
+# appended at write time. ``leaf_name`` is the trailing field inside the
+# ``Energy.<Avg>`` triple (Bond, Angle, ...) — for top-level classes like
+# Temperature where ``Instantaneous`` is itself a double, leaf_name is "".
 _XVG_TO_UDF_STATS = {
-    # Energy components (Energy class, native unit [epsilon] = kJ/mol)
-    "Bond":          ("Energy.Instantaneous.Bond",          "[kJ/mol]"),
-    "Angle":         ("Energy.Instantaneous.Angle",         "[kJ/mol]"),
-    "Proper Dih.":   ("Energy.Instantaneous.Torsion",       "[kJ/mol]"),
-    "Improper Dih.": ("Energy.Instantaneous.Torsion",       "[kJ/mol]"),
-    "LJ-14":         ("Energy.Instantaneous.Nonbonding",    "[kJ/mol]"),
-    "LJ (SR)":       ("Energy.Instantaneous.Nonbonding",    "[kJ/mol]"),
-    "Disper. corr.": ("Energy.Instantaneous.Nonbonding",    "[kJ/mol]"),
-    "Coulomb-14":    ("Energy.Instantaneous.Electrostatic", "[kJ/mol]"),
-    "Coulomb (SR)":  ("Energy.Instantaneous.Electrostatic", "[kJ/mol]"),
-    "Coul. recip.":  ("Energy.Instantaneous.Electrostatic", "[kJ/mol]"),
-    "Potential":     ("Energy.Instantaneous.Potential",     "[kJ/mol]"),
-    "Kinetic En.":   ("Energy.Instantaneous.Kinetic",       "[kJ/mol]"),
-    "Total Energy":  ("Energy.Instantaneous.Total",         "[kJ/mol]"),
-    # Bulk thermodynamic observables (separate top-level Statistics_Data
-    # classes with their own native units)
-    "Temperature":   ("Temperature.Instantaneous",          "[K]"),
-    "Pressure":      ("Pressure.Instantaneous",             "[bar]"),
-    "Density":       ("Density.Instantaneous",              "[kg/m^3]"),
-    "Volume":        ("Volume.Instantaneous",               "[nm^3]"),
+    # Energy components — Statistics_Data.Energy.{Instantaneous,
+    # Batch_Average, Total_Average}.<leaf> (native [epsilon] = kJ/mol)
+    "Bond":          ("Energy", "Bond",          "[kJ/mol]"),
+    "Angle":         ("Energy", "Angle",         "[kJ/mol]"),
+    "Proper Dih.":   ("Energy", "Torsion",       "[kJ/mol]"),
+    "Improper Dih.": ("Energy", "Torsion",       "[kJ/mol]"),
+    "LJ-14":         ("Energy", "Nonbonding",    "[kJ/mol]"),
+    "LJ (SR)":       ("Energy", "Nonbonding",    "[kJ/mol]"),
+    "Disper. corr.": ("Energy", "Nonbonding",    "[kJ/mol]"),
+    "Coulomb-14":    ("Energy", "Electrostatic", "[kJ/mol]"),
+    "Coulomb (SR)":  ("Energy", "Electrostatic", "[kJ/mol]"),
+    "Coul. recip.":  ("Energy", "Electrostatic", "[kJ/mol]"),
+    "Potential":     ("Energy", "Potential",     "[kJ/mol]"),
+    "Kinetic En.":   ("Energy", "Kinetic",       "[kJ/mol]"),
+    "Total Energy":  ("Energy", "Total",         "[kJ/mol]"),
+    # Bulk thermodynamic observables — Statistics_Data.<Class>.{Instantaneous,
+    # Batch_Average, Total_Average} (each leaf is a scalar, no further field).
+    "Temperature":   ("Temperature", "",         "[K]"),
+    "Pressure":      ("Pressure",    "",         "[bar]"),
+    "Density":       ("Density",     "",         "[kg/m^3]"),
+    "Volume":        ("Volume",      "",         "[nm^3]"),
 }
 
 
 def _aggregate_statistics_per_frame(frames, energy_times, energy_series):
-    """For each frame, build ``{(relative_udf_path, unit): float}`` from xvg.
+    """For each frame, build a per-frame statistics dict ready to be written
+    into ``Statistics_Data.{Energy, Temperature, Pressure, Density, Volume}``
+    of all three averaging modes (Instantaneous / Batch_Average / Total_Average).
 
-    Maps xvg legends through :data:`_XVG_TO_UDF_STATS` to Statistics_Data
-    paths (relative to ``Statistics_Data.``). The xvg time grid (typically
-    denser than the trajectory grid) is matched to each frame's
-    ``frame.time`` via nearest-neighbour lookup. Legends mapped to the same
-    UDF path are summed (e.g. Proper Dih. + Improper Dih. -> Torsion;
-    LJ-14 + LJ(SR) + Disper.corr. -> Nonbonding).
+    Returns
+    -------
+    list of dict, one per frame. Each dict maps
+    ``(class_name, leaf_name, unit) -> (instantaneous, batch_avg, total_avg)``.
+
+    - ``instantaneous`` is the xvg row matched to the frame time (nearest
+      neighbour).
+    - ``batch_avg`` is the mean of the xvg rows since the previous frame's
+      matched row (single-frame batch when frames are aligned 1:1 with
+      xvg rows; spans multiple xvg rows when xvg is denser than the
+      trajectory).
+    - ``total_avg`` is the running mean from xvg row 0 through the current
+      frame's matched row.
+
+    Multiple xvg legends folding to the same (class, leaf) (e.g. Proper +
+    Improper Dih. -> Torsion) are summed within each averaging mode.
 
     Returns ``None`` when no energy data is available.
     """
     if not energy_times or not energy_series:
         return None
 
-    # Pre-compute the xvg row index for each frame time.
+    # Pre-compute the xvg row index for each frame time (nearest neighbour).
     row_for_frame = []
     n_xvg = len(energy_times)
     for frame in frames:
@@ -157,18 +172,37 @@ def _aggregate_statistics_per_frame(frames, energy_times, energy_series):
         row_for_frame.append(best)
 
     per_frame = []
+    prev_row = -1  # exclusive lower bound for current batch
     for row_idx in row_for_frame:
         if row_idx is None:
             per_frame.append({})
             continue
-        agg: dict = {}  # (path, unit) -> float
-        for legend_name, (udf_path, unit) in _XVG_TO_UDF_STATS.items():
+        agg: dict = {}  # (class, leaf, unit) -> [inst, batch, total]
+        batch_lo = prev_row + 1
+        batch_hi = row_idx + 1   # exclusive
+        total_lo = 0
+        total_hi = row_idx + 1   # exclusive
+
+        for legend_name, (cls, leaf, unit) in _XVG_TO_UDF_STATS.items():
             values = energy_series.get(legend_name)
             if not values or row_idx >= len(values):
                 continue
-            key = (udf_path, unit)
-            agg[key] = agg.get(key, 0.0) + values[row_idx]
+            inst = values[row_idx]
+            # batch_avg: mean over xvg rows in (prev_row, row_idx]
+            batch_slice = values[batch_lo:batch_hi]
+            batch_avg = sum(batch_slice) / len(batch_slice) if batch_slice else inst
+            # total_avg: running mean from row 0 to row_idx
+            total_slice = values[total_lo:total_hi]
+            total_avg = sum(total_slice) / len(total_slice) if total_slice else inst
+
+            key = (cls, leaf, unit)
+            if key not in agg:
+                agg[key] = [0.0, 0.0, 0.0]
+            agg[key][0] += inst
+            agg[key][1] += batch_avg
+            agg[key][2] += total_avg
         per_frame.append(agg)
+        prev_row = row_idx
     return per_frame
 
 
@@ -614,20 +648,32 @@ class TopExporter:
         _put_with_unit_fallback(uobj, frame.time, "Time", None, "[ps]")
 
         # Statistics_Data.* (Energy / Temperature / Pressure / Density /
-        # Volume). Default Hamiltonian to 0.0 (gmx energy doesn't expose it).
-        uobj.put(0.0, "Statistics_Data.Energy.Instantaneous.Hamiltonian")
+        # Volume). For each (class, leaf), write the Instantaneous,
+        # Batch_Average and Total_Average leaves so all three columns are
+        # populated (matches the J-OCTA reference layout).
+        # Hamiltonian defaults to 0.0 (gmx energy doesn't expose it).
+        for avg in ("Instantaneous", "Batch_Average", "Total_Average"):
+            try:
+                uobj.put(0.0,
+                         f"Statistics_Data.Energy.{avg}.Hamiltonian")
+            except Exception:
+                pass
         if energy_values:
-            for (rel_path, unit), value in energy_values.items():
-                try:
-                    _put_with_unit_fallback(
-                        uobj, value,
-                        f"Statistics_Data.{rel_path}",
-                        None, unit,
-                    )
-                except Exception:
-                    # Schema may lack this field on older cognac releases;
-                    # skip silently to keep the rest of the record intact.
-                    pass
+            for (cls, leaf, unit), (inst, batch, total) in energy_values.items():
+                for avg_name, avg_value in (("Instantaneous", inst),
+                                            ("Batch_Average", batch),
+                                            ("Total_Average", total)):
+                    path = f"Statistics_Data.{cls}.{avg_name}"
+                    if leaf:
+                        path = f"{path}.{leaf}"
+                    try:
+                        _put_with_unit_fallback(
+                            uobj, avg_value, path, None, unit,
+                        )
+                    except Exception:
+                        # Schema may lack this field on older cognac releases;
+                        # skip silently to keep the rest of the record intact.
+                        pass
         uobj.write()
 
     @staticmethod
