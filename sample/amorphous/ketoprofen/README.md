@@ -42,18 +42,25 @@ micromamba install -n abmptoolsenv -c conda-forge -y \
 
 ## 実行コマンド
 
-```bash
-cd /home/okuwaki/llm-project/fcews-workspace/abmptools/sample/amorphous
+同梱の `run_sample.sh` を使う (最新の推奨):
 
-PATH=~/.local/share/mamba/envs/abmptoolsenv/bin:$PATH \
-~/.local/share/mamba/envs/abmptoolsenv/bin/python3 ../../build_amorphous.py \
+```bash
+cd /home/okuwaki/llm-project/fcews-workspace/abmptools/sample/amorphous/ketoprofen
+export PATH=~/.local/share/mamba/envs/abmptoolsenv/bin:$PATH
+bash run_sample.sh
+```
+
+内部コマンド (参考、手動展開):
+
+```bash
+python ../../../build_amorphous.py \
     --smiles "OC(=O)C(C)c1cccc(C(=O)c2ccccc2)c1" \
     --name ketoprofen \
     --n_mol 50 \
     --density 0.8 \
     --temperature 300 \
     --seed 42 \
-    --output_dir ./ketoprofen \
+    --output_dir . \
     -v
 ```
 

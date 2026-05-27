@@ -57,6 +57,8 @@ def prepare_molecule(
     sdf_path: str = "",
     pdb_path: str = "",
     name: str = "",
+    charge_method: str = "",
+    nagl_model: str = "openff-gnn-am1bcc-0.1.0-rc.3.pt",
 ) -> Any:
     """Load or create an OpenFF Molecule from SMILES, SDF, or PDB.
 
@@ -78,11 +80,23 @@ def prepare_molecule(
         UDF route.
     name : str
         Optional molecule name.
+    charge_method : str
+        ``""`` / ``"am1bcc"`` — leave charges unassigned so
+        :class:`openff.interchange.Interchange` invokes AM1-BCC via
+        AmberTools ``sqm`` (Linux/macOS default, fails on Windows).
+        ``"nagl"``            — pre-assign using openff-nagl's ML
+        AM1-BCC approximation (Windows-compatible).
+        ``"gasteiger"``       — pre-assign Gasteiger charges
+        (fast, lower fidelity; useful as a sanity check).
+    nagl_model : str
+        OpenFF NAGL model identifier (used only when
+        ``charge_method='nagl'``).
 
     Returns
     -------
     openff.toolkit.Molecule
-        The prepared molecule (with at least one conformer).
+        The prepared molecule (with at least one conformer, and partial
+        charges if *charge_method* requested pre-assignment).
     """
     sources = [bool(smiles), bool(sdf_path), bool(pdb_path)]
     n_sources = sum(sources)
@@ -100,6 +114,9 @@ def prepare_molecule(
 
     if not name:
         mol.name = mol.name or "MOL"
+
+    _maybe_assign_partial_charges(mol, charge_method, nagl_model)
+
     logger.info("Prepared molecule '%s': %d atoms, MW=%.2f g/mol",
                 mol.name, mol.n_atoms,
                 _molecular_weight(mol))
@@ -186,6 +203,37 @@ def _pdb_to_sdf_via_openbabel(pdb_path: str) -> str:
             f"obabel returned 0 but {sdf} was not produced."
         )
     return str(sdf)
+
+
+def _maybe_assign_partial_charges(mol: Any, method: str, nagl_model: str) -> None:
+    """Pre-assign partial charges on *mol* when *method* is not AM1-BCC.
+
+    AM1-BCC is handled downstream by Interchange itself (when we pass the
+    topology without `charge_from_molecules`), so we deliberately skip it
+    here. Anything else is assigned up-front on the Molecule object; the
+    caller (Interchange) must then be told to use those charges via
+    ``charge_from_molecules=[...]``.
+    """
+    if not method or method == "am1bcc":
+        return
+    if method == "nagl":
+        try:
+            mol.assign_partial_charges(partial_charge_method=nagl_model)
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to assign NAGL charges using model '{nagl_model}'. "
+                "Ensure openff-nagl + openff-nagl-models are installed "
+                "(conda install -c conda-forge openff-nagl openff-nagl-models). "
+                f"Original error: {e}"
+            ) from e
+        return
+    if method == "gasteiger":
+        mol.assign_partial_charges(partial_charge_method="gasteiger")
+        return
+    raise ValueError(
+        f"Unknown charge_method '{method}'. "
+        "Choose from: '', 'am1bcc', 'nagl', 'gasteiger'."
+    )
 
 
 def _molecular_weight(mol: Any) -> float:

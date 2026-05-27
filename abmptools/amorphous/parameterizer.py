@@ -45,13 +45,15 @@ def create_interchange(
     box_size_nm: float,
     mixture_pdb: str,
     forcefield_name: Any = "openff_unconstrained-2.1.0.offxml",
+    use_precomputed_charges: bool = False,
 ) -> Any:
     """Build an OpenFF Interchange for a packed mixture.
 
     Parameters
     ----------
     molecules : list of openff.toolkit.Molecule
-        One OpenFF Molecule per component (with conformer and charges).
+        One OpenFF Molecule per component (with conformer, optionally
+        with pre-assigned partial charges — see *use_precomputed_charges*).
     counts : list of int
         Number of molecules for each component.
     box_size_nm : float
@@ -67,6 +69,13 @@ def create_interchange(
         SMIRKS patterns. With ``tip3p.offxml``/``tip3p_fb.offxml``/
         ``spce.offxml`` GAFF water's repulsive σ/ε is replaced with a
         properly parameterized water model.
+    use_precomputed_charges : bool
+        When ``True``, pass *molecules* as ``charge_from_molecules`` to
+        :meth:`Interchange.from_smirnoff`, telling Interchange to reuse
+        the pre-assigned ``partial_charges`` on each Molecule instead of
+        invoking AM1-BCC via ``sqm``. Required for the
+        ``charge_method='nagl'`` / ``'gasteiger'`` path (Windows-native
+        support, since AmberTools' ``sqm`` has no Windows build).
 
     Returns
     -------
@@ -103,17 +112,18 @@ def create_interchange(
     topology.box_vectors = box_vectors
 
     if len(ff_names) == 1:
-        logger.info("Creating Interchange with %s ...", ff_names[0])
+        logger.info("Creating Interchange with %s (precomputed charges=%s) ...",
+                    ff_names[0], use_precomputed_charges)
     else:
         logger.info(
             "Creating Interchange with stacked FFs %s "
-            "(later entries override earlier SMIRKS) ...",
-            ff_names,
+            "(later entries override earlier SMIRKS, precomputed charges=%s) ...",
+            ff_names, use_precomputed_charges,
         )
-    interchange = Interchange.from_smirnoff(
-        force_field=ff,
-        topology=topology,
-    )
+    kwargs = {"force_field": ff, "topology": topology}
+    if use_precomputed_charges:
+        kwargs["charge_from_molecules"] = molecules
+    interchange = Interchange.from_smirnoff(**kwargs)
 
     return interchange
 
