@@ -187,3 +187,18 @@ def test_export_wraps_section_failure_with_context(tmp_path):
     assert "Set_of_Molecules" in msg              # section name に含まれる
     assert "template UDF" in msg                  # template path も含まれる
     assert "OCTA84" in msg or "OCTA85" in msg     # hint で version 言及
+
+
+def test_export_topology_only_writes_no_structure(tmp_path):
+    """topology_only=True で frames が空になり Structure record が書かれない。"""
+    from abmptools.gro2udf.top_exporter import TopExporter
+    f_default = GROFrameData(
+        step=0, time=0.0,
+        coord_list=[[1, 1, 1], [2, 2, 2]],
+        cell=[3, 3, 3])
+    model = _minimal_topmodel([f_default])
+
+    # TopExporter.export() takes file paths; we exercise export_model() directly
+    # to verify the frames=[] override path.
+    written = _collect_frames_written(model, frames_arg=[], tmp_path=tmp_path)
+    assert written == []

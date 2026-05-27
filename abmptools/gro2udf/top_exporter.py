@@ -170,6 +170,7 @@ class TopExporter:
         out_path: str,
         mdp_path: Optional[str] = None,
         cognac_version: Optional[str] = None,
+        topology_only: bool = False,
     ) -> None:
         """
         Parse *top_path* + *gro_path*, build :class:`TopModel`, write to *out_path*.
@@ -186,10 +187,17 @@ class TopExporter:
                         directive in the template (e.g. ``"110"`` to fall back
                         from the bundled cognac112 default to the cognac110 schema
                         shipped with OCTA84 / J-OCTA 9.1).
+        topology_only : when True, the resulting UDF contains the topology
+                        (Set_of_Molecules / Molecular_Attributes / Interactions)
+                        but **no** Structure record. Useful when the user
+                        loads coordinates from a separate .gro/.xtc and energy
+                        from a .xvg directly in J-OCTA Viewer.
         """
         raw = TopParser().parse(top_path)
         model = TopAdapter().build(raw, gro_path, mdp_path=mdp_path)
+        frames = [] if topology_only else None
         self.export_model(model, template_path, out_path,
+                          frames=frames,
                           cognac_version=cognac_version)
 
     def export_model(

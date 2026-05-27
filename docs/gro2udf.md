@@ -253,6 +253,41 @@ GRO ファイル内の `step % N == 0` のフレームのみ UDF レコードと
 | udf-and-gro | `<udf_stem>_groout.udf`（カレントディレクトリ） |
 | --from-top | `<gro_stem>_fromtop.udf`（カレントディレクトリ） |
 
+## J-OCTA Viewer 連携: topology-only UDF + 後付け trajectory / energy
+
+J-OCTA Viewer は **topology だけ含む UDF** を開き、別途 `.gro` (trajectory)
+や `.xvg` (energy time-series) を attach するワークフローをサポートする。
+gro2udf を `--topology-only` で呼ぶと、Structure record を 0 件にした
+skeleton UDF (Set_of_Molecules / Molecular_Attributes / Interactions のみ) が
+出力される:
+
+```bash
+# 1. topology-only UDF を生成
+python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
+    --mdp md/05_npt_final.mdp --topology-only --out 05_topology.udf
+
+# 2. trajectory + energy を生成 (gen_for_udf.sh と同じ手順)
+bash gen_for_udf.sh
+# → md/05_npt_final_nojump.gro  (multi-frame trajectory)
+# → md/05_npt_final_energy.xvg  (energy time-series)
+
+# 3. J-OCTA Viewer で:
+#    File -> Open 05_topology.udf
+#    Trajectory -> Load 05_npt_final_nojump.gro
+#    Energy plot -> Load 05_npt_final_energy.xvg
+```
+
+`--topology-only` 指定時の動作:
+
+- 出力 UDF の `totalRecord` = 0 (Structure record なし)
+- `Set_of_Molecules.molecule[]` には全 50 mol の atom / bond / angle / torsion
+  が書かれる (描画 + topology 認識用)
+- `Molecular_Attributes` および `Interactions` も通常通り書かれる
+- gro_path は box vector 取得と atom 数照合のみに使われる (座標は書込まない)
+
+`gen_for_udf.sh` の `*_nojump.gro` (`gmx trjconv -pbc nojump`) と組み合わせる
+と、PBC を跨いだ連続軌跡が J-OCTA で滑らかに再生される。
+
 ## トラブルシューティング
 
 ### `UDFExportError: failed while writing section ...`
