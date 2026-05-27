@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-05-28
+
+メジャーリリース。v1.15.4 (2026-04-19) 以降に develop で積み上げた 176 commits 分の機能・修正をまとめて公開。
+
+### Breaking changes
+
+- **gro2udf の UDF atom field semantics 変更** (commit `6b32e92`):
+  - `Set_of_Molecules.molecule[].atom[].Atom_Name` = **element symbol** (`C` / `H` / `O` 等、旧版は GROMACS atom name `ca1` / `ha0` 等)
+  - `Set_of_Molecules.molecule[].atom[].Atom_Type_Name` = system.top atomtype 列、OpenFF SMIRNOFF の `MOL0_<N>` は `<element><N>` (例: `C4` / `H19`) に rewrite
+  - `Set_of_Molecules.molecule[].atom[].Atom_ID` = per-molecule **local 0-indexed** (旧 global counter)
+  - 1.x との UDF 出力差は test_regression で確認可能
+- **abmptools の license 表記更新**: v1.23 以降は Apache-2.0 + NOTICE + CITATION.cff (≤ v1.22.0 は MIT 固定)
+
 ### Added (`abmptools.gro2udf` Time/Pressure/Density/Temperature 同期 — v1.x.x 候補)
 
 - `MdpParams` に新規 accessor 追加: `dt`, `nsteps`, `nstxout_compressed`
