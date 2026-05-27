@@ -270,26 +270,29 @@ class TopExporter:
                 uobj.put(ncount,
                          "Set_of_Molecules.molecule[].atom[].Atom_ID",
                          [imol, iatom])
-                # Atom_Name と Atom_Type_Name は両方 element symbol を書く:
-                # - Atom_Name: ABINIT-MP の read_pdb / obabel の xyz→pdb 変換
-                #   で元素として解釈される
-                # - Atom_Type_Name: J-OCTA viewer の atom テーブル `type_name`
-                #   列に表示され、ここに per-atom unique な ``MOL0_X`` (OpenFF
-                #   SMIRNOFF 由来) が入っていると element として認識されず
-                #   色付け / フィルタが機能しない (2026-05-26 ユーザー報告)。
-                #   よって element symbol を書く。
+                # Atom_Name と Atom_Type_Name の役割分担 (2026-05-27 改訂):
+                # - Atom_Name      = element symbol (`C`, `O`, `H`)
+                #   ABINIT-MP の read_pdb / obabel の xyz→pdb 変換で
+                #   元素として解釈される。J-OCTA viewer の元素ベース描画
+                #   (CPK 色, vdW 半径) もここから取得される。
+                # - Atom_Type_Name = PDB 風 element+index 名 (`C1`, `H1`, `O1`)
+                #   GROMACS top の `[ atoms ]` セクション "name" 列の値を
+                #   そのまま使用。頭文字 (C/H/O 等) で J-OCTA が element 認識
+                #   できる + 各 atom に unique 情報が渡る形。OpenFF SMIRNOFF
+                #   経由の `MOL0_X` をここに置くと頭文字が "M" になり
+                #   J-OCTA が描画で誤認 (Mg/Mn 等に分類) する問題を回避。
+                # - GAFF / SMIRNOFF の per-atom unique type (`MOL0_X`) は
+                #   引き続き `interaction_Site[].Type_Name` および
+                #   `Molecular_Attributes.Atom_Type[].Name` に保持される
+                #   ので、LJ Pair_Interaction (σ/ε per-atom) 参照は壊れない。
                 # GROMACS 由来の atom 名 (e.g. "c30", "hc1") は GAFF 型名形式
                 # で、obabel が atom type を `*` に変換し ABINIT-MP が "Atom
-                # type * is not supported" で失敗するため使えない。
-                # GAFF / SMIRNOFF の元の per-atom unique type は引き続き
-                # ``Set_of_Molecules.molecule[].interaction_Site[].Type_Name``
-                # と ``Molecular_Attributes.Atom_Type[]`` 側に保持されるので、
-                # LJ Pair_Interaction (per-atom-type の σ/ε) や MD 実行に
-                # 必要な per-atom unique typing は壊れない。
+                # type * is not supported" で失敗するため、Atom_Name には
+                # 使えない。Atom_Type_Name は J-OCTA 専用なので許容。
                 uobj.put(atom.element,
                          "Set_of_Molecules.molecule[].atom[].Atom_Name",
                          [imol, iatom])
-                uobj.put(atom.element,
+                uobj.put(atom.atom_name,
                          "Set_of_Molecules.molecule[].atom[].Atom_Type_Name",
                          [imol, iatom])
                 uobj.put(0,
