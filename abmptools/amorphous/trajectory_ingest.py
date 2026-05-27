@@ -184,9 +184,17 @@ def frames_from_xtc(
                 )
         # MDAnalysis positions are Å — convert to nm (GROMACS convention)
         coords_nm = (universe.atoms.positions / 10.0).tolist()
-        # universe.dimensions: [a, b, c, alpha, beta, gamma] in Å / deg
+        # universe.dimensions: [a, b, c, alpha, beta, gamma] in Å / deg.
+        # Cast each element to Python float — UDFManager.put silently
+        # writes 0 when handed numpy float32 (the MDAnalysis dtype),
+        # which downstream produces a trajectory.udf with
+        # Cell_Size = [0, 0, 0, ...] and makes
+        # abmptools.udf_io.moveintocell hang in an infinite while-loop
+        # (`centerOfMol[j] -= cell[j]` with cell[j]=0).
         dims = universe.dimensions
-        cell_nm = [dims[0] / 10.0, dims[1] / 10.0, dims[2] / 10.0]
+        cell_nm = [float(dims[0] / 10.0),
+                   float(dims[1] / 10.0),
+                   float(dims[2] / 10.0)]
         frames.append(
             GROFrameData(
                 step=i,

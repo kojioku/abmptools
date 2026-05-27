@@ -642,11 +642,16 @@ class TopExporter:
                 ncount += 1
 
         cell = frame.cell
-        _put_with_unit_fallback(uobj, cell[0],
+        # Defensive cast to Python float: UDFManager.put silently writes 0
+        # when given numpy float32 / float64 (typical MDAnalysis dtype) —
+        # this once made trajectory.udf carry Cell_Size = [0, 0, 0, ...]
+        # and made fcews-manybody's moveintocell infinite-loop. Cast first,
+        # then go through _put_with_unit_fallback for OCTA8.4 compatibility.
+        _put_with_unit_fallback(uobj, float(cell[0]),
                                 "Structure.Unit_Cell.Cell_Size.a", None, "[nm]")
-        _put_with_unit_fallback(uobj, cell[1],
+        _put_with_unit_fallback(uobj, float(cell[1]),
                                 "Structure.Unit_Cell.Cell_Size.b", None, "[nm]")
-        _put_with_unit_fallback(uobj, cell[2],
+        _put_with_unit_fallback(uobj, float(cell[2]),
                                 "Structure.Unit_Cell.Cell_Size.c", None, "[nm]")
         uobj.put(90.0, "Structure.Unit_Cell.Cell_Size.alpha")
         uobj.put(90.0, "Structure.Unit_Cell.Cell_Size.beta")
