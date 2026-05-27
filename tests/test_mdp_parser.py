@@ -90,3 +90,54 @@ class TestLoadMdp:
         assert isinstance(result, MdpParams)
         assert result.ref_t == pytest.approx(300.0)
         assert result.constraints == "h-bonds"
+
+
+# ---------------------------------------------------------------------------
+# MdpParams: time-related accessors (dt / nsteps / nstxout-compressed / nstenergy)
+# ---------------------------------------------------------------------------
+
+def test_mdp_params_dt_default():
+    """MdpParams.dt は dt が未設定なら 0.001 ps default。"""
+    from abmptools.gro2udf.mdp_parser import MdpParams
+    assert MdpParams({}).dt == 0.001
+
+
+def test_mdp_params_dt_parsed(tmp_path):
+    from abmptools.gro2udf.mdp_parser import MdpParams
+    assert MdpParams({"dt": "0.002"}).dt == 0.002
+
+
+def test_mdp_params_nsteps_default():
+    from abmptools.gro2udf.mdp_parser import MdpParams
+    assert MdpParams({}).nsteps == 0
+
+
+def test_mdp_params_nsteps_parsed():
+    from abmptools.gro2udf.mdp_parser import MdpParams
+    assert MdpParams({"nsteps": "500000"}).nsteps == 500000
+
+
+def test_mdp_params_nstxout_compressed_prefers_dashed_key():
+    """`nstxout-compressed = 5000` を優先して読む。"""
+    from abmptools.gro2udf.mdp_parser import MdpParams
+    p = MdpParams({"nstxout-compressed": "5000",
+                   "nstxout_compressed": "0",
+                   "nstxout": "0"})
+    assert p.nstxout_compressed == 5000
+
+
+def test_mdp_params_nstxout_compressed_falls_back_to_nstxout():
+    """nstxout-compressed が 0 / 未設定なら nstxout に fallback。"""
+    from abmptools.gro2udf.mdp_parser import MdpParams
+    p = MdpParams({"nstxout-compressed": "0", "nstxout": "1000"})
+    assert p.nstxout_compressed == 1000
+
+
+def test_mdp_params_nstenergy_parsed():
+    from abmptools.gro2udf.mdp_parser import MdpParams
+    assert MdpParams({"nstenergy": "1000"}).nstenergy == 1000
+
+
+def test_mdp_params_nstenergy_default():
+    from abmptools.gro2udf.mdp_parser import MdpParams
+    assert MdpParams({}).nstenergy == 0

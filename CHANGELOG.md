@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+### Added (`abmptools.gro2udf` Time/Pressure/Density/Temperature 同期 — v1.x.x 候補)
+
+- `MdpParams` に新規 accessor 追加: `dt`, `nsteps`, `nstxout_compressed`
+  (nstxout-compressed / nstxout_compressed / nstxout / nstvout fallback chain),
+  `nstenergy`
+- `TopModel` に新 field 追加: `dt_ps`, `nsteps`, `nstxout_compressed`,
+  `nstenergy` (defaults: 0.001 / 0 / 0 / 0)
+- `TopAdapter` で mdp 値を上記 field に格納
+- `top_exporter._set_default_condition()` で
+  `Simulation_Conditions.Dynamics_Conditions.Time` の以下を mdp から書込み:
+    - `delta_T` ([ps] -> [tau] 変換)
+    - `Total_Steps`
+    - `Output_Interval_Steps` (nstxout-compressed 優先、fallback nstenergy)
+- xvg → UDF Statistics_Data mapping を拡張 (旧 `_XVG_TO_UDF_ENERGY` を
+  `_XVG_TO_UDF_STATS` に rename + path/unit tuple 形式に):
+  - Total Energy / Hamiltonian は既存 mapping にあったが、複数 LJ / Coulomb
+    の合算で潰されていた → "Total Energy" -> Energy.Instantaneous.Total
+  - 新規追加: Temperature -> Temperature.Instantaneous ([K])
+  - 新規追加: Pressure -> Pressure.Instantaneous ([bar])
+  - 新規追加: Density -> Density.Instantaneous ([kg/m^3])
+  - 新規追加: Volume -> Volume.Instantaneous ([nm^3])
+- `_aggregate_energy_per_frame` を `_aggregate_statistics_per_frame` に rename
+- `_append_structure` の energy_values 形式を `{(path, unit): value}` に変更
+  (旧 `{field: value}`)、Statistics_Data.{Energy, Temperature, Pressure,
+  Density, Volume} 全部に対応
+- tests/test_mdp_parser.py に 8 件追加 (dt/nsteps/nstxout_compressed/
+  nstenergy の default + parsed + fallback chain)、16/16 PASS
+- 実機検証 (ketoprofen amorphous):
+    delta_T=0.0205 [tau] (= 0.001 ps)
+    Total_Steps=500000
+    Output_Interval_Steps=5000
+    各 frame で Bond/Total/Temperature/Pressure/Density/Volume が record に embed
+
 ### Added (`abmptools.gro2udf` multi-frame trajectory + xvg energy — v1.x.x 候補)
 
 - 新規 `abmptools/gro2udf/trajectory_io.py`:

@@ -94,34 +94,45 @@ def _load_energy_series(xvg_path: str):
     return read_xvg(xvg_path)
 
 
-# Mapping from common xvg legend names (gmx energy output) to UDF paths
-# under Structure.Statistics_Data.Energy.Instantaneous. Multiple xvg legends
-# can fold into one UDF field (e.g. Proper + Improper -> Torsion); we sum
-# them in :func:`_aggregate_energy_per_frame`.
-_XVG_TO_UDF_ENERGY = {
-    "Bond":         "Bond",
-    "Angle":        "Angle",
-    "Proper Dih.":  "Torsion",
-    "Improper Dih.": "Torsion",
-    "LJ-14":        "Nonbonding",
-    "LJ (SR)":      "Nonbonding",
-    "Disper. corr.": "Nonbonding",
-    "Coulomb-14":   "Electrostatic",
-    "Coulomb (SR)": "Electrostatic",
-    "Coul. recip.": "Electrostatic",
-    "Potential":    "Potential",
-    "Kinetic En.":  "Kinetic",
-    "Total Energy": "Total",
+# Mapping from xvg legend names (gmx energy output) to UDF Statistics_Data
+# paths. Each value is a (relative-path, unit) tuple; multiple legends can
+# fold into the same path (e.g. Proper + Improper -> Energy.Instantaneous
+# .Torsion), in which case :func:`_aggregate_statistics_per_frame` sums them.
+# Unit is passed to UDFManager via _put_with_unit_fallback so it's converted
+# to the schema's native unit (epsilon / P / mass/sigma^3 / T / sigma^3).
+_XVG_TO_UDF_STATS = {
+    # Energy components (Energy class, native unit [epsilon] = kJ/mol)
+    "Bond":          ("Energy.Instantaneous.Bond",          "[kJ/mol]"),
+    "Angle":         ("Energy.Instantaneous.Angle",         "[kJ/mol]"),
+    "Proper Dih.":   ("Energy.Instantaneous.Torsion",       "[kJ/mol]"),
+    "Improper Dih.": ("Energy.Instantaneous.Torsion",       "[kJ/mol]"),
+    "LJ-14":         ("Energy.Instantaneous.Nonbonding",    "[kJ/mol]"),
+    "LJ (SR)":       ("Energy.Instantaneous.Nonbonding",    "[kJ/mol]"),
+    "Disper. corr.": ("Energy.Instantaneous.Nonbonding",    "[kJ/mol]"),
+    "Coulomb-14":    ("Energy.Instantaneous.Electrostatic", "[kJ/mol]"),
+    "Coulomb (SR)":  ("Energy.Instantaneous.Electrostatic", "[kJ/mol]"),
+    "Coul. recip.":  ("Energy.Instantaneous.Electrostatic", "[kJ/mol]"),
+    "Potential":     ("Energy.Instantaneous.Potential",     "[kJ/mol]"),
+    "Kinetic En.":   ("Energy.Instantaneous.Kinetic",       "[kJ/mol]"),
+    "Total Energy":  ("Energy.Instantaneous.Total",         "[kJ/mol]"),
+    # Bulk thermodynamic observables (separate top-level Statistics_Data
+    # classes with their own native units)
+    "Temperature":   ("Temperature.Instantaneous",          "[K]"),
+    "Pressure":      ("Pressure.Instantaneous",             "[bar]"),
+    "Density":       ("Density.Instantaneous",              "[kg/m^3]"),
+    "Volume":        ("Volume.Instantaneous",               "[nm^3]"),
 }
 
 
-def _aggregate_energy_per_frame(frames, energy_times, energy_series):
-    """For each frame, build a ``{udf_field: float}`` dict from the xvg series.
+def _aggregate_statistics_per_frame(frames, energy_times, energy_series):
+    """For each frame, build ``{(relative_udf_path, unit): float}`` from xvg.
 
-    The xvg time grid (typically denser than the trajectory grid) is matched
-    to each frame's ``frame.time`` via nearest-neighbour lookup. xvg legends
-    that share a UDF field (e.g. Proper + Improper Dih. -> Torsion, all the
-    LJ variants -> Nonbonding) are summed.
+    Maps xvg legends through :data:`_XVG_TO_UDF_STATS` to Statistics_Data
+    paths (relative to ``Statistics_Data.``). The xvg time grid (typically
+    denser than the trajectory grid) is matched to each frame's
+    ``frame.time`` via nearest-neighbour lookup. Legends mapped to the same
+    UDF path are summed (e.g. Proper Dih. + Improper Dih. -> Torsion;
+    LJ-14 + LJ(SR) + Disper.corr. -> Nonbonding).
 
     Returns ``None`` when no energy data is available.
     """
@@ -136,7 +147,6 @@ def _aggregate_energy_per_frame(frames, energy_times, energy_series):
             row_for_frame.append(None)
             continue
         target = frame.time
-        # Linear nearest-neighbour search (101 vs 501 rows; trivial cost).
         best = 0
         best_diff = abs(energy_times[0] - target)
         for i in range(1, n_xvg):
@@ -151,12 +161,13 @@ def _aggregate_energy_per_frame(frames, energy_times, energy_series):
         if row_idx is None:
             per_frame.append({})
             continue
-        agg = {}
-        for legend_name, udf_field in _XVG_TO_UDF_ENERGY.items():
+        agg: dict = {}  # (path, unit) -> float
+        for legend_name, (udf_path, unit) in _XVG_TO_UDF_STATS.items():
             values = energy_series.get(legend_name)
             if not values or row_idx >= len(values):
                 continue
-            agg[udf_field] = agg.get(udf_field, 0.0) + values[row_idx]
+            key = (udf_path, unit)
+            agg[key] = agg.get(key, 0.0) + values[row_idx]
         per_frame.append(agg)
     return per_frame
 
@@ -385,15 +396,16 @@ class TopExporter:
             self._write_set_of_molecules(uobj, model)
 
         frames_to_write = frames if frames is not None else model.frames
-        # Pre-aggregate per-frame energy values when an .xvg series was given.
-        per_frame_energy = _aggregate_energy_per_frame(
+        # Pre-aggregate per-frame statistics (energy + temperature + pressure
+        # + density + volume) when an .xvg series was given.
+        per_frame_stats = _aggregate_statistics_per_frame(
             frames_to_write, energy_times, energy_series,
         )
         for i, frame in enumerate(frames_to_write):
             with _section(f"Structure[record={i}]", template_path, out_path):
                 self._append_structure(
                     uobj, model, frame,
-                    energy_values=per_frame_energy[i] if per_frame_energy else None,
+                    energy_values=per_frame_stats[i] if per_frame_stats else None,
                 )
 
         with _section("default_condition", template_path, out_path):
@@ -582,16 +594,16 @@ class TopExporter:
         uobj.put(frame.step, "Steps")
         _put_with_unit_fallback(uobj, frame.time, "Time", None, "[ps]")
 
-        # Statistics_Data.Energy.Instantaneous.{Hamiltonian, Bond, Angle, ...}
-        # Default Hamiltonian to 0.0 (gmx energy doesn't expose it directly).
+        # Statistics_Data.* (Energy / Temperature / Pressure / Density /
+        # Volume). Default Hamiltonian to 0.0 (gmx energy doesn't expose it).
         uobj.put(0.0, "Statistics_Data.Energy.Instantaneous.Hamiltonian")
         if energy_values:
-            for udf_field, value in energy_values.items():
+            for (rel_path, unit), value in energy_values.items():
                 try:
                     _put_with_unit_fallback(
                         uobj, value,
-                        f"Statistics_Data.Energy.Instantaneous.{udf_field}",
-                        None, "[kJ/mol]",
+                        f"Statistics_Data.{rel_path}",
+                        None, unit,
                     )
                 except Exception:
                     # Schema may lack this field on older cognac releases;
@@ -646,6 +658,23 @@ class TopExporter:
         uobj.put(0.0,                 loc + ".Ewald.Dielectric_Constant")
         uobj.put(model.ewald_r_cutoff, loc + ".Ewald.R_cutoff")
         uobj.put("Auto",              loc + ".Ewald.Ewald_Parameters")
+
+        # --- Dynamics_Conditions.Time (from MDP) ---
+        # delta_T native unit is [tau]; we pass [ps] and let UDFManager
+        # convert via Unit_Parameter.
+        time_loc = "Simulation_Conditions.Dynamics_Conditions.Time"
+        if model.dt_ps > 0.0:
+            _put_with_unit_fallback(uobj, model.dt_ps,
+                                    time_loc + ".delta_T", None, "[ps]")
+        if model.nsteps > 0:
+            uobj.put(model.nsteps, time_loc + ".Total_Steps")
+        # Prefer the trajectory output interval (nstxout-compressed),
+        # falling back to nstenergy so frame-aligned energy plots line up.
+        out_interval = (model.nstxout_compressed
+                        if model.nstxout_compressed > 0
+                        else model.nstenergy)
+        if out_interval > 0:
+            uobj.put(out_interval, time_loc + ".Output_Interval_Steps")
 
         uobj.write()
 

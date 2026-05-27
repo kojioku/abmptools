@@ -308,16 +308,48 @@ python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
 
 - `Hamiltonian` は xvg に直接無いので 0.0 default。
 
+加えて以下も書込まれる (xvg にあれば自動):
+
+| xvg legend | UDF Statistics_Data path | native unit |
+|---|---|---|
+| Temperature | `Temperature.Instantaneous` | `[T]` = epsilon/R ≈ 503 K |
+| Pressure | `Pressure.Instantaneous` | `[P]` = epsilon/(Av·sigma³) |
+| Density | `Density.Instantaneous` | `[mass/sigma³]` ≈ 1660 kg/m³ |
+| Volume | `Volume.Instantaneous` | `[sigma³]` = 0.001 nm³ |
+
+### Simulation_Conditions.Dynamics_Conditions.Time の MDP 同期
+
+`--mdp` を渡すと、`Simulation_Conditions.Dynamics_Conditions.Time` も MDP から
+自動で書き込まれる:
+
+| UDF field | MDP key | 単位 / 意味 |
+|---|---|---|
+| `delta_T` | `dt` | 1 step の時間 [ps]、UDF schema は [tau] |
+| `Total_Steps` | `nsteps` | 全 step 数 |
+| `Output_Interval_Steps` | `nstxout-compressed` (fallback: `nstenergy`) | trajectory 出力 step 間隔 |
+
+これで cognac UDF を **後から COGNAC で MD 再開** したい場合の dt / nsteps
+情報も保持される。
+
 実機検証 (ketoprofen amorphous、50 mol × 33 atom × 101 frame):
 ```
 totalRecord = 101
-rec=0:   Time=0.0,    Cell.a=26.286 [sigma], Bond=381.6, Angle=530.6  [kJ/mol]
-rec=50:  Time=5113.7, Cell.a=26.530,         Bond=390.4, Angle=536.4
-rec=100: Time=10227.4, Cell.a=26.680,        Bond=353.6, Angle=591.7
+Simulation_Conditions.Dynamics_Conditions.Time:
+  delta_T              = 0.0205 [tau]  ( = mdp dt=0.001 ps )
+  Total_Steps          = 500000
+  Output_Interval_Steps = 5000
+
+rec=0:   Bond=381.6, Total=1357.6, T=0.62, P=-0.01, ρ=0.7000, V=18163.0  [native units]
+rec=50:  Bond=390.4, Total=1241.8, T=0.57, P=-0.01, ρ=0.6809, V=18672.7
+rec=100: Bond=353.6, Total=1361.4, T=0.60, P=-0.00, ρ=0.6694, V=18992.4
 ```
 
-Time / Cell.a は COGNAC native unit (`[tau]` / `[sigma]`) で書かれるが、
-J-OCTA Viewer は `Unit_Parameter` 経由で [ps] / [nm] 表記に戻して描画する。
+Time / Cell.a / Density 等は COGNAC native unit (`[tau]` / `[sigma]` /
+`[mass/sigma³]`) で書かれるが、J-OCTA Viewer は `Unit_Parameter` 経由で
+[ps] / [nm] / [g/cm³] 表記に戻して描画する。例えば `ρ=0.7 [mass/sigma³]`
+は `Unit_Parameter.{Length=0.1, Mass=1}` 経由で `0.7 × (1 amu / (0.1 nm)³) =
+0.7 × 1660 kg/m³ ≈ 1162 kg/m³` ≈ 1.16 g/cm³ (ketoprofen の expected density
+1.26 g/cm³ 付近)。
 
 ## J-OCTA Viewer 連携: topology-only UDF + 後付け trajectory / energy
 

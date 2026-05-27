@@ -85,10 +85,51 @@ class MdpParams:
         """積分アルゴリズム名 (md, md-vv, sd 等)。"""
         return self._raw.get("integrator", "md")
 
+    @property
+    def dt(self) -> float:
+        """Integration step [ps]."""
+        return float(self._raw.get("dt", "0.001"))
+
+    @property
+    def nsteps(self) -> int:
+        """Total integration steps."""
+        return int(float(self._raw.get("nsteps", "0")))
+
+    @property
+    def nstxout_compressed(self) -> int:
+        """Trajectory write interval (steps). Honours ``nstxout-compressed``
+        with ``nstxout-compressed`` / ``nstxout_compressed`` / ``nstxout``
+        fallback order. Returns 0 when not set."""
+        for key in ("nstxout-compressed", "nstxout_compressed",
+                    "nstxout", "nstvout"):
+            v = self._raw.get(key)
+            if v is not None:
+                try:
+                    n = int(float(v))
+                except ValueError:
+                    continue
+                if n > 0:
+                    return n
+        return 0
+
+    @property
+    def nstenergy(self) -> int:
+        """Energy write interval (steps). Returns 0 when not set."""
+        v = self._raw.get("nstenergy")
+        if v is None:
+            return 0
+        try:
+            return int(float(v))
+        except ValueError:
+            return 0
+
     def __repr__(self) -> str:  # pragma: no cover
         return (
             f"MdpParams(ref_t={self.ref_t}, tau_t={self.tau_t}, "
-            f"coulombtype={self.coulombtype!r}, rcoulomb={self.rcoulomb})"
+            f"coulombtype={self.coulombtype!r}, rcoulomb={self.rcoulomb}, "
+            f"dt={self.dt}, nsteps={self.nsteps}, "
+            f"nstxout_compressed={self.nstxout_compressed}, "
+            f"nstenergy={self.nstenergy})"
         )
 
 
