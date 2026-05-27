@@ -68,19 +68,19 @@ def _run_from_top(argv: list) -> None:
                              "110/111 are compatible because gro2udf only "
                              "writes fields that exist in all of them.")
     parser.add_argument("--topology-only", dest="topology_only", action="store_true",
-                        help="Write the topology + a single initial Structure "
-                             "record (one frame only — no trajectory). Use this "
-                             "when you want to load further trajectory frames "
-                             "and energy from a .xvg directly in J-OCTA Viewer, "
-                             "instead of baking the whole trajectory into the "
-                             "UDF. The initial frame is taken from the "
-                             "positional gro_path unless overridden by "
-                             "`--initial-gro`.")
+                        help="Write the topology (Set_of_Molecules / "
+                             "Molecular_Attributes / Interactions) only, "
+                             "without any Structure record (skeleton UDF). "
+                             "Use this when J-OCTA Viewer will load the "
+                             "trajectory and energy separately. Pair with "
+                             "`--initial-gro <path>` to also embed a single "
+                             "initial frame.")
     parser.add_argument("--initial-gro", dest="initial_gro_path", default=None,
                         help="Path to a .gro file whose first frame is "
-                             "written as the single initial Structure record "
-                             "(only meaningful with --topology-only). If "
-                             "omitted, the positional gro_path is used.")
+                             "written as the single initial Structure record. "
+                             "Only meaningful with --topology-only; without "
+                             "this option the topology-only UDF has zero "
+                             "Structure records.")
     parser.add_argument("--trajectory", dest="trajectory_path", default=None,
                         help="Path to a multi-frame trajectory (.gro from "
                              "`gmx trjconv -pbc nojump -o output.gro`, or "
@@ -148,10 +148,12 @@ def _run_from_top(argv: list) -> None:
                          energy_path=args.energy_path)
     print("Written: {}".format(out_path))
     if args.topology_only:
-        src = (args.initial_gro_path
-               if args.initial_gro_path else gro_path)
-        print(f"  (topology-only — initial Structure record from {src!s}. "
-              f"Load further trajectory / energy in J-OCTA Viewer.)")
+        if args.initial_gro_path:
+            print(f"  (topology + 1 initial frame from {args.initial_gro_path!s}. "
+                  f"Load further trajectory / energy in J-OCTA Viewer.)")
+        else:
+            print("  (topology-only — no Structure record. Load trajectory "
+                  "/ energy directly in J-OCTA Viewer.)")
     elif args.trajectory_path:
         print("  (embedded {} frames{})".format(
             "trajectory",

@@ -351,30 +351,34 @@ Time / Cell.a / Density 等は COGNAC native unit (`[tau]` / `[sigma]` /
 0.7 × 1660 kg/m³ ≈ 1162 kg/m³` ≈ 1.16 g/cm³ (ketoprofen の expected density
 1.26 g/cm³ 付近)。
 
-## J-OCTA Viewer 連携: topology-only UDF (初期座標 1 frame + 後付け trajectory / energy)
+## J-OCTA Viewer 連携: topology-only UDF + 後付け trajectory / energy
 
-J-OCTA Viewer は **topology + 初期 1 frame だけを含む UDF** を開き、
-別途 `.gro` (trajectory) や `.xvg` (energy time-series) を attach する
-ワークフローをサポートする。gro2udf を `--topology-only` で呼ぶと、
-Structure record を **1 件だけ** (initial frame) 持つ UDF が出力される:
+J-OCTA Viewer は **topology だけ含む UDF** を開き、別途 `.gro` (trajectory)
+や `.xvg` (energy time-series) を attach するワークフローをサポートする。
+gro2udf を `--topology-only` で呼ぶと、Structure record を **0 件** に
+した skeleton UDF が出力される (J-OCTA で trajectory を attach 経由で扱う):
 
 ```bash
-# 1. topology + 初期 1 frame の UDF を生成
+# (a) topology だけの skeleton UDF (initial frame なし) — Structure record 0 件
 python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
     --mdp md/05_npt_final.mdp --topology-only --out 05_topology.udf
 
-# 別 .gro を初期 frame source にしたい場合:
+# (b) 初期 1 frame も含めたい場合は --initial-gro を併用
 python -m abmptools.gro2udf --from-top build/system.top build/system.gro \
     --mdp md/05_npt_final.mdp --topology-only \
     --initial-gro md/05_npt_final.gro \
-    --out 05_topology.udf
+    --out 05_topology_with_initial.udf
+```
 
-# 2. trajectory + energy を生成 (gen_for_udf.sh と同じ手順)
+その後 J-OCTA で trajectory + energy を attach:
+
+```bash
+# trajectory + energy は gen_for_udf.sh で生成
 bash gen_for_udf.sh
 # → md/05_npt_final_nojump.gro  (multi-frame trajectory)
 # → md/05_npt_final_energy.xvg  (energy time-series)
 
-# 3. J-OCTA Viewer で:
+# J-OCTA Viewer で:
 #    File -> Open 05_topology.udf
 #    Trajectory -> Load 05_npt_final_nojump.gro
 #    Energy plot -> Load 05_npt_final_energy.xvg
@@ -382,20 +386,19 @@ bash gen_for_udf.sh
 
 `--topology-only` 指定時の動作:
 
-- 出力 UDF の `totalRecord` = **1** (初期 Structure record のみ)
+- 出力 UDF の `totalRecord` =
+  - **0** (`--initial-gro` 省略時、skeleton モード、J-OCTA で trajectory 全体を attach)
+  - **1** (`--initial-gro <path>` 指定時、その gro の 1 frame だけ書く)
 - `Set_of_Molecules.molecule[]` には全 mol の atom / bond / angle / torsion
   が書かれる (描画 + topology 認識用)
 - `Molecular_Attributes` および `Interactions` も通常通り書かれる
 - `Simulation_Conditions.Dynamics_Conditions.Time.{delta_T, Total_Steps,
   Output_Interval_Steps}` も mdp から書かれる
-- 初期座標 source の優先順位:
-  - `--initial-gro <path>` を指定 → そちらの 1 frame
-  - 省略時 → positional `gro_path` の 1 frame
 
 `gen_for_udf.sh` の `*_nojump.gro` (`gmx trjconv -pbc nojump`) と組み合わせる
-と、PBC を跨いだ連続軌跡が J-OCTA で滑らかに再生される。J-OCTA の Reference
-比較や energy plot 機能を使う際は、本 mode で 1 frame だけ持った UDF を
-**reference** として読み込み、別途実トラジェクトリ / xvg を attach する流れ。
+と、PBC を跨いだ連続軌跡が J-OCTA で滑らかに再生される。J-OCTA の reference
+比較や energy plot 機能を使う際は、本 mode の skeleton UDF を **reference**
+として読み込み、別途実トラジェクトリ / xvg を attach する流れ。
 
 ## トラブルシューティング
 

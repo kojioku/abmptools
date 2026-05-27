@@ -308,11 +308,15 @@ class TopExporter:
         model = TopAdapter().build(raw, gro_path, mdp_path=mdp_path)
 
         # Resolve frames:
-        #   --trajectory                : multi-frame trajectory from .gro/.xtc
-        #   --topology-only             : single initial frame from initial_gro
-        #                                 (or the positional gro_path)
-        #   default                     : the 1 frame already loaded into
-        #                                 model.frames from gro_path
+        #   --trajectory                          : multi-frame trajectory
+        #                                           from .gro/.xtc
+        #   --topology-only --initial-gro <path>  : single initial frame
+        #                                           from <path>
+        #   --topology-only (no --initial-gro)    : zero Structure records
+        #                                           (skeleton, J-OCTA loads
+        #                                           trajectory separately)
+        #   default                               : 1 frame from gro_path
+        #                                           (already in model.frames)
         if trajectory_path is not None:
             frames: Optional[List[GROFrameData]] = _load_trajectory_frames(
                 trajectory_path, gro_path)
@@ -320,14 +324,15 @@ class TopExporter:
                 _load_energy_series(energy_path) if energy_path else (None, None)
             )
         elif topology_only:
-            if initial_gro_path is not None and initial_gro_path != gro_path:
-                # Read a single frame from the override gro so we never
-                # depend on the positional gro_path's coordinates here.
+            if initial_gro_path is not None:
+                # Read a single frame from the override gro and embed it.
                 initial_model = TopAdapter().build(
                     raw, initial_gro_path, mdp_path=mdp_path)
                 frames = list(initial_model.frames[:1])
             else:
-                frames = list(model.frames[:1])
+                # No initial frame requested -> skeleton UDF with no Structure
+                # record. J-OCTA will attach trajectories itself.
+                frames = []
             energy_series = None
             energy_times = None
         else:
