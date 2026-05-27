@@ -40,7 +40,7 @@ class UDFExportError(RuntimeError):
 def _rewrite_cognac_include(udf_path: str, cognac_version: str) -> None:
     """Rewrite the ``\\include{"cognac<N>.udf"}`` directive in *udf_path*.
 
-    Used so OCTA84 / J-OCTA 9.1 users (which only ship cognac110.udf or
+    Used so OCTA84 / OCTA viewer 9.1 users (which only ship cognac110.udf or
     earlier) can still consume the bundled default_template.udf — which
     requests cognac112.udf — by passing ``--cognac-version 110``.
 
@@ -127,9 +127,9 @@ _XVG_TO_UDF_STATS = {
     # NOTE: xvg `Pres. DC` (LJ tail-correction pressure contribution) is
     # intentionally NOT added to `Pressure` here. GROMACS already includes the
     # DC contribution inside its reported `Pressure` value, so summing the two
-    # would double-count. A J-OCTA-generated reference UDF was observed to
+    # would double-count. A OCTA viewer-generated reference UDF was observed to
     # carry `Pressure = xvg.Pressure + xvg.'Pres. DC'`; we deliberately diverge
-    # from that convention since it appears to be J-OCTA-specific (and likely
+    # from that convention since it appears to be OCTA viewer-specific (and likely
     # incorrect for GROMACS-default tail-correction settings).
 }
 
@@ -215,7 +215,7 @@ def _aggregate_statistics_per_frame(frames, energy_times, energy_series):
 
 def _display_type_name(type_name: str, element: str) -> str:
     """Convert an OpenFF interchange-style ``MOL0_<N>`` atom-type name to
-    an ``<element><N>`` form (e.g. ``MOL0_4`` -> ``C4``), so J-OCTA's
+    an ``<element><N>`` form (e.g. ``MOL0_4`` -> ``C4``), so OCTA viewer's
     3D viewer can infer the element from the leading character.
 
     Non-OpenFF type names (GAFF ``c3``, OPLS ``opls_267``, etc.) are passed
@@ -223,7 +223,7 @@ def _display_type_name(type_name: str, element: str) -> str:
     convention.
 
     Why: OpenFF SMIRNOFF / interchange assigns per-atom unique type names
-    starting with the prefix ``MOL0_``. J-OCTA treats the leading character
+    starting with the prefix ``MOL0_``. OCTA viewer treats the leading character
     as the element symbol; "M" is interpreted as Mg / Mn and the viewer
     falls back to assigning a different random color to every atom type,
     breaking element-based CPK rendering. Prefixing with the actual element
@@ -241,7 +241,7 @@ def _put_with_unit_fallback(uobj, value, path, indices=None, unit=None):
     that may not exist in older cognac schemas.
 
     cognac11.2 (OCTA85) declares unit aliases ``[nm]`` / ``[ps]``;
-    cognac10.1 (OCTA8.4 / J-OCTA-9.1-Student) does not. Passing ``[nm]`` to
+    cognac10.1 (OCTA8.4 / OCTA8.4) does not. Passing ``[nm]`` to
     UDFManager on cognac10.1 raises ``RuntimeError: ArgumentError: put data.``.
     We therefore attempt the put with the requested unit first, and if it
     fails fall back to a unit-less put so the value lands as-is in the
@@ -281,7 +281,7 @@ def _section(name: str, template_path: str, out_path: str):
         hint = (
             "this often means the template UDF schema is incompatible with your\n"
             "    OCTA's UDFManager. The bundled template requests cognac11.2 (OCTA85).\n"
-            "    OCTA8.4 / J-OCTA-9.1-Student only ships cognac10.1, and both the\n"
+            "    OCTA8.4 / OCTA8.4 only ships cognac10.1, and both the\n"
             "    `\\include` directive AND the data-section structure differ.\n"
             "    Recommended fix:\n"
             "      Open any minimal COGNAC UDF in your OCTA's GOURMET, hit\n"
@@ -338,12 +338,12 @@ class TopExporter:
         cognac_version : optional override for the cognac<N>.udf include
                         directive in the template (e.g. ``"110"`` to fall back
                         from the bundled cognac112 default to the cognac110 schema
-                        shipped with OCTA84 / J-OCTA 9.1).
+                        shipped with OCTA84 / OCTA viewer 9.1).
         topology_only : when True, the resulting UDF contains the topology
                         (Set_of_Molecules / Molecular_Attributes / Interactions)
                         but **no** Structure record. Useful when the user
                         loads coordinates from a separate .gro/.xtc and energy
-                        from a .xvg directly in J-OCTA Viewer.
+                        from a .xvg directly in OCTA viewer (GOURMET).
         """
         raw = TopParser().parse(top_path)
         model = TopAdapter().build(raw, gro_path, mdp_path=mdp_path)
@@ -354,7 +354,7 @@ class TopExporter:
         #   --topology-only --initial-gro <path>  : single initial frame
         #                                           from <path>
         #   --topology-only (no --initial-gro)    : zero Structure records
-        #                                           (skeleton, J-OCTA loads
+        #                                           (skeleton, OCTA viewer loads
         #                                           trajectory separately)
         #   default                               : 1 frame from gro_path
         #                                           (already in model.frames)
@@ -372,7 +372,7 @@ class TopExporter:
                 frames = list(initial_model.frames[:1])
             else:
                 # No initial frame requested -> skeleton UDF with no Structure
-                # record. J-OCTA will attach trajectories itself.
+                # record. OCTA viewer will attach trajectories itself.
                 frames = []
             energy_series = None
             energy_times = None
@@ -500,7 +500,7 @@ class TopExporter:
             for iatom, atom in enumerate(spec.atoms):
                 # Atom_ID is per-molecule local 0-indexed (matches the COGNAC
                 # convention used by cognac-shipped sample BDFs; using a
-                # global counter here made J-OCTA's atom-table display the
+                # global counter here made OCTA viewer's atom-table display the
                 # last molecule's offset (1617..1649) which looked off).
                 uobj.put(iatom,
                          "Set_of_Molecules.molecule[].atom[].Atom_ID",
@@ -508,7 +508,7 @@ class TopExporter:
                 # Atom_Name と Atom_Type_Name の役割分担 (2026-05-27 最終):
                 # - Atom_Name      = element symbol (`C`, `O`, `H`)
                 #   ABINIT-MP の read_pdb / obabel の xyz→pdb 変換で
-                #   元素として解釈される。J-OCTA viewer の元素ベース描画
+                #   元素として解釈される。OCTA viewer の元素ベース描画
                 #   (CPK 色, vdW 半径) もここから取得される。
                 #   GROMACS 由来の force-field 型名 (例: "c30", "hc1") は
                 #   obabel が atom type を `*` に変換し ABINIT-MP が
@@ -521,7 +521,7 @@ class TopExporter:
                 #     - GAFF / GAFF2 (antechamber / acpype 経由) → "c3", "oh",
                 #       "hc", "h1", "os" 等
                 #     - OPLS-AA → "opls_267" 等
-                #   いずれも各 atom が unique な情報を持つので J-OCTA viewer
+                #   いずれも各 atom が unique な情報を持つので OCTA viewer
                 #   の atom テーブルで type 別フィルタ等が可能。
                 # - これにより `Atom_Type_Name` / `interaction_Site[].Type_Name`
                 #   / `Molecular_Attributes.Atom_Type[].Name` が完全に同一値
@@ -657,7 +657,7 @@ class TopExporter:
         # Statistics_Data.* (Energy / Temperature / Pressure / Density /
         # Volume). For each (class, leaf), write the Instantaneous,
         # Batch_Average and Total_Average leaves so all three columns are
-        # populated (matches the J-OCTA reference layout).
+        # populated (matches the OCTA viewer reference layout).
         # Hamiltonian defaults to 0.0 (gmx energy doesn't expose it).
         for avg in ("Instantaneous", "Batch_Average", "Total_Average"):
             try:
