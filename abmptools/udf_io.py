@@ -844,6 +844,38 @@ class udf_io(molc):
         # oname = "mdout_orig" + str(rec) + ".xyz"
         # Exportpos(path[0] + "/" + path[1],totalRec-1,totalMol,uobj,oname)
 
+        # --- minimum-image wrap (BUG fix 2026-05-31) ---
+        # 27-cell expansion (posMol) で隣接画像セルから選ばれた neighbor は、
+        # 元コードでは posMol[i] = posMol_orig[i%N] + vec*L をそのまま PDB 出力。
+        # 結果: center mode で中央 cluster の周りに「+L / -L 方向に飛び離れた
+        # phantom cluster」が 4-6 個現れ、可視化上分子が散乱、FMO/SCC でも
+        # 本来近接する neighbor が遠方の独立 monomer として処理され収束しない。
+        #
+        # 修正: center mode のとき、各 neighbor を center (= posMol[0]) の
+        # 最近接画像 (minimum-image convention) になるように整数セル分シフト。
+        # 結果として PDB の cluster は中央に集約された「shell」形状になる。
+        #
+        # whole mode はシフトしない: contactfrag に image-cell index (i >= totalMol)
+        # が含まれ、FMO は posMol[i] を image cell の geometric position として
+        # 解釈するため、原セルに collapse すると duplicate atom と化して
+        # 振動の原因になる。
+        if self.mixflag or self.clusterflag:
+            try:
+                L = np.array([float(cell[0]), float(cell[1]), float(cell[2])])
+            except (TypeError, IndexError, ValueError):
+                Lscalar = float(cell[0]) if hasattr(cell, '__getitem__') else float(cell)
+                L = np.array([Lscalar, Lscalar, Lscalar])
+
+            ref_com = np.array(self.getCenter(posMol[0]))
+            for i in index:
+                if i < seg1_clunum:
+                    continue  # center 自身はシフトしない
+                com = np.array(self.getCenter(posMol[i]))
+                shift = -L * np.round((com - ref_com) / L)
+                if np.any(shift != 0):
+                    posMol[i] = [[p[0] + shift[0], p[1] + shift[1],
+                                  p[2] + shift[2]] for p in posMol[i]]
+
         # --export pos for abinit --
         opath = path[0] + "/" + path[1] + "/pdb"
         if self.mixflag or self.clusterflag:
