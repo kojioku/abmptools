@@ -61,8 +61,29 @@ GPU offload する (auto-detection)。 mdrun log に
 
 → peptide-enhancer aggregate は 100 ns 全期間維持 (Hossain の octreotide
 "dynamic coexistence" と整合)、 bile salt は 2 mol で間欠的接触。
-artifact は OneDrive `abmptools-dump/formulation-octreotide-pmf-smoke/aggregation-100ns/`
-に保管。
+
+### Release PMF (100 ns 最終 frame から release_us)
+
+config の `release_us` section (n_windows=6, spacing=0.3 nm,
+k=2000 kJ/mol/nm², window 200 ps, pull 400 ps) で 100 ns prod の最終
+構造を入力に pull + 6 windows + WHAM を実行 (`/tmp/oct_l_agg100/us/run_us.sh`、
+GPU wall 9 分):
+
+| 指標 | L (ff14SB) | D (GAFF Gasteiger、 参考) |
+|---|---|---|
+| pull range | [1.65, 1.94] nm | [0.82, 1.13] nm |
+| PMF min | -5.5 kJ/mol @ z=1.74 | -1.1 kJ/mol @ z=0.84 |
+| PMF max (barrier) | +60.4 kJ/mol @ z=3.18 | +183.5 kJ/mol @ z=2.33 |
+| **Release barrier** | **~66 kJ/mol** | **~185 kJ/mol** |
+
+D 体の barrier が L 体の約 3 倍。 これは D 体 GAFF Gasteiger の cluster
+cohesion が強い (contact pairs 452 vs L 251、 約 1.8×) ことと整合
+(aggregation の cohesion が強い分、 release が熱力学的に難しい)。 ただし
+D 体絶対値は GAFF Gasteiger force field の過剰評価の可能性あり、
+Hossain CHARMM36 + CGenFF と直接比較は不可。
+
+artifact + L vs D release PMF 比較 plot (`octreotide_release_pmf_l_vs_d.png`)
+も OneDrive 保管。
 
 ## 観察項目
 
