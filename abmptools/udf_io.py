@@ -923,7 +923,10 @@ class udf_io(molc):
         else:
             # plus 1 layer
             oname = "mdout"
-        self.Exportardpos(opath, oname, index, posMol, elemMol)
+        # `molnamelist` を Exportardpos に渡し PDB の residue name を正しく
+        # 派生させる (obabel bond perception を介さない direct writer)。
+        self.Exportardpos(opath, oname, index, posMol, elemMol,
+                          molnames=molnamelist)
 
         index_renum, clistall = self.getrenumindex(index, clistall)
         fragindex_renum, clistall = \
