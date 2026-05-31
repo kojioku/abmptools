@@ -28,11 +28,62 @@ logger = logging.getLogger(__name__)
 __all__ = ["frames_from_xtc"]
 
 
+def _settles_per_moltype(top_path: str) -> "dict[str, list[tuple[int, int]]]":
+    """Parse ``[ settles ]`` blocks per moleculetype out of a GROMACS .top.
+
+    GROMACS TIP3P / TIP4P water uses ``[ settles ]`` (rigid-water constraint)
+    instead of explicit ``[ bonds ]``. MDAnalysis ``make_whole`` requires
+    bonds to unwrap fragments at the PBC boundary, so we synthesize
+    O-H bonds from the settles head atom (OW = first atom in the entry,
+    1-based, paired with the next two atoms = H1, H2).
+
+    Returns ``{moltype_name: [(0-based a, 0-based b), ...]}``.
+    """
+    settles: "dict[str, list[tuple[int, int]]]" = {}
+    current_mol: "str | None" = None
+    in_settles = False
+    try:
+        with open(top_path, 'r') as fh:
+            for raw_line in fh:
+                line = raw_line.split(';', 1)[0].strip()
+                if not line:
+                    continue
+                if line.startswith('[') and line.endswith(']'):
+                    section = line[1:-1].strip().lower()
+                    in_settles = (section == 'settles')
+                    if section == 'moleculetype':
+                        current_mol = '__pending__'
+                    continue
+                # First non-section line after [ moleculetype ] is the name
+                if current_mol == '__pending__':
+                    current_mol = line.split()[0]
+                    continue
+                if in_settles and current_mol and current_mol != '__pending__':
+                    toks = line.split()
+                    if not toks:
+                        continue
+                    try:
+                        ow_1based = int(toks[0])
+                    except ValueError:
+                        continue
+                    a = ow_1based - 1
+                    settles.setdefault(current_mol, []).extend(
+                        [(a, a + 1), (a, a + 2)]
+                    )
+    except OSError:
+        return {}
+    return settles
+
+
 def _bonds_from_top(top_path: str) -> List[Tuple[int, int]]:
     """Parse a GROMACS .top into a system-wide 0-based bond list.
 
     For each entry in ``[ molecules ]`` we replicate the per-mol-type
     ``[ bonds ]`` with an offset equal to the running atom count.
+    Also synthesizes O-H bonds from ``[ settles ]`` blocks so TIP3P /
+    TIP4P waters (which carry no ``[ bonds ]``) participate in
+    ``make_whole`` PBC unwrap.
+
     Returns a list of ``(atom_i, atom_j)`` tuples in 0-based indexing,
     suitable for :meth:`MDAnalysis.Universe.add_bonds`.
     """
@@ -40,6 +91,7 @@ def _bonds_from_top(top_path: str) -> List[Tuple[int, int]]:
 
     raw = TopParser().parse(top_path)
     type_to_idx = {name: i for i, name in enumerate(raw.mol_types)}
+    settles_by_type = _settles_per_moltype(top_path)
 
     bonds: List[Tuple[int, int]] = []
     seen = set()
@@ -56,6 +108,15 @@ def _bonds_from_top(top_path: str) -> List[Tuple[int, int]]:
             # bondlist entry: [atom1, atom2, type_index] (1-based)
             a1, a2 = int(b[0]) - 1, int(b[1]) - 1
             if a1 == a2:
+                continue
+            edge = (offset + min(a1, a2), offset + max(a1, a2))
+            if edge in seen:
+                continue
+            seen.add(edge)
+            bonds.append(edge)
+        # synthesize bonds from settles (rigid water O-H constraints)
+        for a1, a2 in settles_by_type.get(instance_name, []):
+            if a1 == a2 or a1 >= n_atoms or a2 >= n_atoms:
                 continue
             edge = (offset + min(a1, a2), offset + max(a1, a2))
             if edge in seen:
