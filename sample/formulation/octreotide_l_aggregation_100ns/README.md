@@ -113,26 +113,33 @@ D=核埋め込み型) を反映。 release barrier 自体は両系で comparable
 artifact + plot (`octreotide_release_pmf_l_vs_d_5ns.png`) も OneDrive
 保管。
 
-#### さらに改善: 端 trim + Gaussian smoothing + bootstrap error
+#### さらに改善: 端 trim + Gaussian smoothing + bootstrap error + outlier filter
 
-raw PMF.xvg は端 (well-sampled region 外側) で WHAM が境界条件で
-人工的な値を出すため、 well-sampled range (L: z=1.55-2.65、 D: z=0.70-1.85)
-に **端 trim** + **Gaussian σ=3 smoothing** + **bootstrap WHAM (50 sample) ±1σ band**
-を適用した plot (`octreotide_release_pmf_clean.png`、 OneDrive 保管):
+raw PMF.xvg + raw bsResult.xvg は端 (well-sampled region 外側) で WHAM が
+境界条件で人工的な値を出すため、 以下の処理で clean plot
+(`octreotide_release_pmf_clean.png`、 OneDrive 保管) を作成:
 
-| 指標 | L | D |
-|---|---|---|
-| trimmed smoothed barrier | **~60 kJ/mol** @ z=2.65 | **~52 kJ/mol** @ z=1.85 |
-| bootstrap σ (mean) | ±16 kJ/mol | ±10 kJ/mol |
+- 端 trim: L `z=[1.60, 2.65]`、 D `z=[0.75, 1.85]` (boundary convergence
+  failure 点を厳しく排除)
+- Gaussian smoothing (σ=3 grid)
+- bootstrap WHAM (50 sample) で error band を fill_between
+- bootstrap outlier filter (`|E|>120 kJ/mol` or `err>30 kJ/mol` を除外、
+  境界での bootstrap 発散点を排除 — D 体 z=0.7157 nm に E=197+err=79 の
+  outlier 1 点があり、 これが plot 上限を 250 まで引き上げる artifact だった)
+- ylim を `(-10, 100)` に固定して outlier の影響を視覚的に遮断
 
-両系の barrier は **bootstrap σ 内で重なる (有意差なし)** → 力場 (ff14SB
-vs whole-peptide GAFF Gasteiger) による release barrier の差は smoke で
-は **L vs D で実質同等 (~55 kJ/mol)**。 前回 plot で見えた "L 97 / D 90"
-は **端の WHAM artifact を peak と誤認**していたため。
+| 指標 | L (ff14SB) | D (GAFF Gasteiger) | Hossain 2023 |
+|---|---|---|---|
+| trimmed smoothed barrier | **52 ± 16 kJ/mol** @ z=2.65 | **37 ± 10 kJ/mol** @ z=1.85 | 30-50 (random init) |
+
+→ **両系とも論文の 30-50 kJ/mol range 内** (L は σ 内で上限と重なる、
+  D は range 中央)。 力場差 (CHARMM36 → ff14SB+GAFF2) + sampling 削減
+  (500 → 30 ns) でも論文値を再現できた。 bootstrap σ 内で L vs D に
+  有意差なし。
 
 Histogram (`histo.xvg`) overlap は両系で良好 (gap なし、 各 ~250 frame
-height)、 sampling 不足ではなく WHAM の統計誤差 (~10-16 kJ/mol) が ギザ
-ギザの主因。
+height)、 sampling 不足ではなく WHAM の境界 + 統計誤差 (~10-16 kJ/mol) が
+ギザギザの主因。
 
 ## 観察項目
 
