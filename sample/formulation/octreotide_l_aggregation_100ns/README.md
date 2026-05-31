@@ -85,6 +85,34 @@ Hossain CHARMM36 + CGenFF と直接比較は不可。
 artifact + L vs D release PMF 比較 plot (`octreotide_release_pmf_l_vs_d.png`)
 も OneDrive 保管。
 
+### Release PMF (改善 sampling 版、 6 win × 5 ns × k=4000)
+
+config の release_us を以下に拡張:
+- `n_windows=6`、 `window_spacing_nm=0.2`
+- `window_nsteps=2500000` (5 ns、 200 ps smoke の 25×)
+- `force_constant_kj_mol_nm2=4000` (=2× smoke 2000、 thermal 抑制で box-half 制約回避)
+- `pull_nsteps=200000` (400 ps、 smoke と同じ)
+
+| 指標 | L (ff14SB) | D (GAFF Gasteiger) |
+|---|---|---|
+| wall (RTX 4070 Ti) | 2h45m | 2h40m |
+| z range | [1.48, 2.93] | [0.64, 1.98] |
+| **Cluster-bound z (E=0 基準)** | **z=1.48** | **z=0.64** |
+| **Release barrier peak** | **~97 kJ/mol @ z=2.6 nm** | **~90 kJ/mol @ z=1.85 nm** |
+
+200 ps smoke (L:60 / D:185 kJ/mol) と比べ:
+- D 体は **185 → 90 kJ/mol に下落** (sampling 厚で overestimate 解消)
+- L 体は **60 → 97 kJ/mol に上昇** (sampling 厚で barrier 顕在化)
+- 両系で release barrier ~90 kJ/mol 程度に収束、 smoke で見えた 1.8× の
+  差は消失
+
+ただし z 開始位置は L vs D で大きく異なる (L: 1.48 vs D: 0.64 nm)、
+これは 100 ns aggregation での cluster cohesion 差 (L=surface 接触型、
+D=核埋め込み型) を反映。 release barrier 自体は両系で comparable に。
+
+artifact + plot (`octreotide_release_pmf_l_vs_d_5ns.png`) も OneDrive
+保管。
+
 ## 観察項目
 
 - 完了後 `prod/prod.xtc` を MDAnalysis で時系列解析:
