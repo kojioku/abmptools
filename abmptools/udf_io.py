@@ -803,24 +803,63 @@ class udf_io(molc):
         for i in range(len(posMol)):
             radius.append(self.getmolradius(originmol[i]))
 
-        # --get com dist--
-        distlist = []
-        for i in range(seg1_clunum):
-            dist = []
-            for j in range(i+1, len(posMol)):
-                dist.append(self.getdist(centerOfMol[i], centerOfMol[j]))
-            distlist.append(dist)
-
-        # seg1_clunum: mol num need for check contact
-        # this area can be parrallel tuning
-        # compare com dist and radius
+        # --- neighbor selection (cutmode-aware) ---
+        # contact_cutmode は udfcreate.setudfparam で input_param['cutmode']
+        # から設定される。
+        #   'contact' (default, legacy): COM 距離 < 2 * (r_i + r_j)
+        #   'around': any atom within criteria of any solute (center) atom。
+        #            solute = posMol[0..seg1_clunum-1] (center cluster)。
+        contact_cutmode = getattr(self, 'contact_cutmode', 'contact')
         neighborMol = []
-        for i in range(seg1_clunum):
-            k = 0
-            for j in range(i+1, len(posMol)):
-                if distlist[i][k] < (radius[i] + radius[j]) * 2:
-                    neighborMol.append([i, j])
-                k += 1
+
+        if contact_cutmode == 'around':
+            contact_criteria = getattr(self, 'contact_criteria', 5.0)
+            crit2 = contact_criteria * contact_criteria
+            logger.info("neighbor selection: cutmode='around', criteria=%.2f Å",
+                        contact_criteria)
+            posMol_np = [np.asarray(pm, dtype=float) for pm in posMol]
+            # Precompute COM array for fast pairwise filter
+            com_np = np.asarray([np.asarray(c, dtype=float)
+                                 for c in centerOfMol])
+            radius_np = np.asarray(radius, dtype=float)
+            # 中心同士 (cluster center 内の他 mol) は同じクラスタの一部として
+            # 常に contact 扱い。clusterflag=True (multi-mol center) のみ
+            # 意味を持つ。whole mode (seg1_clunum=totalMol) では適用しない。
+            cluster_internal = bool(getattr(self, 'clusterflag', False))
+            for i in range(seg1_clunum):
+                sol_atoms = posMol_np[i]
+                ri = radius[i]
+                # vectorized COM distance from solute i to ALL candidates
+                diff_com = com_np[i+1:] - com_np[i]
+                d_com = np.sqrt(np.einsum('ij,ij->i', diff_com, diff_com))
+                cutoff = ri + radius_np[i+1:] + contact_criteria
+                candidate_mask = d_com <= cutoff
+                for offset, hit in enumerate(candidate_mask):
+                    j = i + 1 + offset
+                    if cluster_internal and j < seg1_clunum:
+                        # 同一 cluster center 内 → 距離問わず contact
+                        neighborMol.append([i, j])
+                        continue
+                    if not hit:
+                        continue
+                    diff = sol_atoms[:, None, :] - posMol_np[j][None, :, :]
+                    d2 = np.einsum('ijk,ijk->ij', diff, diff)
+                    if d2.min() < crit2:
+                        neighborMol.append([i, j])
+        else:
+            # legacy 'contact' mode: COM dist < 2 * (r_i + r_j)
+            distlist = []
+            for i in range(seg1_clunum):
+                dist = []
+                for j in range(i+1, len(posMol)):
+                    dist.append(self.getdist(centerOfMol[i], centerOfMol[j]))
+                distlist.append(dist)
+            for i in range(seg1_clunum):
+                k = 0
+                for j in range(i+1, len(posMol)):
+                    if distlist[i][k] < (radius[i] + radius[j]) * 2:
+                        neighborMol.append([i, j])
+                    k += 1
 
         # get contact list
         clistall = self.getcontactlist(seg1_clunum, posMol, site, neighborMol)
