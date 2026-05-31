@@ -813,7 +813,7 @@ class udf_io(molc):
         neighborMol = []
 
         if contact_cutmode == 'around':
-            contact_criteria = getattr(self, 'contact_criteria', 5.0)
+            contact_criteria = getattr(self, 'contact_criteria', 4.0)
             crit2 = contact_criteria * contact_criteria
             logger.info("neighbor selection: cutmode='around', criteria=%.2f Å",
                         contact_criteria)
