@@ -121,6 +121,15 @@ class BuildConfig:
     frozen_atom_indices: List[int] = field(default_factory=list)
     posres_force_constant: float = 10000.0  # kJ/mol/nm^2 isotropic
 
+    # --- Pre-built rigid cluster (UDF cluster_file equivalent) ---
+    # cluster_pdb_path: 既に H-bond geom 等 を持つ rigid cluster (例 water trimer
+    # の triangle 配置)。 set すると packmol input に `fixed <center> 0 0 0`
+    # constraint で box 中央に配置、 残りの mol を周りに pack する。 cluster
+    # は first component (segment 1) と同じ moltype として扱われ、 packmol
+    # は first component の count を `posres_n_trimer` 分減らして配置する
+    # (cluster が既に trimer 分の mol を提供するため)。
+    cluster_pdb_path: str = ""
+
     def to_json(self, path: str) -> None:
         """Save configuration to JSON for reproducibility."""
         data = asdict(self)

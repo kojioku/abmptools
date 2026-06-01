@@ -116,7 +116,7 @@ class AmorphousBuilder:
         # to harmonic position_restraints (k=10000 kJ/mol/nm² default) which
         # plays nice with all constraints and keeps atoms within ~0.01 Å of
         # initial position — functionally equivalent for trimer center fix.
-        frozen = list(getattr(self.config, 'frozen_atom_indices', []) or [])
+        frozen = list(getattr(self.config, "frozen_atom_indices", []) or [])
         define_posres = None
         if frozen:
             self._add_trimer_posres_to_top(top_path, frozen)
@@ -203,15 +203,36 @@ class AmorphousBuilder:
         logger.info("Box size: %.4f nm, Counts: %s", self._box_nm, self._counts)
 
     def _run_packing(self, output_pdb: str, build_dir: str) -> str:
+        # Optional pre-built cluster (UDF cluster_file equivalent).
+        # When cfg.cluster_pdb_path is set, packmol places the cluster
+        # rigidly at box center first. We reduce the first component's
+        # count by the cluster's mol count (n_trimer derived from
+        # frozen_atom_indices) so total mol count stays the same.
+        cluster_pdb = str(getattr(self.config, 'cluster_pdb_path', '') or '')
+        cluster_pdb = cluster_pdb if cluster_pdb else None
+        adjusted_counts = list(self._counts)
+        if cluster_pdb and self._molecules:
+            atoms_per_first = int(self._molecules[0].n_atoms)
+            frozen = list(getattr(self.config, 'frozen_atom_indices', []) or [])
+            if frozen:
+                n_cluster_mol = max((int(a) - 1) // atoms_per_first
+                                    for a in frozen) + 1
+                adjusted_counts[0] = max(0, adjusted_counts[0] - n_cluster_mol)
+                logger.info(
+                    "cluster_pdb=%s placed as rigid block; first-component "
+                    "count reduced by %d → %d", cluster_pdb, n_cluster_mol,
+                    adjusted_counts[0],
+                )
         return run_packmol(
             pdb_paths=self._pdb_paths,
-            counts=self._counts,
+            counts=adjusted_counts,
             box_size_nm=self._box_nm,
             output_pdb=output_pdb,
             build_dir=build_dir,
             tolerance=self.config.packmol_tolerance,
             seed=self.config.seed,
             packmol_path=self.config.packmol_path,
+            cluster_pdb=cluster_pdb,
         )
 
     def _parameterize(self, mixture_pdb: str,
@@ -234,7 +255,7 @@ class AmorphousBuilder:
         comp_names = [c.name or f"comp_{i}"
                       for i, c in enumerate(self.config.components)]
         atom_counts = [mol.n_atoms for mol in self._molecules]
-        frozen = list(getattr(self.config, 'frozen_atom_indices', []) or [])
+        frozen = list(getattr(self.config, "frozen_atom_indices", []) or [])
         return write_ndx(comp_names, atom_counts, self._counts, ndx_path,
                          frozen_atom_indices=frozen)
 
@@ -344,7 +365,50 @@ class AmorphousBuilder:
                     trimer_block_lines[i] = trimer_block_lines[i].replace(
                         moltype_name, moltype_name + '_TRIMER', 1)
                     break
-            trimer_block = '\n'.join(trimer_block_lines).rstrip() + '\n' + posres_str + '\n'
+            trimer_block_text = '\n'.join(trimer_block_lines)
+            # GROMACS forbids 2 moltypes both having [ settles ]
+            # (`Only one such is allowed`). Convert TRIMER copy's settles
+            # to equivalent [ constraints ] (LINCS-based) so the original
+            # moltype keeps its faster SETTLE and TRIMER becomes
+            # constraint-based rigid water. For TIP3P/SPC 3-site water:
+            #   [ settles ]
+            #     1  1  dOH  dHH
+            # → [ constraints ]
+            #     1 2 1 dOH    ; O-H1
+            #     1 3 1 dOH    ; O-H2
+            #     2 3 1 dHH    ; H1-H2
+            settles_block_pattern = re.compile(
+                r'(\[ settles \].*?)(?=\n\[ |\Z)', re.DOTALL,
+            )
+            settles_match = settles_block_pattern.search(trimer_block_text)
+            if settles_match:
+                settles_text = settles_match.group(1)
+                # Parse the first non-comment row: "i funct dOH dHH"
+                dOH = dHH = None
+                for line in settles_text.split('\n')[1:]:
+                    s = line.strip()
+                    if not s or s.startswith(';') or s.startswith('['):
+                        continue
+                    parts = s.split()
+                    if len(parts) >= 4:
+                        try:
+                            dOH = float(parts[2])
+                            dHH = float(parts[3])
+                            break
+                        except ValueError:
+                            continue
+                if dOH is not None:
+                    constraints_text = (
+                        f'[ constraints ]\n'
+                        f'; ai aj funct value (TIP3P/SPC rigid water, '
+                        f'converted from [settles])\n'
+                        f'  1 2 1 {dOH}\n'
+                        f'  1 3 1 {dOH}\n'
+                        f'  2 3 1 {dHH}\n'
+                    )
+                    trimer_block_text = trimer_block_text.replace(
+                        settles_text, constraints_text, 1)
+            trimer_block = trimer_block_text.rstrip() + '\n' + posres_str + '\n'
             text = text[:starts[0]] + trimer_block + text[starts[0]:]
             # Update the [ molecules ] line
             new_first_line = (
