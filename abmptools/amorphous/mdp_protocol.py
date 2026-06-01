@@ -181,7 +181,8 @@ def generate_npt_final_mdp(protocol: AnnealProtocol,
 
 def write_all_mdp(protocol: AnnealProtocol,
                   output_dir: str,
-                  tc_grps: str = "System") -> List[str]:
+                  tc_grps: str = "System",
+                  freeze_group: Optional[str] = None) -> List[str]:
     """Write all 5 MDP files and return their paths.
 
     Parameters
@@ -192,6 +193,11 @@ def write_all_mdp(protocol: AnnealProtocol,
         Directory to write MDP files into.
     tc_grps : str
         Temperature coupling groups string for GROMACS.
+    freeze_group : str, optional
+        Name of an index group (must exist in system.ndx) whose atoms
+        should be frozen during MD. When set, ``freezegrps = <name>`` /
+        ``freezedim = Y Y Y`` 2 行が全 mdp の末尾に追加される。 cluster
+        center (water trimer 等) を MD で構造維持するのに使う。
 
     Returns
     -------
@@ -207,12 +213,22 @@ def write_all_mdp(protocol: AnnealProtocol,
         ("05_npt_final.mdp", generate_npt_final_mdp),
     ]
     paths = []
+    freeze_block = ""
+    if freeze_group:
+        freeze_block = (
+            f"\n; Frozen atoms (cluster center fix_label equivalent)\n"
+            f"freezegrps               = {freeze_group}\n"
+            f"freezedim                = Y Y Y\n"
+            f"energygrp-excl           = {freeze_group} {freeze_group}\n"
+        )
     for fname, gen_func in generators:
         path = os.path.join(output_dir, fname)
         if gen_func is generate_em_mdp:
             text = gen_func(protocol)
         else:
             text = gen_func(protocol, tc_grps=tc_grps)
+        if freeze_block:
+            text = text.rstrip() + "\n" + freeze_block
         Path(path).write_text(text)
         paths.append(path)
     return paths
