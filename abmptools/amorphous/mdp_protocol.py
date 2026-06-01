@@ -182,7 +182,7 @@ def generate_npt_final_mdp(protocol: AnnealProtocol,
 def write_all_mdp(protocol: AnnealProtocol,
                   output_dir: str,
                   tc_grps: str = "System",
-                  freeze_group: Optional[str] = None) -> List[str]:
+                  define_posres: Optional[str] = None) -> List[str]:
     """Write all 5 MDP files and return their paths.
 
     Parameters
@@ -193,11 +193,14 @@ def write_all_mdp(protocol: AnnealProtocol,
         Directory to write MDP files into.
     tc_grps : str
         Temperature coupling groups string for GROMACS.
-    freeze_group : str, optional
-        Name of an index group (must exist in system.ndx) whose atoms
-        should be frozen during MD. When set, ``freezegrps = <name>`` /
-        ``freezedim = Y Y Y`` 2 行が全 mdp の末尾に追加される。 cluster
-        center (water trimer 等) を MD で構造維持するのに使う。
+    define_posres : str, optional
+        ``#define`` flag (e.g. ``"POSRES_TRIMER"``) added to 02_nvt_highT
+        and later stages via mdp ``define = -DPOSRES_TRIMER``. Used to
+        activate ``[ position_restraints ]`` blocks added inside specific
+        moleculetypes in system.top (see builder.AmorphousBuilder.
+        _add_trimer_posres_to_top). EM (01_em.mdp) is intentionally
+        skipped because posres of pre-relaxed packmol overlaps yields
+        ill-conditioned forces.
 
     Returns
     -------
@@ -213,16 +216,11 @@ def write_all_mdp(protocol: AnnealProtocol,
         ("05_npt_final.mdp", generate_npt_final_mdp),
     ]
     paths = []
-    freeze_block = ""
-    if freeze_group:
-        # energygrp-excl は使わない: `energygrps` も別途設定が必要で、 grompp
-        # が `FrozenAtoms in energygrp-excl is not an energy group` で reject
-        # する。 frozen-frozen pair の non-bonded 評価コスト削減は微々たる
-        # ものなので省略して問題なし。
-        freeze_block = (
-            f"\n; Frozen atoms (cluster center fix_label equivalent)\n"
-            f"freezegrps               = {freeze_group}\n"
-            f"freezedim                = Y Y Y\n"
+    define_block = ""
+    if define_posres:
+        define_block = (
+            f"\n; Activate [ position_restraints ] in system.top\n"
+            f"define                   = -D{define_posres}\n"
         )
     for fname, gen_func in generators:
         path = os.path.join(output_dir, fname)
@@ -230,13 +228,8 @@ def write_all_mdp(protocol: AnnealProtocol,
             text = gen_func(protocol)
         else:
             text = gen_func(protocol, tc_grps=tc_grps)
-        # freezegrps を EM (steepest descent) に入れると DD と相性悪く、
-        # 初期 packmol geom の overlap → 巨大 force → matrix inversion 失敗で
-        # `Can not invert matrix, determinant = -inf` で abort する。
-        # EM は overlap 解消が目的なので frozen atoms 無しで実行、
-        # 02_nvt_highT 以降で freezegrps を有効化する。
-        if freeze_block and gen_func is not generate_em_mdp:
-            text = text.rstrip() + "\n" + freeze_block
+        if define_block and gen_func is not generate_em_mdp:
+            text = text.rstrip() + "\n" + define_block
         Path(path).write_text(text)
         paths.append(path)
     return paths
