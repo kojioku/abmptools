@@ -215,11 +215,14 @@ def write_all_mdp(protocol: AnnealProtocol,
     paths = []
     freeze_block = ""
     if freeze_group:
+        # energygrp-excl は使わない: `energygrps` も別途設定が必要で、 grompp
+        # が `FrozenAtoms in energygrp-excl is not an energy group` で reject
+        # する。 frozen-frozen pair の non-bonded 評価コスト削減は微々たる
+        # ものなので省略して問題なし。
         freeze_block = (
             f"\n; Frozen atoms (cluster center fix_label equivalent)\n"
             f"freezegrps               = {freeze_group}\n"
             f"freezedim                = Y Y Y\n"
-            f"energygrp-excl           = {freeze_group} {freeze_group}\n"
         )
     for fname, gen_func in generators:
         path = os.path.join(output_dir, fname)
