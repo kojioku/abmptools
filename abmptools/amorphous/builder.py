@@ -113,7 +113,11 @@ class AmorphousBuilder:
         logger.info("=== Stage 6: MDP protocol ===")
         protocol = self._make_protocol()
         tc_grps = self._tc_grps_string()
-        mdp_files = write_all_mdp(protocol, str(md_dir), tc_grps=tc_grps)
+        freeze_grp = ("FrozenAtoms"
+                      if getattr(self.config, 'frozen_atom_indices', None)
+                      else None)
+        mdp_files = write_all_mdp(protocol, str(md_dir), tc_grps=tc_grps,
+                                  freeze_group=freeze_grp)
         run_script = write_run_script(str(md_dir))
         wrap_script = write_wrap_script(str(md_dir))
         udf_script = write_udf_export_script(str(md_dir))
@@ -220,7 +224,9 @@ class AmorphousBuilder:
         comp_names = [c.name or f"comp_{i}"
                       for i, c in enumerate(self.config.components)]
         atom_counts = [mol.n_atoms for mol in self._molecules]
-        return write_ndx(comp_names, atom_counts, self._counts, ndx_path)
+        frozen = list(getattr(self.config, 'frozen_atom_indices', []) or [])
+        return write_ndx(comp_names, atom_counts, self._counts, ndx_path,
+                         frozen_atom_indices=frozen)
 
     def _make_protocol(self) -> AnnealProtocol:
         cfg = self.config

@@ -104,6 +104,17 @@ class BuildConfig:
     nstxout_compressed: int = 5000
     nstenergy: int = 1000
 
+    # --- Position restraints / frozen atoms ---
+    # frozen_atom_indices: 1-based global atom indices (GROMACS ndx convention)
+    # to FREEZE during MD (anneal + sampling). Empty list = no freeze.
+    # Typical use: segment_data.dat の `fix_label` (0-based, per-cluster local
+    # indices) を fcewsmb 側で global 1-based に展開してこちらに渡す。 これに
+    # よって [ FrozenAtoms ] index group が system.ndx に追加され、 全 mdp に
+    # `freezegrps = FrozenAtoms\nfreezedim = Y Y Y` が挿入される。 cluster
+    # center (water trimer 等) を MD 中固定し、 free MD で 拡散して trimer
+    # 構造が崩れるのを防ぐ。
+    frozen_atom_indices: List[int] = field(default_factory=list)
+
     def to_json(self, path: str) -> None:
         """Save configuration to JSON for reproducibility."""
         data = asdict(self)
