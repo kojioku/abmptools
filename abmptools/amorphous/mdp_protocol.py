@@ -230,7 +230,12 @@ def write_all_mdp(protocol: AnnealProtocol,
             text = gen_func(protocol)
         else:
             text = gen_func(protocol, tc_grps=tc_grps)
-        if freeze_block:
+        # freezegrps を EM (steepest descent) に入れると DD と相性悪く、
+        # 初期 packmol geom の overlap → 巨大 force → matrix inversion 失敗で
+        # `Can not invert matrix, determinant = -inf` で abort する。
+        # EM は overlap 解消が目的なので frozen atoms 無しで実行、
+        # 02_nvt_highT 以降で freezegrps を有効化する。
+        if freeze_block and gen_func is not generate_em_mdp:
             text = text.rstrip() + "\n" + freeze_block
         Path(path).write_text(text)
         paths.append(path)
