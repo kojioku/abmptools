@@ -862,7 +862,27 @@ class udf_io(molc):
                     k += 1
 
         # get contact list
-        clistall = self.getcontactlist(seg1_clunum, posMol, site, neighborMol)
+        # around mode: neighborMol は既に criteria 距離で確定済み (cluster
+        # center 内 pair も無条件で追加済) なので、 getcontactlist の
+        # vdW 距離 (r1+r2)/1.5 による 2nd-pass 再 filter は SKIP する。
+        # contact mode (legacy): 従来通り getcontactlist で site-level 距離
+        # チェックを行う。
+        if contact_cutmode == 'around':
+            contactlist = list(neighborMol)
+            clistall_raw = []
+            for i in range(seg1_clunum):
+                clistmol = []
+                for j in contactlist:
+                    if j[1] == i:
+                        clistmol.append(j[0])
+                    if j[0] == i:
+                        clistmol.append(j[1])
+                clistall_raw.append(clistmol)
+            for i in range(len(clistall_raw)):
+                clistall_raw[i].insert(0, i)
+            clistall = clistall_raw
+        else:
+            clistall = self.getcontactlist(seg1_clunum, posMol, site, neighborMol)
         logger.debug("clistall %s", clistall)
         clistfrag = self.getcontactfrag(clistall, posfrag_mols,
                                         sitefrag_mols, fragids, infrag)
