@@ -133,6 +133,71 @@ result = AmorphousBuilder(config).build()
 stage で **density = 0.991 g/cm³**、TIP3P literature (~0.99 g/cm³ at 298 K)
 と完全一致。同条件の OpenFF organic 単独だと 0.26 g/cm³ に縮む。
 
+### Rigid cluster center (`cluster_pdb_path` + `frozen_atom_indices`)
+
+cluster center (e.g. water trimer の H-bond triangle) を MD 中構造維持したい
+場合の 2 段構え:
+
+1. **`cluster_pdb_path`** — pre-built rigid cluster の PDB ファイル。 packmol が
+   `fixed <center> 0 0 0` constraint で box 中央に rigid block 配置する。
+   first component の `n_mol` から自動で cluster 分減算 (cluster がその mol を
+   提供するため、 重複防止)。
+2. **`frozen_atom_indices`** — 1-based global atom indices (GROMACS ndx
+   convention)。 build 時に:
+   - `system.ndx` に `[ FrozenAtoms ]` index group を追加
+   - first moleculetype 内に `[ position_restraints ]` を `#ifdef
+     POSRES_TRIMER` ガード付きで追加 (`posres_force_constant` で `kx`/`ky`/`kz`)
+   - 02_nvt_highT 以降全 mdp に `define = -DPOSRES_TRIMER` を追加 (EM は skip、
+     packmol overlap relax 段階での numerical 不安定を回避)
+   - homo pair で first moletype 件数が cluster mol 数より多い場合は moletype
+     を split: `<name>_TRIMER` (cluster 分、 posres 入り) + `<name>` (残り、 posres
+     無し)。 split 時に GROMACS の "Only one moltype with [settles] allowed"
+     制約を回避するため、 TRIMER 側の `[ settles ]` を等価な `[ constraints ]`
+     (LINCS-based、 同じ O-H/H-H 距離) に変換。
+
+```python
+from abmptools.amorphous import AmorphousBuilder, BuildConfig, ComponentSpec
+
+config = BuildConfig(
+    components=[
+        ComponentSpec(smiles="O",  name="B_water",    n_mol=3),
+        ComponentSpec(smiles="CO", name="A_methanol", n_mol=300),
+    ],
+    forcefield=["openff_unconstrained-2.1.0.offxml", "tip3p.offxml"],
+
+    # 水 trimer (H-bond triangle、 O-O = 0.28 nm) を box 中央 rigid 配置
+    cluster_pdb_path="./cluster_xyz/water_trimer.pdb",
+
+    # 3 waters の O 原子 (atom 1, 4, 7) を posres で固定
+    frozen_atom_indices=[1, 4, 7],
+    posres_force_constant=10000.0,  # kJ/mol/nm² (default 10000)
+
+    density_g_cm3=0.6, temperature=300, T_high=400,
+    seed=42, output_dir="./output_trimer_meoh",
+)
+result = AmorphousBuilder(config).build()
+```
+
+**Rigid cluster PDB の format 要件** — Interchange の substructure match と
+互換にするため、 packmol input PDB は:
+- residue name は base component と同じ (e.g. `UNL`、 `HOH` は不可)
+- chain ID 必須 (col 22 に `A` 等)
+- atom name は PDB strict alignment (1-char element は col 13 空白 + col 14
+  に element + col 15-16 に index、 例: `' O1 '`)
+- `CONECT` records 必須 (O-H1, O-H2 bonds、 Interchange の bond perception 用)
+
+obabel の `xyz -> pdb` 直変換だと resname=`HOH` / 各 H が resid=0 で fail する
+ので手書き推奨。 fcews-manybody repo の
+`cluster_xyz/water_trimer.pdb` が water trimer の互換版 (UNL+A+CONECT)。
+
+**実機検証** (methanol-water B-A pair, 500 ps NVT, posres k=10000):
+- 初期 (packmol fixed): O-O = 0.275, 0.275, 0.276 nm (H-bond triangle)
+- 500 ps MD 後: O-O = 0.275, 0.292, 0.311 nm (構造維持、 wiggle < 0.04 nm)
+
+UDF route の `clusterfix` (Steady velocity=0 atom 拘束) と機能等価。 freezegrps
+(hard fix) は LINCS/SETTLE + Domain Decomposition で `determinant = -inf` で
+abort するので採用せず、 harmonic posres を採用。
+
 ### Multi-component pair の thermostat / annealing 動作
 
 複数 `ComponentSpec` の組み合わせ (mixed pair) と同名 component の重複
