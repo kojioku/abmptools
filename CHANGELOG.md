@@ -82,6 +82,30 @@
 - `mdp_protocol.write_all_mdp` の `freeze_group` 引数を `define_posres`
   に rename (同 branch)。
 
+### Added (docs)
+
+- **`docs/platform_support.md`** — OS 別 (Linux / macOS / Windows native /
+  WSL2) で各 sub-package + 依存 module がどこまで動くかの早見表 + 用途別
+  推奨 setup シナリオ + Phase 1 (`formulation` Windows route) 計画。
+- `docs/dependencies.md` と `docs/formulation.md` の冒頭に
+  `platform_support.md` への誘導 1 行を追加。
+
+### Added (sample)
+
+- `sample/formulation/octreotide_l_aggregation_10mM/` — Hossain 2023 主要系
+  (10 mM peptide、 Fig 1-2 出典) 準拠で `n_copies = 6` の設定。 既存
+  `octreotide_l_aggregation_100ns/` (peptide × 2 = 3.3 mM) は論文 Table 1 の
+  どの系とも一致しない hybrid 構成だったことが判明し、 訂正用として追加。
+
+### TODO
+
+- **`abmptools.formulation` Windows route (Phase 1)**: `force_field_route`
+  config 切替で `tleap` + `acpype` + `sqm` (AmberTools 依存、 Linux/macOS
+  のみ) を回避し、 OpenFF Toolkit + `openff-amber-ff-ports` (ff14SB SMIRNOFF)
+  + Interchange で **全 stage を Windows native 化**。 amorphous の OpenFF
+  経路を横展開、 ~480 行 + tests 規模。 詳細: `docs/platform_support.md`
+  の "Phase 1 計画" 節。
+
 ## [2.0.0] - 2026-05-28
 
 メジャーリリース。v1.15.4 (2026-04-19) 以降に develop で積み上げた 176 commits 分の機能・修正をまとめて公開。
