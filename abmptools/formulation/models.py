@@ -334,6 +334,12 @@ class FormulationBuildConfig:
     amber_water_ff: str = "leaprc.water.tip3p"
     gaff_version: str = "gaff2"
 
+    # build pipeline backend (Phase 1: OpenFF route for Windows native)
+    #   "amber"  — tleap + acpype + sqm (AmberTools 必須、 Linux/macOS)
+    #   "openff" — OpenFF Toolkit + amber-ff-ports + Interchange (全 OS、 開発中)
+    # Phase 1 詳細: docs/platform_support.md
+    force_field_route: str = "amber"
+
     # packmol behaviour
     packmol_tolerance_A: float = 2.0
     packmol_inner_box_margin_nm: float = 0.5  # pack to (box - margin), let solvatebox fill

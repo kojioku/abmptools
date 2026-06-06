@@ -436,6 +436,21 @@ class FormulationBuilder:
     # ------------------------------------------------------------------
 
     def build(self) -> FormulationArtifacts:
+        # Phase 1: force_field_route 切替 (OpenFF route は開発中)
+        route = getattr(self.config, "force_field_route", "amber")
+        if route == "openff":
+            raise NotImplementedError(
+                "force_field_route='openff' is a Phase 1 skeleton — "
+                "Stage 1/2/4 implementations are not yet wired up. "
+                "Use force_field_route='amber' (default) on Linux/macOS/WSL2, "
+                "or wait for Phase 1 completion for Windows native support. "
+                "See docs/platform_support.md for status."
+            )
+        if route != "amber":
+            raise ValueError(
+                f"force_field_route must be 'amber' or 'openff', got {route!r}"
+            )
+
         self._stage0_ff_staging()
 
         # Snapshot config for reproducibility
