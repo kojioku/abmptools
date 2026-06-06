@@ -93,10 +93,13 @@ def test_format_mdp_bool_conversion():
 
 def test_write_wrap_script_default_uses_openff_stages(tmp_path):
     path = write_wrap_script(str(tmp_path))
+    assert path.endswith("wrap_pbc.py")
     text = Path(path).read_text()
-    assert "STAGES=(02_nvt_highT 03_npt_highT 04_anneal 05_npt_final)" in text
-    assert "05_npt_final.gro" in text
-    assert "05_npt_final.tpr" in text
+    # Python list literal で全 stage が並ぶ
+    assert '"02_nvt_highT", "03_npt_highT", "04_anneal", "05_npt_final"' in text
+    assert 'FINAL_STAGE = "05_npt_final"' in text
+    # abmptools.trajectory の wrap_pbc を呼ぶ
+    assert "from abmptools.trajectory import wrap_pbc" in text
 
 
 def test_write_wrap_script_supports_4stage_hybrid(tmp_path):
@@ -109,9 +112,9 @@ def test_write_wrap_script_supports_4stage_hybrid(tmp_path):
         final_stage="04_nvt_sampling",
     )
     text = Path(path).read_text()
-    assert "STAGES=(01_nvt_eq 02_npt_high 03_npt_low 04_nvt_sampling)" in text
-    assert "04_nvt_sampling.gro" in text
-    assert "04_nvt_sampling_pbc.gro" in text
+    assert ('"01_nvt_eq", "02_npt_high", "03_npt_low", "04_nvt_sampling"'
+            in text)
+    assert 'FINAL_STAGE = "04_nvt_sampling"' in text
     # default OpenFF final stage shouldn't leak in
     assert "05_npt_final" not in text
 
@@ -124,23 +127,21 @@ def test_write_wrap_script_final_stage_defaults_to_last(tmp_path):
         stages=["a", "b", "c"],
     )
     text = Path(path).read_text()
-    assert 'if [ -f "c.gro" ]' in text
-    assert "c_pbc.gro" in text
+    assert 'FINAL_STAGE = "c"' in text
 
 
 def test_write_wrap_script_omits_ndx_when_none(tmp_path):
-    """ndx=None なら -n flag が出ない。"""
+    """ndx=None なら NDX 定数が None リテラル。"""
     path = write_wrap_script(str(tmp_path), ndx=None)
     text = Path(path).read_text()
-    assert " -n " not in text
+    assert "NDX = None" in text
 
 
 def test_write_wrap_script_includes_ndx_when_given(tmp_path):
-    """ndx 指定があれば -n flag が出る。"""
+    """ndx 指定があれば NDX 定数に文字列 path が入る。"""
     path = write_wrap_script(str(tmp_path), ndx="system.ndx")
     text = Path(path).read_text()
-    assert "-n " in text
-    assert "system.ndx" in text
+    assert 'NDX = "../build/system.ndx"' in text
 
 
 # ---------------------------------------------------------------------------
@@ -148,20 +149,19 @@ def test_write_wrap_script_includes_ndx_when_given(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_write_udf_export_script_default(tmp_path):
-    """gen_for_udf.sh が default 設定で生成される。"""
+    """gen_for_udf.py が default 設定で生成される。"""
     path = write_udf_export_script(str(tmp_path))
-    assert path.endswith("gen_for_udf.sh")
+    assert path.endswith("gen_for_udf.py")
     assert Path(path).exists()
     text = Path(path).read_text()
     # default stage は 05_npt_final
-    assert 'STAGE="05_npt_final"' in text
-    # gmx energy term enumeration via seq 50 (default)
-    assert "N_ENERGY_TERMS=50" in text
-    assert 'seq "${N_ENERGY_TERMS}" | gmx energy' in text
-    # gmx trjconv -pbc nojump for J-OCTA
-    assert "-pbc nojump" in text
-    # default で ndx (-n) flag が出る
-    assert "system.ndx" in text
+    assert 'STAGE = "05_npt_final"' in text
+    # gmx energy term range (default 50)
+    assert "N_ENERGY_TERMS = 50" in text
+    # abmptools.trajectory の gmx_energy + nojump を import
+    assert "from abmptools.trajectory import gmx_energy, nojump" in text
+    # default で ndx 文字列 path が入る
+    assert 'NDX = "../build/system.ndx"' in text
 
 
 def test_write_udf_export_script_custom_stage(tmp_path):
@@ -172,19 +172,15 @@ def test_write_udf_export_script_custom_stage(tmp_path):
         n_energy_terms=80,
     )
     text = Path(path).read_text()
-    assert 'STAGE="04_nvt_sampling"' in text
-    assert "N_ENERGY_TERMS=80" in text
+    assert 'STAGE = "04_nvt_sampling"' in text
+    assert "N_ENERGY_TERMS = 80" in text
 
 
 def test_write_udf_export_script_omits_ndx_when_none(tmp_path):
-    """ndx=None 時は gmx trjconv に -n flag を付けない。"""
+    """ndx=None 時は NDX 定数が None リテラル (gmx_energy/nojump に渡される)。"""
     path = write_udf_export_script(str(tmp_path), ndx=None)
     text = Path(path).read_text()
-    # gmx trjconv のコマンド行に `-n "<path>/system.ndx"` のような flag が
-    # 現れないことを確認 (bash の `[ -n "${INPUT}" ]` test は別件)
-    gmx_line = next(line for line in text.splitlines()
-                    if "gmx trjconv" in line)
-    assert " -n " not in gmx_line
+    assert "NDX = None" in text
     assert "system.ndx" not in text
 
 

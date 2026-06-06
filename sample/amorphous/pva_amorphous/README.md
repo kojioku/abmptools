@@ -25,7 +25,7 @@
 ```bash
 cd sample/amorphous/pva_amorphous
 bash run_sample.sh
-cd md && bash run_all.sh && bash wrap_pbc.sh
+cd md && bash run_all.sh && python wrap_pbc.py
 ```
 
 5-stage MD (~10-20 min on CPU 8 cores): EM → NVT (T_high) → NPT (T_high)

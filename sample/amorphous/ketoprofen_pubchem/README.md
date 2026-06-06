@@ -14,7 +14,7 @@ bash run_sample.sh
 # After the build completes:
 cd md
 bash run_all.sh     # 5-stage annealing MD (~10 min on CPU 8 cores)
-bash wrap_pbc.sh    # produces *_pbc.xtc for VMD
+python wrap_pbc.py    # produces *_pbc.xtc for VMD
 ```
 
 The SDF at `input/ketoprofen_pubchem_cid3825.sdf` is bundled so the

@@ -32,7 +32,7 @@ $PY ../../../build_amorphous.py \
 
 echo ""
 echo "Build complete. To run the MD:"
-echo "  cd md && bash run_all.sh && bash wrap_pbc.sh"
+echo "  cd md && bash run_all.sh && python wrap_pbc.py"
 echo ""
 echo "After MD, run hbond generic-mode analysis on the produced BDF:"
 echo "  python -m abmptools.hbond md/test_05_output_rec*.bdf \\"

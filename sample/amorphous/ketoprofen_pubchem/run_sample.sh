@@ -32,4 +32,4 @@ python ../../../build_amorphous.py \
 
 echo ""
 echo "Build complete. To run the MD and post-process for VMD:"
-echo "  cd md && bash run_all.sh && bash wrap_pbc.sh"
+echo "  cd md && bash run_all.sh && python wrap_pbc.py"

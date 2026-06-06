@@ -232,11 +232,11 @@ SMILES / SDF  ──→ molecule_prep.py     ──→ OpenFF Molecule + single-
                       │
                       ↓
                  mdp_protocol.py        ──→ 01_em.mdp / 02_nvt / 03_npt / 04_anneal /
-                      │                    05_npt_final.mdp  + run_all.sh + wrap_pbc.sh
+                      │                    05_npt_final.mdp  + run_all.sh + wrap_pbc.py
                       ↓
                  (run_all.sh)           ──→ 5-stage GROMACS MD
                       ↓
-                 (wrap_pbc.sh)          ──→ *_pbc.xtc / 05_npt_final_pbc.gro (VMD ready)
+                 (wrap_pbc.py)          ──→ *_pbc.xtc / 05_npt_final_pbc.gro (VMD ready)
 ```
 
 Orchestrated end-to-end by `abmptools.amorphous.builder.AmorphousBuilder.build()`.

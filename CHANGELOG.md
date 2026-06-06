@@ -4,18 +4,18 @@
 
 ### Added — `abmptools.trajectory` (new sub-package)
 
-- Cross-platform Python wrapper around `gmx trjconv` for trajectory post-process
-  (Linux / macOS / Windows、 旧 bash script の置換)
-- Public API: `thin_and_nojump`, `nojump`, `thin`, `wrap_pbc`, `run_trjconv`
-  (low-level)
-- CLI: `python -m abmptools.trajectory {thin_nojump,nojump,thin,wrap_pbc}`
+- Cross-platform Python wrapper around `gmx trjconv` / `gmx energy` for
+  trajectory post-process (Linux / macOS / Windows、 旧 bash script の置換)
+- Public API: `thin_and_nojump`, `nojump`, `thin`, `wrap_pbc`, `gmx_energy`,
+  `run_trjconv` (low-level)
+- CLI: `python -m abmptools.trajectory {thin_nojump,nojump,thin,wrap_pbc,energy}`
 - `aggregation` 系の基本セット (100 ns prod.xtc → `-pbc nojump -skip 10` で
   100 frame、 1 ns stride、 ~300 MB) を Python 1 行で生成
 - `subprocess` を `shell=False` + stdin で呼ぶので Windows でも動作、
   `pathlib.Path` で path 区切り差を吸収
-- 14 unit tests (`tests/test_trajectory_postprocess.py`)、 gmx subprocess を
+- 18 unit tests (`tests/test_trajectory_postprocess.py`)、 gmx subprocess を
   monkeypatch して引数組立 / output 命名 / center group の 2 行 stdin / ndx flag
-  / FileNotFoundError / GmxError を検証
+  / energy term 列挙 / FileNotFoundError / GmxError を検証
 
 ### Added (`abmptools.amorphous` cluster center + posres、 branch `fix/cluster-cut-minimum-image-wrap`)
 
@@ -65,18 +65,22 @@
   (機能は `abmptools.trajectory` に移行)
 - `sample/formulation/octreotide_{l,d}_aggregation_100ns/README.md` に
   Post-process 節を追加 (Python CLI + API の呼び出し例)
+- **`amorphous.mdp_protocol.write_wrap_script`** が生成する script を
+  `wrap_pbc.sh` (bash) → **`wrap_pbc.py` (Python)** に変更。
+  生成 file は `from abmptools.trajectory import wrap_pbc` を呼び、
+  Linux / macOS / Windows のどこでも `python wrap_pbc.py` で実行可能。
+- **`amorphous.mdp_protocol.write_udf_export_script`** が生成する script を
+  `gen_for_udf.sh` (bash) → **`gen_for_udf.py` (Python)** に変更。
+  生成 file は `abmptools.trajectory.gmx_energy` + `nojump` を呼ぶ。
+- 全 `sample/amorphous/*/README.md` + `run_sample.sh` + `docs/*.md` の
+  `bash wrap_pbc.sh` / `bash gen_for_udf.sh` 表記を
+  `python wrap_pbc.py` / `python gen_for_udf.py` に統一。
 - `getcontactstructure` の `freezegrps` → `position_restraints` (harmonic)
   に switch — freezegrps は LINCS/SETTLE + Domain Decomposition で
   `determinant = -inf` で abort するため。 ~0.04 nm の wiggle のみで cluster
   geometry を維持する (branch `fix/cluster-cut-minimum-image-wrap`)。
 - `mdp_protocol.write_all_mdp` の `freeze_group` 引数を `define_posres`
   に rename (同 branch)。
-
-### TODO
-
-- `abmptools.amorphous.mdp_protocol.write_wrap_script` / `write_udf_export_script`
-  も `abmptools.trajectory` を呼ぶ薄い wrapper script に refactor (現状は bash
-  生成のまま残置、 既存 sample 影響範囲確認後に対応)
 
 ## [2.0.0] - 2026-05-28
 

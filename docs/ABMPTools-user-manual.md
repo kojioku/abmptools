@@ -36,7 +36,7 @@ Author: Koji Okuwaki
     - SMILES / 3D SDF / **PubChem CID または化合物名** のいずれからも入力可 (Packmol + OpenFF + AM1-BCC)
     - PubChem からの自動取得は `abmptools.amorphous.pubchem` モジュール (urllib 標準のみ、追加依存なし)、3D 未提供時は `PubChemNo3DError` を送出
     - 5-stage GROMACS アニーリングプロトコル (EM → 高温 NVT/NPT → SA → 最終 NPT) を自動生成
-    - MD 後の VMD 用 PBC 後処理スクリプト (wrap_pbc.sh) も同時生成
+    - MD 後の VMD 用 PBC 後処理スクリプト (wrap_pbc.py) も同時生成
     - 詳細: [amorphous.md](amorphous.md)
 
 - ペプチド膜透過 Umbrella Sampling 系構築 (membrane)

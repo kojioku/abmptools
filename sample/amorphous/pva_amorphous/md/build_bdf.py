@@ -1,6 +1,6 @@
 """Convert the GROMACS xtc trajectory to a COGNAC BDF for abmptools.hbond.
 
-Run after ``run_all.sh`` + ``wrap_pbc.sh`` finish.
+Run after ``run_all.sh`` + ``wrap_pbc.py`` finish.
 Output: ``05_npt_final.bdf`` next to the xtc.
 """
 import os
@@ -23,7 +23,7 @@ TEMPLATE = os.path.join(os.path.dirname(g2u.__file__), "default_template.udf")
 OUT_UDF = os.path.join(HERE, "05_npt_final.udf")
 
 if not os.path.exists(XTC):
-    sys.exit(f"missing {XTC}; run wrap_pbc.sh first")
+    sys.exit(f"missing {XTC}; run wrap_pbc.py first")
 
 raw = TopParser().parse(TOP)
 model = TopAdapter().build(raw, GRO, mdp_path=MDP)

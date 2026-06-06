@@ -255,15 +255,15 @@ GRO ファイル内の `step % N == 0` のフレームのみ UDF レコードと
 
 ## Multi-frame trajectory + energy を 1 UDF に embed
 
-`gen_for_udf.sh` で出力される multi-frame `.gro` (or `.xtc`) + `.xvg` を
+`gen_for_udf.py` で出力される multi-frame `.gro` (or `.xtc`) + `.xvg` を
 直接 gro2udf に渡すと、全フレームの座標 + 各フレームのエネルギー値を
 1 つの UDF に書き込める。OCTA viewer (GOURMET) で開けば trajectory も energy plot
 も同じ UDF から再生される:
 
 ```bash
-# 1. (前提) MD 実行 + gen_for_udf.sh で trajectory + energy を生成
+# 1. (前提) MD 実行 + gen_for_udf.py で trajectory + energy を生成
 bash run_all.sh
-bash gen_for_udf.sh
+python gen_for_udf.py
 # → md/05_npt_final_nojump.gro  (multi-frame、gmx trjconv -pbc nojump)
 # → md/05_npt_final_energy.xvg  (gmx energy 全 term)
 
@@ -373,8 +373,8 @@ python -m abmptools.gro2udf --from-top build/system.top build/system.gro \
 その後 OCTA viewer で trajectory + energy を attach:
 
 ```bash
-# trajectory + energy は gen_for_udf.sh で生成
-bash gen_for_udf.sh
+# trajectory + energy は gen_for_udf.py で生成
+python gen_for_udf.py
 # → md/05_npt_final_nojump.gro  (multi-frame trajectory)
 # → md/05_npt_final_energy.xvg  (energy time-series)
 
@@ -395,7 +395,7 @@ bash gen_for_udf.sh
 - `Simulation_Conditions.Dynamics_Conditions.Time.{delta_T, Total_Steps,
   Output_Interval_Steps}` も mdp から書かれる
 
-`gen_for_udf.sh` の `*_nojump.gro` (`gmx trjconv -pbc nojump`) と組み合わせる
+`gen_for_udf.py` の `*_nojump.gro` (`gmx trjconv -pbc nojump`) と組み合わせる
 と、PBC を跨いだ連続軌跡が OCTA viewer で滑らかに再生される。OCTA viewer の reference
 比較や energy plot 機能を使う際は、本 mode の skeleton UDF を **reference**
 として読み込み、別途実トラジェクトリ / xvg を attach する流れ。
