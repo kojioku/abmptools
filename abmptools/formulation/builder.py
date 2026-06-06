@@ -436,17 +436,9 @@ class FormulationBuilder:
     # ------------------------------------------------------------------
 
     def build(self) -> FormulationArtifacts:
-        # Phase 1: force_field_route 切替 (OpenFF route は開発中)
+        # Phase 1: force_field_route 切替 ('amber' | 'openff')
         route = getattr(self.config, "force_field_route", "amber")
-        if route == "openff":
-            raise NotImplementedError(
-                "force_field_route='openff' is a Phase 1 skeleton — "
-                "Stage 1/2/4 implementations are not yet wired up. "
-                "Use force_field_route='amber' (default) on Linux/macOS/WSL2, "
-                "or wait for Phase 1 completion for Windows native support. "
-                "See docs/platform_support.md for status."
-            )
-        if route != "amber":
+        if route not in ("amber", "openff"):
             raise ValueError(
                 f"force_field_route must be 'amber' or 'openff', got {route!r}"
             )
@@ -457,6 +449,10 @@ class FormulationBuilder:
         config_json = self.output_dir / "config.json"
         self.config.to_json(str(config_json))
 
+        if route == "openff":
+            return self._build_openff(config_json)
+
+        # ---- Amber route (default、 Linux/macOS) ----
         peptide_pdbs = self._stage1_peptide_atomistic()
         small_results = self._stage2_small_mol_parameterize()
         mixture_pdb = self._stage3_packmol(peptide_pdbs, small_results)
@@ -481,6 +477,139 @@ class FormulationBuilder:
             atoms_estimate=atoms_est,
         )
 
+    def _build_openff(self, config_json: Path) -> FormulationArtifacts:
+        """OpenFF route — Windows native (Phase 1).
+
+        Stage 構成 (Amber route と差し替え):
+            1. peptide_atomistic_openff: 既存 PDB → OpenFF Molecule + clean PDB
+            2. small_molecule_openff:    SMILES → OpenFF Molecule + PDB
+            3. packmol:                  Amber route と共有 (water は packmol で配置)
+            4. topology_openff:          Interchange combine + GROMACS export
+            5-7: Amber route と共有 (ndx / mdp / run script)
+
+        Phase 1 制限: peptide は ``PeptideSpec.pdb_path`` 必須 (sequence
+        から build は Phase 2)。 water + ions は packmol stage で配置済前提。
+        """
+        from .peptide_atomistic_openff import (
+            PeptideOpenFFResult,
+            build_peptide_openff,
+        )
+        from .small_molecule_openff import (
+            SmallMoleculeOpenFFResult,
+            parameterize_small_mol_openff,
+        )
+        from .topology_openff import (
+            export_gromacs_files,
+            merge_to_interchange,
+        )
+
+        build_dir = self.output_dir / "build"
+
+        # Stage 1: peptide (OpenFF route)
+        logger.info("=== Stage 1/7 (OpenFF): peptide ===")
+        peptide_results: List[PeptideOpenFFResult] = []
+        for pspec in self.config.system.peptides:
+            r = build_peptide_openff(
+                spec=pspec, output_dir=build_dir / "input",
+            )
+            peptide_results.append(r)
+
+        # Stage 2: small molecules (caprate × 2 + bile salt)
+        logger.info("=== Stage 2/7 (OpenFF): small molecules ===")
+        sm_results: List[SmallMoleculeOpenFFResult] = []
+        for espec in self.config.system.enhancers:
+            if espec.smiles_neutral and espec.n_neutral > 0:
+                sm_results.append(parameterize_small_mol_openff(
+                    smiles=espec.smiles_neutral,
+                    resname=espec.resname,
+                    net_charge=0,
+                    output_dir=build_dir / "input",
+                ))
+            if espec.smiles_charged and espec.n_charged > 0:
+                sm_results.append(parameterize_small_mol_openff(
+                    smiles=espec.smiles_charged,
+                    resname=f"{espec.resname[:2]}C"[:3],
+                    net_charge=-1,
+                    output_dir=build_dir / "input",
+                ))
+        for bspec in self.config.system.bile_salts:
+            sm_results.append(parameterize_small_mol_openff(
+                smiles=bspec.smiles,
+                resname=bspec.resname,
+                net_charge=bspec.net_charge,
+                output_dir=build_dir / "input",
+            ))
+
+        # Stage 3: packmol (shared with Amber route via adapter list)
+        logger.info("=== Stage 3/7 (OpenFF): packmol ===")
+        # _stage3_packmol expects ``SmallMoleculeResult`` (amber route dataclass);
+        # SmallMoleculeOpenFFResult is structurally similar (pdb_path +
+        # n_atoms_per_copy + net_charge). Wrap with shim.
+        sm_shim = [_SmallMolShim(r) for r in sm_results]
+        peptide_pdbs = [r.pdb_path for r in peptide_results]
+        mixture_pdb = self._stage3_packmol(peptide_pdbs, sm_shim)
+
+        # Stage 4: topology (Interchange + GROMACS export, OpenFF route)
+        logger.info("=== Stage 4/7 (OpenFF): topology (Interchange) ===")
+        # 順序: peptide × N + enhancer (neu, chg) + bile salt の順を維持
+        species_mols = [r.molecule for r in peptide_results] + [r.molecule for r in sm_results]
+        species_counts = (
+            [p.n_copies for p in self.config.system.peptides]
+            + [c for c in self._enhancer_counts_for_openff()]
+            + [b.n_copies for b in self.config.system.bile_salts]
+        )
+        ic = merge_to_interchange(
+            species_molecules=species_mols,
+            species_counts=species_counts,
+            mixture_pdb=mixture_pdb,
+            box_size_nm=self.config.system.box_size_nm,
+            use_precomputed_charges=True,
+        )
+        top_result = export_gromacs_files(
+            interchange=ic,
+            gro_path=self.output_dir / "system.gro",
+            top_path=self.output_dir / "system.top",
+        )
+
+        # Stage 5-7: shared with Amber route (ndx writer は top_art を期待)。
+        # Amber route の TopologyArtifacts は prmtop/inpcrd/tleap_input/tleap_log
+        # を持つが、 OpenFF route はそれらを生成しない。 ``_stage5_index`` が読む
+        # のは ``gro`` と ``top`` のみなので、 残り field は空文字で埋める。
+        top_art = TopologyArtifacts(
+            prmtop="",
+            inpcrd="",
+            top=str(top_result.top_path),
+            gro=str(top_result.gro_path),
+            tleap_input="",
+            tleap_log="",
+        )
+        ndx_path = self._stage5_index(top_art)
+        mdp_files = self._stage6_mdp_render()
+        run_path = self._stage7_run_script()
+
+        n_pep = self.config.system.total_peptide_copies
+        return FormulationArtifacts(
+            output_dir=str(self.output_dir),
+            gro=str(top_result.gro_path),
+            top=str(top_result.top_path),
+            ndx=str(ndx_path),
+            mdp_files=mdp_files,
+            run_script=str(run_path),
+            config_json=str(config_json),
+            n_peptides_total=n_pep,
+            atoms_estimate=top_result.n_atoms_total,
+        )
+
+    def _enhancer_counts_for_openff(self) -> List[int]:
+        """OpenFF route の species 順序に合わせて enhancer counts を flatten."""
+        out: List[int] = []
+        for espec in self.config.system.enhancers:
+            if espec.smiles_neutral and espec.n_neutral > 0:
+                out.append(espec.n_neutral)
+            if espec.smiles_charged and espec.n_charged > 0:
+                out.append(espec.n_charged)
+        return out
+
     @staticmethod
     def _estimate_atoms(top_art: TopologyArtifacts) -> int:
         gro = Path(top_art.gro)
@@ -489,6 +618,17 @@ class FormulationBuilder:
         with gro.open() as f:
             f.readline()
             return int(f.readline().strip().split()[0])
+
+
+class _SmallMolShim:
+    """Adapter to feed :class:`SmallMoleculeOpenFFResult` into the shared
+    Amber-route ``_stage3_packmol`` (which only reads ``.monomer_pdb``).
+    """
+
+    __slots__ = ("monomer_pdb",)
+
+    def __init__(self, openff_result) -> None:
+        self.monomer_pdb = openff_result.pdb_path
 
 
 __all__ = [

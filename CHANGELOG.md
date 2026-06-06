@@ -97,14 +97,38 @@
   `octreotide_l_aggregation_100ns/` (peptide × 2 = 3.3 mM) は論文 Table 1 の
   どの系とも一致しない hybrid 構成だったことが判明し、 訂正用として追加。
 
-### TODO
+### Added — `formulation` OpenFF route (Phase 1 完了)
 
-- **`abmptools.formulation` Windows route (Phase 1)**: `force_field_route`
-  config 切替で `tleap` + `acpype` + `sqm` (AmberTools 依存、 Linux/macOS
-  のみ) を回避し、 OpenFF Toolkit + `openff-amber-ff-ports` (ff14SB SMIRNOFF)
-  + Interchange で **全 stage を Windows native 化**。 amorphous の OpenFF
-  経路を横展開、 ~480 行 + tests 規模。 詳細: `docs/platform_support.md`
-  の "Phase 1 計画" 節。
+- `force_field_route: "openff"` config 切替で **AmberTools 依存を完全回避**:
+  - peptide: `Molecule.from_polymer_pdb` (要 `pdb_path` 入力)
+  - small molecule: SMILES → OpenFF Sage 2.x SMIRNOFF
+  - charge: peptide=Gasteiger / small mol=AM1-BCC default、 NAGL 切替可
+  - typing: amorphous の `create_interchange` を再利用 (Apache-2.0 互換 OpenFF
+    + Interchange 経路)
+  - GROMACS export: `Interchange.to_gro()` + `.to_top()`
+- 新規 module 3 本 (本実装):
+  - `formulation/peptide_atomistic_openff.py` (~135 行)
+  - `formulation/small_molecule_openff.py` (~105 行)
+  - `formulation/topology_openff.py` (~140 行)
+- `builder.py` に `_build_openff` ルート (~110 行) 追加、 既存 amber route と
+  独立並行、 stage 1/2/4 のみ差替、 stage 3/5/6/7 (packmol / ndx / mdp /
+  run_script) は共有
+- 実機検証: kggggg × 2 + caprate × 16 + TC × 1 (box 6 nm、 water なし) で
+  end-to-end build PASS (707 atoms)、 grompp em PASS
+- Amber route 28 unit tests 回帰なし
+
+### TODO (Phase 2)
+
+- **water solvate + ions balance を OpenFF route 内に追加**: 現状 Phase 1 の
+  build 出力は dry-mixed system (water なし)。 OpenMM `Modeller.addSolvent`
+  経由で TIP3P 充填 + Joung-Cheatham Na/Cl + 0.15 M NaCl を Interchange に
+  combine する経路を追加予定。
+- **sequence からの peptide build** (PDBFixer 経由): 現状 OpenFF route は
+  `PeptideSpec.pdb_path` 必須。 sequence 単独入力からの 3D build 経路を追加。
+- **ff14SB SMIRNOFF for natural L-AA peptide**: 現状 whole-peptide Sage 経路
+  のみ。 `openff-amber-ff-ports` で peptide 部分だけ ff14SB SMIRNOFF を適用
+  する FF stack 経路を追加。
+- **Windows native 環境 (実機 Win10/11) での実走確認 + CI 化**。
 
 ## [2.0.0] - 2026-05-28
 
