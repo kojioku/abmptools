@@ -27,6 +27,35 @@ cd /tmp/oct_l_agg100
 NT=8 MDRUN_OPTS="-nb gpu -pin on" /usr/bin/time -v bash run.sh
 ```
 
+## Post-process (基本セット)
+
+prod.xtc (~3 GB / 1000 frame / 100 ps stride) を可視化・解析しやすいサイズに
+変換する。 `abmptools.trajectory` (Windows 互換 Python module) を使用:
+
+```bash
+cd /tmp/oct_l_agg100
+python -m abmptools.trajectory thin_nojump \
+    --traj prod/prod.xtc --tpr prod/prod.tpr --skip 10
+# → prod/prod_nojump_skip10.xtc (~300 MB、 100 frame、 1 ns stride、 -pbc nojump 済)
+
+# VMD で開く:
+vmd prod/prod.tpr prod/prod_nojump_skip10.xtc
+```
+
+Python から直接呼ぶ場合:
+
+```python
+from abmptools.trajectory import thin_and_nojump
+thin_and_nojump(trajectory="prod/prod.xtc", tpr="prod/prod.tpr", skip=10)
+```
+
+`-pbc nojump` は first frame を基準に各原子を連続追跡するので、 aggregation
+で cluster が box 境界を跨いでも分裂表示にならない。 wrap が必要な場合は
+別 pass で `wrap_pbc` subcommand (`-pbc mol -ur compact`) を呼ぶ。
+
+詳細は `sample/formulation/_postprocess/README.md` と
+`python -m abmptools.trajectory --help` 参照。
+
 ## 期待 wall time
 
 | Atom 数 | system size | GPU (RTX 4070 Ti) | CPU 4-core |

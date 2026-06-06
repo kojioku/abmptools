@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### Added — `abmptools.trajectory` (new sub-package)
+
+- Cross-platform Python wrapper around `gmx trjconv` for trajectory post-process
+  (Linux / macOS / Windows、 旧 bash script の置換)
+- Public API: `thin_and_nojump`, `nojump`, `thin`, `wrap_pbc`, `run_trjconv`
+  (low-level)
+- CLI: `python -m abmptools.trajectory {thin_nojump,nojump,thin,wrap_pbc}`
+- `aggregation` 系の基本セット (100 ns prod.xtc → `-pbc nojump -skip 10` で
+  100 frame、 1 ns stride、 ~300 MB) を Python 1 行で生成
+- `subprocess` を `shell=False` + stdin で呼ぶので Windows でも動作、
+  `pathlib.Path` で path 区切り差を吸収
+- 14 unit tests (`tests/test_trajectory_postprocess.py`)、 gmx subprocess を
+  monkeypatch して引数組立 / output 命名 / center group の 2 行 stdin / ndx flag
+  / FileNotFoundError / GmxError を検証
+
+### Changed
+
+- `sample/formulation/_postprocess/trajectory_thin_nojump.sh` を DEPRECATED 化
+  (機能は `abmptools.trajectory` に移行)
+- `sample/formulation/octreotide_{l,d}_aggregation_100ns/README.md` に
+  Post-process 節を追加 (Python CLI + API の呼び出し例)
+
+### TODO
+
+- `abmptools.amorphous.mdp_protocol.write_wrap_script` / `write_udf_export_script`
+  も `abmptools.trajectory` を呼ぶ薄い wrapper script に refactor (現状は bash
+  生成のまま残置、 既存 sample 影響範囲確認後に対応)
+
 ## [2.0.0] - 2026-05-28
 
 メジャーリリース。v1.15.4 (2026-04-19) 以降に develop で積み上げた 176 commits 分の機能・修正をまとめて公開。

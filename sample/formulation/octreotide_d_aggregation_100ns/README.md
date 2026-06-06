@@ -27,6 +27,30 @@ NT=8 MDRUN_OPTS="-nb gpu -pin on" \
 /usr/bin/time -v bash run.sh > run_100ns.log 2>&1
 ```
 
+## Post-process (基本セット)
+
+prod.xtc を可視化・解析サイズに変換 (`abmptools.trajectory`、 Windows 互換):
+
+```bash
+cd /tmp/oct_d_agg100
+python -m abmptools.trajectory thin_nojump \
+    --traj prod/prod.xtc --tpr prod/prod.tpr --skip 10
+# → prod/prod_nojump_skip10.xtc (~300 MB、 100 frame、 1 ns stride、 -pbc nojump 済)
+
+# VMD:
+vmd prod/prod.tpr prod/prod_nojump_skip10.xtc
+```
+
+Python API:
+
+```python
+from abmptools.trajectory import thin_and_nojump
+thin_and_nojump(trajectory="prod/prod.xtc", tpr="prod/prod.tpr", skip=10)
+```
+
+詳細は `sample/formulation/_postprocess/README.md` と
+`python -m abmptools.trajectory --help` 参照。
+
 ## 期待 wall (RTX 4070 Ti)
 
 L 体実機 (87,647 atoms, 9h56m) と同等の atom 数なら **~10 時間**。
