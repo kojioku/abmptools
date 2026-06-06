@@ -14,6 +14,7 @@ import pytest
 
 from abmptools.trajectory import (
     GmxError,
+    gmx_energy,
     nojump,
     run_trjconv,
     thin,
@@ -187,6 +188,68 @@ def test_run_trjconv_sequence_group(gmx_recorder, fake_inputs):
     )
     cmd, stdin = gmx_recorder[0]
     assert stdin == b"GroupA\nGroupB\n"
+
+
+def test_gmx_energy_default_terms(gmx_recorder, tmp_path):
+    edr = tmp_path / "prod.edr"
+    edr.write_bytes(b"fake edr")
+    out = tmp_path / "prod_energy.xvg"
+    gmx_energy(edr=edr, output=out)
+    cmd, stdin = gmx_recorder[0]
+    assert "energy" in cmd
+    assert "-f" in cmd and str(edr) in cmd
+    # default terms = 1..50 → stdin に 50 行
+    lines = stdin.decode().splitlines()
+    assert lines[0] == "1"
+    assert lines[-1] == "50"
+    assert len(lines) == 50
+
+
+def test_gmx_energy_custom_terms(gmx_recorder, tmp_path):
+    edr = tmp_path / "prod.edr"
+    edr.write_bytes(b"x")
+    out = tmp_path / "out.xvg"
+    gmx_energy(edr=edr, output=out, terms=[1, 5, 10, "Potential"])
+    _, stdin = gmx_recorder[0]
+    assert stdin == b"1\n5\n10\nPotential\n"
+
+
+def test_gmx_energy_missing_edr_raises(tmp_path):
+    out = tmp_path / "out.xvg"
+    with pytest.raises(FileNotFoundError, match="edr not found"):
+        gmx_energy(edr=tmp_path / "missing.edr", output=out)
+
+
+def test_cli_energy_entry(monkeypatch, tmp_path, capsys):
+    from abmptools.trajectory.cli import main
+
+    edr = tmp_path / "prod.edr"
+    edr.write_bytes(b"x")
+    out = tmp_path / "prod_energy.xvg"
+
+    def _fake_run(cmd, input=None, capture_output=False, check=False, **kw):
+        out_idx = cmd.index("-o")
+        Path(cmd[out_idx + 1]).touch()
+
+        class R:
+            returncode = 0
+            stdout = b""
+            stderr = b""
+
+        return R()
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+    monkeypatch.setattr(pp, "_resolve_gmx", lambda gmx: gmx)
+
+    rc = main([
+        "energy",
+        "--edr", str(edr),
+        "--out", str(out),
+        "--terms-max", "30",
+    ])
+    assert rc == 0
+    out_msg = capsys.readouterr().out
+    assert "saved:" in out_msg
 
 
 def test_cli_thin_nojump_entry(monkeypatch, fake_inputs, capsys):

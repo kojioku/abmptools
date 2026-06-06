@@ -31,7 +31,7 @@ bash run_sample.sh
 # MD 実行 (GROMACS 必要)
 cd md
 bash run_all.sh
-bash wrap_pbc.sh
+python wrap_pbc.py
 ```
 
 ## 環境要件

@@ -134,7 +134,7 @@ pip install "setuptools<81"
 
 | ツール | 用途 |
 |---|---|
-| `gromacs` (2020+ 推奨、2025.4 で動作確認) | `md/run_all.sh` の実行 + `wrap_pbc.sh` の `gmx trjconv` |
+| `gromacs` (2020+ 推奨、2025.4 で動作確認) | `md/run_all.sh` の実行 + `wrap_pbc.py` の `gmx trjconv` |
 | `vmd` | 生成された `*_pbc.xtc` / `05_npt_final_pbc.gro` の可視化 |
 
 ### 追加依存 (`abmptools.amorphous.pubchem`)
@@ -421,7 +421,7 @@ ABMPTools
 ├── [optional/amorphous]      openff-toolkit, openff-interchange, openmm,
 │                             rdkit, packmol (binary),
 │                             ambertools (AM1-BCC) or openff-nagl (ML)
-│                             + gromacs (for run_all.sh / wrap_pbc.sh)
+│                             + gromacs (for run_all.sh / wrap_pbc.py)
 ├── [optional/membrane]       ambertools (tleap + packmol-memgen + antechamber),
 │                             parmed, gromacs (2021+),
 │                             + CHARMM36 .ff dir (Klauda port, manual DL)

@@ -157,7 +157,7 @@ MD:
 ```powershell
 cd md
 bash run_all.sh      # Git for Windows の bash
-bash wrap_pbc.sh
+python wrap_pbc.py
 ```
 
 ### B-5. nagl と AM1-BCC (sqm) の精度比較

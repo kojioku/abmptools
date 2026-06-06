@@ -17,4 +17,4 @@ echo "Output files:"
 find . -type f -not -name "run_sample.sh" -not -name "mixture.json" | sort
 
 echo ""
-echo "Next: cd md && bash run_all.sh && bash wrap_pbc.sh"
+echo "Next: cd md && bash run_all.sh && python wrap_pbc.py"

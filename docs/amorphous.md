@@ -280,11 +280,11 @@ cells` を回避するため。override したい場合は
     ├── 04_anneal.mdp       # シミュレーテッドアニーリング
     ├── 05_npt_final.mdp    # 最終NPT平衡化
     ├── run_all.sh          # GROMACS実行スクリプト (5-stage 順次)
-    ├── wrap_pbc.sh         # PBC ラップ後処理 (VMD 向け, 1.15.2+)
-    └── gen_for_udf.sh    # OCTA viewer 用 energy.xvg + nojump gro 抽出 (1.30+)
+    ├── wrap_pbc.py         # PBC ラップ後処理 (VMD 向け, 1.15.2+)
+    └── gen_for_udf.py    # OCTA viewer 用 energy.xvg + nojump gro 抽出 (1.30+)
 ```
 
-ビルド後に MD を走らせ、`wrap_pbc.sh` を実行すると以下も生成されます:
+ビルド後に MD を走らせ、`wrap_pbc.py` を実行すると以下も生成されます:
 
 ```
 md/
@@ -295,7 +295,7 @@ md/
 └── 05_npt_final_pbc.gro    # 最終構造 (VMD 初期フレーム用)
 ```
 
-`gen_for_udf.sh` を実行すると、OCTA viewer で読み込み可能な以下も生成されます:
+`gen_for_udf.py` を実行すると、OCTA viewer で読み込み可能な以下も生成されます:
 
 ```
 md/
@@ -303,7 +303,7 @@ md/
 └── 05_npt_final_nojump.gro  # gmx trjconv -pbc nojump: 分子を分断せず連続軌跡
 ```
 
-`gmx trjconv -pbc nojump` は、`-pbc mol` (`wrap_pbc.sh`) と違って **分子を box
+`gmx trjconv -pbc nojump` は、`-pbc mol` (`wrap_pbc.py`) と違って **分子を box
 内に wrap せず、PBC を跨いで連続的に追跡**します。OCTA viewer (GOURMET) で軌跡を
 再生する用途に適しています。
 
@@ -325,21 +325,21 @@ python build_amorphous.py --smiles "..." --name ... --n_mol ... --output_dir ./r
 # 2. MD 実行 (GROMACS 必須、CPU 8 コアで 1.3 ns 系なら ~10 分)
 cd run1/md && bash run_all.sh
 # 3. PBC ラップ (VMD 向けトラジェクトリ生成)
-bash wrap_pbc.sh
+python wrap_pbc.py
 # 4. VMD で可視化
 vmd 05_npt_final_pbc.gro -xtc 05_npt_final_pbc.xtc
 # アニーリング過程を見たい場合:
 vmd 04_anneal.tpr -xtc 04_anneal_pbc.xtc
 # 5. OCTA viewer 用 energy.xvg + nojump gro を抽出
-bash gen_for_udf.sh
+python gen_for_udf.py
 # → 05_npt_final_energy.xvg + 05_npt_final_nojump.gro を生成
 # 6. abmptools.gro2udf で OCTA UDF/BDF に変換 (Step 7 参照)
 ```
 
-`wrap_pbc.sh` は `gmx trjconv -pbc mol -ur compact` を各 xtc と最終 gro に適用し、
+`wrap_pbc.py` は `gmx trjconv -pbc mol -ur compact` を各 xtc と最終 gro に適用し、
 箱境界で分断された分子を修復したうえで compact box 表示に揃えます。
 
-`gen_for_udf.sh` は OCTA viewer で読み込み可能な 2 種類の出力を生成します:
+`gen_for_udf.py` は OCTA viewer で読み込み可能な 2 種類の出力を生成します:
 
 - `<stage>_energy.xvg` : `seq 50 | gmx energy -f <stage>.edr -o <stage>_energy.xvg`
   で全 energy term を一括取得 (1〜50 番、存在しない番号は gmx が無視)

@@ -152,8 +152,14 @@ def test_run_all_sh_invokes_all_stages(build_result):
         assert stage in text
 
 
-def test_wrap_pbc_sh_uses_gmx_trjconv_with_pbc_mol(build_result):
-    text = Path(build_result["wrap_script"]).read_text()
-    assert "gmx trjconv" in text
-    assert "-pbc mol" in text
-    assert "-ur compact" in text
+def test_wrap_pbc_py_uses_abmptools_trajectory(build_result):
+    """生成された wrap_pbc.py が abmptools.trajectory.wrap_pbc を呼ぶ。
+
+    旧 bash 版 ``wrap_pbc.sh`` (``-pbc mol -ur compact``) の Python 置換。
+    Windows 互換。
+    """
+    path = Path(build_result["wrap_script"])
+    assert path.name == "wrap_pbc.py"
+    text = path.read_text()
+    assert "from abmptools.trajectory import wrap_pbc" in text
+    assert "wrap_pbc(" in text

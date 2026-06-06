@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 from typing import Optional, Sequence
 
-from .postprocess import GmxError, nojump, thin, thin_and_nojump, wrap_pbc
+from .postprocess import GmxError, gmx_energy, nojump, thin, thin_and_nojump, wrap_pbc
 
 
 def _add_common_args(p: argparse.ArgumentParser) -> None:
@@ -86,6 +86,18 @@ def _build_parser() -> argparse.ArgumentParser:
                       help="-ur 値 (default: compact)")
     p_wr.add_argument("--center", default=None,
                       help="-center を有効化し、 指定 group を box 中央に置く")
+
+    # gmx energy
+    p_en = sub.add_parser(
+        "energy",
+        help="gmx energy で .edr → .xvg ダンプ (旧 gen_for_udf.sh の半分)",
+    )
+    p_en.add_argument("--edr", required=True, help="入力 .edr")
+    p_en.add_argument("--out", required=True, help="出力 .xvg")
+    p_en.add_argument("--terms-max", type=int, default=50,
+                      help="energy term 番号の上限 (1..N、 default: 50)")
+    p_en.add_argument("--gmx", default="gmx",
+                      help="gmx 実行 path (default: PATH 解決)")
     return p
 
 
@@ -94,25 +106,33 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        common = dict(
-            trajectory=args.traj,
-            tpr=args.tpr,
-            output=args.out,
-            group=args.group,
-            ndx=args.ndx,
-            gmx=args.gmx,
-        )
-        if args.cmd == "thin_nojump":
-            out = thin_and_nojump(skip=args.skip, **common)
-        elif args.cmd == "nojump":
-            out = nojump(**common)
-        elif args.cmd == "thin":
-            out = thin(skip=args.skip, **common)
-        elif args.cmd == "wrap_pbc":
-            out = wrap_pbc(ur=args.ur, center=args.center, **common)
-        else:  # pragma: no cover - argparse enforces choices
-            parser.error(f"unknown command: {args.cmd}")
-            return 2
+        if args.cmd == "energy":
+            out = gmx_energy(
+                edr=args.edr,
+                output=args.out,
+                terms=range(1, args.terms_max + 1),
+                gmx=args.gmx,
+            )
+        else:
+            common = dict(
+                trajectory=args.traj,
+                tpr=args.tpr,
+                output=args.out,
+                group=args.group,
+                ndx=args.ndx,
+                gmx=args.gmx,
+            )
+            if args.cmd == "thin_nojump":
+                out = thin_and_nojump(skip=args.skip, **common)
+            elif args.cmd == "nojump":
+                out = nojump(**common)
+            elif args.cmd == "thin":
+                out = thin(skip=args.skip, **common)
+            elif args.cmd == "wrap_pbc":
+                out = wrap_pbc(ur=args.ur, center=args.center, **common)
+            else:  # pragma: no cover - argparse enforces choices
+                parser.error(f"unknown command: {args.cmd}")
+                return 2
     except FileNotFoundError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 1

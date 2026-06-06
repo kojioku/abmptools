@@ -22,6 +22,7 @@ CLI:
 
 from .postprocess import (
     GmxError,
+    gmx_energy,
     nojump,
     run_trjconv,
     thin,
@@ -31,6 +32,7 @@ from .postprocess import (
 
 __all__ = [
     "GmxError",
+    "gmx_energy",
     "nojump",
     "run_trjconv",
     "thin",

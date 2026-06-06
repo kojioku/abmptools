@@ -220,6 +220,67 @@ def thin(
     )
 
 
+def gmx_energy(
+    *,
+    edr: PathLike,
+    output: PathLike,
+    terms: Sequence[Union[int, str]] = tuple(range(1, 51)),
+    gmx: str = "gmx",
+) -> Path:
+    """``gmx energy`` で .edr から energy term 一覧を .xvg にダンプする.
+
+    Parameters
+    ----------
+    edr
+        入力 ``.edr`` ファイル (mdrun 出力)。
+    output
+        出力 ``.xvg`` ファイル。 parent dir は自動作成。
+    terms
+        ``gmx energy`` の対話プロンプトに渡す term 番号 (or 名前) 列。
+        Default は ``1..50``: gmx は存在しない index を silently skip する
+        ので、 大きめの上限で全 standard term を一括取得できる
+        (旧 ``gen_for_udf.sh`` の ``seq 50`` と同じ慣習)。
+    gmx
+        ``gmx`` 実行 path (default は PATH 解決)。
+
+    Returns
+    -------
+    Path
+        生成された ``output`` の絶対 path。
+
+    Raises
+    ------
+    FileNotFoundError
+        ``edr`` または ``gmx`` が見つからない。
+    GmxError
+        ``gmx energy`` が非ゼロで終了した。
+    """
+    edr_p = Path(edr)
+    out_p = Path(output)
+    if not edr_p.is_file():
+        raise FileNotFoundError(f"edr not found: {edr_p}")
+    out_p.parent.mkdir(parents=True, exist_ok=True)
+
+    gmx_exec = _resolve_gmx(gmx)
+    cmd = [gmx_exec, "energy", "-f", str(edr_p), "-o", str(out_p)]
+    stdin_text = "".join(f"{t}\n" for t in terms)
+
+    proc = subprocess.run(
+        cmd,
+        input=stdin_text.encode(),
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise GmxError(
+            cmd=cmd,
+            returncode=proc.returncode,
+            stdout=proc.stdout.decode(errors="replace"),
+            stderr=proc.stderr.decode(errors="replace"),
+        )
+    return out_p.resolve()
+
+
 def wrap_pbc(
     *,
     trajectory: PathLike,
