@@ -104,6 +104,32 @@ class BuildConfig:
     nstxout_compressed: int = 5000
     nstenergy: int = 1000
 
+    # --- Position restraints / frozen atoms ---
+    # frozen_atom_indices: 1-based global atom indices (GROMACS ndx convention)
+    # to restrain during MD (anneal + sampling). Empty list = no restraint.
+    # Typical use: segment_data.dat の `fix_label` (0-based, per-cluster local
+    # indices) を fcewsmb 側で global 1-based に展開してこちらに渡す。 これにより:
+    #   1. [ FrozenAtoms ] index group が system.ndx に追加 (visualization 用)
+    #   2. system.top に [ position_restraints ] (k = posres_force_constant)
+    #      が trimer 用 moletype 内に追加。 homo pair (count > n_trimer) では
+    #      moletype を split し TRIMER 用コピーに posres 追加。
+    #   3. 02_nvt_highT 以降の全 mdp に `define = -DPOSRES_TRIMER` が挿入され
+    #      posres が active 化
+    # cluster center (water trimer 等) を MD 中ほぼ静止 (~0.01 Å の wiggle のみ)
+    # に維持。 freezegrps の hard-fix は LINCS/SETTLE と MPI DD で
+    # `determinant = -inf` で abort するので harmonic restraint を使う。
+    frozen_atom_indices: List[int] = field(default_factory=list)
+    posres_force_constant: float = 10000.0  # kJ/mol/nm^2 isotropic
+
+    # --- Pre-built rigid cluster (UDF cluster_file equivalent) ---
+    # cluster_pdb_path: 既に H-bond geom 等 を持つ rigid cluster (例 water trimer
+    # の triangle 配置)。 set すると packmol input に `fixed <center> 0 0 0`
+    # constraint で box 中央に配置、 残りの mol を周りに pack する。 cluster
+    # は first component (segment 1) と同じ moltype として扱われ、 packmol
+    # は first component の count を `posres_n_trimer` 分減らして配置する
+    # (cluster が既に trimer 分の mol を提供するため)。
+    cluster_pdb_path: str = ""
+
     def to_json(self, path: str) -> None:
         """Save configuration to JSON for reproducibility."""
         data = asdict(self)

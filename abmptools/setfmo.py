@@ -621,7 +621,8 @@ class setfmo(pdio, ufc, rud):
         opath = 'for_abmp'
         # oname = "mdout"
         index = [i for i in range(len(posMol))]
-        self.Exportardpos(opath, oname, index, posMol, atomnameMol)
+        self.Exportardpos(opath, oname, index, posMol, atomnameMol,
+                          molnames=molnamelist)
         self.exportardpdb(opath + '/' + oname + '.ext', index, posMol, atomnameMol, molnamelist)
 
         #fmo param

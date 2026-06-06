@@ -17,12 +17,60 @@
   monkeypatch して引数組立 / output 命名 / center group の 2 行 stdin / ndx flag
   / FileNotFoundError / GmxError を検証
 
+### Added (`abmptools.amorphous` cluster center + posres、 branch `fix/cluster-cut-minimum-image-wrap`)
+
+- `BuildConfig.cluster_pdb_path` (str) — pre-built rigid cluster PDB (e.g.
+  water trimer の H-bond triangle)。 packmol input に `fixed <center> 0 0 0`
+  constraint で box 中央に rigid block 配置、 first component の `n_mol` を
+  cluster 分減算 (UDF route の `cluster_file` 等価)。
+- `BuildConfig.frozen_atom_indices` (List[int]) — 1-based global GROMACS ndx
+  atom indices。 set すると:
+  - `system.ndx` に `[ FrozenAtoms ]` index group 追加
+  - first moleculetype に `[ position_restraints ]` (`#ifdef POSRES_TRIMER`
+    ガード) 追加、 homo pair で件数が cluster mol 数より多い場合は
+    `<name>_TRIMER` (cluster 分) + `<name>` (残り) に moletype split。 split
+    時 GROMACS の "Only one moltype with [settles] allowed" 制約回避のため
+    TRIMER 側 `[ settles ]` を等価な `[ constraints ]` (LINCS-based) に変換
+  - 02_nvt_highT 以降の全 mdp に `define = -DPOSRES_TRIMER` (EM は skip、
+    packmol overlap relax での numerical 不安定回避)
+- `BuildConfig.posres_force_constant` (float, default 10000 kJ/mol/nm²) —
+  harmonic restraint の force constant。
+- `udf_io.getcontactstructure` の `cutmode='around'` mode — solute (center
+  cluster) atoms から `contact_criteria` Å 以内の atom を持つ mol を neighbor
+  とする (hydration shell 切り出し)。 既存 legacy mode (`cutmode='contact'`、
+  COM 距離 < 2 (r_i + r_j)) と切替可。
+- `udf_io.getcontactstructure` の `contact_criteria` default 4.0 Å (1st
+  hydration shell)。
+- 中央 cluster (mixflag/clusterflag mode) の周辺 27-cell image-neighbor を
+  minimum-image wrap する fix — 修正前は中央 cluster の周りに「+L/-L 方向に
+  飛び離れた phantom cluster」が現れ FMO 非収束の主因だった。
+
+### Fixed (`fix/cluster-cut-minimum-image-wrap` branch)
+
+- `trajectory_ingest._settles_per_moltype` — TIP3P/TIP4P 水で `[ bonds ]`
+  が空 (settles で剛体拘束) の場合、 MDAnalysis Universe に O-H bond が登録
+  されず `make_whole` が境界跨ぎ water を unwrap できない問題。 `[ settles ]`
+  block から OW を head に O-H bond を synthesize。
+- `molcalc.Exportardpos` を obabel 経由から direct Python PDB writer に置換
+  — obabel の XYZ→PDB 自動 bond perception が境界跨ぎ broken water の H を
+  orphan (`ATOM/UNK` 行) として誤判定する問題を解消。 nameAtom (atom_type) +
+  molnames (Mol_Name) を信頼して PDB strict column layout で write。
+- `udf_io.moveintocell` の `np.float32` silent-zero bug を回避するための
+  cell float cast cherry-pick (`51cd7b3`、 旧 `fix/trajectory-ingest-float-cast`
+  branch)。
+
 ### Changed
 
 - `sample/formulation/_postprocess/trajectory_thin_nojump.sh` を DEPRECATED 化
   (機能は `abmptools.trajectory` に移行)
 - `sample/formulation/octreotide_{l,d}_aggregation_100ns/README.md` に
   Post-process 節を追加 (Python CLI + API の呼び出し例)
+- `getcontactstructure` の `freezegrps` → `position_restraints` (harmonic)
+  に switch — freezegrps は LINCS/SETTLE + Domain Decomposition で
+  `determinant = -inf` で abort するため。 ~0.04 nm の wiggle のみで cluster
+  geometry を維持する (branch `fix/cluster-cut-minimum-image-wrap`)。
+- `mdp_protocol.write_all_mdp` の `freeze_group` 引数を `define_posres`
+  に rename (同 branch)。
 
 ### TODO
 

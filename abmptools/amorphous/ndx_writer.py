@@ -25,6 +25,7 @@ def write_ndx(
     atom_counts_per_mol: List[int],
     mol_counts: List[int],
     output_path: str,
+    frozen_atom_indices: List[int] = None,
 ) -> str:
     """Write a GROMACS .ndx file with System + per-component groups.
 
@@ -38,6 +39,10 @@ def write_ndx(
         Number of molecules for each component.
     output_path : str
         Path to write the .ndx file.
+    frozen_atom_indices : list of int, optional
+        1-based GROMACS atom indices to put in a ``FrozenAtoms`` group.
+        Use with ``freezegrps = FrozenAtoms`` in mdp to lock the cluster
+        center (e.g. water trimer atoms) during MD.
 
     Returns
     -------
@@ -70,6 +75,10 @@ def write_ndx(
     sections = [_format_index_group("System", all_indices)]
     for comp_name in name_order:
         sections.append(_format_index_group(comp_name, groups[comp_name]))
+    if frozen_atom_indices:
+        sections.append(
+            _format_index_group("FrozenAtoms", list(frozen_atom_indices))
+        )
 
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     text = "\n".join(sections) + "\n"

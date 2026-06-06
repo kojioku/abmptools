@@ -803,27 +803,86 @@ class udf_io(molc):
         for i in range(len(posMol)):
             radius.append(self.getmolradius(originmol[i]))
 
-        # --get com dist--
-        distlist = []
-        for i in range(seg1_clunum):
-            dist = []
-            for j in range(i+1, len(posMol)):
-                dist.append(self.getdist(centerOfMol[i], centerOfMol[j]))
-            distlist.append(dist)
-
-        # seg1_clunum: mol num need for check contact
-        # this area can be parrallel tuning
-        # compare com dist and radius
+        # --- neighbor selection (cutmode-aware) ---
+        # contact_cutmode は udfcreate.setudfparam で input_param['cutmode']
+        # から設定される。
+        #   'contact' (default, legacy): COM 距離 < 2 * (r_i + r_j)
+        #   'around': any atom within criteria of any solute (center) atom。
+        #            solute = posMol[0..seg1_clunum-1] (center cluster)。
+        contact_cutmode = getattr(self, 'contact_cutmode', 'contact')
         neighborMol = []
-        for i in range(seg1_clunum):
-            k = 0
-            for j in range(i+1, len(posMol)):
-                if distlist[i][k] < (radius[i] + radius[j]) * 2:
-                    neighborMol.append([i, j])
-                k += 1
+
+        if contact_cutmode == 'around':
+            contact_criteria = getattr(self, 'contact_criteria', 4.0)
+            crit2 = contact_criteria * contact_criteria
+            logger.info("neighbor selection: cutmode='around', criteria=%.2f Å",
+                        contact_criteria)
+            posMol_np = [np.asarray(pm, dtype=float) for pm in posMol]
+            # Precompute COM array for fast pairwise filter
+            com_np = np.asarray([np.asarray(c, dtype=float)
+                                 for c in centerOfMol])
+            radius_np = np.asarray(radius, dtype=float)
+            # 中心同士 (cluster center 内の他 mol) は同じクラスタの一部として
+            # 常に contact 扱い。clusterflag=True (multi-mol center) のみ
+            # 意味を持つ。whole mode (seg1_clunum=totalMol) では適用しない。
+            cluster_internal = bool(getattr(self, 'clusterflag', False))
+            for i in range(seg1_clunum):
+                sol_atoms = posMol_np[i]
+                ri = radius[i]
+                # vectorized COM distance from solute i to ALL candidates
+                diff_com = com_np[i+1:] - com_np[i]
+                d_com = np.sqrt(np.einsum('ij,ij->i', diff_com, diff_com))
+                cutoff = ri + radius_np[i+1:] + contact_criteria
+                candidate_mask = d_com <= cutoff
+                for offset, hit in enumerate(candidate_mask):
+                    j = i + 1 + offset
+                    if cluster_internal and j < seg1_clunum:
+                        # 同一 cluster center 内 → 距離問わず contact
+                        neighborMol.append([i, j])
+                        continue
+                    if not hit:
+                        continue
+                    diff = sol_atoms[:, None, :] - posMol_np[j][None, :, :]
+                    d2 = np.einsum('ijk,ijk->ij', diff, diff)
+                    if d2.min() < crit2:
+                        neighborMol.append([i, j])
+        else:
+            # legacy 'contact' mode: COM dist < 2 * (r_i + r_j)
+            distlist = []
+            for i in range(seg1_clunum):
+                dist = []
+                for j in range(i+1, len(posMol)):
+                    dist.append(self.getdist(centerOfMol[i], centerOfMol[j]))
+                distlist.append(dist)
+            for i in range(seg1_clunum):
+                k = 0
+                for j in range(i+1, len(posMol)):
+                    if distlist[i][k] < (radius[i] + radius[j]) * 2:
+                        neighborMol.append([i, j])
+                    k += 1
 
         # get contact list
-        clistall = self.getcontactlist(seg1_clunum, posMol, site, neighborMol)
+        # around mode: neighborMol は既に criteria 距離で確定済み (cluster
+        # center 内 pair も無条件で追加済) なので、 getcontactlist の
+        # vdW 距離 (r1+r2)/1.5 による 2nd-pass 再 filter は SKIP する。
+        # contact mode (legacy): 従来通り getcontactlist で site-level 距離
+        # チェックを行う。
+        if contact_cutmode == 'around':
+            contactlist = list(neighborMol)
+            clistall_raw = []
+            for i in range(seg1_clunum):
+                clistmol = []
+                for j in contactlist:
+                    if j[1] == i:
+                        clistmol.append(j[0])
+                    if j[0] == i:
+                        clistmol.append(j[1])
+                clistall_raw.append(clistmol)
+            for i in range(len(clistall_raw)):
+                clistall_raw[i].insert(0, i)
+            clistall = clistall_raw
+        else:
+            clistall = self.getcontactlist(seg1_clunum, posMol, site, neighborMol)
         logger.debug("clistall %s", clistall)
         clistfrag = self.getcontactfrag(clistall, posfrag_mols,
                                         sitefrag_mols, fragids, infrag)
@@ -844,6 +903,38 @@ class udf_io(molc):
         # oname = "mdout_orig" + str(rec) + ".xyz"
         # Exportpos(path[0] + "/" + path[1],totalRec-1,totalMol,uobj,oname)
 
+        # --- minimum-image wrap (BUG fix 2026-05-31) ---
+        # 27-cell expansion (posMol) で隣接画像セルから選ばれた neighbor は、
+        # 元コードでは posMol[i] = posMol_orig[i%N] + vec*L をそのまま PDB 出力。
+        # 結果: center mode で中央 cluster の周りに「+L / -L 方向に飛び離れた
+        # phantom cluster」が 4-6 個現れ、可視化上分子が散乱、FMO/SCC でも
+        # 本来近接する neighbor が遠方の独立 monomer として処理され収束しない。
+        #
+        # 修正: center mode のとき、各 neighbor を center (= posMol[0]) の
+        # 最近接画像 (minimum-image convention) になるように整数セル分シフト。
+        # 結果として PDB の cluster は中央に集約された「shell」形状になる。
+        #
+        # whole mode はシフトしない: contactfrag に image-cell index (i >= totalMol)
+        # が含まれ、FMO は posMol[i] を image cell の geometric position として
+        # 解釈するため、原セルに collapse すると duplicate atom と化して
+        # 振動の原因になる。
+        if self.mixflag or self.clusterflag:
+            try:
+                L = np.array([float(cell[0]), float(cell[1]), float(cell[2])])
+            except (TypeError, IndexError, ValueError):
+                Lscalar = float(cell[0]) if hasattr(cell, '__getitem__') else float(cell)
+                L = np.array([Lscalar, Lscalar, Lscalar])
+
+            ref_com = np.array(self.getCenter(posMol[0]))
+            for i in index:
+                if i < seg1_clunum:
+                    continue  # center 自身はシフトしない
+                com = np.array(self.getCenter(posMol[i]))
+                shift = -L * np.round((com - ref_com) / L)
+                if np.any(shift != 0):
+                    posMol[i] = [[p[0] + shift[0], p[1] + shift[1],
+                                  p[2] + shift[2]] for p in posMol[i]]
+
         # --export pos for abinit --
         opath = path[0] + "/" + path[1] + "/pdb"
         if self.mixflag or self.clusterflag:
@@ -852,7 +943,10 @@ class udf_io(molc):
         else:
             # plus 1 layer
             oname = "mdout"
-        self.Exportardpos(opath, oname, index, posMol, elemMol)
+        # `molnamelist` を Exportardpos に渡し PDB の residue name を正しく
+        # 派生させる (obabel bond perception を介さない direct writer)。
+        self.Exportardpos(opath, oname, index, posMol, elemMol,
+                          molnames=molnamelist)
 
         index_renum, clistall = self.getrenumindex(index, clistall)
         fragindex_renum, clistall = \

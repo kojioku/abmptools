@@ -34,6 +34,7 @@ def generate_packmol_input(
     output_pdb: str,
     tolerance: float = 2.0,
     seed: Optional[int] = None,
+    cluster_pdb: Optional[str] = None,
 ) -> str:
     """Generate a Packmol input string.
 
@@ -51,6 +52,15 @@ def generate_packmol_input(
         Minimum distance between molecules [Angstrom].
     seed : int or None
         Random seed for Packmol.
+    cluster_pdb : str, optional
+        Path to a pre-built rigid cluster PDB (e.g. water trimer with
+        H-bond triangle). When set, the cluster is placed FIRST at box
+        center with packmol's ``fixed`` constraint (no rotation), and
+        ``counts`` should already exclude the cluster's atoms from the
+        corresponding component (e.g. subtract 3 from the water count for
+        a water-trimer cluster). The cluster contributes the same mol-type
+        as one of ``pdb_paths`` (a trimer = 3 water mols), so total system
+        atom count = cluster_atoms + sum(per-mol-atoms * counts).
 
     Returns
     -------
@@ -71,7 +81,23 @@ def generate_packmol_input(
         lines.append(f"seed {seed}")
     lines.append("")
 
+    # Optional pre-built cluster: pass the cluster as a `fixed` rigid body
+    # at box center, then place remaining mols around it. Used for UDF-route
+    # `cluster_file` equivalence (e.g. water trimer with H-bond geometry that
+    # packmol's per-molecule placement can't construct).
+    if cluster_pdb is not None:
+        center = box_ang / 2.0
+        lines.extend([
+            f"structure {cluster_pdb}",
+            f"  number 1",
+            f"  fixed {center:.2f} {center:.2f} {center:.2f} 0. 0. 0.",
+            "end structure",
+            "",
+        ])
+
     for pdb_path, n in zip(pdb_paths, counts):
+        if n <= 0:
+            continue
         lines.extend([
             f"structure {pdb_path}",
             f"  number {n}",
@@ -92,6 +118,7 @@ def run_packmol(
     tolerance: float = 2.0,
     seed: Optional[int] = None,
     packmol_path: str = "packmol",
+    cluster_pdb: Optional[str] = None,
 ) -> str:
     """Run Packmol to create a packed mixture PDB.
 
@@ -130,9 +157,11 @@ def run_packmol(
     abs_pdb_paths = [str(Path(p).resolve()) for p in pdb_paths]
     abs_output_pdb = str(Path(output_pdb).resolve())
 
+    abs_cluster_pdb = str(Path(cluster_pdb).resolve()) if cluster_pdb else None
     inp_text = generate_packmol_input(
         abs_pdb_paths, counts, box_size_nm, abs_output_pdb,
         tolerance=tolerance, seed=seed,
+        cluster_pdb=abs_cluster_pdb,
     )
     inp_path = os.path.join(build_dir, "packmol.inp")
     Path(inp_path).write_text(inp_text)
