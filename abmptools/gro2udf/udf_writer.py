@@ -79,16 +79,19 @@ class UDFWriter:
                 udf.put(vz,   "Structure.Velocity.mol[].atom[].z", [m, a])
 
         # --- Unit cell ---
+        # Cast to Python float — UDFManager.put silently writes 0 for
+        # numpy float32 / float64 values (see trajectory_ingest fix).
+        ca, cb, cc = float(cell.a), float(cell.b), float(cell.c)
         try:
-            udf.put(cell.a, "Structure.Unit_Cell.Cell_Size.a", "[nm]")
-            udf.put(cell.b, "Structure.Unit_Cell.Cell_Size.b", "[nm]")
-            udf.put(cell.c, "Structure.Unit_Cell.Cell_Size.c", "[nm]")
+            udf.put(ca, "Structure.Unit_Cell.Cell_Size.a", "[nm]")
+            udf.put(cb, "Structure.Unit_Cell.Cell_Size.b", "[nm]")
+            udf.put(cc, "Structure.Unit_Cell.Cell_Size.c", "[nm]")
         except TypeError:
-            udf.put(cell.a, "Structure.Unit_Cell.Cell_Size.a")
-            udf.put(cell.b, "Structure.Unit_Cell.Cell_Size.b")
-            udf.put(cell.c, "Structure.Unit_Cell.Cell_Size.c")
+            udf.put(ca, "Structure.Unit_Cell.Cell_Size.a")
+            udf.put(cb, "Structure.Unit_Cell.Cell_Size.b")
+            udf.put(cc, "Structure.Unit_Cell.Cell_Size.c")
 
-        udf.put(cell.alpha, "Structure.Unit_Cell.Cell_Size.alpha")
-        udf.put(cell.beta,  "Structure.Unit_Cell.Cell_Size.beta")
-        udf.put(cell.gamma, "Structure.Unit_Cell.Cell_Size.gamma")
+        udf.put(float(cell.alpha), "Structure.Unit_Cell.Cell_Size.alpha")
+        udf.put(float(cell.beta),  "Structure.Unit_Cell.Cell_Size.beta")
+        udf.put(float(cell.gamma), "Structure.Unit_Cell.Cell_Size.gamma")
         udf.put(_SHEAR_STRAIN, "Structure.Unit_Cell.Shear_Strain")

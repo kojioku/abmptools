@@ -181,7 +181,8 @@ def generate_npt_final_mdp(protocol: AnnealProtocol,
 
 def write_all_mdp(protocol: AnnealProtocol,
                   output_dir: str,
-                  tc_grps: str = "System") -> List[str]:
+                  tc_grps: str = "System",
+                  define_posres: Optional[str] = None) -> List[str]:
     """Write all 5 MDP files and return their paths.
 
     Parameters
@@ -192,6 +193,14 @@ def write_all_mdp(protocol: AnnealProtocol,
         Directory to write MDP files into.
     tc_grps : str
         Temperature coupling groups string for GROMACS.
+    define_posres : str, optional
+        ``#define`` flag (e.g. ``"POSRES_TRIMER"``) added to 02_nvt_highT
+        and later stages via mdp ``define = -DPOSRES_TRIMER``. Used to
+        activate ``[ position_restraints ]`` blocks added inside specific
+        moleculetypes in system.top (see builder.AmorphousBuilder.
+        _add_trimer_posres_to_top). EM (01_em.mdp) is intentionally
+        skipped because posres of pre-relaxed packmol overlaps yields
+        ill-conditioned forces.
 
     Returns
     -------
@@ -207,12 +216,20 @@ def write_all_mdp(protocol: AnnealProtocol,
         ("05_npt_final.mdp", generate_npt_final_mdp),
     ]
     paths = []
+    define_block = ""
+    if define_posres:
+        define_block = (
+            f"\n; Activate [ position_restraints ] in system.top\n"
+            f"define                   = -D{define_posres}\n"
+        )
     for fname, gen_func in generators:
         path = os.path.join(output_dir, fname)
         if gen_func is generate_em_mdp:
             text = gen_func(protocol)
         else:
             text = gen_func(protocol, tc_grps=tc_grps)
+        if define_block and gen_func is not generate_em_mdp:
+            text = text.rstrip() + "\n" + define_block
         Path(path).write_text(text)
         paths.append(path)
     return paths
@@ -254,23 +271,23 @@ def write_run_script(output_dir: str, gro: str = "system.gro",
         'MDRUN_OPTS="${MDRUN_OPTS:--ntmpi 1}"',
         "",
         "# Stage 1: Energy minimisation",
-        f'gmx grompp -f 01_em.mdp -c "$GRO" -p "$TOP"{ndx_flag} -o 01_em.tpr -maxwarn 2',
+        f'gmx grompp -f 01_em.mdp -c "$GRO" -r "$GRO" -p "$TOP"{ndx_flag} -o 01_em.tpr -maxwarn 2',
         'gmx mdrun $MDRUN_OPTS -deffnm 01_em',
         "",
         "# Stage 2: NVT high-T",
-        f'gmx grompp -f 02_nvt_highT.mdp -c 01_em.gro -p "$TOP"{ndx_flag} -o 02_nvt_highT.tpr -maxwarn 2',
+        f'gmx grompp -f 02_nvt_highT.mdp -c 01_em.gro -r 01_em.gro -p "$TOP"{ndx_flag} -o 02_nvt_highT.tpr -maxwarn 2',
         'gmx mdrun $MDRUN_OPTS -deffnm 02_nvt_highT',
         "",
         "# Stage 3: NPT high-T",
-        f'gmx grompp -f 03_npt_highT.mdp -c 02_nvt_highT.gro -p "$TOP"{ndx_flag} -o 03_npt_highT.tpr -maxwarn 2',
+        f'gmx grompp -f 03_npt_highT.mdp -c 02_nvt_highT.gro -r 02_nvt_highT.gro -p "$TOP"{ndx_flag} -o 03_npt_highT.tpr -maxwarn 2',
         'gmx mdrun $MDRUN_OPTS -deffnm 03_npt_highT',
         "",
         "# Stage 4: Simulated annealing",
-        f'gmx grompp -f 04_anneal.mdp -c 03_npt_highT.gro -p "$TOP"{ndx_flag} -o 04_anneal.tpr -maxwarn 2',
+        f'gmx grompp -f 04_anneal.mdp -c 03_npt_highT.gro -r 03_npt_highT.gro -p "$TOP"{ndx_flag} -o 04_anneal.tpr -maxwarn 2',
         'gmx mdrun $MDRUN_OPTS -deffnm 04_anneal',
         "",
         "# Stage 5: NPT final equilibration",
-        f'gmx grompp -f 05_npt_final.mdp -c 04_anneal.gro -p "$TOP"{ndx_flag} -o 05_npt_final.tpr -maxwarn 2',
+        f'gmx grompp -f 05_npt_final.mdp -c 04_anneal.gro -r 04_anneal.gro -p "$TOP"{ndx_flag} -o 05_npt_final.tpr -maxwarn 2',
         'gmx mdrun $MDRUN_OPTS -deffnm 05_npt_final',
         "",
         'echo "All stages completed successfully."',
