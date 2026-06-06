@@ -1,5 +1,10 @@
 # Dependencies
 
+> **OS 別の対応一覧**: [`platform_support.md`](platform_support.md) に
+> Linux / macOS / Windows native / WSL2 でどの sub-package が動くかの早見表が
+> あります。 Windows native ユーザーへの配布、 WSL2 不可組織向けの formulation
+> Windows route (Phase 1 開発中) も同 doc を参照。
+
 ## Python Version
 
 ABMPTools does not declare a minimum Python version in `setup.py`. Based on language features used (f-strings, `pathlib` usage patterns, `multiprocessing.Pool`), **Python 3.6+** is assumed. Python 3.8+ is recommended for best compatibility.
