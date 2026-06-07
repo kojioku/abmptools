@@ -156,7 +156,7 @@ def get_args():
                         )
 
     parser.add_argument('-ma', '--manual',
-                        help='manual table',
+                        help='manual fragment table (already the default; kept for compatibility)',
                         action='store_true',
                         )
 
@@ -217,7 +217,13 @@ def main():
     aobj.ajf_method = args.method
     aobj.ajf_basis_set = args.basisset
     aobj.abinit_ver = args.ajfversion
-    aobj.autofrag = True
+    # addsolvfrag は「溶質を手動フラグメント分割した上で、スナップショット
+    # ごとの溶媒フラグメントをテーブルに追加する」ためのツール。よって
+    # 出力 AJF は常に AutoFrag='OFF' とし、溶質テンプレートの &FRAGMENT に
+    # 溶媒フラグメントを連結したテーブルを書き出す必要がある。
+    # autofrag=True にすると abinit_io 側で AutoFrag='ON' かつ &FRAGMENT が
+    # 空になり、本ツールの目的を満たさないため False を既定とする。
+    aobj.autofrag = False
     aobj.piedaflag = args.nopieda
     aobj.cpfflag = args.nocpf
     aobj.cpfver = args.cpfver
@@ -241,6 +247,8 @@ def main():
         aobj.mllimit = args.mllimit
 
 
+    # -ma/--manual は後方互換のため残置。autofrag は既定で False（手動分割）
+    # のため、本フラグは明示的に手動分割を指定するだけで挙動は変わらない。
     if args.manual:
         aobj.autofrag = False
 

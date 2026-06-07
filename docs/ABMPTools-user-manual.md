@@ -691,6 +691,7 @@ e.g.) `python -m abmptools.pdbmodify -mode resnum -aresname -reatm -i cyc.pdb.1`
 ### addsolvfrag
     雛形ajfのフラグメント情報に、読み込んだPDBの追加溶媒情報を追加して、新たにajfを作成するモジュール
     手動分割で溶媒の数が異なっている複数構造の調整の際に使用
+    出力ajfは常に AutoFrag='OFF' とし、雛形の &FRAGMENT に溶媒(HOH/WAT/NA等)フラグメントを連結したテーブルを書き出す
 
 
     usage: e.g.)
@@ -735,7 +736,8 @@ e.g.) `python -m abmptools.pdbmodify -mode resnum -aresname -reatm -i cyc.pdb.1`
                             ligand charge
       -rs RSOLV RSOLV, --rsolv RSOLV RSOLV
                             rsolv
-      -ma, --manual         manual table
+      -ma, --manual         manual fragment table (already the default; kept for
+                            compatibility)
       -bsse, --bsse         bsse
     end
 
