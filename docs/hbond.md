@@ -38,6 +38,11 @@ v1.27.0 候補 (per-functional-group classification) で「分子単位 1 役割
 | `<prefix>_action.bdf` + `<prefix>_show.act` | Mol_Name 維持 + autorun action (OCTA gourmet 用、`colorize_mode` が `action` / `both` の時) |
 | `<prefix>_show.py` | autorun ラッパーなしのプレーン script (OCTA viewer Python パネル用、`<prefix>.bdf` に対して Run、`colorize_mode` が `action` / `both` の時) |
 | `<prefix>_count.png` | count vs record プロット |
+| `<prefix>_distance_stats.csv` | クラス別 (`all` / `COOH-COOH` / `COOH-COOH (dual)` / `COOH-COOH (chain/single)` / `COOH-amide`) の d(D...A) 統計量 (`n`, `mean`, `median`, `std`, `peak`, `p25`, `p75`) |
+| `<prefix>_distance_hist.csv` | 同じデータの long-form ヒストグラム (`label`, `bin_center_DA`, `count`) — 任意の再描画用 |
+| `<prefix>_distance_hist.png` | A: 全 H-bond の d(D...A) ヒストグラム (mean / peak 注釈付き) |
+| `<prefix>_distance_by_class.png` | B: クラス別の d(D...A) ヒストグラム重ね描き (step + 半透明 fill) |
+| `<prefix>_distance_angle_2d.png` | C: (d_DA, ∠(D-H...A)) 2-D heatmap |
 | `<prefix>_lifetime.csv` | (multi-record のみ) per-pair lifetime |
 | `<prefix>_autocorr.{csv,png}` | (multi-record のみ) Luzar-Chandler 自己相関 |
 
@@ -193,6 +198,32 @@ GOURMET `Draw_Attributes` の schema は `Atom_Type[]` / `Bond_Potential[]` /
 - BDF binary section に触らないので UDFManager の round-trip 安全
 - gourmet (autorun) と OCTA viewer Python パネルの双方をカバー
 
+### 7. 距離 / 角度分布 (`distance_dist.py`)
+
+検出済み H-bond の `d(D...A)` と `∠(D-H...A)` を全 record 横断で集計し、
+ヒストグラム + 2-D heatmap + 統計量 CSV を出力する。「全体傾向」「クラス
+別の差」「(距離, 角度) 同時分布」の 3 視点を 1 ランで揃える設計:
+
+| 出力 | 中身 | 使いどころ |
+|---|---|---|
+| `_distance_hist.png` (**A**) | 全 H-bond の `d_DA` 1-D ヒストグラム + mean / peak 縦線 | Luzar-Chandler cutoff 3.5 Å に対するピーク位置・分布の張り出し |
+| `_distance_by_class.png` (**B**) | クラス別 (`COOH-COOH (dual)` / `COOH-COOH (chain/single)` / `COOH-amide`、generic mode では donor-acceptor pair 別) の step + 半透明 fill 重ね描き | dimer 環状型 vs hetero-pair の典型距離差を視覚的に比較 (Yuan 2015 IMC NMR の 4-species 解釈と整合する) |
+| `_distance_angle_2d.png` (**C**) | `(d_DA, ∠(D-H...A))` 2-D heatmap (default 0.05 Å × 5°) | linear / bifurcated の幾何分離。Luzar 流の (r, θ) plane |
+| `_distance_stats.csv` | クラス別の `n / mean / median / std / peak / p25 / p75` | 表として直接論文用に使える |
+| `_distance_hist.csv` | long-form (`label, bin_center_DA, count`) | matplotlib 以外で再描画する用 |
+
+「dual COOH-COOH」分離は `FunctionalGroupClassification.carboxyl_roles[].dual_partners`
+を参照し、両方向に H-bond がある分子ペアの cc-bond のみを `dual` 部分集合に
+振り分ける。generic mode では `hbonds_by_pair_type` の `(donor_type,
+acceptor_type)` をそのまま分類軸に使う。
+
+CLI フラグ: `--no-distance-plots` で完全 skip、`--distance-d-min` /
+`--distance-d-max` / `--distance-bin-width` で 1-D bin 制御、
+`--angle-bin-width` で 2-D heatmap の角度 bin 制御。Python API では
+`AnalyzerConfig.do_distance_plots` / `distance_bin_width` / `angle_bin_width`
+で同じ。直接呼ぶ場合は `from abmptools.hbond import aggregate_distances_imc,
+plot_distance_angle_2d, default_bin_edges` 等を使う。
+
 ## 使い方
 
 ### CLI
@@ -238,6 +269,11 @@ python -m abmptools.hbond <bdf_path> \
 --no-lifetime             lifetime / autocorrelation を計算しない
 --gap-tolerance INT       intermittent lifetime の gap 許容 frame 数
 --dt FLOAT                record 間時間 (autocorr のτ_HB 単位、default 1.0)
+--no-distance-plots       距離分布関連 (d ヒストグラム + (d, ∠) 2-D heatmap) を抑制
+--distance-d-min FLOAT    d ヒストグラム下限 Å (default 2.0)
+--distance-d-max FLOAT    d ヒストグラム上限 Å (default 3.6 = LC cutoff + slack)
+--distance-bin-width FLOAT  d ヒストグラム bin 幅 Å (default 0.05)
+--angle-bin-width FLOAT     2-D heatmap の ∠ bin 幅 deg (default 5.0)
 ```
 
 ### Python API

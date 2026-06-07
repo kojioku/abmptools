@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+### Added — `abmptools.hbond` 距離 / 角度分布 (`distance_dist.py`)
+
+- 検出済み H-bond の `d(D...A)` / `∠(D-H...A)` を全 record 横断で集計し、
+  3 視点のプロット + 統計 CSV を 1 ランで生成:
+  - A: `<prefix>_distance_hist.png` — 全 H-bond の `d_DA` 1-D ヒストグラム
+    (mean / peak 縦線注釈付き)
+  - B: `<prefix>_distance_by_class.png` — クラス別重ね描き (step + 半透明
+    fill)。imc mode は `COOH-COOH (dual)` / `COOH-COOH (chain/single)` /
+    `COOH-amide` の 3 群、generic mode では `(donor_type, acceptor_type)`
+    pair 別。dual 識別は `FunctionalGroupClassification.carboxyl_roles[]
+    .dual_partners` を参照
+  - C: `<prefix>_distance_angle_2d.png` — `(d_DA, ∠(D-H...A))` 2-D heatmap
+    (default 0.05 Å × 5°)
+  - `<prefix>_distance_stats.csv` — クラス別 `n / mean / median / std /
+    peak / p25 / p75` 表
+  - `<prefix>_distance_hist.csv` — long-form (`label, bin_center_DA, count`)
+    で再描画用
+- 新規 module `abmptools/hbond/distance_dist.py`。`__init__.py` に export 追加
+- `AnalyzerConfig` に `do_distance_plots=True` / `distance_d_min=2.0` /
+  `distance_d_max=3.6` / `distance_bin_width=0.05` / `angle_bin_width=5.0`
+  フィールド追加。CLI に対応する `--no-distance-plots` / `--distance-d-min`
+  / `--distance-d-max` / `--distance-bin-width` / `--angle-bin-width` option
+- 単体テスト `tests/hbond/test_distance_dist.py` (8 件) 追加。dual ペア
+  識別、空入力時の `None` 返却、generic mode pair-type 分け、CSV
+  round-trip を回帰固定
+- IMC sample (`SI/IMC_result450.0_out_rec900.bdf`、1 record) 実機検証:
+  全 81 H-bonds, mean d_DA=2.82 Å, peak 2.72-2.78 Å。`COOH-amide` (N=50)
+  が最も短い側に立ち上がる (peak 2.72 Å)、`COOH-COOH (dual)` (N=10) は
+  peak 2.82 Å — Yuan 2015 IMC NMR の cyclic dimer / chain / COOH-amide
+  振り分けと整合
+- `docs/hbond.md` 出力一覧 + CLI option 一覧 + 「7. 距離 / 角度分布」セク
+  ション追加
+
 ### Fixed — `addsolvfrag` が `AutoFrag='ON'` を出力していた不具合
 
 - `addsolvfrag` は「溶質を手動フラグメント分割した雛形 AJF に、スナップショット

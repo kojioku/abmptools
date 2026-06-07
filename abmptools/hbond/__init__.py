@@ -71,6 +71,14 @@ from .lifetime import (
     compute_autocorrelation, compute_lifetimes,
     integrate_autocorrelation, summarize_lifetimes,
 )
+from .distance_dist import (
+    DEFAULT_COLORS_BY_LABEL, DistanceStats,
+    aggregate_distance_angle, aggregate_distances_generic,
+    aggregate_distances_imc, compute_distance_stats, default_bin_edges,
+    plot_distance_angle_2d, plot_distance_histogram,
+    plot_distance_histogram_classified, write_distance_histogram_csv,
+    write_distance_stats_csv,
+)
 from .hbond_detector import (
     AcceptorSite, DonorSite, HBond, HBondCriteria, detect_hbonds,
     minimum_image_vector
@@ -109,6 +117,14 @@ __all__ = [
     "PairKey", "PairLifetime",
     "compute_lifetimes", "compute_autocorrelation",
     "integrate_autocorrelation", "summarize_lifetimes",
+    # distance / angle distribution
+    "DistanceStats", "DEFAULT_COLORS_BY_LABEL", "default_bin_edges",
+    "compute_distance_stats",
+    "aggregate_distances_imc", "aggregate_distances_generic",
+    "aggregate_distance_angle",
+    "write_distance_stats_csv", "write_distance_histogram_csv",
+    "plot_distance_histogram", "plot_distance_histogram_classified",
+    "plot_distance_angle_2d",
 ]
 
 # Optional UI (lazy)

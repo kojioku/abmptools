@@ -137,6 +137,27 @@ def main(argv=None) -> int:
         "--autocorr-max-lag", type=int, default=None,
         help="Max lag (in records) for autocorrelation C(t). Default: N/2"
     )
+    # Distance / angle distribution
+    parser.add_argument(
+        "--no-distance-plots", action="store_true",
+        help="Skip d(D...A) distance distribution + (d, ∠) 2-D heatmap"
+    )
+    parser.add_argument(
+        "--distance-d-min", type=float, default=2.0,
+        help="d(D...A) histogram lower edge [Å] (default 2.0)"
+    )
+    parser.add_argument(
+        "--distance-d-max", type=float, default=3.6,
+        help="d(D...A) histogram upper edge [Å] (default 3.6 = LC cutoff + slack)"
+    )
+    parser.add_argument(
+        "--distance-bin-width", type=float, default=0.05,
+        help="d(D...A) histogram bin width [Å] (default 0.05)"
+    )
+    parser.add_argument(
+        "--angle-bin-width", type=float, default=5.0,
+        help="∠(D-H...A) bin width [deg] for the 2-D heatmap (default 5.0)"
+    )
     args = parser.parse_args(argv)
 
     custom = None
@@ -180,6 +201,11 @@ def main(argv=None) -> int:
         gap_tolerance=args.gap_tolerance,
         dt=args.dt,
         autocorr_max_lag=args.autocorr_max_lag,
+        do_distance_plots=not args.no_distance_plots,
+        distance_d_min=args.distance_d_min,
+        distance_d_max=args.distance_d_max,
+        distance_bin_width=args.distance_bin_width,
+        angle_bin_width=args.angle_bin_width,
     )
 
     analyzer = Analyzer(config)

@@ -44,6 +44,13 @@ from .pair_type_stats import (
     GenericPairClassification, PairTypeStat, classify_generic,
     summarize_pair_stats,
 )
+from .distance_dist import (
+    DistanceStats, aggregate_distance_angle, aggregate_distances_generic,
+    aggregate_distances_imc, default_bin_edges,
+    plot_distance_angle_2d, plot_distance_histogram,
+    plot_distance_histogram_classified, write_distance_histogram_csv,
+    write_distance_stats_csv,
+)
 
 
 @dataclass
@@ -126,6 +133,12 @@ class AnalyzerConfig:
     gap_tolerance: int = 0      # for intermittent lifetime
     dt: float = 1.0             # time between consecutive records (user units, e.g. ps)
     autocorr_max_lag: Optional[int] = None   # None = N/2
+    # Distance / angle distribution (per-frame aggregate over all records)
+    do_distance_plots: bool = True
+    distance_d_min: float = 2.0        # Å, lower edge for d_DA histogram
+    distance_d_max: float = 3.6        # Å, upper edge (Luzar-Chandler cutoff 3.5 + slack)
+    distance_bin_width: float = 0.05   # Å
+    angle_bin_width: float = 5.0       # deg, used for the 2-D (d, θ) heatmap
 
     def get_criteria(self) -> HBondCriteria:
         if self.criteria_mode == "luzar-chandler":
@@ -659,9 +672,83 @@ class Analyzer:
             except ImportError:
                 print("Warning: matplotlib not available; skipping plot")
 
+        # Distance / angle distribution (works for ≥1 record)
+        if c.do_distance_plots and self.frame_results:
+            out_paths.update(self._write_distance_outputs())
+
         # Lifetime analysis (multi-record only)
         if c.compute_lifetime and len(self.frame_results) >= 2:
             out_paths.update(self._write_lifetime_outputs())
+
+        return out_paths
+
+    def _write_distance_outputs(self) -> Dict[str, str]:
+        """A: overall d_DA hist, B: per-class hist, C: (d, ∠) 2D heatmap."""
+        c = self.config
+        mode = (c.classify_mode or "imc").lower()
+        bin_edges = default_bin_edges(
+            d_min=c.distance_d_min,
+            d_max=c.distance_d_max,
+            bin_width=c.distance_bin_width,
+        )
+        if mode == "imc":
+            stats_map = aggregate_distances_imc(self.frame_results, bin_edges)
+        else:
+            stats_map = aggregate_distances_generic(
+                self.frame_results, bin_edges
+            )
+        if not stats_map:
+            if c.verbose:
+                print("  (distance distribution skipped: no H-bonds detected)")
+            return {}
+
+        out_paths: Dict[str, str] = {}
+        stats_csv = f"{c.out_prefix}_distance_stats.csv"
+        write_distance_stats_csv(stats_map, stats_csv)
+        out_paths["distance_stats"] = stats_csv
+
+        hist_csv = f"{c.out_prefix}_distance_hist.csv"
+        write_distance_histogram_csv(stats_map, hist_csv)
+        out_paths["distance_hist_csv"] = hist_csv
+
+        # A: overall histogram (label "all" is always present when stats_map is)
+        overall = stats_map.get("all")
+        if overall is not None:
+            png = f"{c.out_prefix}_distance_hist.png"
+            if plot_distance_histogram(
+                overall, png, criteria_label=c.criteria_mode,
+            ):
+                out_paths["distance_hist_plot"] = png
+
+        # B: per-class overlaid histogram
+        if len(stats_map) > 1:
+            png = f"{c.out_prefix}_distance_by_class.png"
+            exclude = ("all", "COOH-COOH") if mode == "imc" else ("all",)
+            if plot_distance_histogram_classified(
+                stats_map, png, criteria_label=c.criteria_mode,
+                exclude=exclude,
+            ):
+                out_paths["distance_by_class_plot"] = png
+
+        # C: 2-D heatmap of (d_DA, ∠)
+        d_arr, a_arr = aggregate_distance_angle(self.frame_results, mode)
+        png = f"{c.out_prefix}_distance_angle_2d.png"
+        if plot_distance_angle_2d(
+            d_arr, a_arr, png, criteria_label=c.criteria_mode,
+            d_bin_width=c.distance_bin_width,
+            angle_bin_width=c.angle_bin_width,
+            d_min=c.distance_d_min, d_max=c.distance_d_max,
+        ):
+            out_paths["distance_angle_2d_plot"] = png
+
+        if c.verbose:
+            print(f"\n--- Distance distribution ---")
+            for s in stats_map.values():
+                print(
+                    f"  {s.label:>27s}: N={s.n:4d}  mean={s.mean:.2f}  "
+                    f"median={s.median:.2f}  peak={s.peak:.2f}  "
+                    f"std={s.std:.2f}  IQR=[{s.p25:.2f}, {s.p75:.2f}] Å"
+                )
 
         return out_paths
 
