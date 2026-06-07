@@ -29,6 +29,57 @@ from .models import PeptideSpec
 logger = logging.getLogger(__name__)
 
 
+def _build_peptide_from_sequence_openff(
+    *,
+    sequence: str,
+    name: str,
+    output_dir: Path,
+    cap_n: str = "",
+    cap_c: str = "",
+) -> Path:
+    """Phase 2-B: PeptideBuilder で sequence → 3D extended chain PDB.
+
+    Natural L-AA only (D-AA / 非標準残基は不可、 既存 PDB 入力経路で)。
+    PeptideBuilder + Biopython は全 OS で pip install 可、 Windows native 動作。
+
+    Cap (ACE/NME) 追加:
+        現状実装は **cap なしの bare peptide PDB のみ生成**。 cap 必要なら
+        ``spec.cap_n``/``cap_c`` を空にしておき、 既存の PDB 入力経路を使う
+        か、 OpenFF Topology.add_residue で別途追加 (Phase 2-B+ で対応予定)。
+    """
+    try:
+        import PeptideBuilder
+        from PeptideBuilder import Geometry
+        import Bio.PDB
+    except ImportError as e:
+        raise RuntimeError(
+            "Phase 2-B sequence build requires PeptideBuilder + biopython.\n"
+            "Install: pip install PeptideBuilder biopython"
+        ) from e
+
+    if cap_n or cap_c:
+        logger.warning(
+            "Phase 2-B: cap_n/cap_c (%s/%s) は PeptideBuilder 経路では "
+            "未サポート、 bare peptide で build します。 cap 必要なら "
+            "spec.pdb_path に cap 付き PDB を渡してください。",
+            cap_n, cap_c,
+        )
+
+    # 各 1-letter code を Geometry に変換 (natural L-AA 20 種のみ)
+    geo = Geometry.geometry(sequence[0])
+    structure = PeptideBuilder.initialize_res(geo)
+    for aa in sequence[1:]:
+        structure = PeptideBuilder.add_residue(structure, Geometry.geometry(aa))
+    # C 末 OXT
+    PeptideBuilder.add_terminal_OXT(structure)
+
+    pdb_path = output_dir / f"{name}_seq.pdb"
+    io = Bio.PDB.PDBIO()
+    io.set_structure(structure)
+    io.save(str(pdb_path))
+    return pdb_path
+
+
 __all__ = [
     "PeptideOpenFFResult",
     "build_peptide_openff",
@@ -107,17 +158,27 @@ def build_peptide_openff(
     RuntimeError
         OpenFF Toolkit や RDKit が未 install。
     """
-    if not spec.pdb_path:
-        raise ValueError(
-            f"PeptideSpec[{spec.name}].pdb_path is required for the OpenFF "
-            f"route (Phase 1). Sequence-only build is planned for Phase 2 "
-            f"(see docs/platform_support.md)."
-        )
-
     from ..amorphous.molecule_prep import prepare_molecule, write_single_mol_pdb
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Phase 2-B: sequence → 3D PDB via PeptideBuilder if pdb_path 無し
+    pdb_path = spec.pdb_path
+    if not pdb_path:
+        if not spec.sequence:
+            raise ValueError(
+                f"PeptideSpec[{spec.name}] requires either pdb_path or sequence."
+            )
+        pdb_path = _build_peptide_from_sequence_openff(
+            sequence=spec.sequence,
+            name=spec.name,
+            output_dir=output_dir,
+            cap_n=spec.cap_n,
+            cap_c=spec.cap_c,
+        )
+        logger.info("Phase 2-B: built peptide '%s' from sequence '%s' → %s",
+                    spec.name, spec.sequence, pdb_path)
 
     logger.info(
         "OpenFF route: build peptide '%s' from PDB=%s (charge_method=%s)",
@@ -127,12 +188,12 @@ def build_peptide_openff(
     # pre-assign が必要 (use_precomputed_charges=True と整合させるため)。
     if charge_method == "am1bcc":
         mol = prepare_molecule(
-            pdb_path=str(spec.pdb_path), name=spec.name, charge_method="",
+            pdb_path=str(pdb_path), name=spec.name, charge_method="",
         )
         mol.assign_partial_charges(partial_charge_method="am1bcc")
     else:
         mol = prepare_molecule(
-            pdb_path=str(spec.pdb_path),
+            pdb_path=str(pdb_path),
             name=spec.name,
             charge_method=charge_method,
         )
