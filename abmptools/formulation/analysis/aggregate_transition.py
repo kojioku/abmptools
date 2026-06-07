@@ -133,6 +133,7 @@ def compute_aggregate_transitions(
     cutoff_nm: float = 0.5,
     stride: int = 1,
     use_heavy_atom: bool = True,
+    peptide_selector: str = "protein",
 ) -> dict:
     """論文 Hossain 2023 Fig 1b/1c 準拠の cluster timeseries 解析。
 
@@ -179,11 +180,15 @@ def compute_aggregate_transitions(
     # peptide × n_peptides を atom index で分割 (GROMACS の resid リセット
     # への対応; 各 peptide は同 atom 数前提)
     if use_heavy_atom:
-        protein = u.select_atoms("protein and not name H*")
+        protein = u.select_atoms(f"({peptide_selector}) and not name H*")
     else:
-        protein = u.select_atoms("protein")
+        protein = u.select_atoms(peptide_selector)
     if protein.n_atoms == 0:
-        raise ValueError("No 'protein' atoms found. Check the topology.")
+        raise ValueError(
+            f"No atoms found for peptide_selector={peptide_selector!r}. "
+            "For Amber route use 'protein', for whole-peptide GAFF use "
+            "e.g. 'resname OCT'."
+        )
     if protein.n_atoms % n_peptides != 0:
         logger.warning(
             "protein.n_atoms (%d) is not divisible by n_peptides (%d); "

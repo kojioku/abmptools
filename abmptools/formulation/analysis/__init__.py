@@ -41,6 +41,7 @@ def run_analysis(
     run_plots: bool = True,
     gmx: str = "gmx",
     ndx: Optional[str] = None,
+    peptide_selector: str = "protein",
 ) -> dict:
     """End-to-end Hossain 2023 風解析を 1 コマンドで回す orchestrator。
 
@@ -101,6 +102,7 @@ def run_analysis(
                 cutoff_nm=contact_cutoff_nm,
                 stride=stride,
                 use_heavy_atom=True,
+                peptide_selector=peptide_selector,
             )
         except Exception as exc:
             logger.warning("aggregate_transition skipped: %s", exc)
@@ -117,6 +119,7 @@ def run_analysis(
                 bile_salt_resnames=list(bile_salt_resnames),
                 cutoff_nm=contact_cutoff_nm,
                 stride=stride,
+                peptide_selector=peptide_selector,
             )
         except Exception as exc:
             logger.warning("contact_map skipped: %s", exc)

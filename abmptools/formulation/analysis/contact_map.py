@@ -123,6 +123,7 @@ def compute_per_residue_contacts(
     skip_cap_resnames: Sequence[str] = ("ACE", "NME", "NMe"),
     cutoff_nm: float = 0.5,
     stride: int = 1,
+    peptide_selector: str = "protein",
 ) -> dict:
     """論文 Hossain 2023 Fig 4 準拠の per-residue contact 解析。
 
@@ -147,9 +148,11 @@ def compute_per_residue_contacts(
     out.mkdir(parents=True, exist_ok=True)
 
     u = MDAnalysis.Universe(top, traj)
-    protein = u.select_atoms("protein and not name H*")
+    protein = u.select_atoms(f"({peptide_selector}) and not name H*")
     if protein.n_atoms == 0:
-        raise ValueError("No heavy 'protein' atoms found.")
+        raise ValueError(
+            f"No heavy atoms for peptide_selector={peptide_selector!r}."
+        )
     n_per_pep = protein.n_atoms // n_peptides
 
     # peptide × n_peptides を atom index で分割、 各 peptide の residue 列を

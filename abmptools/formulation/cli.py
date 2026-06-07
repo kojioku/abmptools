@@ -143,6 +143,7 @@ def _cmd_analyze(args: argparse.Namespace) -> int:
         run_plots=not args.skip_plots,
         gmx=args.gmx,
         ndx=args.ndx,
+        peptide_selector=args.peptide_selector,
     )
     print("\n=== Analysis complete ===")
     for k, v in result.items():
@@ -235,6 +236,10 @@ def build_parser() -> argparse.ArgumentParser:
                      help="Fig 4 解析を skip")
     p_a.add_argument("--skip-plots", action="store_true",
                      help="plot 生成を skip")
+    p_a.add_argument("--peptide-selector", default="protein",
+                     help="MDAnalysis selection for peptide atoms. "
+                          "Amber route: 'protein' (default). "
+                          "Whole-peptide GAFF (D-octreotide 等): 'resname OCT'")
     p_a.set_defaults(func=_cmd_analyze)
 
     p_us = sub.add_parser("release_us", help="Set up + (later) run peptide-from-aggregate US.")
