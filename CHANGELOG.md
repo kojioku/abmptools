@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Fixed — `addsolvfrag` が `AutoFrag='ON'` を出力していた不具合
+
+- `addsolvfrag` は「溶質を手動フラグメント分割した雛形 AJF に、スナップショット
+  ごとの溶媒フラグメントを追加する」ツールだが、既定で `aobj.autofrag = True` と
+  なっていたため、出力 AJF が `AutoFrag='ON'` かつ `&FRAGMENT` ブロック空という、
+  本来の目的と矛盾した内容になっていた（`-ma/--manual` を明示しないと正しい出力に
+  ならなかった）。
+- 既定を `aobj.autofrag = False` に修正。`-ma` 無しでも出力は `AutoFrag='OFF'` ＋
+  雛形フラグメント表に溶媒（HOH/WAT/NA 等）フラグメントを連結した完全な
+  `&FRAGMENT` テーブルとなる。`6lu7-covhip` サンプルで NF=311（溶質）→ 1793
+  （+1479 水 +3 Na）を確認。
+- `-ma/--manual` は既定挙動と同一になったため後方互換目的で残置（no-op）。
+- 回帰テスト参照 (`tests/regression/reference/main/addsolvfrag_{covneu,6lu7-covhip}`)
+  はバグ挙動を golden master として固定していたため、修正後の正しい出力で再生成。
+
 ### Added — `abmptools.trajectory` (new sub-package)
 
 - Cross-platform Python wrapper around `gmx trjconv` / `gmx energy` for
