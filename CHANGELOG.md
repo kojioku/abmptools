@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added (docs)
+
+- `docs/hbond.md` §7 と `sample/hbond/imc_amorphous/README.md` に距離 / 角度分布
+  (`distance_dist`) の出力例画像 (IMC amorphous, `imc_hbond_distplot_distance_*`)
+  を埋め込み。サンプル参照出力 (CSV / PNG) 自体は別コミットで追加済み。
+
 ## [2.1.0] - 2026-06-08
 
 ### Added — `abmptools.hbond` 距離 / 角度分布 (`distance_dist.py`)

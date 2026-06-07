@@ -212,6 +212,17 @@ GOURMET `Draw_Attributes` の schema は `Atom_Type[]` / `Bond_Potential[]` /
 | `_distance_stats.csv` | クラス別の `n / mean / median / std / peak / p25 / p75` | 表として直接論文用に使える |
 | `_distance_hist.csv` | long-form (`label, bin_center_DA, count`) | matplotlib 以外で再描画する用 |
 
+#### 出力例 (IMC amorphous, T=450 K, 1 record)
+
+`sample/hbond/imc_amorphous/` を `run_notebook.ipynb` の distance 経路
+(`imc_hbond_distplot` prefix) で出力した例。全 81 H-bond で mean d_DA = 2.82 Å、
+`COOH-amide` (N=50) が最短側に立ち上がり (peak 2.72 Å)、`COOH-COOH (dual)`
+(N=10) は peak 2.82 Å — Yuan 2015 IMC NMR の 4-species 帰属と整合する。
+
+| A: `_distance_hist.png` | B: `_distance_by_class.png` | C: `_distance_angle_2d.png` |
+|---|---|---|
+| ![d(D...A) 全体ヒストグラム](../sample/hbond/imc_amorphous/output/imc_hbond_distplot_distance_hist.png) | ![クラス別 d(D...A)](../sample/hbond/imc_amorphous/output/imc_hbond_distplot_distance_by_class.png) | ![(d, ∠) 2-D heatmap](../sample/hbond/imc_amorphous/output/imc_hbond_distplot_distance_angle_2d.png) |
+
 「dual COOH-COOH」分離は `FunctionalGroupClassification.carboxyl_roles[].dual_partners`
 を参照し、両方向に H-bond がある分子ペアの cc-bond のみを `dual` 部分集合に
 振り分ける。generic mode では `hbonds_by_pair_type` の `(donor_type,
