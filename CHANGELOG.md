@@ -82,6 +82,22 @@
 - `mdp_protocol.write_all_mdp` の `freeze_group` 引数を `define_posres`
   に rename (同 branch)。
 
+
+### Added — `formulation.analysis` workflow (Hossain 2023 Fig 1b/1c/2/4 1-コマンド再現)
+
+- `run_analysis(traj, top, out_dir, n_peptides, enhancer_resnames, bile_salt_resnames)` で
+  集合体形成 (Fig 1b/1c/Fig 2) + per-residue contacts (Fig 4) + plot を一括実行
+- 新規低レベル API: `per_frame_clusters_heavy_atom` (PBC-aware heavy-atom min distance)、
+  `compute_per_residue_contacts` (cap 除外 + per-peptide 平均化)
+- `aggregate_transition.compute_aggregate_transitions` を atom-index 分割 + heavy-atom
+  cutoff + PBC 補正に refactor (GROMACS の resid 1-N リセット慣習に対応)
+- CLI: `python -m abmptools.formulation analyze --traj ... --top ... --out ... --n-peptides 6 --enhancer-resnames CPN,CPC --bile-salt-resnames TCH`
+- plots: `plot_aggregate_timeseries` / `plot_max_size_distribution` / `plot_per_residue_contacts`
+- 出力: `aggregate/{cluster_states,aggregate_size_timeseries}.csv` + `aggregate_summary.json`、
+  `contacts/per_residue_contacts.{npy,csv,json}`、 `plots/*.png`
+- L 体 10mM 100 ns で smoke 完了: max size mode=6 (49%)、 pct_agg mean=92.8%、
+  Phe3/Trp4 が enhancer 主要 contact (10.0/9.8) で論文と整合
+
 ### Added (docs)
 
 - **`docs/platform_support.md`** — OS 別 (Linux / macOS / Windows native /

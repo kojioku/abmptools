@@ -130,11 +130,32 @@ def _cmd_build(args: argparse.Namespace) -> int:
 
 def _cmd_analyze(args: argparse.Namespace) -> int:
     from .analysis import run_analysis  # lazy
-    run_analysis(
+    result = run_analysis(
         traj=args.traj, top=args.top, out_dir=args.out,
+        n_peptides=args.n_peptides,
         enhancer_resnames=args.enhancer_resnames.split(",") if args.enhancer_resnames else (),
         bile_salt_resnames=args.bile_salt_resnames.split(",") if args.bile_salt_resnames else (),
+        contact_cutoff_nm=args.cutoff_nm,
+        target_n_frames=args.target_n_frames,
+        run_aggregate=not args.skip_aggregate,
+        run_contacts=not args.skip_contacts,
+        run_dssp=args.dssp,
+        run_plots=not args.skip_plots,
+        gmx=args.gmx,
+        ndx=args.ndx,
     )
+    print("\n=== Analysis complete ===")
+    for k, v in result.items():
+        if isinstance(v, dict) and "summary" in v:
+            s = v["summary"]
+            print(f"  {k}:")
+            for sk, sv in s.items():
+                if isinstance(sv, dict) and len(sv) < 6:
+                    print(f"    {sk}: {sv}")
+                elif not isinstance(sv, (dict, list)):
+                    print(f"    {sk}: {sv}")
+        elif "error" in k:
+            print(f"  {k}: {v}")
     return 0
 
 
@@ -185,12 +206,35 @@ def build_parser() -> argparse.ArgumentParser:
                      help="Override config.output_dir.")
     p_b.set_defaults(func=_cmd_build)
 
-    p_a = sub.add_parser("analyze", help="Run aggregate / contact / SS / SASA / hbond analysis.")
-    p_a.add_argument("--traj", required=True)
-    p_a.add_argument("--top", required=True)
-    p_a.add_argument("--out", required=True)
-    p_a.add_argument("--enhancer-resnames", default="")
-    p_a.add_argument("--bile-salt-resnames", default="")
+    p_a = sub.add_parser(
+        "analyze",
+        help="Hossain 2023 風解析 (Fig 1b/1c/Fig 2/Fig 4/Fig 5) を 1 コマンドで実行。",
+    )
+    p_a.add_argument("--traj", required=True,
+                     help="Production trajectory (raw .xtc 推奨)")
+    p_a.add_argument("--top", required=True,
+                     help="Topology (.gro 推奨; .tpr の version mismatch を避ける)")
+    p_a.add_argument("--out", required=True, help="出力 dir")
+    p_a.add_argument("--n-peptides", type=int, required=True,
+                     help="peptide copy 数 (atom-index 分割に必須)")
+    p_a.add_argument("--enhancer-resnames", default="",
+                     help='例: "CPN,CPC" for caprate (neutral + charged)')
+    p_a.add_argument("--bile-salt-resnames", default="",
+                     help='例: "TCH" for taurocholate')
+    p_a.add_argument("--cutoff-nm", type=float, default=0.5,
+                     help="heavy-atom cutoff (論文準拠 0.5 nm)")
+    p_a.add_argument("--target-n-frames", type=int, default=100,
+                     help="解析対象 frame 数 (stride 自動算出、 default 100)")
+    p_a.add_argument("--dssp", action="store_true",
+                     help="gmx dssp で secondary structure 解析 (要 GROMACS 2023+)")
+    p_a.add_argument("--ndx", default=None, help="index file (DSSP 用)")
+    p_a.add_argument("--gmx", default="gmx", help="gmx 実行 path")
+    p_a.add_argument("--skip-aggregate", action="store_true",
+                     help="Fig 1b/1c 解析を skip")
+    p_a.add_argument("--skip-contacts", action="store_true",
+                     help="Fig 4 解析を skip")
+    p_a.add_argument("--skip-plots", action="store_true",
+                     help="plot 生成を skip")
     p_a.set_defaults(func=_cmd_analyze)
 
     p_us = sub.add_parser("release_us", help="Set up + (later) run peptide-from-aggregate US.")
