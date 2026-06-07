@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-06-08
+
 ### Added — `abmptools.hbond` 距離 / 角度分布 (`distance_dist.py`)
 
 - 検出済み H-bond の `d(D...A)` / `∠(D-H...A)` を全 record 横断で集計し、
