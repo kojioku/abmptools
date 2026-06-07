@@ -1,0 +1,161 @@
+label,bin_center_DA,count
+all,2.0250,0
+all,2.0750,0
+all,2.1250,0
+all,2.1750,0
+all,2.2250,0
+all,2.2750,0
+all,2.3250,0
+all,2.3750,0
+all,2.4250,0
+all,2.4750,0
+all,2.5250,3
+all,2.5750,6
+all,2.6250,6
+all,2.6750,7
+all,2.7250,12
+all,2.7750,10
+all,2.8250,10
+all,2.8750,6
+all,2.9250,3
+all,2.9750,2
+all,3.0250,6
+all,3.0750,2
+all,3.1250,1
+all,3.1750,2
+all,3.2250,0
+all,3.2750,3
+all,3.3250,0
+all,3.3750,0
+all,3.4250,1
+all,3.4750,1
+all,3.5250,0
+all,3.5750,0
+COOH-COOH,2.0250,0
+COOH-COOH,2.0750,0
+COOH-COOH,2.1250,0
+COOH-COOH,2.1750,0
+COOH-COOH,2.2250,0
+COOH-COOH,2.2750,0
+COOH-COOH,2.3250,0
+COOH-COOH,2.3750,0
+COOH-COOH,2.4250,0
+COOH-COOH,2.4750,0
+COOH-COOH,2.5250,2
+COOH-COOH,2.5750,1
+COOH-COOH,2.6250,2
+COOH-COOH,2.6750,1
+COOH-COOH,2.7250,4
+COOH-COOH,2.7750,5
+COOH-COOH,2.8250,4
+COOH-COOH,2.8750,3
+COOH-COOH,2.9250,2
+COOH-COOH,2.9750,0
+COOH-COOH,3.0250,3
+COOH-COOH,3.0750,0
+COOH-COOH,3.1250,0
+COOH-COOH,3.1750,1
+COOH-COOH,3.2250,0
+COOH-COOH,3.2750,1
+COOH-COOH,3.3250,0
+COOH-COOH,3.3750,0
+COOH-COOH,3.4250,1
+COOH-COOH,3.4750,1
+COOH-COOH,3.5250,0
+COOH-COOH,3.5750,0
+COOH-COOH (dual),2.0250,0
+COOH-COOH (dual),2.0750,0
+COOH-COOH (dual),2.1250,0
+COOH-COOH (dual),2.1750,0
+COOH-COOH (dual),2.2250,0
+COOH-COOH (dual),2.2750,0
+COOH-COOH (dual),2.3250,0
+COOH-COOH (dual),2.3750,0
+COOH-COOH (dual),2.4250,0
+COOH-COOH (dual),2.4750,0
+COOH-COOH (dual),2.5250,0
+COOH-COOH (dual),2.5750,0
+COOH-COOH (dual),2.6250,1
+COOH-COOH (dual),2.6750,1
+COOH-COOH (dual),2.7250,1
+COOH-COOH (dual),2.7750,1
+COOH-COOH (dual),2.8250,2
+COOH-COOH (dual),2.8750,2
+COOH-COOH (dual),2.9250,0
+COOH-COOH (dual),2.9750,0
+COOH-COOH (dual),3.0250,1
+COOH-COOH (dual),3.0750,0
+COOH-COOH (dual),3.1250,0
+COOH-COOH (dual),3.1750,0
+COOH-COOH (dual),3.2250,0
+COOH-COOH (dual),3.2750,0
+COOH-COOH (dual),3.3250,0
+COOH-COOH (dual),3.3750,0
+COOH-COOH (dual),3.4250,1
+COOH-COOH (dual),3.4750,0
+COOH-COOH (dual),3.5250,0
+COOH-COOH (dual),3.5750,0
+COOH-COOH (chain/single),2.0250,0
+COOH-COOH (chain/single),2.0750,0
+COOH-COOH (chain/single),2.1250,0
+COOH-COOH (chain/single),2.1750,0
+COOH-COOH (chain/single),2.2250,0
+COOH-COOH (chain/single),2.2750,0
+COOH-COOH (chain/single),2.3250,0
+COOH-COOH (chain/single),2.3750,0
+COOH-COOH (chain/single),2.4250,0
+COOH-COOH (chain/single),2.4750,0
+COOH-COOH (chain/single),2.5250,2
+COOH-COOH (chain/single),2.5750,1
+COOH-COOH (chain/single),2.6250,1
+COOH-COOH (chain/single),2.6750,0
+COOH-COOH (chain/single),2.7250,3
+COOH-COOH (chain/single),2.7750,4
+COOH-COOH (chain/single),2.8250,2
+COOH-COOH (chain/single),2.8750,1
+COOH-COOH (chain/single),2.9250,2
+COOH-COOH (chain/single),2.9750,0
+COOH-COOH (chain/single),3.0250,2
+COOH-COOH (chain/single),3.0750,0
+COOH-COOH (chain/single),3.1250,0
+COOH-COOH (chain/single),3.1750,1
+COOH-COOH (chain/single),3.2250,0
+COOH-COOH (chain/single),3.2750,1
+COOH-COOH (chain/single),3.3250,0
+COOH-COOH (chain/single),3.3750,0
+COOH-COOH (chain/single),3.4250,0
+COOH-COOH (chain/single),3.4750,1
+COOH-COOH (chain/single),3.5250,0
+COOH-COOH (chain/single),3.5750,0
+COOH-amide,2.0250,0
+COOH-amide,2.0750,0
+COOH-amide,2.1250,0
+COOH-amide,2.1750,0
+COOH-amide,2.2250,0
+COOH-amide,2.2750,0
+COOH-amide,2.3250,0
+COOH-amide,2.3750,0
+COOH-amide,2.4250,0
+COOH-amide,2.4750,0
+COOH-amide,2.5250,1
+COOH-amide,2.5750,5
+COOH-amide,2.6250,4
+COOH-amide,2.6750,6
+COOH-amide,2.7250,8
+COOH-amide,2.7750,5
+COOH-amide,2.8250,6
+COOH-amide,2.8750,3
+COOH-amide,2.9250,1
+COOH-amide,2.9750,2
+COOH-amide,3.0250,3
+COOH-amide,3.0750,2
+COOH-amide,3.1250,1
+COOH-amide,3.1750,1
+COOH-amide,3.2250,0
+COOH-amide,3.2750,2
+COOH-amide,3.3250,0
+COOH-amide,3.3750,0
+COOH-amide,3.4250,0
+COOH-amide,3.4750,0
+COOH-amide,3.5250,0
+COOH-amide,3.5750,0
