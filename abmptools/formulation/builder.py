@@ -501,6 +501,7 @@ class FormulationBuilder:
         from .topology_openff import (
             export_gromacs_files,
             merge_to_interchange,
+            solvate_and_neutralize_gmx,
         )
 
         build_dir = self.output_dir / "build"
@@ -540,14 +541,44 @@ class FormulationBuilder:
                 output_dir=build_dir / "input",
             ))
 
-        # Stage 3: packmol (shared with Amber route via adapter list)
-        logger.info("=== Stage 3/7 (OpenFF): packmol ===")
-        # _stage3_packmol expects ``SmallMoleculeResult`` (amber route dataclass);
-        # SmallMoleculeOpenFFResult is structurally similar (pdb_path +
-        # n_atoms_per_copy + net_charge). Wrap with shim.
-        sm_shim = [_SmallMolShim(r) for r in sm_results]
+        # Phase 2-A: water 1 個を typing template として追加
+        # (Interchange の SMIRNOFF stack に tip3p.offxml を含めることで
+        # system.top に water moltype が登録される。 後段 gmx solvate で
+        # 本番量に増やす。)
+        water_template = parameterize_small_mol_openff(
+            smiles="O",
+            resname="HOH",
+            net_charge=0,
+            output_dir=build_dir / "input",
+            charge_method="gasteiger",  # TIP3P SMIRNOFF が charge を override
+        )
+        sm_results.append(water_template)
+
+        # Stage 3: packmol (OpenFF 専用、 water 1 個も含める)
+        logger.info("=== Stage 3/7 (OpenFF): packmol (with water template) ===")
+        from ..amorphous.packing import run_packmol
+
         peptide_pdbs = [r.pdb_path for r in peptide_results]
-        mixture_pdb = self._stage3_packmol(peptide_pdbs, sm_shim)
+        component_pdbs: List[str] = [str(p) for p in peptide_pdbs]
+        counts: List[int] = [p.n_copies for p in self.config.system.peptides]
+        for r in sm_results:
+            component_pdbs.append(str(r.pdb_path))
+        counts.extend(self._enhancer_counts_for_openff())
+        counts.extend([b.n_copies for b in self.config.system.bile_salts])
+        counts.append(1)  # water template (Phase 2-A)
+
+        mixture_pdb = run_packmol(
+            pdb_paths=component_pdbs,
+            counts=counts,
+            box_size_nm=self.config.system.box_size_nm
+                * (1 - self.config.packmol_inner_box_margin_nm / self.config.system.box_size_nm),
+            output_pdb=str(build_dir / "mixture.pdb"),
+            build_dir=str(build_dir),
+            tolerance=self.config.packmol_tolerance_A,
+            seed=self.config.seed,
+            packmol_path=self.config.packmol_path,
+        )
+        mixture_pdb = Path(mixture_pdb)
 
         # Stage 4: topology (Interchange + GROMACS export, OpenFF route)
         logger.info("=== Stage 4/7 (OpenFF): topology (Interchange) ===")
@@ -557,6 +588,7 @@ class FormulationBuilder:
             [p.n_copies for p in self.config.system.peptides]
             + [c for c in self._enhancer_counts_for_openff()]
             + [b.n_copies for b in self.config.system.bile_salts]
+            + [1]  # water template (Phase 2-A、 gmx solvate で増やす)
         )
         ic = merge_to_interchange(
             species_molecules=species_mols,
@@ -570,6 +602,25 @@ class FormulationBuilder:
             gro_path=self.output_dir / "system.gro",
             top_path=self.output_dir / "system.top",
         )
+
+        # Phase 2-A: gmx solvate + genion で wet system に拡張
+        if self.config.system.neutralize:
+            logger.info("=== Stage 4.5/7 (OpenFF Phase 2-A): solvate + neutralize via gmx ===")
+            try:
+                top_result = solvate_and_neutralize_gmx(
+                    gro_path=top_result.gro_path,
+                    top_path=top_result.top_path,
+                    box_size_nm=self.config.system.box_size_nm,
+                    salt_concentration_M=self.config.system.salt_concentration_M,
+                    gmx=self.config.gmx_path,
+                    workdir=build_dir,
+                )
+            except RuntimeError as exc:
+                logger.warning(
+                    "Phase 2-A solvate skipped (%s). "
+                    "Output is dry-mixed; add water/ions manually via "
+                    "`gmx solvate` + `gmx genion` if needed.", exc,
+                )
 
         # Stage 5-7: shared with Amber route (ndx writer は top_art を期待)。
         # Amber route の TopologyArtifacts は prmtop/inpcrd/tleap_input/tleap_log
