@@ -48,6 +48,29 @@ def test_parse_gro_residues(tmp_path):
     assert atoms[5] == (6, "NA", "NA")
 
 
+def test_parse_gro_residues_serial_wrap_over_99999(tmp_path):
+    """gro の atom-serial 列は 5 桁で 100000 から wrap する (00000=0)。
+    parser は serial 列を無視し 1-based 連番を使うこと
+    (insulin 等 >99999 atom 系の ndx で atom 0 混入を防ぐ regression)。
+    """
+    g = tmp_path / "big.gro"
+    lines = ["title", "100002"]
+    # 3 atoms with serials 99999, 00000 (=wrapped 100000), 00001 (=100001)
+    # 実際の gro は全 100002 行必要だが、 parser は n_atoms 行を読むので
+    # ヘッダの数を 3 に縮めてテスト
+    lines = ["title", "3"]
+    # cols: resnum(5) resname(5) atomname(5) serial(5) x y z
+    lines.append("    1WAT      OW99999   1.000   1.000   1.000")
+    lines.append("    1WAT      HW00000   1.100   1.000   1.000")  # serial wraps to 0
+    lines.append("    1WAT      HW00001   1.000   1.100   1.000")  # serial wraps to 1
+    lines.append("   3.0 3.0 3.0")
+    g.write_text("\n".join(lines) + "\n")
+    atoms = parse_gro_residues(str(g))
+    # 1-based 連番が使われ、 serial の wrap (0) は使われない
+    assert [a[0] for a in atoms] == [1, 2, 3]
+    assert all(a[0] != 0 for a in atoms)
+
+
 def test_classify_atoms_basic(tmp_path):
     g = tmp_path / "x.gro"
     _write_minimal_gro(g)

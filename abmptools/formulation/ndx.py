@@ -49,11 +49,16 @@ def parse_gro_residues(gro_path: str) -> List[Tuple[int, str, str]]:
     with open(gro_path) as f:
         f.readline()  # title
         n_atoms = int(f.readline())
-        for _ in range(n_atoms):
+        for i in range(n_atoms):
             line = f.readline()
             resname = line[5:10].strip()
             atomname = line[10:15].strip()
-            atom_idx = int(line[15:20])
+            # NOTE: the gro atom-serial column (cols 16-20) is only 5 chars
+            # wide and **wraps modulo 100000** for systems > 99999 atoms
+            # (atom 100000 prints as "00000"). Use the 1-based loop counter
+            # instead — it is always correct and matches GROMACS' own atom
+            # numbering used by grompp/ndx.
+            atom_idx = i + 1
             out.append((atom_idx, resname, atomname))
     return out
 
