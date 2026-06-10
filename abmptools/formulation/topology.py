@@ -169,6 +169,84 @@ class TopologyArtifacts:
     tleap_log: str
 
 
+def _patch_mixture_pdb_with_ter_records(mixture_pdb: Path) -> Path:
+    """packmol output に **chain 境界の TER record を挿入**する patch。
+
+    packmol は input PDB の TER record を **drop** するため、 multi-chain
+    protein (例: insulin A 鎖 + B 鎖) を loadpdb で読むと tleap が
+    chain 境界を認識できず、 20+ Å の異常 peptide bond を作ろうとして
+    OXT atom が未定義になり fatal error。
+
+    本関数は ATOM/HETATM 行を順次走査し、 ``chain ID`` が変わる位置
+    (前 chain が空白でない場合) に ``TER`` 行を挿入する。 small molecule
+    (chain ID = 空白) と protein (chain ID = A/B/...) の境界には挿入しない
+    (packmol/tleap 慣習で small mol は 1 residue = 1 chain として扱われる)。
+
+    Returns
+    -------
+    Path
+        patch 後の PDB (in-place で上書き)。
+    """
+    pdb_path = Path(mixture_pdb)
+    lines = pdb_path.read_text().splitlines(keepends=False)
+    out: List[str] = []
+    prev_chain = ""
+    prev_resname = ""
+    prev_resnum_str = ""
+    prev_resnum_int = -1
+    prev_atom_serial = 0
+    ter_inserted = 0
+    for line in lines:
+        if line.startswith(("ATOM", "HETATM")) and len(line) >= 27:
+            atom_serial_str = line[6:11].strip()
+            atom_serial = int(atom_serial_str) if atom_serial_str.isdigit() else 0
+            chain = line[21]
+            resname = line[17:20].strip()
+            resnum_str = line[22:26]
+            try:
+                resnum_int = int(resnum_str.strip())
+            except ValueError:
+                resnum_int = -1
+            # TER 挿入条件:
+            #   1) chain ID が変わった (前 chain が non-empty)
+            #   2) resnum が大幅に減少 (multi-chain protein 内で
+            #      A 鎖 21 → B 鎖 1 の遷移、 packmol が chain ID
+            #      を統一してしまうケースに対応)
+            chain_transition = (
+                prev_chain != ""
+                and chain != prev_chain
+                and prev_chain != " "
+            )
+            resnum_reset = (
+                prev_resnum_int > 0
+                and resnum_int > 0
+                and resnum_int < prev_resnum_int
+                and (prev_resnum_int - resnum_int) >= 3
+            )
+            if chain_transition or resnum_reset:
+                ter_chain = prev_chain if prev_chain.strip() else " "
+                ter_line = (
+                    f"TER   {prev_atom_serial + 1:>5}      "
+                    f"{prev_resname:>3} {ter_chain}{prev_resnum_str}"
+                )
+                out.append(ter_line)
+                ter_inserted += 1
+            prev_chain = chain
+            prev_resname = resname
+            prev_resnum_str = resnum_str
+            prev_resnum_int = resnum_int
+            prev_atom_serial = atom_serial
+        out.append(line)
+    if ter_inserted > 0:
+        logger.info(
+            "Inserted %d TER records at chain boundaries in %s "
+            "(multi-chain protein support).",
+            ter_inserted, pdb_path,
+        )
+        pdb_path.write_text("\n".join(out) + "\n")
+    return pdb_path
+
+
 def build_topology(
     *,
     config: FormulationBuildConfig,
@@ -190,6 +268,9 @@ def build_topology(
     inpcrd = str(wd / "system.inpcrd")
     top_path = str(wd / "system.top")
     gro_path = str(wd / "system.gro")
+
+    # multi-chain protein 用の patch: packmol output に TER record を挿入
+    _patch_mixture_pdb_with_ter_records(Path(mixture_pdb))
 
     margin = (
         solvatebox_margin_nm

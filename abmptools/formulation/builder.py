@@ -27,6 +27,69 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Multi-chain protein / disulfide helpers
+# ---------------------------------------------------------------------------
+
+
+def _parse_pdb_residue_map(pdb_path: str):
+    """Parse a PDB and return ``(n_residues, {(chain, resid_int): cum_index})``.
+
+    ``cum_index`` is the **1-based sequential residue position** in file
+    order — exactly the residue index tleap assigns to ``sys.N`` after
+    ``loadpdb`` (TER records do not create gaps). For a multi-chain peptide
+    like insulin this yields A1..A21 → 1..21, B1..B30 → 22..51.
+    """
+    cum = 0
+    mapping: Dict[Any, int] = {}
+    prev_key = None
+    for line in Path(pdb_path).read_text().splitlines():
+        if not line.startswith(("ATOM", "HETATM")):
+            continue
+        chain = line[21]
+        try:
+            resid = int(line[22:26])
+        except ValueError:
+            continue
+        key = (chain, resid)
+        if key != prev_key:
+            cum += 1
+            mapping.setdefault(key, cum)
+            prev_key = key
+    return cum, mapping
+
+
+def _rename_cys_to_cyx_in_pdb(pdb_path: str, residues) -> None:
+    """Rename ``CYS`` → ``CYX`` (cols 18-20) for the given ``(chain, resid)``
+    set, in-place. CYX is the ff14SB disulfide-bonded cysteine template
+    (no SG thiol hydrogen), required before declaring the S-S bond in tleap.
+    """
+    want = set(residues)
+    out: List[str] = []
+    n_renamed = 0
+    for line in Path(pdb_path).read_text().splitlines():
+        if line.startswith(("ATOM", "HETATM")) and len(line) >= 26:
+            chain = line[21]
+            try:
+                resid = int(line[22:26])
+            except ValueError:
+                resid = None
+            resname = line[17:20].strip()
+            if resname == "CYS" and (chain, resid) in want:
+                padded = (line + " " * 80)[:80]
+                lc = list(padded)
+                lc[17:20] = list("CYX")
+                line = "".join(lc).rstrip()
+                n_renamed += 1
+        out.append(line)
+    if n_renamed:
+        Path(pdb_path).write_text("\n".join(out) + "\n")
+        logger.info(
+            "Renamed %d Cys atom-records to CYX (disulfide) in %s",
+            n_renamed, pdb_path,
+        )
+
+
+# ---------------------------------------------------------------------------
 # Public artifact dataclass
 # ---------------------------------------------------------------------------
 
@@ -139,6 +202,18 @@ class FormulationBuilder:
                     out_pdb=str(target),
                     strip_waters=True,
                 )
+                # Disulfide-bonded Cys must be renamed CYS -> CYX so the
+                # ff14SB template drops the SG thiol hydrogen (HG); the
+                # actual S-S bond is then declared in the unified tleap
+                # script (see _disulfide_tleap_bonds). Done on the
+                # per-peptide PDB before packmol so every copy inherits CYX.
+                if pspec.disulfide_bonds:
+                    ss_residues = set()
+                    for a_spec, b_spec in pspec.disulfide_bonds:
+                        for spec in (a_spec, b_spec):
+                            ch, rid, _atom = spec.split(":")
+                            ss_residues.add((ch, int(rid)))
+                    _rename_cys_to_cyx_in_pdb(str(target), ss_residues)
             else:
                 # Render bond directives if disulfides declared.
                 # disulfide_bond RESID is interpreted as a 1-based
@@ -355,12 +430,65 @@ class FormulationBuilder:
         small_results: List[SmallMoleculeResult],
     ) -> TopologyArtifacts:
         logger.info("=== Stage 4/7: solvate + ions (tleap unified) ===")
+        extra_bonds = self._disulfide_tleap_bonds()
+        if extra_bonds:
+            logger.info(
+                "Declaring %d disulfide bond(s) in unified tleap script.",
+                len(extra_bonds),
+            )
         return build_topology(
             config=self.config,
             mixture_pdb=str(mixture_pdb),
             small_molecules=small_results,
             workdir=str(self.output_dir / "build"),
+            extra_bonds=extra_bonds or None,
         )
+
+    def _disulfide_tleap_bonds(self) -> List[str]:
+        """Compute ``bond sys.<i>.SG sys.<j>.SG`` directives for the unified
+        tleap script, mapping each peptide's per-chain (chain, resid) Cys
+        reference to its **global sequential residue index** in the loaded
+        ``sys`` unit.
+
+        Only applies to tleap-route peptides with ``pdb_path`` + declared
+        ``disulfide_bonds``. The global index accounts for packmol writing
+        peptides first (in config order), each repeated ``n_copies`` times,
+        with multi-chain residues counted in PDB order (e.g. insulin
+        A1..A21 then B1..B30 → cumulative 1..51).
+        """
+        directives: List[str] = []
+        res_offset = 0  # sequential residue offset accumulated in packmol order
+        for pspec in self.config.system.peptides:
+            norm_pdb = self.output_dir / "build" / "input" / f"{pspec.name}.pdb"
+            if not norm_pdb.is_file():
+                continue
+            n_res, resmap = _parse_pdb_residue_map(str(norm_pdb))
+            ss_ok = (
+                pspec.parameterize_method != "gaff"
+                and pspec.pdb_path
+                and pspec.disulfide_bonds
+            )
+            if ss_ok:
+                for copy_i in range(pspec.n_copies):
+                    copy_offset = res_offset + copy_i * n_res
+                    for a_spec, b_spec in pspec.disulfide_bonds:
+                        a_ch, a_rid, a_atom = a_spec.split(":")
+                        b_ch, b_rid, b_atom = b_spec.split(":")
+                        a_cum = resmap.get((a_ch, int(a_rid)))
+                        b_cum = resmap.get((b_ch, int(b_rid)))
+                        if a_cum is None or b_cum is None:
+                            logger.warning(
+                                "disulfide spec %s/%s not found in %s; "
+                                "skipping.", a_spec, b_spec, norm_pdb,
+                            )
+                            continue
+                        g_a = copy_offset + a_cum
+                        g_b = copy_offset + b_cum
+                        directives.append(
+                            f"bond sys.{g_a}.{a_atom} sys.{g_b}.{b_atom}"
+                        )
+            res_offset += pspec.n_copies * n_res
+        return directives
 
     def _stage5_index(self, top_art: TopologyArtifacts) -> Path:
         logger.info("=== Stage 5/7: index ===")
