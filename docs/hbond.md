@@ -212,6 +212,24 @@ GOURMET `Draw_Attributes` の schema は `Atom_Type[]` / `Bond_Potential[]` /
 | `_distance_stats.csv` | クラス別の `n / mean / median / std / peak / p25 / p75` | 表として直接論文用に使える |
 | `_distance_hist.csv` | long-form (`label, bin_center_DA, count`) | matplotlib 以外で再描画する用 |
 
+#### 生データの所在 (PNG を介さない再利用)
+
+3 プロットとも、元になった数値は PNG とは別に CSV で取り出せる。最も粒度が
+細かいのは `_pairs.csv` で、検出された H-bond 1 本ごとに `d_da` / `d_ha` /
+`angle`（と donor/acceptor の mol・atom）を 1 行ずつ持つ一次データである。
+
+| プロット | bin 化済みの生データ | 一次データ (再ビンニング可) |
+|---|---|---|
+| A / B (1-D ヒストグラム) | `_distance_hist.csv`（bin ごとの count）+ `_distance_stats.csv`（要約統計） | `_pairs.csv` の `d_da` 列 |
+| C (2-D heatmap) | **専用の grid CSV は出力しない** | `_pairs.csv` の `d_da` × `angle` 列 |
+
+A/B のヒストグラムは `_distance_hist.csv` をそのまま棒/階段グラフに描き直せる。
+C の 2-D grid だけは CSV 化していないので、PNG と同じ格子の count が欲しい場合は
+`_pairs.csv` の `d_da` / `angle` を `numpy.histogram2d` で再ビンニングする
+（bin 幅を変えた再集計も同じ手順）。Python から直接なら
+`aggregate_distance_angle(frame_results, mode)` が `(d_DA[N], angle[N])` の生配列を
+返すので、それを `numpy.histogram2d` に渡せばよい。
+
 #### 出力例 (IMC amorphous, T=450 K, 1 record)
 
 `sample/hbond/imc_amorphous/` を `run_notebook.ipynb` の distance 経路
