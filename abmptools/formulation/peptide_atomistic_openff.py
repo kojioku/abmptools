@@ -106,6 +106,7 @@ class PeptideOpenFFResult:
     pdb_path: Path
     molecule: Any
     n_atoms_per_copy: int
+    is_protein: bool = True
 
 
 def check_openff_amber_ff_ports_available() -> None:
@@ -124,85 +125,121 @@ def check_openff_amber_ff_ports_available() -> None:
         ) from e
 
 
+def _pdbfix_protein(input_pdb: str, output_pdb: str, ph: float = 7.0) -> str:
+    """Phase 2-C: PDBFixer で protein PDB を OpenFF が読める形に前処理。
+
+    - crystal water (HETATM HOH) 除去
+    - missing residue / atom 補完
+    - **explicit hydrogen 付加** (OpenFF Toolkit は H 必須)
+
+    全て pip install 可能な OpenMM/PDBFixer のみ使用 → Windows native 動作。
+    """
+    try:
+        from pdbfixer import PDBFixer
+        from openmm.app import PDBFile
+    except ImportError as e:
+        raise RuntimeError(
+            "Phase 2-C protein route requires pdbfixer + openmm.\n"
+            "Install: pip install pdbfixer openmm"
+        ) from e
+    fixer = PDBFixer(filename=str(input_pdb))
+    fixer.removeHeterogens(keepWater=False)
+    fixer.findMissingResidues()
+    fixer.findMissingAtoms()
+    fixer.addMissingAtoms()
+    fixer.addMissingHydrogens(ph)
+    with open(output_pdb, "w") as fh:
+        PDBFile.writeFile(fixer.topology, fixer.positions, fh)
+    return str(output_pdb)
+
+
 def build_peptide_openff(
     *,
     spec: PeptideSpec,
     output_dir: Path,
     charge_method: str = "gasteiger",
 ) -> PeptideOpenFFResult:
-    """Whole-peptide SMIRNOFF route — Windows native compatible.
+    """Protein route (Phase 2-C) — Windows native、 multi-chain + disulfide 対応。
+
+    全 OS で動く科学スタック (PDBFixer + OpenFF ``Topology.from_pdb`` +
+    ff14SB SMIRNOFF) で標準アミノ酸ペプチド / タンパク質を組む。
+
+    処理:
+    1. peptide PDB を取得 (``spec.pdb_path`` か、 sequence から PeptideBuilder)
+    2. :func:`_pdbfix_protein` で water 除去 + 欠損補完 + H 付加
+    3. ``Topology.from_pdb`` で読み込み (multi-chain は 1 分子として認識、
+       **disulfide bond を自動検出**)
+    4. その単一 Molecule を template として返す。 charges は付与せず、
+       後段 :func:`merge_to_interchange` で ff14SB **library charges** を使う
 
     Parameters
     ----------
     spec
-        Peptide specification。 **OpenFF route では ``spec.pdb_path`` 必須**。
-        ``spec.sequence`` 単独からの 3D build は Phase 2 で対応。
+        Peptide specification (``pdb_path`` か ``sequence``)。
     output_dir
-        ``build/input/`` 等の出力 dir。 ``<name>.pdb`` を書き出す。
+        ``build/input/`` 等の出力 dir。 fixed PDB ``<name>.pdb`` を書き出す
+        (packmol 入力 = H 付き)。
     charge_method
-        - ``"gasteiger"`` (default): 軽量 + 安定 (大 peptide で sqm 発散
-          回避、 既存 D-octreotide GAFF mode と同じ慣習)、 全 OS 対応
-        - ``"nagl"``: NAGL の ML AM1-BCC (要 ``openff-nagl`` install)、 全 OS 対応
-        - ``"am1bcc"``: 内部 ``sqm`` を要求、 Linux/macOS のみ、 large peptide
-          では SCF 発散リスクあり
+        後方互換のため残置。 protein route では使われない (ff14SB library
+        charges を使用)。
 
     Returns
     -------
     PeptideOpenFFResult
-        PDB path + Molecule + atom 数。
-
-    Raises
-    ------
-    ValueError
-        ``spec.pdb_path`` が未指定 (Phase 1 では sequence からの build 未対応)。
-    RuntimeError
-        OpenFF Toolkit や RDKit が未 install。
+        fixed PDB path + Molecule template (charges なし) + atom 数 +
+        ``is_protein=True``。
     """
-    from ..amorphous.molecule_prep import prepare_molecule, write_single_mol_pdb
+    from openff.toolkit import Topology
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Phase 2-B: sequence → 3D PDB via PeptideBuilder if pdb_path 無し
-    pdb_path = spec.pdb_path
-    if not pdb_path:
+    # 1. peptide PDB を取得 (pdb_path か sequence build)
+    raw_pdb = spec.pdb_path
+    if not raw_pdb:
         if not spec.sequence:
             raise ValueError(
                 f"PeptideSpec[{spec.name}] requires either pdb_path or sequence."
             )
-        pdb_path = _build_peptide_from_sequence_openff(
+        raw_pdb = _build_peptide_from_sequence_openff(
             sequence=spec.sequence,
             name=spec.name,
             output_dir=output_dir,
             cap_n=spec.cap_n,
             cap_c=spec.cap_c,
         )
-        logger.info("Phase 2-B: built peptide '%s' from sequence '%s' → %s",
-                    spec.name, spec.sequence, pdb_path)
+        logger.info("Phase 2-B: built peptide '%s' from sequence '%s'",
+                    spec.name, spec.sequence)
 
+    # 2. PDBFixer 前処理 (water 除去 + H 付加) → packmol 入力 PDB
+    fixed_pdb = output_dir / f"{spec.name}.pdb"
+    _pdbfix_protein(str(raw_pdb), str(fixed_pdb))
     logger.info(
-        "OpenFF route: build peptide '%s' from PDB=%s (charge_method=%s)",
-        spec.name, spec.pdb_path, charge_method,
+        "Phase 2-C: PDBFixer preprocessed protein '%s' (water strip + H add) → %s",
+        spec.name, fixed_pdb,
     )
-    # amorphous.prepare_molecule の am1bcc は early return なので、 explicit
-    # pre-assign が必要 (use_precomputed_charges=True と整合させるため)。
-    if charge_method == "am1bcc":
-        mol = prepare_molecule(
-            pdb_path=str(pdb_path), name=spec.name, charge_method="",
-        )
-        mol.assign_partial_charges(partial_charge_method="am1bcc")
-    else:
-        mol = prepare_molecule(
-            pdb_path=str(pdb_path),
-            name=spec.name,
-            charge_method=charge_method,
-        )
 
-    pdb_path = output_dir / f"{spec.name}.pdb"
-    write_single_mol_pdb(mol, str(pdb_path))
+    # 3. Topology.from_pdb で multi-chain + disulfide を認識した Molecule template
+    top = Topology.from_pdb(str(fixed_pdb))
+    if top.n_molecules != 1:
+        logger.warning(
+            "Topology.from_pdb('%s') yielded %d molecules; using the first. "
+            "(multi-chain proteins joined by disulfides should be 1 molecule.)",
+            spec.name, top.n_molecules,
+        )
+    mol = top.molecule(0)
+    n_ss = sum(
+        1 for b in mol.bonds
+        if b.atom1.symbol == "S" and b.atom2.symbol == "S"
+    )
+    logger.info(
+        "Phase 2-C: '%s' loaded via Topology.from_pdb: %d atoms, %d disulfide(s)",
+        spec.name, mol.n_atoms, n_ss,
+    )
 
     return PeptideOpenFFResult(
-        pdb_path=pdb_path,
+        pdb_path=fixed_pdb,
         molecule=mol,
         n_atoms_per_copy=int(mol.n_atoms),
+        is_protein=True,
     )

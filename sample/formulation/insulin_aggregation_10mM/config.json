@@ -5,14 +5,9 @@
         "name": "insulin",
         "pdb_path": "insulin_2G4M.pdb",
         "n_copies": 6,
-        "parameterize_method": "tleap",
         "cap_n": "",
         "cap_c": "",
-        "disulfide_bonds": [
-          ["A:6:SG", "A:11:SG"],
-          ["A:7:SG", "B:7:SG"],
-          ["A:20:SG", "B:19:SG"]
-        ]
+        "disulfide_bonds": []
       }
     ],
     "enhancers": [
@@ -59,6 +54,6 @@
   },
   "seed": 42,
   "output_dir": ".",
-  "force_field_route": "amber",
+  "force_field_route": "openff",
   "gmx_path": "/home/okuwaki/.local/share/mamba/envs/gmxcudaenv/bin.AVX2_256/gmx"
 }

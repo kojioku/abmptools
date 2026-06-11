@@ -710,7 +710,7 @@ class FormulationBuilder:
 
         # Stage 4: topology (Interchange + GROMACS export, OpenFF route)
         logger.info("=== Stage 4/7 (OpenFF): topology (Interchange) ===")
-        # 順序: peptide × N + enhancer (neu, chg) + bile salt の順を維持
+        # 順序: peptide × N + enhancer (neu, chg) + bile salt + water を維持
         species_mols = [r.molecule for r in peptide_results] + [r.molecule for r in sm_results]
         species_counts = (
             [p.n_copies for p in self.config.system.peptides]
@@ -718,18 +718,39 @@ class FormulationBuilder:
             + [b.n_copies for b in self.config.system.bile_salts]
             + [1]  # water template (Phase 2-A、 gmx solvate で増やす)
         )
-        ic = merge_to_interchange(
-            species_molecules=species_mols,
-            species_counts=species_counts,
-            mixture_pdb=mixture_pdb,
-            box_size_nm=self.config.system.box_size_nm,
-            use_precomputed_charges=True,
+        # protein_flags: peptide は protein (ff14SB library charges)、
+        # small mol / water は precomputed charges
+        protein_flags = (
+            [bool(getattr(r, "is_protein", True)) for r in peptide_results]
+            + [False] * len(sm_results)
         )
-        top_result = export_gromacs_files(
-            interchange=ic,
-            gro_path=self.output_dir / "system.gro",
-            top_path=self.output_dir / "system.top",
-        )
+        if any(protein_flags):
+            # protein 系は単一コピー parametrize + count 複製 (O(N²) 回避)
+            from .topology_openff import build_protein_route_topology
+            top_result = build_protein_route_topology(
+                species_molecules=species_mols,
+                species_counts=species_counts,
+                protein_flags=protein_flags,
+                mixture_pdb=mixture_pdb,
+                box_size_nm=self.config.system.box_size_nm,
+                gro_path=self.output_dir / "system.gro",
+                top_path=self.output_dir / "system.top",
+                gmx=self.config.gmx_path,
+            )
+        else:
+            ic = merge_to_interchange(
+                species_molecules=species_mols,
+                species_counts=species_counts,
+                mixture_pdb=mixture_pdb,
+                box_size_nm=self.config.system.box_size_nm,
+                use_precomputed_charges=True,
+                protein_flags=protein_flags,
+            )
+            top_result = export_gromacs_files(
+                interchange=ic,
+                gro_path=self.output_dir / "system.gro",
+                top_path=self.output_dir / "system.top",
+            )
 
         # Phase 2-A: gmx solvate + genion で wet system に拡張
         if self.config.system.neutralize:

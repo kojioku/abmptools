@@ -125,6 +125,7 @@ def _rename_water_moltype_to_sol(top_path: Path) -> None:
 __all__ = [
     "MergedTopologyResult",
     "merge_to_interchange",
+    "build_protein_route_topology",
     "export_gromacs_files",
     "solvate_and_neutralize_gmx",
 ]
@@ -140,6 +141,12 @@ class MergedTopologyResult:
     n_atoms_total: int
 
 
+# ff14SB SMIRNOFF port (openff-amber-ff-ports) — protein 用 library charges
+FF14SB_OFFXML = "ff14sb_off_impropers_0.0.4.offxml"
+SAGE_OFFXML = "openff_unconstrained-2.1.0.offxml"
+TIP3P_OFFXML = "tip3p.offxml"
+
+
 def merge_to_interchange(
     *,
     species_molecules: Sequence[Any],
@@ -147,10 +154,11 @@ def merge_to_interchange(
     mixture_pdb: Path,
     box_size_nm: float,
     forcefield_offxmls: Sequence[str] = (
-        "openff_unconstrained-2.1.0.offxml",
-        "tip3p.offxml",
+        SAGE_OFFXML,
+        TIP3P_OFFXML,
     ),
     use_precomputed_charges: bool = True,
+    protein_flags: Optional[Sequence[bool]] = None,
 ) -> Any:
     """Merge per-species OpenFF Molecule templates + mixture PDB into 1 Interchange.
 
@@ -173,29 +181,191 @@ def merge_to_interchange(
     use_precomputed_charges
         ``True`` (default) なら each Molecule の ``partial_charges`` を Interchange
         に伝えて ``sqm`` を呼ばない (Windows native 必須)。
+    protein_flags
+        各 species が **protein か否か** の bool list (None なら全 False)。
+        protein は ff14SB SMIRNOFF (openff-amber-ff-ports) の **library charges**
+        を使い、 ``charge_from_molecules`` には含めない。 small molecule は
+        precomputed charges (gasteiger / nagl) を使う。 protein が 1 つでも
+        あれば FF stack の先頭に ``ff14sb`` を prepend する。
 
     Returns
     -------
     interchange
         Parameterized ``openff.interchange.Interchange``。
     """
-    from ..amorphous.parameterizer import create_interchange
+    molecules = list(species_molecules)
+    flags = list(protein_flags) if protein_flags is not None else [False] * len(molecules)
+    has_protein = any(flags)
 
+    if not has_protein:
+        # 従来経路 (全 small molecule): amorphous の create_interchange に委譲
+        from ..amorphous.parameterizer import create_interchange
+        logger.info(
+            "OpenFF route: merge %d species (counts=%s) → Interchange "
+            "(FF stack=%s, precomputed_charges=%s)",
+            len(molecules), list(species_counts), list(forcefield_offxmls),
+            use_precomputed_charges,
+        )
+        return create_interchange(
+            molecules=molecules,
+            counts=list(species_counts),
+            box_size_nm=float(box_size_nm),
+            mixture_pdb=str(mixture_pdb),
+            forcefield_name=list(forcefield_offxmls),
+            use_precomputed_charges=use_precomputed_charges,
+        )
+
+    # protein を含む経路 (Phase 2-C): ff14SB + Sage + TIP3P stack、
+    # mixed charges (protein=FF library, small mol=precomputed)
+    from openff.toolkit import ForceField, Topology
+    from openff.interchange import Interchange
+    from openff.units import unit as off_unit
+    import numpy as np
+
+    offxmls = [FF14SB_OFFXML] + list(forcefield_offxmls)
     logger.info(
-        "OpenFF route: merge %d species (counts=%s) → Interchange "
-        "(FF stack=%s, precomputed_charges=%s)",
-        len(species_molecules), list(species_counts), list(forcefield_offxmls),
-        use_precomputed_charges,
+        "OpenFF route (protein): merge %d species (%d protein) → Interchange "
+        "(FF stack=%s)",
+        len(molecules), sum(flags), offxmls,
     )
-    interchange = create_interchange(
-        molecules=list(species_molecules),
-        counts=list(species_counts),
-        box_size_nm=float(box_size_nm),
-        mixture_pdb=str(mixture_pdb),
-        forcefield_name=list(forcefield_offxmls),
-        use_precomputed_charges=use_precomputed_charges,
+    ff = ForceField(*offxmls)
+    topology = Topology.from_pdb(str(mixture_pdb), unique_molecules=molecules)
+    topology.box_vectors = np.eye(3) * float(box_size_nm) * off_unit.nanometer
+
+    # small molecule (non-protein) のみ precomputed charges を渡す。
+    # protein は ff14SB の LibraryCharges が自動適用される。
+    charge_mols = [m for m, is_prot in zip(molecules, flags) if not is_prot]
+    kwargs = {"force_field": ff, "topology": topology}
+    if charge_mols:
+        kwargs["charge_from_molecules"] = charge_mols
+    return Interchange.from_smirnoff(**kwargs)
+
+
+def build_protein_route_topology(
+    *,
+    species_molecules: Sequence[Any],
+    species_counts: Sequence[int],
+    protein_flags: Sequence[bool],
+    mixture_pdb: Path,
+    box_size_nm: float,
+    gro_path: Path,
+    top_path: Path,
+    gmx: str = "gmx",
+    forcefield_offxmls: Sequence[str] = (SAGE_OFFXML, TIP3P_OFFXML),
+) -> MergedTopologyResult:
+    """Protein 系の topology を **単一コピー parametrize + count 複製** で組む。
+
+    巨大な protein 系で ``Interchange.from_smirnoff`` を full mixture に
+    かけると nonbonded exception 生成が O(N²) で爆発する (insulin × 6 で
+    2 時間+)。 対策として:
+
+    1. **各 unique species 1 個ずつ**の topology を parametrize (~数秒)
+    2. ``to_top`` で moleculetype 定義を得る
+    3. ``[ molecules ]`` の count を実際の値に書き換え (GROMACS は同一
+       moleculetype を count 参照する設計なので、 これで複製と等価)
+    4. ``.gro`` は packmol mixture から ``gmx editconf`` で生成 (全コピーの
+       座標)
+
+    species_molecules / species_counts / protein_flags は packmol 順
+    (peptide → enhancer → bile salt → water) に一致していること。
+    """
+    import subprocess
+    from openff.toolkit import ForceField, Topology, Molecule
+    from openff.interchange import Interchange
+    from openff.units import unit as off_unit
+    import numpy as np
+    from ..trajectory.postprocess import _resolve_gmx
+
+    molecules = list(species_molecules)
+    counts = list(species_counts)
+    flags = list(protein_flags)
+    gro_path = Path(gro_path)
+    top_path = Path(top_path)
+    n_species = len(molecules)
+
+    # ion moleculetype を生成するため Na+/Cl- を 1 個ずつ追加で parametrize
+    # (mixture/.gro には含まれない → [ molecules ] には載せず、 定義だけ残す。
+    # gmx genion が後で実 count を [ molecules ] に追記する。)
+    na = Molecule.from_smiles("[Na+]"); na.generate_conformers(n_conformers=1); na.name = "NA"
+    cl = Molecule.from_smiles("[Cl-]"); cl.generate_conformers(n_conformers=1); cl.name = "CL"
+    parametrize_mols = molecules + [na, cl]
+
+    # 1. 単一コピー topology
+    single = Topology()
+    for m in parametrize_mols:
+        single.add_molecule(m)
+    single.box_vectors = np.eye(3) * float(box_size_nm) * off_unit.nanometer
+
+    offxmls = [FF14SB_OFFXML] + list(forcefield_offxmls)
+    logger.info(
+        "OpenFF protein route: single-copy parametrize (%d species + Na/Cl, "
+        "%d protein, FF=%s)", n_species, sum(flags), offxmls,
     )
-    return interchange
+    ff = ForceField(*offxmls)
+    # small molecule のみ precomputed charges。 protein は ff14SB library、
+    # Na/Cl は ff (tip3p offxml) の ion charges を使う (charge_from_molecules 不要)
+    charge_mols = [m for m, p in zip(molecules, flags) if not p]
+    kwargs = {"force_field": ff, "topology": single}
+    if charge_mols:
+        kwargs["charge_from_molecules"] = charge_mols
+    ic_single = Interchange.from_smirnoff(**kwargs)
+
+    # 2. to_top → 3. [molecules] count 書き換え
+    #    real species は実 count に、 末尾の Na/Cl 定義行は [molecules] から
+    #    除外する (定義 [moleculetype] は top に残るので genion が参照可能)。
+    ic_single.to_top(str(top_path))
+    text = top_path.read_text()
+    out_lines: List[str] = []
+    in_mol = False
+    idx = 0
+    for ln in text.splitlines():
+        if re.match(r"\[ molecules \]", ln):
+            in_mol = True
+            out_lines.append(ln)
+            continue
+        if in_mol and re.match(r"\[", ln):
+            in_mol = False
+        if in_mol and ln.strip() and not ln.strip().startswith(";"):
+            if idx < n_species:
+                name = ln.split()[0]
+                out_lines.append(f"{name}  {counts[idx]}")
+            # idx >= n_species は Na/Cl → [molecules] から除外 (genion が追加)
+            idx += 1
+            continue
+        out_lines.append(ln)
+    top_path.write_text("\n".join(out_lines) + "\n")
+    logger.info(
+        "OpenFF protein route: rewrote [molecules] for %d species "
+        "(+ NA/CL moleculetypes defined for genion)", n_species,
+    )
+
+    # 4. mixture PDB → .gro (全コピー座標) via gmx editconf
+    gmx_exec = _resolve_gmx(gmx)
+    cmd = [
+        gmx_exec, "editconf", "-f", str(mixture_pdb), "-o", str(gro_path),
+        "-box", f"{box_size_nm:.3f}", f"{box_size_nm:.3f}", f"{box_size_nm:.3f}",
+    ]
+    proc = subprocess.run(cmd, capture_output=True, check=False)
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"gmx editconf failed:\n{proc.stderr.decode(errors='replace')}"
+        )
+
+    n_atoms = 0
+    try:
+        with gro_path.open() as fh:
+            fh.readline()
+            n_atoms = int(fh.readline().strip())
+    except (OSError, ValueError):
+        pass
+    logger.info("OpenFF protein route: GROMACS files done (%s, %s, %d atoms)",
+                gro_path, top_path, n_atoms)
+    return MergedTopologyResult(
+        gro_path=gro_path,
+        top_path=top_path,
+        interchange=ic_single,
+        n_atoms_total=n_atoms,
+    )
 
 
 def export_gromacs_files(
