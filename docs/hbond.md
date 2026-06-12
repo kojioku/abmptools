@@ -73,6 +73,12 @@ Tertiary amide (N に H なし) は `tert=True` でマーキング。
 
 参考: A. Luzar, D. Chandler, *Nature* 379, 55-57 (1996).
 
+> **独立検証**: この幾何判定は **MDAnalysis** の `HydrogenBondAnalysis` と
+> クロスチェック済み。同じ候補集合・同じ基準・同じ直交 PBC を与えると、IMC
+> amorphous (1 record) で **81/81 本が完全一致**(検出漏れ・過検出ともに 0、
+> 距離差 < 0.001 Å・角度差 < 0.02° は PDB 3 桁丸めのみ)。
+> `tests/hbond/test_mdanalysis_crosscheck.py` で自動化(下記テスト節参照)。
+
 ### 3. 分類 (`classifier.py`) — 官能基単位、4 species
 
 **v1.27.0 候補で per-functional-group ベース + 4 species 分類**。1 分子に複数の
@@ -572,5 +578,14 @@ pytest abmptools/tests/hbond/ -v
   carb dual / chain / single / free = 10 / 41 / 38 / 36 (sum=125)、
   amide accept / free = 49 / 76、hb_cc=31、hb_ca=50、
   `<prefix>.bdf` の Mol_Name 維持、`<prefix>_classification.csv` の per-group 行数
+- `test_distance_dist.py` (8 件): bin edges / 統計量 (mean/median/std/peak/p25/p75) /
+  空入力 None / imc dual subset / imc + amide / generic pair-type 集約 /
+  (d, ∠) 生配列 / CSV round-trip
+- `test_mdanalysis_crosscheck.py` (1 件): **外部ツール独立検証**。abmptools 検出器と
+  **MDAnalysis** `HydrogenBondAnalysis` に同一候補・同一基準・同一 PBC を与え、
+  検出本数・`(hydrogen, acceptor)` ペア集合・距離・角度がすべて一致することを
+  assert (IMC 1 record で 81/81)。MDAnalysis は検証専用の optional 依存で、
+  未導入時は `importorskip` で自動 skip(IMC BDF 不在時も skip)
 
-合計 **64 tests PASS** (2026-05-22 時点)。
+合計 **73 tests PASS** (2026-06-12 時点。うち `test_mdanalysis_crosscheck.py` は
+MDAnalysis + IMC BDF が揃う環境でのみ実行、それ以外は skip)。
