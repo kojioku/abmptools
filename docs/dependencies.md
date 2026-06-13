@@ -414,6 +414,44 @@ dispersion なしで実行されます（エラーにはなりません）。
 | geometric | 1.1 |
 | numpy | 1.26.4 |
 
+## Optional Dependencies — abmptools.formulation
+
+Hossain 2023 風 peptide-formulation builder。 `force_field_route` で 2 経路:
+
+### `[formulation]` — Amber route (default、 Linux/macOS のみ)
+
+| パッケージ | 用途 | インストール |
+|---|---|---|
+| `parmed` | prmtop → GROMACS top 変換 | `pip install parmed` |
+| `rdkit-pypi` | small molecule SMILES → 3D | `pip install rdkit-pypi` |
+| `matplotlib` | 解析プロット | `pip install matplotlib` |
+| (外部) `ambertools` | tleap (ff14SB) — **Windows native install 不可** | `conda install -c conda-forge ambertools` |
+| (外部) `acpype` | GAFF2 + AM1-BCC (GPL-3.0、 subprocess) | `pip install acpype` |
+| (外部) `packmol` | multi-component packing | conda / 公式 binary |
+
+### `[formulation-openff]` — OpenFF route (**全 OS / Windows native**)
+
+tleap/acpype 不要。 multi-chain protein + disulfide (insulin) も build 可。
+
+| パッケージ | 用途 | インストール |
+|---|---|---|
+| `openff-toolkit` (>=0.14) | `Topology.from_pdb` (multi-chain + disulfide 自動検出) | `pip install openff-toolkit` |
+| `openff-interchange` (>=0.3) | SMIRNOFF → GROMACS top/gro | `pip install openff-interchange` |
+| `openff-amber-ff-ports` (>=0.0.3) | ff14SB SMIRNOFF (protein library charges) | `pip install openff-amber-ff-ports` |
+| `openmm` (>=8.0) | PDBFixer backend | `pip install openmm` |
+| `pdbfixer` (>=1.9) | water 除去 + 欠損補完 + explicit H 付加 | `pip install pdbfixer` |
+| `PeptideBuilder` (>=1.1) | sequence → 3D (natural L-AA、 pdb_path 入力時は不要) | `pip install PeptideBuilder` |
+| `biopython` | PeptideBuilder の PDB I/O | `pip install biopython` |
+| (外部) `packmol` / `gmx` | packing + solvate/genion/editconf | conda / 公式 binary |
+
+GROMACS は CPU run なら Windows native installer で可 (GPU は WSL2 推奨)。
+詳細は [`platform_support.md`](platform_support.md) の "OpenFF route (実装済)" 節。
+
+### `[formulation-analysis]` — 解析スタック (opt-in、 GPL-2.0)
+
+`MDAnalysis` (GPL-2.0) + `networkx` + `matplotlib`。 `run_analysis` (Fig 1b/1c/2/4)
+で使用。 lazy import で abmptools 本体は Apache-2.0 維持。
+
 ## Dependency Summary
 
 ```

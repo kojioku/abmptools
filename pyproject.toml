@@ -143,6 +143,22 @@ formulation-analysis = [
     "matplotlib>=3.5",
     # See docs/licenses_third_party.md for the GPL posture rationale.
 ]
+formulation-openff = [
+    # Windows native build route (force_field_route="openff"): tleap/acpype 不要。
+    # all-pip / all-OS で AmberTools を回避する protein-aware パイプライン。
+    "openff-toolkit>=0.14.0",      # Topology.from_pdb (multi-chain + disulfide)
+    "openff-interchange>=0.3.0",   # SMIRNOFF → GROMACS top/gro
+    "openff-amber-ff-ports>=0.0.3", # ff14SB SMIRNOFF (protein library charges)
+    "openmm>=8.0",                 # PDBFixer backend
+    "pdbfixer>=1.9",               # water 除去 + 欠損補完 + explicit H 付加
+    "rdkit-pypi>=2022.09",         # small molecule SMILES → 3D
+    "matplotlib>=3.5",
+    # sequence からの peptide 3D build に必要 (pdb_path 入力時は不要):
+    "PeptideBuilder>=1.1",         # sequence → extended chain (natural L-AA)
+    "biopython>=1.79",             # PeptideBuilder の PDB I/O
+    # External tools (subprocess only): packmol、 gmx (solvate/genion/editconf)。
+    # See docs/platform_support.md "OpenFF route (実装済)" 節。
+]
 geomopt = [
     "pyscf",
     "ase",
