@@ -5,10 +5,11 @@ drug × permeation enhancer × bile salt* mixed solutions in a cubic
 water box, modeled after Hossain et al. 2023 (*Nanoscale* 15,
 19180-19195).
 
-> **Platform**: 現行 (Amber route) は Linux / macOS / WSL2 のみ
-> (AmberTools が Windows native install 不可のため)。 Windows native
-> 動作のための **OpenFF route (Phase 1 開発中)** の詳細は
-> [`platform_support.md`](platform_support.md) を参照。
+> **Platform**: 2 経路を `force_field_route` で選択。 `"amber"` (default、 tleap)
+> は Linux / macOS / WSL2 のみ。 **`"openff"` は全 OS (Windows native)** —
+> PDBFixer + OpenFF `Topology.from_pdb` + ff14SB SMIRNOFF で tleap/acpype 不要、
+> multi-chain protein + disulfide (insulin) も build 可。 詳細は
+> [`platform_support.md`](platform_support.md) の "OpenFF route (実装済)" 節。
 
 ## Why this sub-package
 
