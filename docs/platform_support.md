@@ -4,9 +4,10 @@
 Windows ネイティブ運用したい組織への参照資料を兼ねる。
 
 > **要約**: Linux / macOS は全機能 OK。 Windows ネイティブは **AmberTools が install
-> できない** ため `formulation` / `genesis.*` の build pipeline は不可。 WSL2 が
-> 使える組織なら Linux と同等。 WSL2 不可の組織には **OpenFF route** (Phase 1
-> 開発中) で formulation を Windows native 化する予定 (詳細下記)。
+> できない** ため `genesis.*` の build pipeline は不可。 WSL2 が使える組織なら
+> Linux と同等。 `formulation` は **OpenFF route (`force_field_route="openff"`)
+> で Windows native 化完了** — multi-chain protein + disulfide (insulin) を含め
+> tleap/acpype 不要で全 OS build 可能 (詳細下記 "OpenFF route" 節)。
 
 ## OS 別 sub-package 対応
 
@@ -21,8 +22,8 @@ Windows ネイティブ運用したい組織への参照資料を兼ねる。
 | `abmptools.fragmenter` (FMO 自動分割) | ✅ | ✅ | **✅** | ✅ |
 | `abmptools.hbond` (J-OCTA UDF colorize) | ✅ | ✅ | **✅** | ✅ |
 | `abmptools.gro2udf` (GROMACS → cognac UDF) | ✅ | ✅ | **✅** | ✅ |
-| `abmptools.formulation` (Amber route) | ✅ | ✅ | ❌ | ✅ |
-| `abmptools.formulation` (**OpenFF route**, Phase 1 開発中) | ✅ | ✅ | **✅ (予定)** | ✅ |
+| `abmptools.formulation` (Amber route, tleap) | ✅ | ✅ | ❌ | ✅ |
+| `abmptools.formulation` (**OpenFF route**, `force_field_route="openff"`) | ✅ | ✅ | **✅** | ✅ |
 | `abmptools.membrane` (CHARMM/AMBER backend) | ✅ | ✅ | ❌ | ✅ |
 | `abmptools.genesis.mmgbsa` (acpype + tleap + atdyn) | ✅ | ✅ | ❌ | ✅ |
 | `abmptools.genesis.grest` (tleap + atdyn) | ✅ | ✅ | ❌ | ✅ |
@@ -86,7 +87,7 @@ pip install abmptools
 ```
 
 を指定すると、 AmberTools 経由を回避して全 stage が Windows native で動作する
-(**Phase 1 開発中**、 進捗は CHANGELOG 参照)。
+(**実装完了**、 insulin 含め実証済。 詳細は下記 "OpenFF route (実装済)" 節)。
 
 ### C. Windows native ユーザー (build は別マシン) — post-process / 可視化のみ
 
@@ -115,59 +116,53 @@ Windows native 動作を明示的に保証している module。 設計選択:
 
 旧 sample `wrap_pbc.sh` / `gen_for_udf.sh` は **deprecated**、 生成物は **`wrap_pbc.py` / `gen_for_udf.py`** に統一済 (`amorphous.mdp_protocol.write_wrap_script` / `write_udf_export_script` が Python script を出力)。
 
-## Phase 1 計画: `formulation` の Windows route
+## OpenFF route (実装済): `formulation` の Windows native build
 
-### 現状 (Amber route)
+`force_field_route="openff"` で AmberTools (tleap/acpype/sqm) を一切使わず
+全 OS で build できる。 multi-chain protein + disulfide (insulin) を含め実証済。
 
-| Stage | tool | OS 制約 |
+### route 別の stage (Amber=Linux/macOS、 OpenFF=全 OS)
+
+| Stage | Amber route (tleap) | **OpenFF route (全 OS)** |
 |---|---|---|
-| 1 peptide_atomistic | `tleap` (AmberTools) | Linux/macOS のみ |
-| 2 small_mol_parameterize | `acpype` + `sqm` (AmberTools) | 同上 |
-| 3 packmol | `packmol` | OK |
-| 4 solvate_ions | `tleap solvatebox + addions` + `parmed.to_gromacs()` | Linux/macOS のみ |
-| 5-7 index / mdp / run_script | Python 内 | OK |
-
-### 新 OpenFF route (Phase 1 実装予定)
-
-| Stage | tool | Windows OK? |
-|---|---|---|
-| 1 peptide_atomistic | **OpenFF Toolkit + `openff-amber-ff-ports` (ff14SB SMIRNOFF)** | ✅ |
-| 2 small_mol_parameterize | **OpenFF Sage 2.x (SMIRNOFF) + Interchange** | ✅ |
-| 2.5 charges | OpenFF `am1bcc` (内部 OE/`xtb`/事前計算) | ✅ (xtb 経路) |
-| 3 packmol | 共通 | ✅ |
-| 4 solvate_ions | `Interchange.to_gromacs()` + Joung-Cheatham ions | ✅ |
-| 5-7 | 共通 | ✅ |
+| 1 peptide | `tleap` (ff14SB) | **PDBFixer (water除去+H付加) → `Topology.from_pdb`** (multi-chain 1 分子認識 + disulfide 自動検出) → ff14SB SMIRNOFF (`ff14sb_off_impropers_0.0.4.offxml`) library charges。 sequence は PeptideBuilder で 3D 生成 |
+| 2 small mol | `acpype` + `sqm` (AM1-BCC) | **OpenFF Sage 2.x SMIRNOFF** + RDKit ETKDGv3、 charge は gasteiger/nagl precomputed |
+| 3 packmol | 共通 | 共通 (water 1 個を typing template に含める) |
+| 4 topology | `tleap solvatebox+addions` + parmed | **`build_protein_route_topology`**: 単一コピー Interchange → `to_top` → `[molecules]` count 複製 → `gmx editconf` で .gro。 wet 化は `gmx solvate`+`genion` (Joung-Cheatham 0.15 M) |
+| 5-7 | 共通 | 共通 |
 
 ### 設定切替
 
-`config.json` に新フィールド:
-
 ```json
-"force_field_route": "amber"    // 現行 (default、 Linux/macOS)
-"force_field_route": "openff"   // 新規 (全 OS)
+"force_field_route": "amber"    // default (Linux/macOS)
+"force_field_route": "openff"   // 全 OS (Windows native)
 ```
 
-### 既知の課題と対応案
+### 実装上の重要ポイント (insulin で確立)
 
 | 課題 | 対応 |
 |---|---|
-| OpenFF の `am1bcc` charges 計算で `sqm` が要るケース | (a) `xtb` で代替 (Windows native binary)、 または (b) 事前計算 charges を `.mol2` で渡す |
-| Cys2-Cys7 disulfide bond declare | OpenFF Topology に `top.add_bond(...)` で手動追加 (amorphous でも同パターン) |
-| 非標準残基 (D-Phe1 / D-Trp4 / Thr-ol) | `parameterize_method = "gaff"` (whole-peptide SMIRNOFF) で対応 (現行 D 体経路と同じ) |
-| `openff-amber-ff-ports` の peptide サポート範囲 | natural L-amino + ACE/NME cap + disulfide が基本サポート。 ff14SB 全機能ではない |
+| `Molecule.from_polymer_pdb` が multi-chain+disulfide 非対応 | **`Topology.from_pdb`** (OpenFF 0.14+) — 1 分子認識 + S-S 自動検出 (手動宣言不要) |
+| OpenFF は explicit H 必須、 crystal water が邪魔 | **PDBFixer** `removeHeterogens(keepWater=False)` + `addMissingHydrogens(7.0)` |
+| **full mixture の `Interchange.from_smirnoff` が O(N²) で 2 時間+** | **単一コピー parametrize (~4 秒) → `[molecules]` count 複製** (GROMACS の moleculetype count 参照の本来の使い方) |
+| `am1bcc` は `sqm` (Linux 専用) | protein=ff14SB **library charges**、 small mol=gasteiger/nagl precomputed (`protein_flags` で振り分け) |
+| `gmx genion` が ion moleculetype を要求 | Na+/Cl- を単一 topology に含めて moleculetype 定義のみ生成、 `[molecules]` 除外 |
+| 非標準残基 (D-Phe1/D-Trp4/Thr-ol) | Amber route の whole-peptide GAFF (`parameterize_method="gaff"`) で対応 (D-octreotide)。 OpenFF route は標準 protein のみ |
+| >99999 atom 系の gro serial wrap | `ndx.parse_gro_residues` を 1-based 行番号に修正済 (insulin 156k で発覚) |
 
-### 工数
+### 実証済 (実機 build)
 
-| 作業 | 規模 |
-|---|---|
-| `formulation/peptide_atomistic_openff.py` 新規 | ~150 行 |
-| `formulation/small_molecule_openff.py` 新規 | ~100 行 |
-| `formulation/topology.py` に Interchange merge stage 追加 | ~80 行 |
-| builder に route 分岐 + tests | ~50 行 |
-| Windows smoke test (CI 含む) | ~100 行 |
-| **合計** | **~480 行 + tests** |
+| 系 | atoms | route | 結果 |
+|---|---|---|---|
+| insulin 2G4M × 6 | 168,899 (wet) | openff | S-S 3 本/copy 自動検出、 grompp em/nvt PASS |
+| kggggg × 2 | 20,916 (wet) | openff | sequence build (PeptideBuilder) |
+| octreotide D × 6 | 90,494 | amber GAFF | 実薬構造 (DPN1/DTR4)、 100 ns 完走 |
 
-amorphous で確立した OpenFF パターンを再利用するので、 reusable code 多い。
+### 残課題 (Phase 2-D)
+
+- GitHub Actions `windows-latest` runner での実機 smoke (現状は Linux/WSL2 で
+  OS-agnostic 実装を確認、 Windows 実機 end-to-end は未検証)
+- GROMACS GPU は Windows native だと制約あり (CPU run は可、 GPU は WSL2 推奨)
 
 ## 関連 docs
 
