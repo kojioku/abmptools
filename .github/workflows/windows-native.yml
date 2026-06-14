@@ -13,6 +13,10 @@ name: windows-native
 #
 # packmol / gmx は外部ツール (ユーザーが別途 install) なので CI では呼ばない。
 # 検証対象はあくまで「AmberTools 非依存の Python parametrization 層」。
+#
+# 起動方法: (1) main に本ファイルが入れば Actions タブの "Run workflow"
+# (workflow_dispatch)、 (2) formulation / trajectory を変更する PR で pull_request
+# トリガ。 default branch (main) 未配置の間は (2) の PR 経由で実機検証する。
 
 on:
   workflow_dispatch:        # 手動トリガ (課金/runner 時間を抑えるため push trigger にしない)
@@ -60,12 +64,17 @@ jobs:
         uses: mamba-org/setup-micromamba@v1
         with:
           environment-name: openff-win
+          # AmberTools は Windows の conda build が無いため、 ambertools に依存する
+          # メタパッケージ `openff-toolkit` は Windows でインストール不可。
+          # ambertools 非依存 (RDKit バックエンド) の `openff-toolkit-base` を使う。
+          # 本 smoke は ff14SB の library charges のみ使い AM1-BCC (sqm) を呼ばないので
+          # base で十分。 新しめの openff-toolkit-base は python>=3.11 が必要。
           create-args: >-
-            python=3.10
-            openff-toolkit>=0.14
-            openff-interchange>=0.3
+            python=3.11
+            openff-toolkit-base
+            openff-interchange
             openff-amber-ff-ports
-            openmm>=8.0
+            openmm
             pdbfixer
             rdkit
             pytest
