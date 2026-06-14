@@ -85,6 +85,33 @@ def cmd_dpdgen(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_fcews(args: argparse.Namespace) -> int:
+    """segment 分割 + FCEWS 入力 (segment_data.dat + <name>.xyz) を出力する。"""
+    import os
+    config = CGSegmenterConfig(
+        pdb_path=args.pdb,
+        output_dir=args.output_dir,
+        target_mw=args.target_mw,
+        separate_rings=not args.no_separate_rings,
+        # FCEWS の FMO フラグメントは atom を共有できないので partition 強制
+        allow_atom_sharing=False,
+        absorb_single_substituent=not args.no_absorb_substituent,
+    )
+    name = args.name or os.path.splitext(os.path.basename(args.pdb))[0]
+
+    sg = CGSegmenter.from_pdb(config)
+    result = sg.export_fcews(output_dir=args.output_dir, name=name)
+
+    entry = result["entry"]
+    print(f"Wrote FCEWS input to: {args.output_dir}")
+    print(f"  segment_data: {result['segment_data']}")
+    print(f"  xyz:          {result['xyz']}")
+    print(f"  entry '{entry['name']}': {len(entry['atom'])} fragment(s), "
+          f"atom={entry['atom']}, connect={entry['connect']}")
+    print("  NOTE: connect is [BDA, BAA] (BDA in the connect_num>0 fragment).")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m abmptools.fragmenter.cg_segmenter",
@@ -135,6 +162,24 @@ def build_parser() -> argparse.ArgumentParser:
                        help="aij_file path written into calc_sett "
                             "(file itself is NOT generated; user provides via fcews-manybody)")
     p_dpd.set_defaults(func=cmd_dpdgen)
+
+    p_fc = sub.add_parser(
+        "fcews",
+        help="build segments + FCEWS input (segment_data.dat + <name>.xyz)",
+    )
+    p_fc.add_argument("--pdb", required=True, help="input PDB file (single molecule)")
+    p_fc.add_argument("--output-dir", default="./fcews_input",
+                      help="output dir (segment_data.dat + <name>.xyz)")
+    p_fc.add_argument("--target-mw", type=float, default=200.0,
+                      help="chain split target MW (g/mol)")
+    p_fc.add_argument("--name", default=None,
+                      help="segment_data entry name = monomer <name>.xyz basename "
+                           "(default: PDB basename)")
+    p_fc.add_argument("--no-separate-rings", action="store_true",
+                      help="do not split rings into separate fragments")
+    p_fc.add_argument("--no-absorb-substituent", action="store_true",
+                      help="do not absorb 1-heavy-atom substituents into rings")
+    p_fc.set_defaults(func=cmd_fcews)
 
     return parser
 

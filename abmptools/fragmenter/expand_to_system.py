@@ -11,9 +11,9 @@ log2config の出力形式 (abmptools.log2config.main):
             'name': '<basename>',
             'atom':       [n_atoms_per_fragment, ...],
             'charge':     [charge_per_fragment, ...],
-            'connect_num':[BDA_count_per_fragment, ...],   # BDA atom 数
+            'connect_num':[BAA_count_per_fragment, ...],   # BAA atom 数 (fbaas)
             'seg_info':   [[atom_idx_1origin, ...], ...],
-            'connect':    [[(BDA_atom, BAA_atom), ...], ...],
+            'connect':    [[BDA_atom, BAA_atom], ...],      # flat list (cut bond ごと)
             'nummol_seg': [1],
             'repeat':     [1],
             'pair_file':  [],
@@ -21,13 +21,18 @@ log2config の出力形式 (abmptools.log2config.main):
         },
     ]
 
-ABINIT-MP の慣習: 各 cut bond につき 1 つの fragment を「BDA holder」(electron pair
-保持側) として登録し、その fragment の `connect` に `[BDA atom, BAA atom]` の順
-で記録する。反対側 fragment (= BAA 受け側) は `connect` に entry を持たず、
-`connect_num` も 0。これが log2config の出力形式と一致する。
+ABINIT-MP / log2config の慣習 (`abmptools.logmanager.getfraginfo` の
+`Frag. Bonded Atom Proj.` パース + `abinit_io.getmb_frag_seclists` の消費に一致):
+
+    - ``connect`` は **flat list**。各 cut bond を一度だけ ``[BDA_atom, BAA_atom]``
+      (1-origin) で記録する。``[[], [...]]`` のような per-fragment ネストにすると
+      AJF writer (`getmb_frag_seclists`) が IndexError でクラッシュするので不可。
+    - ``connect_num`` は **BAA 数** (= 各 fragment 内に BAA を持つ cut の数、
+      `fbaas`)。BDA 数ではない。BAA を含む fragment が ``connect_num>0`` になる。
 
 新ツールでは「同じ SMILES の分子グループの全コピー」を 1 segment_data エントリ
-にまとめる。各 fragment が seg_data 内 list の 1 要素になる。
+にまとめる。各 fragment が ``atom`` / ``charge`` / ``connect_num`` / ``seg_info``
+list の 1 要素になり、``connect`` は全 cut bond を平坦に並べた list になる。
 """
 from __future__ import annotations
 
@@ -58,6 +63,8 @@ def build_segment_data(
     total_fragments : int
         全分子合計の fragment 数。
     """
+    from .auto_split import decide_bda_baa_for_manual_cut
+
     seg_data: List[Dict[str, Any]] = []
     total_fragments = 0
 
@@ -66,17 +73,19 @@ def build_segment_data(
         charges_pf: List[int] = []
         connect_num_pf: List[int] = []
         seg_info_pf: List[List[int]] = []
-        connect_pf: List[List[Tuple[int, int]]] = []
+        connect_flat: List[List[int]] = []
 
-        # Group 全体で BDA/BAA が設定されているかを 1 度判定する:
-        #   - 全 enabled cut_sites が bda/baa 完備 → 新 API mode (ABINIT-MP 形式、
-        #     BDA holder のみ connect 記録)
-        #   - 1 つでも未設定 → legacy mode (旧挙動、両 fragment 対称記録)
-        enabled_cuts = [cs for cs in group.cut_sites if cs.enabled]
-        new_api_mode = bool(enabled_cuts) and all(
-            cs.bda_atom_idx is not None and cs.baa_atom_idx is not None
-            for cs in enabled_cuts
-        )
+        # 正規化: enabled な cut で BDA/BAA 未設定のものを決定論的に埋める
+        # (decide_bda_baa_for_manual_cut: C-X→C 側 BDA / C-C→若い idx)。
+        # これにより legacy (対称記録) 経路を排除し、常に ABINIT-MP 形式で出す。
+        rep_mol = molecules[group.representative_mol_idx].mol
+        for cs in group.cut_sites:
+            if cs.enabled and (cs.bda_atom_idx is None or cs.baa_atom_idx is None):
+                bda, baa = decide_bda_baa_for_manual_cut(
+                    rep_mol, cs.atom1_idx, cs.atom2_idx
+                )
+                cs.bda_atom_idx = bda
+                cs.baa_atom_idx = baa
 
         for mol_idx in group.member_mol_indices:
             lm = molecules[mol_idx]
@@ -85,27 +94,22 @@ def build_segment_data(
                 # 各 fragment の atom 数 (heavy + H 全て、PDB 内に存在するもの)
                 atoms_pf.append(len(frag.atom_indices))
                 charges_pf.append(frag.charge)
-                # ABINIT-MP 形式: 新 API mode なら BDA holder のみ connect 記録、
-                # legacy mode なら baa_pairs (旧対称記録) を connect に
-                if new_api_mode:
-                    use_pairs = frag.bda_pairs
-                else:
-                    use_pairs = frag.baa_pairs
-                connect_num_pf.append(len(use_pairs))
+                # connect_num は **BAA 数** = この fragment 内に BAA を持つ cut 数
+                # (ABINIT-MP / log2config の fbaas に一致。BDA 数ではない)。
+                connect_num_pf.append(len(frag.baa_pairs))
                 # seg_info: PDB 内 atom index (1-origin)
                 seg_info_pf.append([
                     lm.atom_indices_in_pdb[i] + 1 for i in frag.atom_indices
                 ])
-                # connect: BDA holder の場合 (BDA atom, BAA atom) ペア。
-                # legacy fallback では (this, other) ペア (旧挙動)。
-                connect_list = [
-                    (
-                        lm.atom_indices_in_pdb[a_this] + 1,
-                        lm.atom_indices_in_pdb[a_other] + 1,
-                    )
-                    for a_this, a_other in use_pairs
-                ]
-                connect_pf.append(connect_list)
+                # connect は **flat list** で、各 cut bond を一度だけ
+                # ``[BDA_atom, BAA_atom]`` (1-origin PDB index) で記録する。
+                # BDA holder fragment の bda_pairs (= (bda, baa)) から取る。
+                # log2config / getmb_frag_seclists が期待する平坦形式。
+                for a_bda, a_baa in frag.bda_pairs:
+                    connect_flat.append([
+                        lm.atom_indices_in_pdb[a_bda] + 1,
+                        lm.atom_indices_in_pdb[a_baa] + 1,
+                    ])
                 total_fragments += 1
 
         # 1 group = 1 seg_data entry。fragmention済 1 分子分の繰り返しを atoms_pf
@@ -116,7 +120,7 @@ def build_segment_data(
             "charge": charges_pf,
             "connect_num": connect_num_pf,
             "seg_info": seg_info_pf,
-            "connect": connect_pf,
+            "connect": connect_flat,
             "nummol_seg": [1],
             "repeat": [1],
             "pair_file": [],

@@ -41,6 +41,24 @@ python -m abmptools.fragmenter.cg_segmenter build \
 - `--no-absorb-substituent`: ring に attach する 1 heavy atom 置換基 (-OH, -NH2, -F 等) を別 chain segment にする
 - `--h-only`: hetero CH3 cap rule を切って全境界 H cap に
 
+#### FCEWS 入力生成 (`fcews` サブコマンド)
+
+同じ segment 分割から **FCEWS** の入力 (`segment_data.dat` + monomer `<name>.xyz`)
+を生成する。FMO フラグメントは atom を共有できないため、このサブコマンドは
+内部で `allow_atom_sharing=False` を強制する (cap は使わず atom partition のみ利用)。
+
+```bash
+python -m abmptools.fragmenter.cg_segmenter fcews \
+    --pdb cholesterol.pdb \
+    --output-dir ./fcews_input \
+    --target-mw 200 \
+    --name cholesterol
+# -> ./fcews_input/segment_data.dat  (FCEWS form, mode='FMO')
+#    ./fcews_input/cholesterol.xyz   (monomer 座標、mol idx 順)
+```
+
+詳細は後述「[FCEWS export](#fcews-export-fcews-向け-segment_datadat-生成)」を参照。
+
 ### Python API
 
 ```python
@@ -343,18 +361,82 @@ python /path/to/dpdgen/makeudf_dpd.py -p chol_calc_sett
 # -> OCTA COGNAC でそのまま DPD MD 実行
 ```
 
+## FCEWS export (FCEWS 向け segment_data.dat 生成)
+
+DPDgen と並ぶもう一つの下流出力。**同じ segment 分割**を使い、FCEWS が
+`abmptools.abinit_io.config_read` 経由で読む `segment_data.dat` (FMO フラグメント
+定義) + monomer `.xyz` を生成する。cap は使わず、segment の **atom partition**
+だけを利用する。
+
+```python
+from abmptools.fragmenter.cg_segmenter import CGSegmenter, CGSegmenterConfig
+
+# FMO フラグメントは atom を共有できないので allow_atom_sharing=False 必須
+config = CGSegmenterConfig(pdb_path="cholesterol.pdb", target_mw=200,
+                           allow_atom_sharing=False)
+sg = CGSegmenter.from_pdb(config)
+result = sg.export_fcews(output_dir="./fcews_input", name="cholesterol")
+# result['segment_data'], result['xyz'], result['entry']
+```
+
+### 出力形式と規約
+
+1 化学種 = 1 entry の FCEWS form (CLI `fcews` / `export_fcews` / `build_fcews_segment_data`):
+
+| field | 内容 |
+|---|---|
+| `name` | entry 名。**monomer `<name>.xyz` の basename と一致必須** (`mol_io.read_mol_name` がファイル名から名前を取る) |
+| `mode` | `'FMO'` |
+| `atom` | per-fragment の atom 数 (heavy + H) |
+| `charge` | per-fragment の formal charge 合計 |
+| `connect_num` | per-fragment の **BAA atom 数** |
+| `connect` | 各 cut bond を **`[BDA_atom, BAA_atom]`** で記録した flat list (1-origin local) |
+| `seg_info` | per-fragment の atom serial (heavy + H、1-origin local) |
+
+atom 番号は **mol atom idx + 1** (monomer 内 local)。monomer `.xyz` を mol idx 順に
+書くので `seg_info` の番号と xyz 行が一致する。
+
+**connect の atom 順序は `[BDA, BAA]`** (ABINIT-MP の AJF fragment 接続情報の並び)。
+**`connect_num` は BAA 数** = 各 cut bond の BAA を含む fragment にのみ加算される
+(LOGManager の `fbaas` と同じ。AJF の `Frag.` 列 = BAA の所属 fragment)。よって
+`connect` の **第2要素 (BAA) が `connect_num>0` の fragment 内**にある (FCEWS 手書き
+test-data の nafion: `connect=[[4,7]]`, `connect_num=[0,1]` で BAA=7 が frag2 内、
+に一致)。BDA / BAA の **役割** は abmptools の
+`auto_split.decide_bda_baa_for_manual_cut` (C-X → C 側 BDA / C-C → 若い idx) を流用。
+
+### 制約
+
+- **atom 共有不可**: fused ring (cholesterol 等) は `allow_atom_sharing=False`
+  で partition すること。共有が残っていると `build_fcews_segment_data` が
+  `ValueError` を投げる。CLI `fcews` は自動で `False` を強制する
+- 第一弾は `mode='FMO'` のみ。rigid cluster (`solv`) / `term`・`repeat`
+  (oligomer) は対象外
+
+### cholesterol 出力例
+
+```
+'name': 'cholesterol', 'mode': 'FMO',
+'atom': [15, 10, 11, 13, 25],          # 計 74 atoms (C27H46O)
+'charge': [0, 0, 0, 0, 0],
+'connect_num': [1, 2, 2, 2, 0],        # BAA 数 (= 各 connect 第2要素の所属 fragment)
+'connect': [[7, 9], [12, 17], [13, 14], [16, 21], [17, 18], [20, 25], [21, 22]],  # [BDA, BAA]
+```
+
 ## テスト
 
 ```bash
 pytest tests/cg_segmenter/ -v
 ```
 
-29 テスト (dataclass roundtrip / e2e 7 / 編集 op 7 / DPDgen 11 [path hierarchy + angle 検証含む] + CLI 系)、~0.5s で PASS。
+36 テスト (dataclass roundtrip / e2e 7 / 編集 op 7 / DPDgen 11 [path hierarchy +
+angle 検証含む] + CLI 系 + **FCEWS export 7** [`config_read` round-trip /
+connect `[BDA,BAA]` 順序 / cholesterol partition / 共有検出エラー])、~0.6s で PASS。
 
 ## 関連ドキュメント
 
 - [`docs/fragmenter.md`](fragmenter.md) — 姉妹モジュール `fragmenter` (FMO 用)
 - [`docs/cg_dpd.md`](cg_dpd.md) — **下流**: 本モジュール出力 (`{name}_monomer` + `{name}_calc_sett`) を fcews `aij.dat` と組み合わせて Cognac DPD 入力 UDF / OCTA viewer dpm を生成する `cg.dpd` サブパッケージ (v1.26.0 候補)
+- [`docs/fcews_segment_data.md`](fcews_segment_data.md) もしくは本ドキュメント「FCEWS export」節 — **下流**: 同じ segment 分割から FCEWS `segment_data.dat` + monomer `.xyz` を生成 (FMO χ パラメータ評価向け)
 - [`docs/overview.md`](overview.md) — abmptools 全サブパッケージ一覧
 - `abmptools/fragmenter/cg_segmenter/README.md` — モジュール構成早見表
 
@@ -363,3 +445,4 @@ pytest tests/cg_segmenter/ -v
 | version | 日付 | 変更 |
 |---|---|---|
 | 1.24.0 | (本ドキュメント新設) | `abmptools.fragmenter.cg_segmenter` サブモジュール初版 (ring/chain/cap/PDB+XYZ 出力) |
+| (Unreleased) | — | **FCEWS export** 追加 (`fcews_export.py` / `export_fcews` / CLI `fcews`): 同じ segment 分割から FCEWS `segment_data.dat` (`mode='FMO'`, connect `[BDA,BAA]`) + monomer `.xyz` を生成 |

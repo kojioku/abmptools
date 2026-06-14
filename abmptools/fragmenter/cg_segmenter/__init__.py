@@ -44,6 +44,12 @@ try:
     from .cap_attach import attach_caps
     from .exporter import export_segments, render_segments_svg
     from .dpdgen_exporter import export_dpdgen
+    from .fcews_export import (
+        build_fcews_segment_data,
+        write_fcews_segment_data,
+        write_molecule_xyz,
+        export_fcews,
+    )
     from .orchestrator import CGSegmenter
     _CORE_AVAILABLE = True
 except ImportError:
@@ -70,6 +76,10 @@ if _CORE_AVAILABLE:
         "export_segments",
         "render_segments_svg",
         "export_dpdgen",
+        "build_fcews_segment_data",
+        "write_fcews_segment_data",
+        "write_molecule_xyz",
+        "export_fcews",
         "CGSegmenter",
     ]
 if _UI_AVAILABLE and _CORE_AVAILABLE:

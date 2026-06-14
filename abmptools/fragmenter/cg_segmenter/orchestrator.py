@@ -131,6 +131,44 @@ class CGSegmenter:
             aij_file=aij_file,
         )
 
+    def export_fcews(
+        self,
+        output_dir: Optional[str] = None,
+        name: str = "mol",
+        mode: str = "FMO",
+    ) -> dict:
+        """FCEWS 入力 (segment_data.dat + <name>.xyz) を出力する。
+
+        FMO フラグメントは atom を共有できないため、``self.segments`` は
+        ``allow_atom_sharing=False`` で生成されている必要がある (共有が
+        あると fcews_export 側で ValueError)。
+
+        Parameters
+        ----------
+        output_dir
+            None なら self.config.output_dir。
+        name
+            segment_data entry 名 (= monomer <name>.xyz の basename と一致)。
+        mode
+            ABINIT-MP segment mode (通常 'FMO')。
+
+        Returns
+        -------
+        dict
+            {'segment_data': path, 'xyz': path, 'entry': dict}
+        """
+        from .fcews_export import export_fcews
+        if self.mol is None:
+            raise RuntimeError("CGSegmenter.mol is None.")
+        if self.config.allow_atom_sharing:
+            logger.warning(
+                "config.allow_atom_sharing=True: fused-ring segments may share "
+                "atoms, which is invalid for FCEWS FMO fragments. If export "
+                "fails, re-run with allow_atom_sharing=False."
+            )
+        out_dir = output_dir or self.config.output_dir
+        return export_fcews(self.mol, self.segments, out_dir, name=name, mode=mode)
+
     # ------------------------------------------------------------------
     # Manual edit operations (Jupyter UI から呼ばれる)
     # ------------------------------------------------------------------
