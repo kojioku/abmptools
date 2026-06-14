@@ -13,6 +13,10 @@ name: windows-native
 #
 # packmol / gmx は外部ツール (ユーザーが別途 install) なので CI では呼ばない。
 # 検証対象はあくまで「AmberTools 非依存の Python parametrization 層」。
+#
+# 起動方法: (1) main に本ファイルが入れば Actions タブの "Run workflow"
+# (workflow_dispatch)、 (2) formulation / trajectory を変更する PR で pull_request
+# トリガ。 default branch (main) 未配置の間は (2) の PR 経由で実機検証する。
 
 on:
   workflow_dispatch:        # 手動トリガ (課金/runner 時間を抑えるため push trigger にしない)
