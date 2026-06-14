@@ -43,7 +43,7 @@ Windows ネイティブ運用したい組織への参照資料を兼ねる。
 | `rdkit` | ✅ | ✅ | ✅ | ✅ | `pip install rdkit` (Windows wheel あり) |
 | `parmed` | ✅ | ✅ | ✅ | ✅ | pip OK |
 | `MDAnalysis` | ✅ | ✅ | ✅ | ✅ | pip OK |
-| `openff-toolkit` / `openff-interchange` | ✅ | ✅ | ✅ | ✅ | conda-forge / pip 両対応 |
+| `openff-toolkit` / `openff-interchange` | ✅ | ✅ | ✅ | ✅ | conda-forge / pip 両対応。 **Windows conda は `openff-toolkit-base` を使う** (メタパッケージ `openff-toolkit` は AmberTools に hard-depend し Windows で solve 不能。 base は RDKit backend で ambertools 非依存) |
 | `openff-amber-ff-ports` (ff14SB SMIRNOFF) | ✅ | ✅ | ✅ | ✅ | pip OK、 Windows route の鍵 |
 | `vermouth` (Martini martinize2) | ✅ | ✅ | ✅ | ✅ | pip OK |
 | `pypdf` / `pdfminer` | ✅ | ✅ | ✅ | ✅ | pip OK |
@@ -71,14 +71,24 @@ pip install -e <abmptools repo>
 
 ```powershell
 # Anaconda / Miniforge を install
-conda create -n abmptoolsenv -c conda-forge rdkit parmed openff-toolkit openff-interchange ^
-                                            openff-amber-ff-ports vermouth packmol
+# 注: Windows では `openff-toolkit` (メタパッケージ) は AmberTools に hard-depend し
+#     conda solve が "ambertools does not exist" で失敗する。 ambertools 非依存
+#     (RDKit backend) の `openff-toolkit-base` を使う。 ff14SB library charges のみ
+#     使う formulation OpenFF route はこれで十分 (AM1-BCC=sqm は呼ばない)。
+conda create -n abmptoolsenv -c conda-forge python=3.11 rdkit parmed ^
+             openff-toolkit-base openff-interchange openff-amber-ff-ports ^
+             pdbfixer openmm vermouth packmol
 conda activate abmptoolsenv
-pip install abmptools
+pip install abmptools PeptideBuilder biopython
 
 # GROMACS は公式 Windows installer (CPU run; GPU は限定)
 # https://manual.gromacs.org/current/install-guide/index.html
 ```
+
+> この Windows recipe (`openff-toolkit-base` 経路) は `.github/workflows/windows-native.yml`
+> の `windows-openff-smoke` ジョブが `windows-latest` runner で実機検証している
+> (sequence → PeptideBuilder → PDBFixer → `Topology.from_pdb` → ff14SB Interchange、
+> 2026-06-14 green)。
 
 `abmptools.formulation` の `config.json` で:
 

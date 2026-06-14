@@ -146,6 +146,11 @@ formulation-analysis = [
 formulation-openff = [
     # Windows native build route (force_field_route="openff"): tleap/acpype 不要。
     # all-pip / all-OS で AmberTools を回避する protein-aware パイプライン。
+    # 注 (Windows conda): メタパッケージ openff-toolkit は AmberTools に hard-depend し
+    #   Windows で conda solve 不能。 conda 経由なら openff-toolkit-base (RDKit backend、
+    #   ambertools 非依存) を使う。 pip の openff-toolkit は ambertools を pip 依存に
+    #   持たないので install 自体は可 (AM1-BCC=sqm は不可だが library charges は OK)。
+    #   docs/platform_support.md の Windows recipe / .github/workflows/windows-native.yml 参照。
     "openff-toolkit>=0.14.0",      # Topology.from_pdb (multi-chain + disulfide)
     "openff-interchange>=0.3.0",   # SMIRNOFF → GROMACS top/gro
     "openff-amber-ff-ports>=0.0.3", # ff14SB SMIRNOFF (protein library charges)
