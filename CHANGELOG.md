@@ -47,6 +47,12 @@
     PDBFixer → `Topology.from_pdb` → ff14SB Interchange の parametrization smoke、@slow)
   - trigger は `workflow_dispatch` (手動) + formulation / trajectory 変更の PR。
     packmol / gmx は外部ツールなので CI では呼ばず AmberTools 非依存の Python 層だけ検証
+  - **windows-latest runner で実機検証 green (2026-06-14)**: pure-python 52 unit +
+    openff-smoke 2 slow が PASS。 検証で判明 — **Windows conda では `openff-toolkit-base`
+    必須** (メタパッケージ `openff-toolkit` は AmberTools に hard-depend、 Windows conda
+    build が無く solve 不能)。 base は RDKit backend で ambertools 非依存、 ff14SB
+    library charges のみの本 route には十分。 docs/platform_support.md + pyproject の
+    `[formulation-openff]` に注記反映
 
 ### Added — `abmptools.trajectory` (new sub-package)
 
