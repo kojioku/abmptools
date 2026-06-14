@@ -2,6 +2,84 @@
 
 ## [Unreleased]
 
+### Added — `abmptools.formulation` Phase 2: Windows native OpenFF route
+
+- `FormulationBuildConfig.force_field_route` で力場経路を 2 つから選択:
+  - `"amber"` (default) — tleap + acpype + parmed。**Linux / macOS のみ** (AmberTools)
+  - `"openff"` — **全 OS (Windows native)**。PDBFixer + OpenFF `Topology.from_pdb`
+    + ff14SB SMIRNOFF で tleap / acpype を一切使わず peptide formulation を build
+- OpenFF route の実装 (`topology_openff.py` / `peptide_atomistic_openff.py` /
+  `builder._build_openff`):
+  - **PDBFixer** で water 除去 + 欠損補完 + explicit H 付加 (OpenFF 必須)
+  - **`Topology.from_pdb`** (≠ `Molecule.from_polymer_pdb`) で multi-chain protein を
+    1 分子認識 + **disulfide 自動検出** (insulin 2G4M の S-S を手動宣言なしで処理)
+  - protein = ff14SB library charges、small molecule = precomputed (gasteiger/am1bcc)、
+    ion = ff tip3p charges を `protein_flags` で振り分け
+  - **O(N²) 回避**: full mixture の `Interchange.from_smirnoff` は nonbonded exception
+    生成が O(N²) で爆発する (insulin×6 で CPU 2h+) ため、**単一コピーを parametrize
+    (~4 s) → `[molecules]` の count を実値に書き換え**て複製。`.gro` は packmol mixture
+    から `gmx editconf`、溶媒和は `gmx solvate` + `gmx genion` (Joung-Cheatham)
+  - sequence 入力は PeptideBuilder + Biopython で 3D extended chain 生成 (natural L-AA)
+- amber route の multi-chain / disulfide 対応 (`topology._patch_mixture_pdb_with_ter_records`
+  + `builder._disulfide_tleap_bonds`): packmol が drop する TER record を chain ID 遷移 +
+  resnum reset 検出で再挿入、disulfide Cys を CYS→CYX rename + global resid map で
+  `bond sys.<i>.SG sys.<j>.SG` 注入
+- `ndx.py`: >99999 atom 系 (insulin 156k) で gro の atom-serial 列が 100000 で wrap し
+  nvt grompp が "Invalid atom number 0" になる bug を 1-based 連番に修正 + 回帰テスト
+- 新規 extras `[formulation-openff]` (openff-toolkit / openff-interchange /
+  openff-amber-ff-ports / openmm / pdbfixer / PeptideBuilder / biopython)
+- 新規 sample: `octreotide_{l,d}_aggregation_10mM/`、`hexarelin_l_aggregation_10mM/`、
+  `insulin_aggregation_10mM/` (論文 Hossain 2023 準拠 10 mM = peptide × 6)
+- 実機検証: octreotide L/D 10mM (81k/90k atoms、~10h GPU)、insulin 10mM
+  (156k atoms、15.2h / 143 ns/day on RTX 4070 Ti) を 100 ns 完走。insulin は
+  tetramer→hexamer の irreversible aggregation、TYR14(A)/PHE22(B-Phe1) が凝集 hotspot
+- docs: `platform_support.md` (OS 別対応表 + OpenFF route 実装点)、`formulation.md` /
+  `dependencies.md` に OpenFF route 節
+
+### Added — `abmptools.formulation` Phase 2-D: Windows native CI
+
+- `.github/workflows/windows-native.yml` (abmptools 初の CI workflow)。`windows-latest`
+  runner で OpenFF route と `abmptools.trajectory` の **Windows native 動作を実機検証**:
+  - `windows-pure-python` — pip のみで trajectory + formulation models/ndx/mdp unit test
+    (pathlib / subprocess shell=False の OS 依存箇所を検証)
+  - `windows-openff-smoke` — micromamba (conda-forge) で OpenFF stack →
+    `tests/integration/test_openff_windows_smoke.py` (sequence → PeptideBuilder →
+    PDBFixer → `Topology.from_pdb` → ff14SB Interchange の parametrization smoke、@slow)
+  - trigger は `workflow_dispatch` (手動) + formulation / trajectory 変更の PR。
+    packmol / gmx は外部ツールなので CI では呼ばず AmberTools 非依存の Python 層だけ検証
+
+### Added — `abmptools.trajectory` (new sub-package)
+
+- cross-platform GROMACS trajectory post-processor (`thin_nojump` / `nojump` / `thin` /
+  `wrap_pbc` / `energy`)。subprocess shell=False + pathlib + shutil.which で **Windows
+  native** 動作。旧 bash script (wrap_pbc.sh 等) を置換。`python -m abmptools.trajectory`
+  CLI + `--gmx` で gmx version 明示 (GROMACS 2026 tpr は古い gmx で読めない gotcha 対応)
+
+### Added — `cg_segmenter` から FCEWS `segment_data.dat` 生成
+
+- 新規 module `abmptools/fragmenter/cg_segmenter/fcews_export.py`。cg_segmenter の
+  segment 分割 (ring 検出 + chain MW walk、cholesterol 等) を流用し、**FCEWS** が
+  `abmptools.abinit_io.config_read` 経由で読む `segment_data.dat` (FMO フラグメント
+  定義、`mode='FMO'`) + monomer `.xyz` を生成する:
+  - `build_fcews_segment_data()` — segment partition → FCEWS form entry。atom 番号は
+    monomer 内 local 1-origin、H atom は親 heavy atom の fragment に割当
+  - `write_fcews_segment_data()` / `write_molecule_xyz()` / `export_fcews()`
+  - `CGSegmenter.export_fcews()` メソッド + CLI `python -m
+    abmptools.fragmenter.cg_segmenter fcews`
+- **connect の atom 順序は `[BDA, BAA]`** (ABINIT-MP の AJF fragment 接続情報の並び)。
+  **`connect_num` は BAA 数** = 各 cut bond の BAA を含む fragment に加算
+  (LOGManager の `fbaas` と同じ。`connect` の第2要素 BAA が `connect_num>0` の
+  fragment 内)。FCEWS 手書き test-data (nafion) に一致。BDA/BAA の役割は
+  `auto_split.decide_bda_baa_for_manual_cut` を流用
+- FMO フラグメントは atom を共有できないため `allow_atom_sharing=False` (partition)
+  必須。共有検出時は `ValueError`。CLI `fcews` は自動で強制
+- 単体テスト `tests/cg_segmenter/test_fcews_export.py` (7 件)。`config_read`
+  in-process round-trip / connect `[BDA,BAA]` 順序 / cholesterol (C27H46O, 74 atoms)
+  の完全 partition + round-trip / 共有検出エラー / xyz↔seg_info 整合 / CLI。
+  cg_segmenter 全体で 36 passed
+- 第一弾は `mode='FMO'` のみ (rigid cluster `solv` / oligomer `term`・`repeat` は対象外)
+- **注**: `abmptools.fragmenter` 本体 (log2config 経路、pdb2fmo 用) は変更なし
+
 ### Added (docs)
 
 - `docs/hbond.md` §7 と `sample/hbond/imc_amorphous/README.md` に距離 / 角度分布
