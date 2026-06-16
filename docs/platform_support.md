@@ -45,6 +45,7 @@ Windows ネイティブ運用したい組織への参照資料を兼ねる。
 | `MDAnalysis` | ✅ | ✅ | ✅ | ✅ | pip OK |
 | `openff-toolkit` / `openff-interchange` | ✅ | ✅ | ✅ | ✅ | conda-forge / pip 両対応。 **Windows conda は `openff-toolkit-base` を使う** (メタパッケージ `openff-toolkit` は AmberTools に hard-depend し Windows で solve 不能。 base は RDKit backend で ambertools 非依存) |
 | `openff-amber-ff-ports` (ff14SB SMIRNOFF) | ✅ | ✅ | ✅ | ✅ | pip OK、 Windows route の鍵 |
+| `openff-nagl` / `openff-nagl-models` | ✅ | ✅ | ✅ | ✅ | 小分子の ML-AM1-BCC 電荷 (graph NN、 pure-Python)。 **Windows で sqm/AmberTools の代替**。 torch を引く |
 | `vermouth` (Martini martinize2) | ✅ | ✅ | ✅ | ✅ | pip OK |
 | `pypdf` / `pdfminer` | ✅ | ✅ | ✅ | ✅ | pip OK |
 | **`packmol`** | ✅ | ✅ | ✅ | ✅ | 公式 binary (Windows .exe あり) |
@@ -77,7 +78,7 @@ pip install -e <abmptools repo>
 #     使う formulation OpenFF route はこれで十分 (AM1-BCC=sqm は呼ばない)。
 conda create -n abmptoolsenv -c conda-forge python=3.11 rdkit parmed ^
              openff-toolkit-base openff-interchange openff-amber-ff-ports ^
-             pdbfixer openmm vermouth packmol
+             openff-nagl openff-nagl-models pdbfixer openmm vermouth packmol
 conda activate abmptoolsenv
 pip install abmptools PeptideBuilder biopython
 
@@ -85,10 +86,19 @@ pip install abmptools PeptideBuilder biopython
 # https://manual.gromacs.org/current/install-guide/index.html
 ```
 
-> この Windows recipe (`openff-toolkit-base` 経路) は `.github/workflows/windows-native.yml`
-> の `windows-openff-smoke` ジョブが `windows-latest` runner で実機検証している
-> (sequence → PeptideBuilder → PDBFixer → `Topology.from_pdb` → ff14SB Interchange、
-> 2026-06-14 green)。
+> この Windows recipe (`openff-toolkit-base` + `openff-nagl` 経路) は
+> `.github/workflows/windows-native.yml` の `windows-openff-smoke` ジョブが
+> `windows-latest` runner で実機検証している (2026-06-16 green):
+> - protein: sequence → PeptideBuilder → PDBFixer → `Topology.from_pdb` → ff14SB
+>   library charges
+> - small mol: SMILES → **NAGL ML-AM1-BCC 電荷** → Sage Interchange (sqm 不要)
+>
+> **電荷の扱い (Windows で AmberTools が無いことの帰結)**: protein は ff14SB の
+> library charges なので電荷計算が要らない。 小分子 (caprate / taurocholate 等) は
+> AM1-BCC 相当が要るが、 `sqm` (AmberTools) は Windows に無いため **`openff-nagl`
+> (graph neural net の ML 電荷、 total charge を formal charge に保存) で代替**する。
+> `config.json` の small-molecule charge_method は `"nagl"` を指定 (Linux/macOS で
+> 厳密な AM1-BCC が要るなら `"am1bcc"`、 軽量 fallback は `"gasteiger"`)。
 
 `abmptools.formulation` の `config.json` で:
 
