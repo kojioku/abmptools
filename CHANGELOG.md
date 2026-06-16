@@ -53,6 +53,13 @@
     build が無く solve 不能)。 base は RDKit backend で ambertools 非依存、 ff14SB
     library charges のみの本 route には十分。 docs/platform_support.md + pyproject の
     `[formulation-openff]` に注記反映
+  - **小分子電荷を NAGL で Windows native 化 (2026-06-16 green)**: protein は library
+    charges で電荷計算不要だが、 小分子 (caprate 等) の AM1-BCC は `sqm` (AmberTools、
+    Windows 無し) が要る。 → **`openff-nagl` (ML graph neural net、 pure-Python、 sqm 不要、
+    total charge 保存) で代替**。 `molecule_prep` は `NAGLToolkitWrapper` を明示渡しに
+    robust 化 (global registry 非自動登録対策)、 smoke に caprate anion → NAGL → Sage
+    Interchange を追加 (3 slow PASS)、 CI env + `[formulation-openff]` extra に
+    `openff-nagl` + `openff-nagl-models` 追加
 
 ### Added — `abmptools.trajectory` (new sub-package)
 
