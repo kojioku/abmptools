@@ -77,6 +77,51 @@ def test_sequence_to_ff14sb_interchange_windows_native(tmp_path):
     assert any(abs(c.m) > 1e-6 for c in charges.values())
 
 
+def test_small_molecule_nagl_charges_windows_native(tmp_path):
+    """小分子 (caprate anion) を NAGL ML-AM1-BCC で電荷付与 → Sage Interchange。
+
+    formulation OpenFF route の最後のピース = 小分子電荷を、 sqm / AmberTools を
+    使わず NAGL (graph neural net、 pure-Python) で **Windows native** に出せる
+    ことを検証する。 protein は library charges で電荷計算不要だが、 caprate /
+    taurocholate のような任意小分子は AM1-BCC 相当電荷が要る — それを NAGL で賄う。
+    """
+    pytest.importorskip("openff.nagl", reason="openff-nagl not installed")
+    pytest.importorskip("openff.nagl_models", reason="openff-nagl-models not installed")
+    from abmptools.formulation.small_molecule_openff import (
+        parameterize_small_mol_openff,
+    )
+    from openff.toolkit import ForceField, Topology
+    from openff.interchange import Interchange
+    from openff.units import unit
+    import numpy as np
+
+    # caprate (decanoate) anion — Hossain 2023 の permeation enhancer (荷電型)
+    res = parameterize_small_mol_openff(
+        smiles="CCCCCCCCCC(=O)[O-]",
+        resname="CPC", net_charge=-1,
+        output_dir=tmp_path, charge_method="nagl",
+    )
+    mol = res.molecule
+    assert res.pdb_path.is_file()
+
+    # NAGL 電荷が割り当てられている (全 0 でない)
+    charges = [c.m_as(unit.elementary_charge) for c in mol.partial_charges]
+    assert len(charges) == mol.n_atoms
+    assert any(abs(c) > 1e-6 for c in charges), "NAGL charges all zero"
+    # NAGL は total charge を formal charge (-1) に保存する
+    assert abs(sum(charges) - (-1.0)) < 0.05, f"charge sum {sum(charges)} != -1"
+
+    # precomputed NAGL charges を使って Sage で Interchange (sqm を呼ばない)
+    top = Topology()
+    top.add_molecule(mol)
+    top.box_vectors = np.eye(3) * 4.0 * unit.nanometer
+    ff = ForceField(SAGE)
+    ic = Interchange.from_smirnoff(
+        force_field=ff, topology=top, charge_from_molecules=[mol],
+    )
+    assert ic.topology.n_atoms == mol.n_atoms
+
+
 def test_pdbfixer_strips_water_adds_hydrogens(tmp_path):
     """PDBFixer が water 除去 + H 付加することを最小確認 (Windows native 前処理)。"""
     from abmptools.formulation.peptide_atomistic_openff import (
