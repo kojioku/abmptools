@@ -67,13 +67,16 @@ jobs:
           # AmberTools は Windows の conda build が無いため、 ambertools に依存する
           # メタパッケージ `openff-toolkit` は Windows でインストール不可。
           # ambertools 非依存 (RDKit バックエンド) の `openff-toolkit-base` を使う。
-          # 本 smoke は ff14SB の library charges のみ使い AM1-BCC (sqm) を呼ばないので
-          # base で十分。 新しめの openff-toolkit-base は python>=3.11 が必要。
+          # protein は ff14SB library charges で AM1-BCC (sqm) を呼ばないが、 小分子
+          # (caprate 等) は AM1-BCC 相当電荷が要る → `openff-nagl` (ML 電荷、 pure-Python、
+          # sqm 不要) + model package で Windows native に賄う。 python>=3.11 必要。
           create-args: >-
             python=3.11
             openff-toolkit-base
             openff-interchange
             openff-amber-ff-ports
+            openff-nagl
+            openff-nagl-models
             openmm
             pdbfixer
             rdkit
@@ -86,6 +89,7 @@ jobs:
       - name: OpenFF Windows-native smoke
         shell: bash -el {0}
         run: |
-          # AmberTools 非依存の parametrization 層を検証
-          # (sequence → PeptideBuilder → PDBFixer → Topology.from_pdb → ff14SB Interchange)
+          # AmberTools 非依存の parametrization 層を検証:
+          #  - protein: sequence → PeptideBuilder → PDBFixer → Topology.from_pdb → ff14SB
+          #  - small mol: SMILES → NAGL ML-AM1-BCC 電荷 → Sage Interchange (sqm 不要)
           python -m pytest tests/integration/test_openff_windows_smoke.py -v -m slow

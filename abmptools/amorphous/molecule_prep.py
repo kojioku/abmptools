@@ -217,8 +217,15 @@ def _maybe_assign_partial_charges(mol: Any, method: str, nagl_model: str) -> Non
     if not method or method == "am1bcc":
         return
     if method == "nagl":
+        # NAGLToolkitWrapper は global toolkit registry に自動登録されないため
+        # 明示的に渡す (openff-nagl が登録済みか否かに依らず動く)。 これが
+        # ML-AM1-BCC 電荷を sqm / AmberTools 無し = Windows native で得る肝。
         try:
-            mol.assign_partial_charges(partial_charge_method=nagl_model)
+            from openff.toolkit.utils.nagl_wrapper import NAGLToolkitWrapper
+            mol.assign_partial_charges(
+                partial_charge_method=nagl_model,
+                toolkit_registry=NAGLToolkitWrapper(),
+            )
         except Exception as e:
             raise RuntimeError(
                 f"Failed to assign NAGL charges using model '{nagl_model}'. "
