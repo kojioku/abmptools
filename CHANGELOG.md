@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Added — `abmptools.udfcharge` (new sub-package)
+
+- 単分子 UDF (電荷あり) の per-atom partial charge を抽出し、 バルク系 UDF の
+  **同名分子すべて**へ転写する OCTA/COGNAC UDF 電荷割り当てモジュール
+  (例: 量子化学 / FMO で求めた電荷を MD バルク系へ反映)
+- `read_molecule_charges(udf, mol_name=/mol_index=)` → `MoleculeChargeTemplate`
+  (mol_name / n_atoms / charges[e] / atom_type_names / net_charge)。
+  `assign_charges_to_bulk(bulk, template, out)` → `AssignResult`
+- 電荷規約は gro2udf / udf2gro と共通: `electrostatic_Site[].Type_Name="POINT_CHARGE"`、
+  `.ES_Element = charge[e] × 18.224159264`、 `.atom[0] = atom index`
+  (`UDFManager.put` の numpy silent-zero を避けるため `float()` cast)
+- 割り当ては **atom index 対応**。 atom 数 (必須) と `Atom_Type_Name` 列
+  (`verify_atom_types`) を検証してから書き込み、 不一致は strict で例外 / 非 strict で skip。
+  出力は別ファイル (入力 bulk 無改変)
+- CLI `python -m abmptools.udfcharge --template mol.udf --bulk bulk.udf --out out.udf`
+  (`--mol-name` / `--mol-index` / `--no-verify-types` / `--non-strict`)
+- 単体テスト `tests/udfcharge/test_udfcharge.py` 9 件 (default_template.udf から
+  methanol 系をプログラム生成)。 サンプル `sample/udfcharge/` (methanol end-to-end)、
+  docs `docs/udfcharge.md` + `docs/tutorial_udfcharge.md`
+
 ### Added — `abmptools.formulation` Phase 2: Windows native OpenFF route
 
 - `FormulationBuildConfig.force_field_route` で力場経路を 2 つから選択:

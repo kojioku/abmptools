@@ -28,6 +28,7 @@ Author: Koji Okuwaki
     - OCTA udf ファイルからFMO用ファイルへの変換(udf2ajf, udf2pdb)
     - 古典MD後からFMO用ファイルへの変換
     - GROMACS ↔ OCTA COGNAC UDF の相互変換 (gro2udf, udf2gro) — 詳細: [gro2udf.md](gro2udf.md) / [udf2gro.md](udf2gro.md)
+    - 単分子 UDF → バルク UDF への per-atom 電荷転写 (udfcharge) — 詳細: [udfcharge.md](udfcharge.md) / [tutorial_udfcharge.md](tutorial_udfcharge.md)
 
 - 構造最適化 (geomopt)
     - MACE (ML potential) / OpenFF-OpenMM 古典力場 / PySCF DFT の 3 バックエンドで PDB を最適化 — 詳細: [geomopt.md](geomopt.md) / [qmopt.md](qmopt.md)
