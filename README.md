@@ -37,6 +37,7 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 
 - **udf2gro**: Convert OCTA UDF files to GROMACS format (`.gro`, `.top`, `.mdp`, `.itp`)
 - **gro2udf**: Convert GROMACS files to OCTA UDF format (supports `--from-top` mode)
+- **udfcharge**: Transfer per-atom partial charges from a single-molecule UDF to every same-named molecule in a bulk UDF
 
 ### Geometry Optimization (`geomopt`)
 
@@ -228,6 +229,9 @@ python -m abmptools.udf2gro.cli -i system.udf -o output
 # Convert GROMACS to UDF
 python -m abmptools.gro2udf.cli -i system.gro -t system.top -o output.udf
 
+# Transfer charges from a single-molecule UDF to all same-named molecules in a bulk UDF
+python -m abmptools.udfcharge --template mol.udf --bulk bulk.udf --out bulk_charged.udf
+
 # Build an amorphous mixture from SMILES (50 ketoprofen molecules, density 0.8 g/cm^3)
 python -m abmptools.amorphous --smiles "OC(=O)C(C)c1cccc(C(=O)c2ccccc2)c1" \
     --name ketoprofen --n_mol 50 --density 0.8 --output_dir ./ketoprofen
@@ -277,6 +281,7 @@ Use `-h` with any module for full option details.
 - **[Developer Quickstart](docs/dev_quickstart.md)** — Setup and code conventions
 - **[I/O Spec](docs/io_spec.md)** — File format specifications
 - **[gro2udf](docs/gro2udf.md)** / **[udf2gro](docs/udf2gro.md)** — GROMACS ↔ OCTA conversion
+- **[udfcharge](docs/udfcharge.md)** / **[tutorial_udfcharge](docs/tutorial_udfcharge.md)** — single-molecule → bulk UDF charge transfer
 - **[geomopt](docs/geomopt.md)** / **[amorphous](docs/amorphous.md)** — Optimization and structure building
 - **[membrane](docs/membrane.md)** / **[tutorial_membrane_us](docs/tutorial_membrane_us.md)** — Peptide-bilayer umbrella-sampling PMF (AA, CHARMM36 / Lipid21)
 - **[cg_membrane](docs/cg_membrane.md)** / **[tutorial_cg_membrane_us](docs/tutorial_cg_membrane_us.md)** — Martini 3 peptide-bilayer PMF (CG, 30-100× faster than AA, KGG-POPC smoke 5 min / production 45 min)

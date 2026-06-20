@@ -44,7 +44,7 @@ ABMPTools is a Python toolkit for pre-processing, post-processing, and analysis 
 | CPF Management | `cpfmanager`, `convertcpf`, `generate_difie`, `log2cpf` | Parse/write/convert CPF files, create DIFIE averages |
 | FMO Setup | `generateajf`, `pdb2fmo`, `udf2fmo`, `setfmo`, `addsolvfrag` | Generate AJF inputs, assign fragments, handle solvation |
 | File Conversion | `log2config`, `ajf2config`, `readcif`, `pdbmodify`, `ajfserial` | Format conversion and PDB editing utilities |
-| MD Integration | `udf_io`, `udfrm_io`, `udfcreate`, `gro2udf`, `udf2gro` | OCTA COGNAC UDF file handling and GROMACS ↔ OCTA conversion |
+| MD Integration | `udf_io`, `udfrm_io`, `udfcreate`, `gro2udf`, `udf2gro`, `udfcharge` | OCTA COGNAC UDF file handling, GROMACS ↔ OCTA conversion, and single-molecule → bulk charge transfer |
 | Structure Optimization | `geomopt.{MacePdbOptimizer, OpenFFOpenMMMinimizer, QMOptimizerPySCF}` | MACE / OpenFF / PySCF-DFT driven geometry optimization for PDB inputs |
 | Amorphous Builder | `amorphous` (`build_amorphous.py`) | SMILES / SDF / PubChem CID (via `amorphous.pubchem`) multi-component amorphous builder (Packmol + OpenFF + AM1-BCC), auto-generates 5-stage GROMACS annealing protocol and VMD-friendly trajectory post-processing |
 | Membrane Builder | `membrane` (`MembraneUSBuilder`) | Lipid-bilayer + peptide umbrella-sampling PMF builder (packmol-memgen + AMBER `ff19SB`/`Lipid21`/TIP3P or CHARMM36 backend → semiisotropic NPT → z-pulling → per-window US → `gmx wham`). GPU-aware `run.sh`. Designed commercial-license-clean (no CGenFF / CHARMM-GUI). |
@@ -148,3 +148,9 @@ For new developers approaching this codebase:
     MP2/6-31G(d) reference summary: urea / glycine / benzene /
     naphthalene with E' in crystal vs MP2 total isolated, sum-IFIE,
     wall time, and CIF source attribution).
+16. **`docs/udfcharge.md`** + **`docs/tutorial_udfcharge.md`** —
+    `abmptools.udfcharge`; OCTA/COGNAC UDF への per-atom 電荷割り当て。
+    単分子 UDF (電荷あり) の partial charge を、 バルク系 UDF の同名分子
+    すべてへ転写する (例: 量子化学/FMO で求めた電荷を MD バルク系へ反映)。
+    `electrostatic_Site[].ES_Element` 規約 (charge[e] × 18.224159264) を
+    gro2udf / udf2gro と共有。
