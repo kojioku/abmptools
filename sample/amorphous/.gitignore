@@ -10,5 +10,14 @@
 ketoprofen_pubchem/input/component_*.pdb
 ketoprofen_pubchem/input/config.json
 
+# Exception: acetaminophen_amorphous ships the PubChem 3D SDF (input/) and the
+# xtc->UDF helper (md/build_bdf.py). Heavy MD outputs under md/ stay ignored.
+!acetaminophen_amorphous/input/
+acetaminophen_amorphous/input/*
+!acetaminophen_amorphous/input/pubchem_name_acetaminophen.sdf
+!acetaminophen_amorphous/md/
+acetaminophen_amorphous/md/*
+!acetaminophen_amorphous/md/build_bdf.py
+
 # Sub-level generation artefacts (stale output from the pre-normalisation layout)
 */pentane_benzene/
