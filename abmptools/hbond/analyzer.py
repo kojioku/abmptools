@@ -757,10 +757,20 @@ class Analyzer:
         c = self.config
         out_paths: Dict[str, str] = {}
 
-        # Combine cc + ca hbonds per record (any pair, regardless of acceptor type)
-        per_rec_all: List[List[HBond]] = [
-            list(fr.hbonds_cc) + list(fr.hbonds_ca) for fr in self.frame_results
-        ]
+        # Combine all detected H-bonds per record (any pair, regardless of
+        # acceptor type). imc mode stores them in hbonds_cc/hbonds_ca; generic
+        # mode stores them in hbonds_by_pair_type.
+        mode = (c.classify_mode or "imc").lower()
+        if mode == "generic":
+            per_rec_all: List[List[HBond]] = [
+                [hb for hbs in fr.hbonds_by_pair_type.values() for hb in hbs]
+                for fr in self.frame_results
+            ]
+        else:
+            per_rec_all = [
+                list(fr.hbonds_cc) + list(fr.hbonds_ca)
+                for fr in self.frame_results
+            ]
         rec_indices = [fr.record for fr in self.frame_results]
         self.lifetimes = compute_lifetimes(
             per_rec_all, record_indices=rec_indices,

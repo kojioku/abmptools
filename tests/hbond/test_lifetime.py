@@ -85,3 +85,42 @@ def test_summarize_empty():
     s = summarize_lifetimes([])
     assert s["n_unique_pairs"] == 0
     assert s["mean_occupancy"] == 0.0
+
+
+def test_generic_mode_lifetime_uses_pair_type_hbonds(tmp_path):
+    """Regression: in generic mode the lifetime must be built from
+    ``hbonds_by_pair_type`` (not the imc-only ``hbonds_cc``/``hbonds_ca``).
+
+    Before the fix, generic-mode runs produced an empty lifetime
+    (``unique pairs: 0``) because ``_write_lifetime_outputs`` only summed
+    ``hbonds_cc + hbonds_ca``, which are always empty in generic mode.
+    """
+    from abmptools.hbond.analyzer import Analyzer, AnalyzerConfig, FrameResult
+
+    hb = _hb(donor_mol=0, acceptor_mol=1)
+    bucket = {("hydroxyl", "hydroxyl_O"): [hb]}
+    frames = [
+        FrameResult(
+            record=i, n_dual_mols=0, n_single_mols=0, n_free_mols=0,
+            n_hbonds_cc=0, n_hbonds_ca=0, classification=None,
+            hbonds_cc=[], hbonds_ca=[], hbonds_by_pair_type=bucket,
+        )
+        for i in range(3)
+    ]
+    cfg = AnalyzerConfig(
+        bdf_path="dummy", out_prefix=str(tmp_path / "g"),
+        classify_mode="generic", dt=1.0,
+    )
+    an = Analyzer.__new__(Analyzer)   # bypass __init__ (no trajectory needed)
+    an.config = cfg
+    an.lifetimes = []
+    an.autocorr = []
+    an.tau_hb = 0.0
+    an.frame_results = frames
+
+    an._write_lifetime_outputs()
+
+    # The single (donor, acceptor) pair is present in all 3 frames.
+    assert len(an.lifetimes) == 1
+    assert an.lifetimes[0].total_present == 3
+    assert an.lifetimes[0].continuous_max == 3
