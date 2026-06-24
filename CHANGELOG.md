@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-06-25
+
 ### Added — hbond `--classify-mode auto` (官能基の自動認識)
 
 - `abmptools.hbond` に **`--classify-mode auto`** を追加(imc / generic と並列の
