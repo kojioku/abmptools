@@ -62,15 +62,15 @@
 - 割り当ては **atom index 対応**。 atom 数 (必須) と `Atom_Type_Name` 列
   (`verify_atom_types`) を検証してから書き込み、 不一致は strict で例外 / 非 strict で skip。
   出力は別ファイル (入力 bulk 無改変)
-- 更新するのは `electrostatic_Site` のみ。 `Structure.Position` (座標) /
-  `Unit_Cell` は **無改変** (座標保持を回帰テストで固定)
+- 更新するのは `electrostatic_Site` のみ。 `Structure.Position` (座標) / `Unit_Cell` /
+  `bond`・`angle`・`torsion` (結合トポロジー) は **無改変** (座標・トポロジー保持を回帰テストで固定)
 - CLI `python -m abmptools.udfcharge --template mol.udf --bulk bulk.udf --out out.udf`
   (`--mol-name` / `--mol-index` / `--no-verify-types` / `--non-strict`)
-- 単体テスト `tests/udfcharge/test_udfcharge.py` 10 件 (default_template.udf から
-  methanol 系をプログラム生成、 座標保持テスト含む)。 サンプル `sample/udfcharge/` は
-  **topology + 電荷 + 実座標 + Unit_Cell** を持つ OCTA viewer で開ける UDF
-  (methanol 単分子 + 2×2×2 格子 bulk の end-to-end)、 docs `docs/udfcharge.md` +
-  `docs/tutorial_udfcharge.md`
+- 単体テスト `tests/udfcharge/test_udfcharge.py` 11 件 (default_template.udf から
+  methanol 系をプログラム生成、 座標保持 + トポロジー保持テスト含む)。 サンプル
+  `sample/udfcharge/` は **topology + 電荷 + 実座標 + bond/angle/dihedral + Unit_Cell**
+  を持つ OCTA viewer で分子の形ごと開ける UDF (methanol 単分子 + 2×2×2 格子 bulk の
+  end-to-end)、 docs `docs/udfcharge.md` + `docs/tutorial_udfcharge.md`
 
 ### Added — `abmptools.formulation` Phase 2: Windows native OpenFF route
 

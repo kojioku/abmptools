@@ -35,14 +35,22 @@ ATOM_ELEMS = ["C", "O", "H", "H", "H", "H"]
 CHARGES = [0.145, -0.683, 0.418, 0.040, 0.040, 0.040]  # 和 = 0
 
 # methanol の分子内座標 [nm] (C を原点付近に置いた近似配座)
+#   atom index: 0=C 1=O 2=Ho 3=H1 4=H2 5=H3
 MOL_XYZ = [
-    (0.000, 0.000, 0.000),   # C
-    (0.140, 0.000, 0.000),   # O  (C-O ~1.4 Å)
-    (0.176, 0.091, 0.000),   # Ho (O-H)
-    (-0.036, 0.103, 0.000),  # H1 (methyl)
-    (-0.036, -0.051, 0.089),  # H2
-    (-0.036, -0.051, -0.089),  # H3
+    (0.000, 0.000, 0.000),   # 0 C
+    (0.140, 0.000, 0.000),   # 1 O  (C-O ~1.4 Å)
+    (0.176, 0.091, 0.000),   # 2 Ho (O-H)
+    (-0.036, 0.103, 0.000),  # 3 H1 (methyl)
+    (-0.036, -0.051, 0.089),  # 4 H2
+    (-0.036, -0.051, -0.089),  # 5 H3
 ]
+
+# 結合トポロジー (atom index は 0-based、 分子の「形」= viewer の骨格描画に必須)
+BONDS = [(0, 1), (1, 2), (0, 3), (0, 4), (0, 5)]                 # C-O, O-Ho, C-H×3
+ANGLES = [(1, 0, 3), (1, 0, 4), (1, 0, 5),                       # O-C-H
+          (3, 0, 4), (3, 0, 5), (4, 0, 5),                       # H-C-H
+          (0, 1, 2)]                                             # C-O-Ho
+DIHEDRALS = [(3, 0, 1, 2), (4, 0, 1, 2), (5, 0, 1, 2)]           # H-C-O-Ho (methyl 回転)
 
 
 def _placements(n_copies: int):
@@ -76,6 +84,24 @@ def build(out_path: Path, n_copies: int, with_charges: bool) -> None:
                 u.put(i,
                       "Set_of_Molecules.molecule[].electrostatic_Site[].atom[]", [imol, i, 0])
 
+        # bond / angle / dihedral (分子の形 = viewer 骨格)。 atom は 0-based local index
+        for k, (a1, a2) in enumerate(BONDS):
+            u.put("", "Set_of_Molecules.molecule[].bond[].Potential_Name", [imol, k])
+            u.put(a1, "Set_of_Molecules.molecule[].bond[].atom1", [imol, k])
+            u.put(a2, "Set_of_Molecules.molecule[].bond[].atom2", [imol, k])
+            u.put(1.0, "Set_of_Molecules.molecule[].bond[].Order", [imol, k])
+        for k, (a1, a2, a3) in enumerate(ANGLES):
+            u.put("", "Set_of_Molecules.molecule[].angle[].Potential_Name", [imol, k])
+            u.put(a1, "Set_of_Molecules.molecule[].angle[].atom1", [imol, k])
+            u.put(a2, "Set_of_Molecules.molecule[].angle[].atom2", [imol, k])
+            u.put(a3, "Set_of_Molecules.molecule[].angle[].atom3", [imol, k])
+        for k, (a1, a2, a3, a4) in enumerate(DIHEDRALS):
+            u.put("", "Set_of_Molecules.molecule[].torsion[].Potential_Name", [imol, k])
+            u.put(a1, "Set_of_Molecules.molecule[].torsion[].atom1", [imol, k])
+            u.put(a2, "Set_of_Molecules.molecule[].torsion[].atom2", [imol, k])
+            u.put(a3, "Set_of_Molecules.molecule[].torsion[].atom3", [imol, k])
+            u.put(a4, "Set_of_Molecules.molecule[].torsion[].atom4", [imol, k])
+
     # --- 座標 + cell は dynamic record (template の placeholder を erase して 1 frame 追加) ---
     u.eraseRecord(0, u.totalRecord())
     u.newRecord()
@@ -94,7 +120,8 @@ def build(out_path: Path, n_copies: int, with_charges: bool) -> None:
 
     u.write(str(out_path))
     print(f"wrote {out_path.name}: {n_copies} x {MOL_NAME}, "
-          f"charges={'yes' if with_charges else 'no'}, coords=yes, box={box} nm")
+          f"charges={'yes' if with_charges else 'no'}, coords=yes, "
+          f"bonds={len(BONDS)}/angles={len(ANGLES)}/dih={len(DIHEDRALS)}, box={box} nm")
 
 
 if __name__ == "__main__":
