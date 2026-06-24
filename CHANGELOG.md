@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-06-24
+
 ### Fixed — `abmptools.cg.dpd` build-udf が cognac でロードできない不具合
 
 - **重大**: 旧 `udf_writer.py` (positional plain-text) の出力は **UDFManager で
