@@ -37,7 +37,7 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 
 - **udf2gro**: Convert OCTA UDF files to GROMACS format (`.gro`, `.top`, `.mdp`, `.itp`)
 - **gro2udf**: Convert GROMACS files to OCTA UDF format (supports `--from-top` mode)
-- **udfcharge**: Transfer per-atom partial charges from a single-molecule UDF to every same-named molecule in a bulk UDF
+- **udfcharge**: Transfer per-atom partial charges from a single-molecule UDF to bulk molecules (`transfer`), or restore a neutralized UDF's charges to a target integer formal charge (`restore`)
 
 ### Geometry Optimization (`geomopt`)
 
@@ -230,7 +230,10 @@ python -m abmptools.udf2gro.cli -i system.udf -o output
 python -m abmptools.gro2udf.cli -i system.gro -t system.top -o output.udf
 
 # Transfer charges from a single-molecule UDF to all same-named molecules in a bulk UDF
-python -m abmptools.udfcharge --template mol.udf --bulk bulk.udf --out bulk_charged.udf
+python -m abmptools.udfcharge transfer --template mol.udf --bulk bulk.udf --out bulk_charged.udf
+
+# Restore a neutralized UDF's charges to a target integer formal charge
+python -m abmptools.udfcharge restore --udf mol.udf --formal-charge 12 --out mol_q+12.udf
 
 # Build an amorphous mixture from SMILES (50 ketoprofen molecules, density 0.8 g/cm^3)
 python -m abmptools.amorphous --smiles "OC(=O)C(C)c1cccc(C(=O)c2ccccc2)c1" \

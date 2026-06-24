@@ -1,16 +1,19 @@
-# `abmptools.udfcharge` サンプル — 単分子 UDF → バルク UDF への電荷転写
+# `abmptools.udfcharge` サンプル — UDF の per-atom 電荷操作
 
-単分子 UDF (電荷あり) の per-atom partial charge を、 バルク系 UDF の
-**同名分子すべて**へ割り当てる。
+(1) 単分子 UDF の電荷をバルク UDF の同名分子へ**転写** (`transfer`) と、
+(2) 中和された UDF の電荷を指定**形式電荷に復元** (`restore`) のデモ。
 
 ## ファイル
 
 | ファイル | 内容 |
 |---|---|
-| `make_example_udfs.py` | デモ UDF 生成スクリプト (methanol CH3OH) |
+| `make_example_udfs.py` | transfer デモ UDF 生成 (methanol CH3OH) |
 | `methanol_single_charged.udf` | 1 分子 `MeOH`、 per-atom 電荷あり + 座標 (template、 box 2.0 nm) |
 | `methanol_bulk_uncharged.udf` | `MeOH` × 8 (2×2×2 格子)、 電荷なし + 座標 (box 2.4 nm) |
 | `methanol_bulk_charged.udf` | 上記に電荷を転写した結果 (座標は保持) |
+| `restore_example.py` | restore デモ (methylammonium +1 カチオン) |
+| `methylammonium_neutral.udf` | `MAM` 8 atom、 中和済み電荷 (Σq=0) |
+| `methylammonium_restored.udf` | 形式電荷 +1 に復元した結果 (Σq=+1) |
 
 各 UDF は **`Set_of_Molecules` (topology + 電荷 + bond/angle/dihedral、 static record)
 と `Structure.Position` (実座標 + `Unit_Cell`、 dynamic record)** を持つので、
@@ -19,14 +22,14 @@ OCTA viewer 等で**分子の形 (結合) ごと**そのまま開ける。 metha
 
 methanol の電荷 (和 = 0): C `+0.145` / O `-0.683` / Ho `+0.418` / H×3 `+0.040`
 
-## 実行
+## 実行 (1) transfer — 電荷転写
 
 ```bash
-# 1) デモ UDF を生成 (single + bulk)
+# デモ UDF を生成 (single + bulk)
 python make_example_udfs.py
 
-# 2) 電荷を転写 (single → bulk の MeOH 全 8 分子)
-python -m abmptools.udfcharge \
+# 電荷を転写 (single → bulk の MeOH 全 8 分子)
+python -m abmptools.udfcharge transfer \
     --template methanol_single_charged.udf \
     --bulk     methanol_bulk_uncharged.udf \
     --out      methanol_bulk_charged.udf -v
@@ -37,6 +40,27 @@ python -m abmptools.udfcharge \
 template : MeOH (n_atoms=6, net_charge=+0.0000)
 assigned : 8/8 molecules
 output   : methanol_bulk_charged.udf
+```
+
+## 実行 (2) restore — 形式電荷の復元
+
+```bash
+# 中和済み UDF を生成 → 形式電荷 +1 に復元 (まとめて実行)
+python restore_example.py
+
+# CLI 単体でも:
+python -m abmptools.udfcharge restore \
+    --udf methylammonium_neutral.udf --formal-charge 1 \
+    --out methylammonium_restored.udf -v
+```
+
+出力 (Σq 0 → +1、 中和前の電荷を復元):
+```
+restore: Σq +0.000000 → +1.000000 (formal +1, λ=0.33333333)
+   N | -0.8000 | -0.8000
+   H | +0.4500 | +0.4500
+   ...
+  max|restored - A| = 5.27e-16
 ```
 
 ## Python API

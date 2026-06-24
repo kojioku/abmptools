@@ -305,6 +305,7 @@ def test_topology_preserved(single_udf, tmp_path):
 
 
 def test_cli(single_udf, bulk_udf, tmp_path):
+    # 旧フラット呼び出し (transfer 省略) も後方互換で動く
     from abmptools.udfcharge.__main__ import main
 
     out = tmp_path / "cli_out.udf"
@@ -315,3 +316,107 @@ def test_cli(single_udf, bulk_udf, tmp_path):
     for q in _read_all_charges(out):
         for got, exp in zip(q, CHARGES):
             assert abs(got - exp) < 1e-6
+
+
+# --------------------------------------------------------------------------
+# restore_formal_charge (中和の逆変換)
+# --------------------------------------------------------------------------
+
+# 元電荷 A (Σ = +1)、 5 atoms
+RESTORE_A = [0.50, 0.30, 0.40, -0.10, -0.10]
+RESTORE_TYPES = ["c3", "c3", "c3", "c3", "c3"]
+RESTORE_ELEMS = ["C", "C", "C", "C", "C"]
+
+
+def _forward_neutralize(A, S):
+    """A (Σ=S) を |A| 比例で中和して B (Σ≈0) を返す (機能の forward 側)。"""
+    sa = sum(abs(a) for a in A)
+    return [a - S * abs(a) / sa for a in A]
+
+
+def _neutral_udf(tmp_path, A, S, name="neutral"):
+    B = _forward_neutralize(A, S)
+    assert abs(sum(B)) < 1e-9
+    return _build_udf(tmp_path / f"{name}.udf", n_copies=1, with_charges=True,
+                      mol_name="ION", atom_types=RESTORE_TYPES,
+                      atom_elems=RESTORE_ELEMS, charges=B), B
+
+
+def test_restore_recovers_original_charges(tmp_path):
+    from abmptools.udfcharge import restore_formal_charge
+
+    S = 1
+    udf, B = _neutral_udf(tmp_path, RESTORE_A, S)
+    out = tmp_path / "restored.udf"
+    res = restore_formal_charge(udf, S, out)
+
+    assert res.formal_charge == 1
+    assert abs(res.input_total) < 1e-9          # 入力は中和済み
+    assert abs(res.output_total - 1.0) < 1e-6   # 出力は形式電荷
+    a_hat = read_molecule_charges(out).charges
+    for got, exp in zip(a_hat, RESTORE_A):      # 元電荷を復元
+        assert abs(got - exp) < 1e-6
+
+
+def test_restore_negative_formal_charge(tmp_path):
+    from abmptools.udfcharge import restore_formal_charge
+
+    A = [-0.6, -0.3, -0.4, 0.15, 0.15]          # Σ = -1
+    S = -1
+    udf, _ = _neutral_udf(tmp_path, A, S, name="anion")
+    res = restore_formal_charge(udf, S, tmp_path / "anion_restored.udf")
+    assert abs(res.output_total - (-1.0)) < 1e-6
+    a_hat = read_molecule_charges(res.out_path).charges
+    for got, exp in zip(a_hat, A):
+        assert abs(got - exp) < 1e-6
+
+
+def test_restore_default_out_path(tmp_path):
+    from abmptools.udfcharge import restore_formal_charge
+
+    udf, _ = _neutral_udf(tmp_path, RESTORE_A, 1)
+    res = restore_formal_charge(udf, 1, None)
+    assert res.out_path.endswith("neutral_q+1.udf")
+    assert Path(res.out_path).is_file()
+
+
+def test_restore_zero_formal_charge_is_noop(tmp_path):
+    """形式電荷 0 (既に中和) は電荷を変えない。"""
+    from abmptools.udfcharge import restore_formal_charge
+
+    udf, B = _neutral_udf(tmp_path, RESTORE_A, 1)   # B は Σ=0
+    res = restore_formal_charge(udf, 0, tmp_path / "z.udf")
+    assert abs(res.output_total) < 1e-6
+    a_hat = read_molecule_charges(res.out_path).charges
+    for got, exp in zip(a_hat, B):
+        assert abs(got - exp) < 1e-6
+
+
+def test_restore_preserves_coords_and_bonds(tmp_path):
+    """restore も electrostatic_Site のみ更新し座標・結合を壊さない。"""
+    from abmptools.udfcharge import restore_formal_charge
+
+    B = _forward_neutralize(RESTORE_A, 1)
+    udf = _build_udf(tmp_path / "full.udf", n_copies=1, with_charges=True,
+                     mol_name="ION", atom_types=RESTORE_TYPES,
+                     atom_elems=RESTORE_ELEMS, charges=B,
+                     with_coords=True, with_bonds=True)
+    before_pos = _read_all_positions(udf, mol_name="ION")
+    before_bonds = _read_all_bonds(udf, mol_name="ION")
+    out = tmp_path / "full_restored.udf"
+    restore_formal_charge(udf, 1, out)
+    assert _read_all_positions(out, mol_name="ION") == before_pos
+    assert _read_all_bonds(out, mol_name="ION") == before_bonds
+
+
+def test_cli_restore(tmp_path):
+    from abmptools.udfcharge.__main__ import main
+
+    udf, _ = _neutral_udf(tmp_path, RESTORE_A, 1)
+    out = tmp_path / "cli_restored.udf"
+    rc = main(["restore", "--udf", str(udf), "--formal-charge", "1",
+               "--out", str(out)])
+    assert rc == 0
+    a_hat = read_molecule_charges(out).charges
+    for got, exp in zip(a_hat, RESTORE_A):
+        assert abs(got - exp) < 1e-6

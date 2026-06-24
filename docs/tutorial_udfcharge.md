@@ -36,7 +36,7 @@ cd sample/udfcharge
 python make_example_udfs.py
 
 # 2.2 単分子 → バルクへ電荷転写
-python -m abmptools.udfcharge \
+python -m abmptools.udfcharge transfer \
     --template methanol_single_charged.udf \
     --bulk     methanol_bulk_uncharged.udf \
     --out      methanol_bulk_charged.udf -v
@@ -122,7 +122,7 @@ for i in range(u.size("Set_of_Molecules.molecule[]")):
 3. `udfcharge` で 1 → バルクへ転写:
 
 ```bash
-python -m abmptools.udfcharge \
+python -m abmptools.udfcharge transfer \
     --template qm_charges_single.udf \
     --bulk     md_bulk.udf \
     --out      md_bulk_qmcharge.udf -v
@@ -132,13 +132,51 @@ python -m abmptools.udfcharge \
 (`--mol-name` で対象を切り替え、 出力を次の `--bulk` に渡す):
 
 ```bash
-python -m abmptools.udfcharge --template solute.udf  --bulk md_bulk.udf        --out step1.udf
-python -m abmptools.udfcharge --template solvent.udf --bulk step1.udf          --out md_bulk_charged.udf
+python -m abmptools.udfcharge transfer --template solute.udf  --bulk md_bulk.udf --out step1.udf
+python -m abmptools.udfcharge transfer --template solvent.udf --bulk step1.udf   --out md_bulk_charged.udf
 ```
 
 ---
 
-## 5. 失敗モードと対処
+## 5. 形式電荷の復元 (`restore`)
+
+MD は系を中性 (Σq=0) にして走らせるため、 元々整数の形式電荷を持つ分子の
+電荷が `|q|` 比例で分散・中和されていることがある。 `restore` はその中和電荷
+(B) と目標形式電荷 (S、 整数) から中和前の電荷 (A、 Σ=S) を復元する。
+
+```bash
+# 中和済み (Σq≈0) の 1 分子 UDF を、 形式電荷 +12 に復元
+python -m abmptools.udfcharge restore \
+    --udf system_neutral.udf --formal-charge 12 \
+    --out system_q+12.udf -v
+```
+
+出力例:
+```
+molecule     : SYS (n_atoms=864)
+input total  : +0.000000  (中和済み想定)
+formal charge: +12  (λ=0.06593239)
+output total : +12.000000
+output       : system_q+12.udf
+```
+
+Python:
+```python
+from abmptools.udfcharge import restore_formal_charge
+r = restore_formal_charge("system_neutral.udf", 12, "system_q+12.udf")
+print(r.input_total, "->", r.output_total, "λ=", r.lam)
+```
+
+復元式 (B と S だけから一意):
+`A_i = B_i/(1−λ)` (B_i>0) / `B_i/(1+λ)` (B_i<0)、
+λ は `S·λ² + (P−N)·λ + (P+N−S) = 0` (P=Σ_{B>0}B, N=Σ_{B<0}B) の |λ|<1 の根。
+`sample/udfcharge/restore_example.py` (methylammonium +1) と
+`SI/A列再現方法.md` を参照。 補正が大きく正電荷が反転する (|λ|≥1) ケースは
+一意復元できず `ValueError`。
+
+---
+
+## 6. 失敗モードと対処
 
 | 症状 | 原因 | 対処 |
 |---|---|---|
