@@ -167,12 +167,21 @@ r = restore_formal_charge("system_neutral.udf", 12, "system_q+12.udf")
 print(r.input_total, "->", r.output_total, "λ=", r.lam)
 ```
 
-復元式 (B と S だけから一意):
-`A_i = B_i/(1−λ)` (B_i>0) / `B_i/(1+λ)` (B_i<0)、
-λ は `S·λ² + (P−N)·λ + (P+N−S) = 0` (P=Σ_{B>0}B, N=Σ_{B<0}B) の |λ|<1 の根。
-`sample/udfcharge/restore_example.py` (methylammonium +1) と
-`SI/A列再現方法.md` を参照。 補正が大きく正電荷が反転する (|λ|≥1) ケースは
-一意復元できず `ValueError`。
+**中和ルール `--mode` を中和方法に合わせること** (間違えると Σ は合うが元と
+一致しない):
+
+- `--mode proportional` (既定): `|q|` 比例分配。
+  `A_i = B_i/(1−λ)` (B_i>0) / `B_i/(1+λ)` (B_i<0)、 λ は
+  `S·λ² + (P−N)·λ + (P+N−S) = 0` の |λ|<1 根 (`SI/A列再現方法.md`)。
+  正電荷が反転する (`|S|≥Σ|q|`) ケースは `ValueError`
+- `--mode uniform`: 均等分配。 `A_i = B_i + S/N` で**常に厳密・一意**
+
+```bash
+# 均等分配で中和された UDF の場合
+python -m abmptools.udfcharge restore --udf system_neutral.udf --formal-charge -1 --mode uniform --out out.udf
+```
+
+`sample/udfcharge/restore_example.py` (methylammonium +1、 proportional) 参照。
 
 ---
 

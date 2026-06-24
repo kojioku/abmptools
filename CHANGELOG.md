@@ -33,20 +33,24 @@
 ### Added — `abmptools.udfcharge` 形式電荷の復元 (`restore_formal_charge`)
 
 - 中和 (Σq≈0) された 1 分子 UDF の電荷を、 指定**形式電荷 (整数)** になるよう
-  逆変換して別 UDF に出力する。 MD 用に `|q|` 比例で過剰電荷を分散して中和した
-  系から、 元の per-atom 電荷 (Σ=形式電荷) を復元する用途 (FMO 解析等)。
-  - forward (中和): `B_i = A_i − S·|A_i|/Σ|A|` (Σ A = S → Σ B ≈ 0)
-  - reverse (本機能): `A_i = B_i/(1−λ)` (B_i>0) / `B_i/(1+λ)` (B_i<0)。 λ は
-    `S·λ² + (P−N)·λ + (P+N−S) = 0` (P=Σ_{B>0}B, N=Σ_{B<0}B) の |λ|<1 の根。
-    **B と形式電荷 S のみから λ を復元**できる (`SI/A列再現方法.md` の方法)
-- `restore_formal_charge(udf, formal_charge, out=None, mol_index=0)` → `RestoreResult`
+  逆変換して別 UDF に出力する。 MD 用に過剰電荷を分散して中和した系から、 元の
+  per-atom 電荷 (Σ=形式電荷) を復元する用途 (FMO 解析等)。 **中和ルール `mode`** を
+  選択 (中和方法に一致させる):
+  - **`mode="proportional"`** (既定): 過剰分を `|q|` 比例で分散。
+    forward `B_i = A_i − S·|A_i|/Σ|A|`、 reverse `A_i = B_i/(1∓λ)`。 λ は
+    `S·λ² + (P−N)·λ + (P+N−S) = 0` (P=Σ_{B>0}B, N=Σ_{B<0}B) の |λ|<1 の根
+    (`SI/A列再現方法.md` の方法)。 `|S| ≥ Σ|q|` (符号反転) は `ValueError`
+  - **`mode="uniform"`**: 過剰分を全原子に均等分散。 forward `B_i = A_i − S/N`、
+    reverse `A_i = B_i + S/N`。 二次方程式・符号問題なしで**常に厳密・一意**
+- `restore_formal_charge(udf, formal_charge, out=None, mol_index=0, mode=...)` → `RestoreResult`
 - CLI を **サブコマンド化**: `transfer` (従来の template→bulk 転写) + `restore`
   (新規)。 旧フラット呼び出し (`--template ...`) は後方互換で `transfer` 扱い
-  - `python -m abmptools.udfcharge restore --udf mol.udf --formal-charge 12 --out out.udf`
+  - `python -m abmptools.udfcharge restore --udf mol.udf --formal-charge 12 [--mode uniform] --out out.udf`
 - 更新は `electrostatic_Site` のみ (座標・bond/angle/torsion 無改変)
-- テスト `tests/udfcharge/` を 11 → 17 件に (round-trip 復元 / 負電荷 / S=0 no-op /
-  座標・結合保持 / CLI)。 実データ (`reverse-charge.xlsx` の 864 atom、 形式電荷 12)
-  で復元誤差 5.8e-10 を確認。 サンプル `sample/udfcharge/restore_example.py`
+- テスト `tests/udfcharge/` を 11 → 21 件に (proportional/uniform round-trip 復元 /
+  負電荷 / S=0 no-op / 符号反転 ValueError / mode 不一致検出 / 座標・結合保持 / CLI)。
+  実データ (`reverse-charge.xlsx` の 864 atom、 形式電荷 12) で proportional 復元
+  誤差 5.8e-10 を確認。 サンプル `sample/udfcharge/restore_example.py`
   (methylammonium +1)、 docs 追記
 
 ## [2.2.0] - 2026-06-24

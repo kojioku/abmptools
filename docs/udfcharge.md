@@ -73,26 +73,44 @@ res = assign_charges_to_bulk("bulk.udf", tmpl, "bulk_charged.udf")
 # AssignResult: out_path / n_molecules_assigned / n_molecules_total / ...
 
 # (2) 復元: 中和 UDF (Σq≈0) → 形式電荷 S
-r = restore_formal_charge("mol.udf", 12, "mol_q+12.udf")
+r = restore_formal_charge("mol.udf", 12, "mol_q+12.udf", mode="proportional")
+# mode="uniform" も選択可 (均等分配で中和された UDF 用)
 # RestoreResult: out_path / mol_name / n_atoms / formal_charge /
-#                input_total / output_total / lam
+#                input_total / output_total / mode / lam / shift
 ```
 
 ## 形式電荷の復元 (`restore`)
 
 MD では系を中性 (Σq=0) にして走らせるため、 元々整数の形式電荷を持つ分子の
-電荷が `|q|` 比例で分散・中和されて UDF に入っていることがある。 `restore` は
-その中和電荷 (`B`) と目標形式電荷 (`S`、 整数) から、 中和前の電荷 (`A`、 Σ=S)
-を復元する。
+電荷が分散・中和されて UDF に入っていることがある。 `restore` はその中和電荷
+(`B`) と目標形式電荷 (`S`、 整数) から、 中和前の電荷 (`A`、 Σ=S) を復元する。
 
-- **forward (中和)**: `B_i = A_i − S·|A_i| / Σ|A|`。 λ = S/Σ|A| とおくと
+**中和ルール (`mode`) を、 UDF を中和した方法に合わせて選ぶこと** — ここを
+間違えると Σ は S になるが**元の数字と一致しない** (黙ってそれらしい別解を返す)。
+
+### `mode="proportional"` (既定) — `|q|` 比例分配
+
+- forward: `B_i = A_i − S·|A_i| / Σ|A|`。 λ = S/Σ|A| とおくと
   `B_i = (1−λ)A_i` (A_i>0) / `(1+λ)A_i` (A_i<0)
-- **reverse (本機能)**: `A_i = B_i/(1−λ)` (B_i>0) / `B_i/(1+λ)` (B_i<0)
+- reverse: `A_i = B_i/(1−λ)` (B_i>0) / `B_i/(1+λ)` (B_i<0)
 - λ は `Σ A = S` の制約から `S·λ² + (P−N)·λ + (P+N−S) = 0`
   (P=Σ_{B>0}B, N=Σ_{B<0}B) の **|λ|<1 の根**として、 **B と S だけ**から求まる
+- 符号が保存される (λ<1) 範囲でのみ一意復元できる。 補正が大きすぎて正電荷が
+  反転するケース (`|S| ≥ Σ|q|`、 λ≥1) は `ValueError`。 詳細は `SI/A列再現方法.md`
 
-符号が保存される (λ<1) 範囲でのみ一意復元できる。 補正が大きすぎて正電荷が
-反転するケース (|λ|≥1) は `ValueError`。 詳細は `SI/A列再現方法.md`。
+### `mode="uniform"` — 均等分配
+
+- forward: `B_i = A_i − S/N` (N=原子数、 過剰分 S を全原子に均等に引く)
+- reverse: **`A_i = B_i + S/N`**
+- 二次方程式も符号反転問題も無く、 **常に厳密・一意**に復元できる
+
+```bash
+python -m abmptools.udfcharge restore --udf mol.udf --formal-charge -1 --mode uniform --out out.udf
+```
+
+> どちらの mode かは UDF の中和方法で決まる。 不明な場合、 中和前後の値が
+> 数原子分でも分かれば判別できる (proportional は `|q|` の大小で補正量が変わる、
+> uniform は全原子で同じ補正量 S/N)。
 
 ## 割り当ての契約
 

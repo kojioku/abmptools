@@ -311,6 +311,14 @@ def assign_charges_to_bulk(
 #     S·λ² + (P-N)·λ + (P+N-S) = 0
 #
 # の |λ|<1 の根として求まる (詳細は docs/udfcharge.md / SI/A列再現方法.md)。
+#
+# もう一つの中和ルール ``mode="uniform"`` (均等分配): 過剰分 S を全原子に均等に
+# 分散して中和する。
+#
+#     forward:  B_i = A_i - S/N        (N = 原子数、 Σ B = 0)
+#     reverse:  A_i = B_i + S/N
+#
+# こちらは二次方程式も符号反転問題も無く、 常に厳密・一意に復元できる。
 
 
 @dataclass
@@ -323,7 +331,9 @@ class RestoreResult:
     formal_charge: int
     input_total: float       # 入力 UDF の総電荷 (≈0 を想定)
     output_total: float      # 出力 UDF の総電荷 (= formal_charge)
-    lam: float               # 復元に使った λ
+    mode: str = "proportional"          # "proportional" | "uniform"
+    lam: Optional[float] = None         # proportional 時の λ (uniform では None)
+    shift: Optional[float] = None       # uniform 時の S/N (proportional では None)
 
 
 def _solve_neutralization_lambda(charges: List[float], formal_charge: float) -> float:
@@ -366,12 +376,21 @@ def restore_formal_charge(
     *,
     mol_index: int = 0,
     mol_name: Optional[str] = None,
+    mode: str = "proportional",
 ) -> RestoreResult:
     """中和 (Σq≈0) された 1 分子 UDF の電荷を、 指定形式電荷になるよう逆変換して出力。
 
-    ``|q|`` 比例で過剰電荷を分散して中和した UDF (Σ電荷≈0) を入力に、 目標の
-    **形式電荷 (整数) S** を与えると、 中和前の per-atom 電荷 (Σ=S) を復元して
-    別 UDF に書き出す。 ``electrostatic_Site`` のみ更新し、 座標・結合等は無改変。
+    過剰電荷を分散して中和した UDF (Σ電荷≈0) を入力に、 目標の **形式電荷 (整数) S**
+    を与えると、 中和前の per-atom 電荷 (Σ=S) を復元して別 UDF に書き出す。
+    ``electrostatic_Site`` のみ更新し、 座標・結合等は無改変。
+
+    **中和ルール (``mode``) を正しく選ぶこと** — UDF を中和した方法に一致させる:
+
+    - ``"proportional"`` (既定): 過剰分 S を ``|q|`` 比例で分散
+      (`B_i = A_i − S·|A_i|/Σ|A|`)。 逆変換は二次方程式で λ を解く。
+      ``|S| ≥ Σ|q|`` (符号反転) のケースは ``ValueError``。
+    - ``"uniform"``: 過剰分 S を全原子に**均等**に分散 (`B_i = A_i − S/N`)。
+      逆変換は `A_i = B_i + S/N` で常に厳密・一意 (符号問題なし)。
 
     Parameters
     ----------
@@ -383,6 +402,8 @@ def restore_formal_charge(
         出力 UDF。 省略時 ``<udf>_q<±S>.udf``。
     mol_index / mol_name
         対象分子 (既定は先頭=0、 単分子 UDF を想定)。
+    mode
+        中和ルール: ``"proportional"`` (既定) または ``"uniform"``。
 
     Returns
     -------
@@ -398,11 +419,21 @@ def restore_formal_charge(
     B = tmpl.charges
     input_total = float(sum(B))
 
-    lam = _solve_neutralization_lambda(B, S)
-    A = [
-        (b / (1.0 - lam) if b > 0.0 else (b / (1.0 + lam) if b < 0.0 else 0.0))
-        for b in B
-    ]
+    lam: Optional[float] = None
+    shift: Optional[float] = None
+    if mode == "proportional":
+        lam = _solve_neutralization_lambda(B, S)
+        A = [
+            (b / (1.0 - lam) if b > 0.0 else (b / (1.0 + lam) if b < 0.0 else 0.0))
+            for b in B
+        ]
+    elif mode == "uniform":
+        shift = float(S) / tmpl.n_atoms
+        A = [b + shift for b in B]
+    else:
+        raise ValueError(
+            f"mode={mode!r} は未対応です ('proportional' / 'uniform' から選択)"
+        )
     output_total = float(sum(A))
 
     u = _open(udf_path)
@@ -416,10 +447,14 @@ def restore_formal_charge(
         formal_charge=S,
         input_total=input_total,
         output_total=output_total,
+        mode=mode,
         lam=lam,
+        shift=shift,
     )
+    detail = f"λ={lam:.8f}" if mode == "proportional" else f"shift=S/N={shift:.8f}"
     logger.info(
-        "restore: %r %d atoms, Σq %.6f → %.6f (target %d, λ=%.8f) → %s",
-        res.mol_name, res.n_atoms, input_total, output_total, S, lam, out_path.name,
+        "restore[%s]: %r %d atoms, Σq %.6f → %.6f (target %d, %s) → %s",
+        mode, res.mol_name, res.n_atoms, input_total, output_total, S, detail,
+        out_path.name,
     )
     return res
