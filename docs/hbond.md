@@ -283,10 +283,15 @@ python -m abmptools.hbond <bdf_path> \
                           trajectory を 10 で ~100 frames に。lifetime/τ_HB を
                           使う場合は --dt も同じ倍率でスケールすること
 --mol-name STR            色付け時の Mol_Name prefix (default "IMC")
---classify-mode {imc,generic}
+--classify-mode {imc,generic,auto}
                           imc (default): COOH 中心 4-species (dual/chain/single/free)
                           generic: donor-type x acceptor-type pair 統計
                           (PVA/peptide/アルコール等の任意系向け)
+                          auto: 系に存在する官能基 (carboxyl/amide/amine/hydroxyl) を
+                          自動検出し、その donor/acceptor で generic 実行。
+                          --donor-groups/--acceptor-groups の手動指定が不要になる
+                          (明示指定すればそちらが優先)。ether_O は自動検出対象外
+                          (検出器が無いため、必要なら --acceptor-groups ether_O を明示)
 --no-element-fallback     element + bond-graph fallback を無効化 (strict mode)。
                           default ON で atom_type 不明な atom も自動 tag
                           (OpenFF SMIRNOFF UDF の `MOL0_X` 対応)

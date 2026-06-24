@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added — hbond `--classify-mode auto` (官能基の自動認識)
+
+- `abmptools.hbond` に **`--classify-mode auto`** を追加(imc / generic と並列の
+  3 つ目の選択肢)。系に存在する官能基(carboxyl / amide / 2 級アミド N-H /
+  アミン N-H / hydroxyl)を `detect_carboxyls` / `detect_amides` /
+  `detect_amine_donors` / `detect_hydroxyls` で自動検出し、対応する
+  donor / acceptor group を列挙して generic pair-stats 経路で実行する。
+  COOH 無し系(APZ 等)でも `--donor-groups` / `--acceptor-groups` の手動指定が
+  不要になる(明示指定すればそちらが優先)。
+- helper `Analyzer._auto_groups()`(検出官能基 → donor/acceptor group リスト)。
+  auto は内部で `classify_mode='generic'` に解決。**`ether_O` は自動検出対象外**
+  (信頼できる ether 検出器が無いため。必要なら `--acceptor-groups ether_O` を明示)。
+- 実機確認: APZ を `--classify-mode auto`(group 指定なし)→ `amide_donor→amide_O`
+  を自動選択、手動指定時と同一結果。test `tests/hbond/test_analyzer.py`
+  (carboxyl-only / amide-only / mixed / none / run→generic 解決、5 件)。
+
 ### Added — hbond `--record-stride` (trajectory 間引き)
 
 - `abmptools.hbond` に **`--record-stride N`**(`AnalyzerConfig.record_stride`、default 1)

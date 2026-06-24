@@ -62,9 +62,11 @@ def main(argv=None) -> int:
         help="Base molecule name for renamed groups (default: IMC)"
     )
     parser.add_argument(
-        "--classify-mode", choices=["imc", "generic"], default="imc",
+        "--classify-mode", choices=["imc", "generic", "auto"], default="imc",
         help="imc: COOH-centric 4-species (dual/chain/single/free, IMC default). "
-             "generic: donor-type x acceptor-type pair stats (PVA/peptide/etc.)"
+             "generic: donor-type x acceptor-type pair stats (PVA/peptide/etc.). "
+             "auto: detect functional groups present and run generic with them "
+             "(no need to pass --donor-groups/--acceptor-groups; ether_O excluded)"
     )
     parser.add_argument(
         "--no-element-fallback", action="store_true",

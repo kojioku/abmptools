@@ -302,6 +302,36 @@ class Analyzer:
                 meta_by_type["ether_O"] = [(s.mol_index, s.acceptor_a) for s in sites]
         return sites_by_type, meta_by_type
 
+    def _auto_groups(self) -> Tuple[List[str], List[str]]:
+        """Auto-detect donor/acceptor group types present in the system.
+
+        Used by ``classify_mode='auto'``. Returns ``(donor_groups,
+        acceptor_groups)`` listing only the functional-group types actually
+        detected (carboxyl / amide / secondary-amide N-H / amine N-H /
+        hydroxyl). ``ether_O`` is NOT auto-listed because there is no reliable
+        ether detector yet (GAFF2 ``os``-tag only); pass ``--acceptor-groups
+        ether_O`` explicitly if needed.
+        """
+        if self.traj is None:
+            self.load()
+        from .functional_groups import detect_hydroxyls
+        donors: List[str] = []
+        acceptors: List[str] = []
+        if self.carboxyls:
+            donors.append("carboxyl")
+            acceptors.append("carboxyl_O")
+        if any(g.from_amide for g in self.amine_donors):
+            donors.append("amide_donor")
+        if any(not g.from_amide for g in self.amine_donors):
+            donors.append("amine_donor")
+        hydroxyls = detect_hydroxyls(self.traj.molecules, mapping=self.mapping)
+        if hydroxyls:
+            donors.append("hydroxyl")
+            acceptors.append("hydroxyl_O")
+        if self.amides:
+            acceptors.append("amide_O")
+        return donors, acceptors
+
     def run(self) -> List[FrameResult]:
         if self.traj is None:
             self.load()
@@ -309,11 +339,27 @@ class Analyzer:
         end = c.record_end if c.record_end >= 0 else self.traj.n_records
         criteria = c.get_criteria()
         mode = (c.classify_mode or "imc").lower()
-        if mode not in {"imc", "generic"}:
+        if mode not in {"imc", "generic", "auto"}:
             raise ValueError(
                 f"Unknown classify_mode={c.classify_mode!r}; "
-                "must be 'imc' or 'generic'"
+                "must be 'imc', 'generic', or 'auto'"
             )
+
+        if mode == "auto":
+            # Detect which functional-group donor/acceptor types are present and
+            # run them through the generic pair-stats path. Explicit
+            # --donor-groups / --acceptor-groups still override the auto picks.
+            auto_donors, auto_acceptors = self._auto_groups()
+            if c.donor_groups is None:
+                c.donor_groups = auto_donors
+            if c.acceptor_groups is None:
+                c.acceptor_groups = auto_acceptors
+            if c.verbose:
+                print(f"  [auto] donor groups   : {c.donor_groups or '(none detected)'}")
+                print(f"  [auto] acceptor groups: {c.acceptor_groups or '(none detected)'}")
+            # Resolve to generic so run()/write_outputs use the generic path.
+            c.classify_mode = "generic"
+            mode = "generic"
 
         donor_groups = c.donor_groups or (
             ["carboxyl"] if mode == "imc" else []
