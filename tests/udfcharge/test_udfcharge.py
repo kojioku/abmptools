@@ -420,3 +420,77 @@ def test_cli_restore(tmp_path):
     a_hat = read_molecule_charges(out).charges
     for got, exp in zip(a_hat, RESTORE_A):
         assert abs(got - exp) < 1e-6
+
+
+# --- uniform (均等分配) mode ---
+
+def _forward_uniform(A, S):
+    """A (Σ=S) を均等に中和して B (Σ≈0) を返す: B_i = A_i - S/N。"""
+    shift = S / len(A)
+    return [a - shift for a in A]
+
+
+def _uniform_neutral_udf(tmp_path, A, S, name="uniform"):
+    B = _forward_uniform(A, S)
+    assert abs(sum(B)) < 1e-9
+    types = ["c3"] * len(A)
+    elems = ["C"] * len(A)
+    return _build_udf(tmp_path / f"{name}.udf", n_copies=1, with_charges=True,
+                      mol_name="ION", atom_types=types, atom_elems=elems,
+                      charges=B), B
+
+
+def test_restore_uniform_recovers_exactly(tmp_path):
+    """uniform で中和した電荷は mode='uniform' で厳密復元 (A_i = B_i + S/N)。"""
+    from abmptools.udfcharge import restore_formal_charge
+
+    S = 1
+    udf, _ = _uniform_neutral_udf(tmp_path, RESTORE_A, S)
+    res = restore_formal_charge(udf, S, tmp_path / "u_restored.udf", mode="uniform")
+
+    assert res.mode == "uniform"
+    assert res.lam is None
+    assert abs(res.shift - S / len(RESTORE_A)) < 1e-12
+    assert abs(res.output_total - 1.0) < 1e-9
+    a_hat = read_molecule_charges(res.out_path).charges
+    for got, exp in zip(a_hat, RESTORE_A):
+        assert abs(got - exp) < 1e-9        # 均等分配は厳密 (符号問題なし)
+
+
+def test_uniform_and_proportional_disagree_on_uniform_data(tmp_path):
+    """uniform で中和したデータを proportional で復元すると元と一致しない
+    (= mode を中和方法に合わせる必要があることの確認)。"""
+    from abmptools.udfcharge import restore_formal_charge
+
+    S = 1
+    udf, _ = _uniform_neutral_udf(tmp_path, RESTORE_A, S)
+    a_uni = read_molecule_charges(
+        restore_formal_charge(udf, S, tmp_path / "a.udf", mode="uniform").out_path
+    ).charges
+    a_prop = read_molecule_charges(
+        restore_formal_charge(udf, S, tmp_path / "b.udf", mode="proportional").out_path
+    ).charges
+    # uniform は元と一致、 proportional はズレる
+    assert max(abs(g - e) for g, e in zip(a_uni, RESTORE_A)) < 1e-9
+    assert max(abs(g - e) for g, e in zip(a_prop, RESTORE_A)) > 1e-3
+
+
+def test_restore_unknown_mode_raises(tmp_path):
+    from abmptools.udfcharge import restore_formal_charge
+
+    udf, _ = _uniform_neutral_udf(tmp_path, RESTORE_A, 1)
+    with pytest.raises(ValueError, match="mode"):
+        restore_formal_charge(udf, 1, tmp_path / "x.udf", mode="bogus")
+
+
+def test_cli_restore_uniform(tmp_path):
+    from abmptools.udfcharge.__main__ import main
+
+    udf, _ = _uniform_neutral_udf(tmp_path, RESTORE_A, 1)
+    out = tmp_path / "cli_u.udf"
+    rc = main(["restore", "--udf", str(udf), "--formal-charge", "1",
+               "--mode", "uniform", "--out", str(out)])
+    assert rc == 0
+    a_hat = read_molecule_charges(out).charges
+    for got, exp in zip(a_hat, RESTORE_A):
+        assert abs(got - exp) < 1e-9

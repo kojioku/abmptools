@@ -48,11 +48,14 @@ def _run_transfer(args) -> int:
 def _run_restore(args) -> int:
     res = restore_formal_charge(
         args.udf, args.formal_charge, args.out,
-        mol_index=args.mol_index, mol_name=args.mol_name,
+        mol_index=args.mol_index, mol_name=args.mol_name, mode=args.mode,
     )
+    detail = (f"λ={res.lam:.8f}" if res.mode == "proportional"
+              else f"shift=S/N={res.shift:.8f}")
     print(f"molecule     : {res.mol_name} (n_atoms={res.n_atoms})")
+    print(f"mode         : {res.mode}")
     print(f"input total  : {res.input_total:+.6f}  (中和済み想定)")
-    print(f"formal charge: {res.formal_charge:+d}  (λ={res.lam:.8f})")
+    print(f"formal charge: {res.formal_charge:+d}  ({detail})")
     print(f"output total : {res.output_total:+.6f}")
     print(f"output       : {res.out_path}")
     return 0
@@ -90,6 +93,9 @@ def main(argv=None) -> int:
     pr.add_argument("--formal-charge", type=int, required=True,
                     help="目標の形式電荷 (整数)")
     pr.add_argument("--out", default=None, help="出力 (省略時 <udf>_q<±S>.udf)")
+    pr.add_argument("--mode", choices=["proportional", "uniform"],
+                    default="proportional",
+                    help="中和ルール: proportional (|q| 比例、 既定) / uniform (均等分配)")
     pr.add_argument("--mol-name", default=None)
     pr.add_argument("--mol-index", type=int, default=0)
     pr.add_argument("-v", "--verbose", action="store_true")
