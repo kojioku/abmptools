@@ -52,6 +52,12 @@ def main(argv=None) -> int:
         help="End record (exclusive); -1 = all"
     )
     parser.add_argument(
+        "--record-stride", type=int, default=1,
+        help="Subsample every Nth record (default: 1 = every frame). "
+             "E.g. 10 thins a 1001-record trajectory to ~100 frames. "
+             "Remember to scale --dt by the same factor for lifetime/tau_HB."
+    )
+    parser.add_argument(
         "--mol-name", default="IMC",
         help="Base molecule name for renamed groups (default: IMC)"
     )
@@ -184,6 +190,7 @@ def main(argv=None) -> int:
         custom_criteria=custom,
         record_start=args.record_start,
         record_end=args.record_end,
+        record_stride=args.record_stride,
         base_mol_name=args.mol_name,
         do_colorize=not args.no_colorize,
         colorize_mode=args.colorize_mode,

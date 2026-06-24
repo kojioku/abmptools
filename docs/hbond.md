@@ -279,6 +279,9 @@ python -m abmptools.hbond <bdf_path> \
 --angle-min FLOAT         (custom mode のみ)
 --record-start INT        開始 record (default 0)
 --record-end INT          終了 record (exclusive, default -1 = all)
+--record-stride INT       N record ごとに間引く (default 1)。例: 1001 record の
+                          trajectory を 10 で ~100 frames に。lifetime/τ_HB を
+                          使う場合は --dt も同じ倍率でスケールすること
 --mol-name STR            色付け時の Mol_Name prefix (default "IMC")
 --classify-mode {imc,generic}
                           imc (default): COOH 中心 4-species (dual/chain/single/free)

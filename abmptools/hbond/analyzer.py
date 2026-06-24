@@ -88,6 +88,7 @@ class AnalyzerConfig:
     custom_criteria: Optional[HBondCriteria] = None
     record_start: int = 0
     record_end: int = -1
+    record_stride: int = 1   # subsample every Nth record (1 = every frame)
     base_mol_name: str = "IMC"
     color_attrs: Optional[Dict[str, DrawAttribute]] = None
     do_colorize: bool = True
@@ -335,7 +336,8 @@ class Analyzer:
 
         n_mol = len(self.traj.molecules)
         results: List[FrameResult] = []
-        for rec in range(c.record_start, end):
+        stride = c.record_stride if c.record_stride and c.record_stride > 0 else 1
+        for rec in range(c.record_start, end, stride):
             frame = self.traj.get_frame(rec)
 
             if mode == "imc":
