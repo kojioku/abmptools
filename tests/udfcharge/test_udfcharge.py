@@ -35,6 +35,9 @@ MOL_XYZ = [
     (-0.063, -0.063, 0.063),
     (0.063, -0.063, -0.063),
 ]
+# 結合トポロジー (atom 0-based): C-H ×3
+MOL_BONDS = [(0, 1), (0, 2), (0, 3)]
+MOL_ANGLES = [(1, 0, 2), (1, 0, 3), (2, 0, 3)]
 
 
 def _template_udf_path() -> Path:
@@ -44,11 +47,13 @@ def _template_udf_path() -> Path:
 
 def _build_udf(out_path: Path, *, n_copies: int, with_charges: bool,
                mol_name=MOL_NAME, atom_types=ATOM_TYPES, atom_elems=ATOM_ELEMS,
-               charges=CHARGES, with_coords: bool = False) -> Path:
+               charges=CHARGES, with_coords: bool = False,
+               with_bonds: bool = False) -> Path:
     """default_template から n_copies 個の同名分子を持つ UDF を作る。
 
-    with_coords=True で各分子を 1.0 nm 間隔で並べた座標 + cell を dynamic record
-    に書き込む (charge 転写が座標を壊さないことの検証用)。
+    with_coords=True で各分子を 1.0 nm 間隔で並べた座標 + cell を dynamic record に、
+    with_bonds=True で bond/angle を static record に書き込む (charge 転写が座標・
+    トポロジーを壊さないことの検証用)。
     """
     from UDFManager import UDFManager
 
@@ -69,6 +74,17 @@ def _build_udf(out_path: Path, *, n_copies: int, with_charges: bool,
                       "Set_of_Molecules.molecule[].electrostatic_Site[].ES_Element", [imol, i])
                 u.put(i,
                       "Set_of_Molecules.molecule[].electrostatic_Site[].atom[]", [imol, i, 0])
+        if with_bonds:
+            for k, (a1, a2) in enumerate(MOL_BONDS):
+                u.put("", "Set_of_Molecules.molecule[].bond[].Potential_Name", [imol, k])
+                u.put(a1, "Set_of_Molecules.molecule[].bond[].atom1", [imol, k])
+                u.put(a2, "Set_of_Molecules.molecule[].bond[].atom2", [imol, k])
+                u.put(1.0, "Set_of_Molecules.molecule[].bond[].Order", [imol, k])
+            for k, (a1, a2, a3) in enumerate(MOL_ANGLES):
+                u.put("", "Set_of_Molecules.molecule[].angle[].Potential_Name", [imol, k])
+                u.put(a1, "Set_of_Molecules.molecule[].angle[].atom1", [imol, k])
+                u.put(a2, "Set_of_Molecules.molecule[].angle[].atom2", [imol, k])
+                u.put(a3, "Set_of_Molecules.molecule[].angle[].atom3", [imol, k])
 
     if with_coords:
         u.eraseRecord(0, u.totalRecord())
@@ -244,6 +260,46 @@ def test_coordinates_preserved(single_udf, tmp_path):
 
     # かつ電荷は入っている
     for q in _read_all_charges(out):
+        for got, exp in zip(q, CHARGES):
+            assert abs(got - exp) < 1e-6
+
+
+def _read_all_bonds(udf_path: Path, mol_name=MOL_NAME):
+    """static record の per-molecule bond (atom1,atom2) を返す。"""
+    from UDFManager import UDFManager
+
+    u = UDFManager(str(udf_path))
+    u.jump(-1)
+    nmol = u.size("Set_of_Molecules.molecule[]")
+    out = []
+    for i in range(nmol):
+        if u.get("Set_of_Molecules.molecule[].Mol_Name", [i]) != mol_name:
+            continue
+        nb = u.size("Set_of_Molecules.molecule[].bond[]", [i]) or 0
+        out.append([
+            (u.get("Set_of_Molecules.molecule[].bond[].atom1", [i, k]),
+             u.get("Set_of_Molecules.molecule[].bond[].atom2", [i, k]))
+            for k in range(nb)
+        ])
+    return out
+
+
+def test_topology_preserved(single_udf, tmp_path):
+    """電荷転写後も bond/angle トポロジーが保持される (static record を壊さない)。"""
+    tmpl = read_molecule_charges(single_udf)
+    bulk = _build_udf(tmp_path / "bulk_topo.udf", n_copies=3, with_charges=False,
+                      with_coords=True, with_bonds=True)
+    before = _read_all_bonds(bulk)
+    assert len(before) == 3
+    assert all(b == MOL_BONDS for b in before)
+
+    out = tmp_path / "bulk_topo_charged.udf"
+    assign_charges_to_bulk(bulk, tmpl, out)
+
+    after = _read_all_bonds(out)
+    assert after == before                       # bond 無改変
+    assert all(len(p) == 4 for p in _read_all_positions(out))  # 座標も保持
+    for q in _read_all_charges(out):             # 電荷は入っている
         for got, exp in zip(q, CHARGES):
             assert abs(got - exp) < 1e-6
 

@@ -12,10 +12,10 @@
 | `methanol_bulk_uncharged.udf` | `MeOH` × 8 (2×2×2 格子)、 電荷なし + 座標 (box 2.4 nm) |
 | `methanol_bulk_charged.udf` | 上記に電荷を転写した結果 (座標は保持) |
 
-各 UDF は **`Set_of_Molecules` (topology + 電荷、 static record) と
-`Structure.Position` (実座標 + `Unit_Cell`、 dynamic record)** を持つので、
-OCTA viewer 等でそのまま開ける。 電荷転写は `electrostatic_Site` のみ更新し、
-座標 record は無改変。
+各 UDF は **`Set_of_Molecules` (topology + 電荷 + bond/angle/dihedral、 static record)
+と `Structure.Position` (実座標 + `Unit_Cell`、 dynamic record)** を持つので、
+OCTA viewer 等で**分子の形 (結合) ごと**そのまま開ける。 methanol は 5 bond /
+7 angle / 3 dihedral。 電荷転写は `electrostatic_Site` のみ更新し、 座標・結合は無改変。
 
 methanol の電荷 (和 = 0): C `+0.145` / O `-0.683` / Ho `+0.418` / H×3 `+0.040`
 
