@@ -36,6 +36,11 @@ python -m abmptools.hbond md/05_npt_final.udf \
     --dt 5.0 --no-colorize --no-copy-uncolored               # ~7 s
 ```
 
+大規模な multi-record UDF(数百〜数千 record)を解析する場合は **`--record-stride N`** で
+N record ごとに間引ける(例: `--record-stride 10 --record-end 1000` で 1001→100 frames)。
+`run()` の record ループにのみ作用する hbond 専用オプション。lifetime/τ_HB を使うなら `--dt`
+も同倍率でスケールする(間引くと sampled frame が離れ、連続性指標 `continuous` は意味が薄くなる)。
+
 本体 repo に追跡されるのは **軽量側**(input SDF / `run_sample.sh` /
 `md/build_bdf.py` / `output/apap_hbond_*` の集計 CSV・PNG / 本 README)のみ。
 `build/`・MD 生出力(xtc/trr/edr/tpr/gro/log/udf, ~13 MB)は `run_sample.sh`+
