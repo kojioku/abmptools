@@ -41,6 +41,10 @@ N record ごとに間引ける(例: `--record-stride 10 --record-end 1000` で 1
 `run()` の record ループにのみ作用する hbond 専用オプション。lifetime/τ_HB を使うなら `--dt`
 も同倍率でスケールする(間引くと sampled frame が離れ、連続性指標 `continuous` は意味が薄くなる)。
 
+`--donor-groups`/`--acceptor-groups` を手で指定する代わりに **`--classify-mode auto`** も使える。
+系の官能基を自動検出して generic 実行する(この系なら amide + hydroxyl を検出 → 上と同じ
+`amide_donor,hydroxyl` / `amide_O,hydroxyl_O` 相当を自動選択。明示指定すればそちらが優先)。
+
 本体 repo に追跡されるのは **軽量側**(input SDF / `run_sample.sh` /
 `md/build_bdf.py` / `output/apap_hbond_*` の集計 CSV・PNG / 本 README)のみ。
 `build/`・MD 生出力(xtc/trr/edr/tpr/gro/log/udf, ~13 MB)は `run_sample.sh`+

@@ -50,6 +50,10 @@ python -m abmptools.hbond md/05_npt_final.udf \
     --colorize-mode both
 ```
 
+`--donor-groups`/`--acceptor-groups` を省きたい場合は **`--classify-mode auto`** が使える。
+系の官能基を自動検出して generic 実行する(PVA は hydroxyl のみ → `hydroxyl` / `hydroxyl_O`
+を自動選択。明示指定すればそちらが優先)。大規模 multi-record は `--record-stride N` で間引ける。
+
 **Element + bond-graph fallback について**: OpenFF Sage は UDF の
 ``Atom_Type_Name`` に per-atom unique な ``MOL0_X`` を書く (SMIRNOFF が atom
 type の概念を持たないため)。``abmptools.hbond`` v1.28+ では fallback (default
