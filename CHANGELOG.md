@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added — hbond `--record-stride` (trajectory 間引き)
+
+- `abmptools.hbond` に **`--record-stride N`**(`AnalyzerConfig.record_stride`、default 1)
+  を追加。`run()` の record ループを N record ごとに間引く。大規模 multi-record UDF
+  (例: 1001 record)を `--record-stride 10 --record-end 1000` で ~100 frames に削減でき、
+  原子ごと UDFManager 読みがボトルネックになる長尺 trajectory の解析を高速化する。
+  lifetime/τ_HB を使う場合は `--dt` も同倍率でスケール(間引くと sampled frame が離れ、
+  連続性指標 `continuous` は意味が薄くなる)。hbond 専用オプション。
+- test `tests/hbond/test_analyzer.py`(default / stride / start-offset / guard、4 件)。
+  `docs/hbond.md` の CLI オプション一覧、`sample/amorphous/acetaminophen_amorphous`
+  README に記載。commit `e31c57e`。
+
 ### Added — `abmptools.udfcharge` 形式電荷の復元 (`restore_formal_charge`)
 
 - 中和 (Σq≈0) された 1 分子 UDF の電荷を、 指定**形式電荷 (整数)** になるよう
