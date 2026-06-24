@@ -14,8 +14,10 @@ from .core import (
     POINT_CHARGE,
     AssignResult,
     MoleculeChargeTemplate,
+    RestoreResult,
     assign_charges_to_bulk,
     read_molecule_charges,
+    restore_formal_charge,
 )
 
 __all__ = [
@@ -23,6 +25,8 @@ __all__ = [
     "POINT_CHARGE",
     "AssignResult",
     "MoleculeChargeTemplate",
+    "RestoreResult",
     "assign_charges_to_bulk",
     "read_molecule_charges",
+    "restore_formal_charge",
 ]

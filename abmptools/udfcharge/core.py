@@ -21,6 +21,7 @@ COGNAC UDF の電荷規約 (gro2udf / udf2gro と共通):
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
@@ -32,8 +33,10 @@ __all__ = [
     "POINT_CHARGE",
     "MoleculeChargeTemplate",
     "AssignResult",
+    "RestoreResult",
     "read_molecule_charges",
     "assign_charges_to_bulk",
+    "restore_formal_charge",
 ]
 
 # COGNAC: ES_Element = charge[e] * CHARGE_UNIT  (gro2udf/udf2gro と同一定数)
@@ -43,6 +46,17 @@ POINT_CHARGE = "POINT_CHARGE"
 _MOL = "Set_of_Molecules.molecule[]"
 _ATOM = "Set_of_Molecules.molecule[].atom[]"
 _ES = "Set_of_Molecules.molecule[].electrostatic_Site[]"
+
+
+def _put_molecule_charges(u, imol, charges) -> None:
+    """molecule[imol] の各 atom に electrostatic_Site (POINT_CHARGE) を書く。
+
+    float() cast 必須: numpy 値だと UDFManager が silent 0 化する。
+    """
+    for k, q in enumerate(charges):
+        u.put(POINT_CHARGE, f"{_ES}.Type_Name", [imol, k])
+        u.put(float(q) * CHARGE_UNIT, f"{_ES}.ES_Element", [imol, k])
+        u.put(int(k), f"{_ES}.atom[]", [imol, k, 0])
 
 
 def _open(udf_path) -> "object":
@@ -251,11 +265,7 @@ def assign_charges_to_bulk(
                 skipped.append(i)
                 continue
 
-        for k in range(n_atoms):
-            u.put(POINT_CHARGE, f"{_ES}.Type_Name", [i, k])
-            # float() cast 必須: numpy 値だと UDFManager が silent 0 化する
-            u.put(float(template.charges[k] * CHARGE_UNIT), f"{_ES}.ES_Element", [i, k])
-            u.put(int(k), f"{_ES}.atom[]", [i, k, 0])
+        _put_molecule_charges(u, i, template.charges)
         assigned.append(i)
 
     if not assigned and strict:
@@ -275,5 +285,141 @@ def assign_charges_to_bulk(
     logger.info(
         "assigned charges to %d/%d molecules (%r) → %s",
         res.n_molecules_assigned, res.n_molecules_total, res.mol_name, out_path.name,
+    )
+    return res
+
+
+# ---------------------------------------------------------------------------
+# 形式電荷の復元 (neutralize の逆変換)
+# ---------------------------------------------------------------------------
+#
+# 前提となる中和ルール (forward): 元電荷 A_i (Σ A = S = 形式電荷) を、 過剰分 S を
+# ``|A_i|`` 比例で各原子に分散して中和し、 B_i (Σ B ≈ 0) を得る:
+#
+#     B_i = A_i - S·|A_i| / Σ|A|          (λ = S/Σ|A| とおくと)
+#     B_i = (1-λ)A_i   (A_i>0)
+#     B_i = (1+λ)A_i   (A_i<0)
+#
+# reverse (本機能): B_i と目標形式電荷 S だけから A_i を復元する。 符号は保存される
+# (λ<1 のとき) ので:
+#
+#     A_i = B_i/(1-λ)   (B_i>0)
+#     A_i = B_i/(1+λ)   (B_i<0)
+#
+# λ は Σ A = S の制約から、 P=Σ_{B>0}B / N=Σ_{B<0}B を用いて
+#
+#     S·λ² + (P-N)·λ + (P+N-S) = 0
+#
+# の |λ|<1 の根として求まる (詳細は docs/udfcharge.md / SI/A列再現方法.md)。
+
+
+@dataclass
+class RestoreResult:
+    """:func:`restore_formal_charge` の結果サマリ。"""
+
+    out_path: str
+    mol_name: str
+    n_atoms: int
+    formal_charge: int
+    input_total: float       # 入力 UDF の総電荷 (≈0 を想定)
+    output_total: float      # 出力 UDF の総電荷 (= formal_charge)
+    lam: float               # 復元に使った λ
+
+
+def _solve_neutralization_lambda(charges: List[float], formal_charge: float) -> float:
+    """中和電荷 (B) と目標形式電荷 S から逆変換用 λ を解く。
+
+    ``S·λ² + (P-N)·λ + (P+N-S) = 0`` (P=Σ_{B>0}B, N=Σ_{B<0}B) の |λ|<1 の根。
+    S≈0 のときは線形に縮退する。
+    """
+    P = sum(b for b in charges if b > 0.0)
+    N = sum(b for b in charges if b < 0.0)
+    S = float(formal_charge)
+    a, b, c = S, (P - N), (P + N - S)
+
+    if abs(a) < 1e-12:                       # S ≈ 0 → 線形 (P-N)λ + (P+N) = 0
+        if abs(b) < 1e-12:
+            return 0.0
+        lam = -(P + N) / b
+    else:
+        disc = b * b - 4.0 * a * c
+        if disc < 0:
+            raise ValueError(
+                f"形式電荷 {S:g} は |q| 比例分配ルールで到達不能です (判別式 < 0)"
+            )
+        sq = math.sqrt(disc)
+        roots = [(-b + sq) / (2.0 * a), (-b - sq) / (2.0 * a)]
+        valid = [r for r in roots if abs(r) < 1.0]
+        if not valid:
+            raise ValueError(
+                f"|λ|<1 の根が無く電荷符号が反転します (formal_charge={S:g} が大きすぎ、 "
+                "B 列と総和だけからは一意に復元できないケース)"
+            )
+        lam = min(valid, key=abs)
+    return lam
+
+
+def restore_formal_charge(
+    udf_path,
+    formal_charge: int,
+    out_path=None,
+    *,
+    mol_index: int = 0,
+    mol_name: Optional[str] = None,
+) -> RestoreResult:
+    """中和 (Σq≈0) された 1 分子 UDF の電荷を、 指定形式電荷になるよう逆変換して出力。
+
+    ``|q|`` 比例で過剰電荷を分散して中和した UDF (Σ電荷≈0) を入力に、 目標の
+    **形式電荷 (整数) S** を与えると、 中和前の per-atom 電荷 (Σ=S) を復元して
+    別 UDF に書き出す。 ``electrostatic_Site`` のみ更新し、 座標・結合等は無改変。
+
+    Parameters
+    ----------
+    udf_path
+        中和済み電荷を持つ 1 分子 UDF。
+    formal_charge
+        目標の形式電荷 (整数)。 出力 UDF の総電荷がこの値になる。
+    out_path
+        出力 UDF。 省略時 ``<udf>_q<±S>.udf``。
+    mol_index / mol_name
+        対象分子 (既定は先頭=0、 単分子 UDF を想定)。
+
+    Returns
+    -------
+    RestoreResult
+    """
+    udf_path = Path(udf_path)
+    S = int(formal_charge)
+    if out_path is None:
+        out_path = udf_path.with_name(f"{udf_path.stem}_q{S:+d}{udf_path.suffix}")
+    out_path = Path(out_path)
+
+    tmpl = read_molecule_charges(udf_path, mol_index=mol_index, mol_name=mol_name)
+    B = tmpl.charges
+    input_total = float(sum(B))
+
+    lam = _solve_neutralization_lambda(B, S)
+    A = [
+        (b / (1.0 - lam) if b > 0.0 else (b / (1.0 + lam) if b < 0.0 else 0.0))
+        for b in B
+    ]
+    output_total = float(sum(A))
+
+    u = _open(udf_path)
+    _put_molecule_charges(u, tmpl.source_index, A)
+    u.write(str(out_path))
+
+    res = RestoreResult(
+        out_path=str(out_path),
+        mol_name=tmpl.mol_name,
+        n_atoms=tmpl.n_atoms,
+        formal_charge=S,
+        input_total=input_total,
+        output_total=output_total,
+        lam=lam,
+    )
+    logger.info(
+        "restore: %r %d atoms, Σq %.6f → %.6f (target %d, λ=%.8f) → %s",
+        res.mol_name, res.n_atoms, input_total, output_total, S, lam, out_path.name,
     )
     return res
