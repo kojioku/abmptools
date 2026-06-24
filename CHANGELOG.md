@@ -2,6 +2,52 @@
 
 ## [Unreleased]
 
+### Fixed — `abmptools.cg.dpd` build-udf が cognac でロードできない不具合
+
+- **重大**: 旧 `udf_writer.py` (positional plain-text) の出力は **UDFManager で
+  ロード不可** (`Pair_Interaction` を `Molecular_Attributes` 配下に置く /
+  `Interaction_Site_Type[]` 未定義で cognac112 スキーマ非準拠)。実機で
+  `RuntimeError: ... near "0.0"` を確認。ユニットテスト 66 件は文字列生成のみ検証
+  でロードを見ておらず見逃していた
+- 新規 `cg/dpd/udf_writer_udfm.py` (`write_dpd_udf_udfm`): **UDFManager の
+  named-path put** で組み立て、cognac112 スキーマ準拠を保証。`Pair_Interaction`
+  を正しく `Interactions[]` 配下へ、`Molecular_Attributes.Interaction_Site_Type[]`
+  を定義。`CGDpdBuilder.build_udf` / CLI `build-udf` をこちらに切替
+- **設計変更**: build-udf は **UDFManager(OCTA) 必須**に (旧「UDFManager 非依存
+  plain text」設計を廃止)。DPD UDF は元々 OCTA で使うもので、生成できても
+  ロード不可では無意味なため
+- テスト刷新: `tests/cg_dpd/test_udf_writer.py` を **loadability ベース**に書換
+  (UDFManager でロード → `Interactions.Pair_Interaction[]` size / `DPD.a` 等を検証)。
+  `conftest.requires_cognac` で OCTA 非導入環境では skip。cg_dpd 全体 67 passed
+  (OCTA 有り環境)
+
+### Added — `abmptools.cg.dpd assign-aij` (既存 DPD UDF への aij 割り当て)
+
+- 新規 `cg/dpd/aij_assign.py`: 既存 Cognac DPD UDF の
+  `Interactions.Pair_Interaction[].DPD.a` を aij.dat で割り当て直す
+  (build-udf の新規生成と別。既存 UDF をパッチ):
+  - `Site1_Name` / `Site2_Name` で粒子名ペアを読み、aij.dat と **順不同照合**
+  - aij モード=値直入れ、chi モード=`a = aii + χ/0.306` (= aii + 3.268·χ、
+    `AijMatrix.to_a_values()`)
+  - `UDFManager` round-trip (`abmptools.udfcharge` と同方式、`float()` cast で
+    numpy silent-0 回避)。`Potential_Type=="DPD"` のみ対象 (default)
+  - `build_a_lookup` / `match_aij_to_pairs` は UDFManager 非依存で単体テスト可能
+- CLI `python -m abmptools.cg.dpd assign-aij --udf X.udf --aij aij.dat [--aii 25.0]
+  [--output Y.udf]`
+- テスト `tests/cg_dpd/test_aij_assign.py` 7 件 (chi→a 変換 / 順不同照合 / 未照合
+  検出 / モック UDFManager で I/O 配線)。cg_dpd 全体 66 passed
+
+### Changed (docs) — cg_segmenter DPD 経路の表記を実態に整合 + 公開スコープ明記
+
+- `cg_segmenter` の DPD 入力生成 (`dpdgen_exporter`) の下流が **`abmptools.cg.dpd`**
+  (自前実装、外部 dpdgen / UDFManager 非依存) であることを docstring / CLI 出力 /
+  Jupyter UI / docs / README に統一。誤解を生む「外部 `makeudf_dpd.py` でそのまま
+  処理できる」表記を `python -m abmptools.cg.dpd build-udf ...` に修正
+- `docs/cg_segmenter.md` に **公開版スコープ (open-core)** 節を追加: 公開版は汎用
+  segmentation + FMO/DPD reference 入力生成まで。系別最適パラメータ・命名 bead-typing・
+  production チューニングは範囲外 (= 別途 private 拡張)。DPD 既定値 (1.661 / 2.502 /
+  stiffness) は cholesterol 由来の汎用既定値である旨を明記
+
 ### Added — `abmptools.udfcharge` (new sub-package)
 
 - 単分子 UDF (電荷あり) の per-atom partial charge を抽出し、 バルク系 UDF の
@@ -16,11 +62,15 @@
 - 割り当ては **atom index 対応**。 atom 数 (必須) と `Atom_Type_Name` 列
   (`verify_atom_types`) を検証してから書き込み、 不一致は strict で例外 / 非 strict で skip。
   出力は別ファイル (入力 bulk 無改変)
+- 更新するのは `electrostatic_Site` のみ。 `Structure.Position` (座標) /
+  `Unit_Cell` は **無改変** (座標保持を回帰テストで固定)
 - CLI `python -m abmptools.udfcharge --template mol.udf --bulk bulk.udf --out out.udf`
   (`--mol-name` / `--mol-index` / `--no-verify-types` / `--non-strict`)
-- 単体テスト `tests/udfcharge/test_udfcharge.py` 9 件 (default_template.udf から
-  methanol 系をプログラム生成)。 サンプル `sample/udfcharge/` (methanol end-to-end)、
-  docs `docs/udfcharge.md` + `docs/tutorial_udfcharge.md`
+- 単体テスト `tests/udfcharge/test_udfcharge.py` 10 件 (default_template.udf から
+  methanol 系をプログラム生成、 座標保持テスト含む)。 サンプル `sample/udfcharge/` は
+  **topology + 電荷 + 実座標 + Unit_Cell** を持つ OCTA viewer で開ける UDF
+  (methanol 単分子 + 2×2×2 格子 bulk の end-to-end)、 docs `docs/udfcharge.md` +
+  `docs/tutorial_udfcharge.md`
 
 ### Added — `abmptools.formulation` Phase 2: Windows native OpenFF route
 

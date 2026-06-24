@@ -8,9 +8,14 @@
 | ファイル | 内容 |
 |---|---|
 | `make_example_udfs.py` | デモ UDF 生成スクリプト (methanol CH3OH) |
-| `methanol_single_charged.udf` | 1 分子 `MeOH`、 per-atom 電荷あり (template) |
-| `methanol_bulk_uncharged.udf` | `MeOH` × 8、 電荷なし (割り当て先) |
-| `methanol_bulk_charged.udf` | 上記に電荷を転写した結果 |
+| `methanol_single_charged.udf` | 1 分子 `MeOH`、 per-atom 電荷あり + 座標 (template、 box 2.0 nm) |
+| `methanol_bulk_uncharged.udf` | `MeOH` × 8 (2×2×2 格子)、 電荷なし + 座標 (box 2.4 nm) |
+| `methanol_bulk_charged.udf` | 上記に電荷を転写した結果 (座標は保持) |
+
+各 UDF は **`Set_of_Molecules` (topology + 電荷、 static record) と
+`Structure.Position` (実座標 + `Unit_Cell`、 dynamic record)** を持つので、
+OCTA viewer 等でそのまま開ける。 電荷転写は `electrostatic_Site` のみ更新し、
+座標 record は無改変。
 
 methanol の電荷 (和 = 0): C `+0.145` / O `-0.683` / Ho `+0.418` / H×3 `+0.040`
 
