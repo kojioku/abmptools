@@ -108,6 +108,21 @@ def main(argv=None) -> int:
                     help="comma-separated segment 名 (single monomer 時、 例 'segA,segB,WAT')")
     p1.add_argument("--project-name", default="abmptools-cg-dpd")
 
+    # assign-aij: 既存 UDF の Pair_Interaction.DPD.a を aij.dat で割り当て
+    pa = sub.add_parser(
+        "assign-aij",
+        help="既存 cognac DPD UDF の Interactions.Pair_Interaction[].DPD.a を "
+             "aij.dat で割り当て (粒子名で順不同照合)",
+    )
+    pa.add_argument("--udf", required=True, help="既存 cognac DPD UDF")
+    pa.add_argument("--aij", required=True, help="aij.dat (mode='a' 直値 or 'chi')")
+    pa.add_argument("--aii", type=float, default=25.0,
+                    help="chi モード変換の基準同種 a (a=aii+χ/0.306、default 25.0)")
+    pa.add_argument("--output", default=None,
+                    help="出力 UDF (省略時は --udf を上書き)")
+    pa.add_argument("--all-types", action="store_true",
+                    help="DPD 以外の Pair_Interaction も対象にする (default は DPD のみ)")
+
     args = parser.parse_args(argv)
 
     if args.cmd == "verify":
@@ -140,6 +155,21 @@ def main(argv=None) -> int:
         builder = _build_builder(args)
         out = builder.build_udf(args.output, include_file=args.include_file)
         print(f"udf: {out}")
+        return 0
+
+    if args.cmd == "assign-aij":
+        from .aij_assign import assign_aij_to_udf
+        result = assign_aij_to_udf(
+            args.udf, args.aij, out_path=args.output, aii=args.aii,
+            only_dpd=not args.all_types,
+        )
+        print(f"assigned: {len(result['assigned'])}/{result['total_pairs']} "
+              f"pair(s) -> {result['out_path']}")
+        if result["unmatched"]:
+            print(f"  unmatched (aij.dat に無し): "
+                  f"{[(s1, s2) for _, s1, s2 in result['unmatched']]}")
+        if result["unused_aij_pairs"]:
+            print(f"  unused aij pairs (UDF に無し): {result['unused_aij_pairs']}")
         return 0
 
     return 1

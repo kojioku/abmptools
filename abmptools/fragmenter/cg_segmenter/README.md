@@ -14,7 +14,7 @@ segment** を PDB から自動構築する。
 | `chain_splitter.py` | ring 外 chain の target_mw walk 切断 (`auto_split._atom_total_mw` 流用) |
 | `cap_attach.py` | 切断面に H or CH3 cap を 3D 配置 |
 | `exporter.py` | per-segment PDB + XYZ + summary JSON 出力 + SVG ハイライト描画 |
-| `dpdgen_exporter.py` | DPDgen 入力 (`{name}_monomer` + `{name}_calc_sett`) を出力 (path-based bond hierarchy + angle ポテンシャル) |
+| `dpdgen_exporter.py` | DPD 入力 (`{name}_monomer` + `{name}_calc_sett`) を出力 (path-based bond hierarchy + angle ポテンシャル)。汎用既定パラメータ。下流は `abmptools.cg.dpd` (外部 dpdgen 非依存) |
 | `fcews_export.py` | FCEWS 入力 (`segment_data.dat` `mode='FMO'` + monomer `.xyz`) を出力。connect `[BDA,BAA]` (AJF 並び)、`connect_num`=BAA 数、atom 共有禁止 (partition 必須) |
 | `notebook_ui.py` | Jupyter `open_panel()` (ipywidgets) — Move/Toggle/Delete/Re-segment/Export ボタン |
 | `orchestrator.py` | `CGSegmenter` クラス (state 管理 + pipeline + edit ops `move_atom` / `toggle_cap` / `delete_segment` / `re_segment` / `export_dpdgen`) |
@@ -27,7 +27,8 @@ segment** を PDB から自動構築する。
 python -m abmptools.fragmenter.cg_segmenter build \
     --pdb input.pdb --output-dir ./segs --target-mw 200
 
-# CLI -- DPDgen 入力生成 (segment 構築 + monomer/calc_sett 出力)
+# CLI -- DPD 入力生成 (segment 構築 + monomer/calc_sett 出力)
+#   下流は abmptools.cg.dpd build-udf で UDF 化 (外部 dpdgen 不要)
 python -m abmptools.fragmenter.cg_segmenter dpdgen \
     --pdb input.pdb --output-dir ./dpdgen_input \
     --monomer-name mymol --box 12

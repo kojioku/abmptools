@@ -37,6 +37,8 @@ from .dpm_writer import (
     DEFAULT_PATCH_FIELDS, MESSAGE_TXT_CONTENT,
 )
 from .udf_writer import write_dpd_udf
+from .udf_writer_udfm import write_dpd_udf_udfm
+from .aij_assign import assign_aij_to_udf, match_aij_to_pairs, build_a_lookup
 from .orchestrator import CGDpdBuilder
 
 
@@ -54,7 +56,8 @@ __all__ = [
     "read_calc_sett",
     "patch_dpm", "propagate_virtual_mom", "write_message_txt",
     "DEFAULT_PATCH_FIELDS", "MESSAGE_TXT_CONTENT",
-    "write_dpd_udf",
+    "write_dpd_udf", "write_dpd_udf_udfm",
+    "assign_aij_to_udf", "match_aij_to_pairs", "build_a_lookup",
     "CGDpdBuilder",
     "open_panel",
 ]

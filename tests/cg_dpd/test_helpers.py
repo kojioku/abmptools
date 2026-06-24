@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import pytest
 
+from .conftest import requires_cognac
+
 
 # --- create_empty_aij ------------------------------------------------------
 
@@ -110,6 +112,7 @@ def test_build_monomer_custom_params():
     assert m.angle13data[0] == [0, 1, 2, 60.0, 10.0]
 
 
+@requires_cognac
 def test_build_monomer_with_dpd_builder(tmp_path):
     """hand-craft monomer を CGDpdBuilder に突っ込んで R1 UDF 生成まで通る."""
     from abmptools.cg.dpd import (

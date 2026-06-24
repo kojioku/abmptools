@@ -78,10 +78,12 @@ def cmd_dpdgen(args: argparse.Namespace) -> int:
         aij_file=args.aij_file,
     )
     print(f"CG segments: {len(result.segments)} -> {config.output_dir}")
-    print(f"DPDgen monomer:   {monomer_path}")
-    print(f"DPDgen calc_sett: {calc_sett_path}")
-    print(f"  Edit ratio_list / aij_file / phys_param in calc_sett, then run:")
-    print(f"    python makeudf_dpd.py -p {calc_sett_path}")
+    print(f"DPD monomer:   {monomer_path}")
+    print(f"DPD calc_sett: {calc_sett_path}")
+    print(f"  Edit ratio_list / aij_file / phys_param in calc_sett, then build the")
+    print(f"  DPD UDF with abmptools.cg.dpd (no external tool needed):")
+    print(f"    python -m abmptools.cg.dpd build-udf --monomer {monomer_path} \\")
+    print(f"        --aij aij.dat --calc-sett {calc_sett_path} --output dpd_uin.udf")
     return 0
 
 

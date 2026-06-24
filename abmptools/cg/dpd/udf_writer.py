@@ -2,10 +2,18 @@
 """
 abmptools.cg.dpd.udf_writer
 ---------------------------
-**Route R1**: Cognac DPD 入力 UDF (``*_uin.udf``) を **plain text で直接書き出す**。
+**[DEPRECATED / 非使用]** Route R1 の旧 plain-text writer。
 
-設計指針
-~~~~~~~~
+.. warning::
+   この writer の出力は **cognac112 スキーマ非準拠で UDFManager にロードできない**
+   (``Pair_Interaction`` を ``Molecular_Attributes`` 配下に positional で書く /
+   ``Interaction_Site_Type[]`` 未定義)。2026-06-22 に判明し、現行 R1 は
+   :mod:`abmptools.cg.dpd.udf_writer_udfm` (UDFManager named-path、cognac112 準拠)
+   に置き換え済み。``CGDpdBuilder.build_udf`` / CLI ``build-udf`` はそちらを使う。
+   本モジュールは参照用に残置 (新規利用不可)。
+
+設計指針 (旧)
+~~~~~~~~~~~~~
 - ``\\include{"cognac112.udf"}`` 1 行で class 定義を J-OCTA install 環境に委譲
   (abmptools 側に OCTA spec を持たない、 権利配慮)
 - UDFManager (OCTA) **に依存しない** plain text writer

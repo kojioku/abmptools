@@ -4,9 +4,38 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
+
+
+def _cognac_schema_available() -> bool:
+    """UDFManager + cognac112.udf スキーマが解決でき named-path put が可能か。
+
+    build-udf (UDFManager ベース writer) はスキーマ解決が必須なので、OCTA が
+    無い / cognac112.udf が見つからない環境では writer 系テストを skip する。
+    """
+    try:
+        from UDFManager import UDFManager  # noqa
+    except Exception:
+        return False
+    d = tempfile.mkdtemp()
+    p = Path(d) / "probe.udf"
+    p.write_text('\\include{"cognac112.udf"}\n\\begin{data}\n\\end{data}\n')
+    try:
+        u = UDFManager(str(p))
+        u.put("x", "Interactions.Pair_Interaction[0].Name")
+        return True
+    except Exception:
+        return False
+
+
+# 全 cg_dpd テストで共有する skip マーカー (UDFManager ベース writer 用)
+requires_cognac = pytest.mark.skipif(
+    not _cognac_schema_available(),
+    reason="UDFManager + cognac112.udf schema unavailable (OCTA 非導入環境)",
+)
 
 
 @pytest.fixture(scope="session")

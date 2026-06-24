@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from .conftest import requires_cognac
+
 
 @pytest.fixture(scope="session")
 def water_monomer_file(tmp_path_factory):
@@ -126,6 +128,7 @@ def test_from_multi_files_warns_on_aij_mismatch(
     assert len(b.spec.monomers) == 1
 
 
+@requires_cognac
 def test_cli_multi_monomer_build_udf(
     tmp_path, cholesterol_cg, water_monomer_file, chol_wat_aij,
 ):

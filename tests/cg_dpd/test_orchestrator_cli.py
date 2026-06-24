@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from .conftest import requires_cognac
+
 
 def test_builder_from_files_with_calc_sett(cholesterol_cg, sample_aij_a_mode):
     from abmptools.cg.dpd import CGDpdBuilder
@@ -55,6 +57,7 @@ def test_segment_names_unique(cholesterol_cg, sample_aij_a_mode):
 
 # --- CLI ---------------------------------------------------------------------
 
+@requires_cognac
 def test_cli_build_udf(tmp_path, cholesterol_cg, sample_aij_a_mode):
     """`python -m abmptools.cg.dpd build-udf ...` で UDF 生成。"""
     out = tmp_path / "chol_uin.udf"

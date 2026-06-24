@@ -26,6 +26,7 @@ from .dpm_writer import (
 from .models import AijMatrix, CalcSett, DpdSystemSpec, MonomerSpec
 from .monomer_io import assign_particle_names, read_monomer
 from .udf_writer import write_dpd_udf
+from .udf_writer_udfm import write_dpd_udf_udfm
 
 logger = logging.getLogger(__name__)
 
@@ -251,7 +252,11 @@ class CGDpdBuilder:
         *,
         include_file: str = "cognac112.udf",
     ) -> Path:
-        """**R1**: Cognac DPD 入力 UDF (skeleton) を plain text で出力。
+        """**R1**: Cognac DPD 入力 UDF を **UDFManager** で出力 (cognac112 スキーマ準拠)。
+
+        named-path put で組み立てるため cognac でロード可能な UDF になる。
+        ``UDFManager`` (OCTA 同梱) が必須 (`include_file` の cognac クラス定義も
+        UDFManager が解決できる場所に必要)。
 
         Parameters
         ----------
@@ -261,4 +266,4 @@ class CGDpdBuilder:
             冒頭 ``\\include`` で参照する Cognac class 定義 file (default
             ``"cognac112.udf"``、 J-OCTA 11.x 同梱)。
         """
-        return write_dpd_udf(self.spec, output_path, include_file=include_file)
+        return write_dpd_udf_udfm(self.spec, output_path, include_file=include_file)

@@ -268,10 +268,11 @@ def open_panel(sg: "CGSegmenter") -> None:
             )
             dpdgen_status.value = (
                 f'<span style="color:#28a745;">'
-                f'DPDgen monomer: <code>{mono}</code><br>'
-                f'DPDgen calc_sett: <code>{calc}</code><br>'
-                f'(edit ratio_list / aij_file / phys_param, then '
-                f'<code>python makeudf_dpd.py -p {calc}</code>)</span>'
+                f'DPD monomer: <code>{mono}</code><br>'
+                f'DPD calc_sett: <code>{calc}</code><br>'
+                f'(edit ratio_list / aij_file / phys_param, then build with '
+                f'<code>python -m abmptools.cg.dpd build-udf --monomer {mono} '
+                f'--aij aij.dat --calc-sett {calc} --output dpd_uin.udf</code>)</span>'
             )
         except Exception as e:
             dpdgen_status.value = f'<span style="color:#dc3545;">Error: {e}</span>'

@@ -2,11 +2,18 @@
 """
 abmptools.fragmenter.cg_segmenter.dpdgen_exporter
 -------------------------------------------------
-CG segments から DPDgen 入力 (`{name}_monomer` + `{name}_calc_sett`) を生成する。
+CG segments から DPD 入力 (`{name}_monomer` + `{name}_calc_sett`) を生成する。
+CG セグメント間 bond / angle と物理パラメータを Python スクリプト形式で記述する。
 
-DPDgen は Koji Okuwaki 作の DPD UDF 生成ツール (OCTA COGNAC エコシステム、
-FCEWS / ABINIT-MP / COGNAC と連携)。CG セグメント間 bond と物理パラメータを
-Python スクリプト形式で記述する。
+この出力は **`abmptools.cg.dpd`** がそのまま読み込み、Cognac DPD 入力 UDF (R1) /
+J-OCTA dpm (R2) を生成する (外部ツール不要・abmptools 単体で完結)。
+「DPDgen」は同形式の発祥である Koji Okuwaki 作 DPD UDF 生成ツールの名残で、
+本モジュールが外部 dpdgen に依存しているわけではない。
+
+**位置づけ (公開版スコープ)**: 本モジュールは **汎用 (reference) の DPD 入力
+生成**を担う。下表のパラメータは cholesterol 等から得た **汎用既定値**であり、
+系ごとの最適パラメータ・特化 bead-typing・production チューニングは公開版の
+範囲外 (= 別途 private 拡張で当て込む想定)。
 
 ## 生成される 5 種類の constraint
 
@@ -42,11 +49,17 @@ output_dir/
 └── {name}_calc_sett     # Python: total_num_list, step_list, phys_param, ...
 ```
 
-## 既存 DPDgen sample との互換性
+## 下流処理
 
-`/home/okuwaki/repos/dpdgen/sample/monomer_model/membrane_angleon/` の
-angle13 / angle13data format に準拠。`python makeudf_dpd.py -p {name}_calc_sett`
-でそのまま処理できる。
+生成した `{name}_monomer` + `{name}_calc_sett` は、aij.dat と合わせて
+``abmptools.cg.dpd`` で DPD 入力 UDF / dpm に変換する::
+
+    python -m abmptools.cg.dpd build-udf \\
+        --monomer {name}_monomer --aij aij.dat --calc-sett {name}_calc_sett \\
+        --output {name}_uin.udf --particle-names P0,P1,...
+
+monomer の bond12 / angle13 等の format は DPDgen 由来だが、消費側は
+``abmptools.cg.dpd`` (自前実装、外部 dpdgen / UDFManager 非依存) である。
 """
 from __future__ import annotations
 

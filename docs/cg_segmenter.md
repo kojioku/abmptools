@@ -18,6 +18,28 @@
 
 両者は **共通の `pdb_loader` / `auto_split` (target_mw walk)** を流用し、segment 抽出ロジックと出力部分のみ異なる。
 
+## 公開版のスコープ (open-core)
+
+本モジュール (公開版 abmptools) が担うのは **汎用 (reference) の CG segmentation と
+入力生成**まで:
+
+- ✅ ring 検出 / chain split / cap 付与 (汎用 segmentation)
+- ✅ per-segment PDB / XYZ / JSON 出力
+- ✅ **FCEWS segment_data.dat 生成** (FMO 入力。別系統)
+- ✅ **DPD 入力 (`{name}_monomer` + `{name}_calc_sett`) 生成** → `abmptools.cg.dpd` で
+  Cognac UDF / dpm に変換 (汎用既定パラメータ)
+
+以下は **公開版の範囲外** (= 研究・production の当て込みノウハウ。別途 private 拡張で対応):
+
+- 系ごとに最適化した bond/angle パラメータ・aij/chi セット
+- 命名済み bead-typing / 系特化の分類 (例: `chobond_alkyl12` 等)
+- 5 環以上の縮環 chain・anthracene 等への特化 default
+- 実系の production workflow
+
+公開版の DPD パラメータ (bond13_150=1.661, bond14_150=2.502, stiffness 等) は
+cholesterol 等から得た **汎用既定値**であり、系ごとの最適値ではない。bead 粒子は
+index ベース (P0, P1, …) で、命名 typing は範囲外。
+
 ## インストール
 
 ```bash
@@ -353,13 +375,22 @@ angle13data = [
 
 ### 出力ファイルの使い方
 
+生成した `{name}_monomer` + `{name}_calc_sett` は、aij.dat と合わせて
+**`abmptools.cg.dpd`** で DPD 入力 UDF / dpm に変換する（外部ツール不要・
+abmptools 単体で完結）:
+
 ```bash
-# DPDgen の makeudf_dpd.py を実行
 cd ./dpdgen_input
-python /path/to/dpdgen/makeudf_dpd.py -p chol_calc_sett
-# -> zz_test.inp_xxx UDF を生成
-# -> OCTA COGNAC でそのまま DPD MD 実行
+python -m abmptools.cg.dpd build-udf \
+    --monomer chol_monomer --aij aij.dat --calc-sett chol_calc_sett \
+    --output chol_uin.udf --particle-names P0,P1,P2,P3,P4
+# -> chol_uin.udf (Cognac DPD 入力 UDF) を生成 → OCTA COGNAC で DPD MD 実行
 ```
+
+> **Note**: monomer の bond12 / angle13 等の format は「DPDgen」(Okuwaki 作の
+> 外部 DPD UDF 生成ツール) 由来の名残だが、消費側は `abmptools.cg.dpd`
+> (自前実装、外部 dpdgen / UDFManager 非依存)。本ツールは外部 dpdgen に
+> 依存しない。詳細は [`docs/cg_dpd.md`](cg_dpd.md)。
 
 ## FCEWS export (FCEWS 向け segment_data.dat 生成)
 
