@@ -67,6 +67,10 @@ res = assign_charges_to_bulk("bulk.udf", tmpl, "bulk_charged.udf")
 - 割り当て前に **atom 数 (必須)** と **`Atom_Type_Name` 列** (`verify_atom_types`)
   を検証。 不一致時は `strict=True` で例外、 `False` で warning + skip。
 - 出力は別ファイル (入力 bulk は無改変)。
+- **座標は無改変**: 更新するのは `electrostatic_Site` のみで、 `Structure.Position`
+  (dynamic record の座標) や `Unit_Cell` はそのまま保持される。 したがって
+  座標付きバルク UDF に電荷を載せても OCTA viewer でそのまま開ける
+  (`sample/udfcharge/` は座標付き)。
 
 ## 制限
 
