@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Added — hbond per-molecule 2D structure diagram (検出 H-bond サイトの可視化)
+
+- 解析実行時に **分子種ごとの 2D 構造式**を自動出力し、検出した donor (赤) /
+  acceptor (シアン) 原子を色分け表示する(`<prefix>_diagram[_<molname>].{png,svg}`)。
+  COGNAC UDF の topology(`Atom_Name` の元素 + 結合 + record0 座標)から RDKit で
+  分子を構築し、UDF に結合次数が無くても幾何から芳香環 / C=O を知覚する
+  (`rdDetermineBonds.DetermineBondOrders`)。分子種は element 署名で重複排除。
+- RDKit はオプション依存: 未導入 / 知覚失敗(電荷不一致等)なら警告で skip。
+  `--no-diagram` で抑制、`--diagram-charge` で正味電荷を指定(default 0 = 中性)。
+- 新 module `abmptools/hbond/diagram.py`(`element_from_name` /
+  `build_mol_from_topology` / `draw_hbond_diagram`)+ `tests/hbond/test_diagram.py`
+  (4 件)。hbond suite 87 passed。APZ 実機で lactam の amide N-H → C=O を自動色分け。
+
+### Fixed — hbond `_count.png` が generic/auto mode でも COOH 凡例を出していた
+
+- count プロットが classify_mode で分岐せず、常に imc の "dual/chain/single/free
+  COOH-COOH mols" 凡例(generic では 0 線)を描いていた。generic/auto では
+  **donor_type→acceptor_type ペア種別ごとの H-bond 本数**を描くよう修正。
+
 ## [2.2.1] - 2026-06-25
 
 ### Added — hbond `--classify-mode auto` (官能基の自動認識)

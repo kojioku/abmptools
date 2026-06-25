@@ -140,6 +140,12 @@ class AnalyzerConfig:
     distance_d_max: float = 3.6        # Å, upper edge (Luzar-Chandler cutoff 3.5 + slack)
     distance_bin_width: float = 0.05   # Å
     angle_bin_width: float = 5.0       # deg, used for the 2-D (d, θ) heatmap
+    # Per-molecule 2D structure diagram marking the detected H-bond sites
+    # (red = donor, cyan = acceptor). Requires RDKit; skipped with a warning if
+    # unavailable or if bond-order perception fails. diagram_charge is the net
+    # molecular charge passed to DetermineBondOrders (0 = neutral).
+    do_diagram: bool = True
+    diagram_charge: int = 0
 
     def get_criteria(self) -> HBondCriteria:
         if self.criteria_mode == "luzar-chandler":
@@ -374,6 +380,9 @@ class Analyzer:
         acceptor_sites_by_type, acceptor_meta_by_type = (
             self._build_acceptor_sites_by_type(acceptor_groups)
         )
+        # Stash detected sites so write_outputs() can render the 2D diagram.
+        self.donor_sites_by_type = donor_sites_by_type
+        self.acceptor_sites_by_type = acceptor_sites_by_type
 
         # IMC mode keeps backward-compat names for hb_cc/hb_ca path
         carb_donors = donor_sites_by_type.get("carboxyl", [])
@@ -700,17 +709,36 @@ class Analyzer:
                 import matplotlib.pyplot as plt
                 recs = [fr.record for fr in self.frame_results]
                 fig, ax = plt.subplots(figsize=(7, 4))
-                ax.plot(recs, [fr.n_dual_mols for fr in self.frame_results],
-                        "o-", color="red", label="dual COOH-COOH mols")
-                ax.plot(recs, [fr.n_chain_mols for fr in self.frame_results],
-                        "D-", color="magenta", label="chain COOH-COOH mols")
-                ax.plot(recs, [fr.n_single_mols for fr in self.frame_results],
-                        "s-", color="blue", label="single COOH-amide mols")
-                ax.plot(recs, [fr.n_free_mols for fr in self.frame_results],
-                        "^-", color="gray", label="free mols")
+                if mode == "imc":
+                    ax.plot(recs, [fr.n_dual_mols for fr in self.frame_results],
+                            "o-", color="red", label="dual COOH-COOH mols")
+                    ax.plot(recs, [fr.n_chain_mols for fr in self.frame_results],
+                            "D-", color="magenta", label="chain COOH-COOH mols")
+                    ax.plot(recs, [fr.n_single_mols for fr in self.frame_results],
+                            "s-", color="blue", label="single COOH-amide mols")
+                    ax.plot(recs, [fr.n_free_mols for fr in self.frame_results],
+                            "^-", color="gray", label="free mols")
+                    ax.set_ylabel("number of molecules")
+                    ax.set_title(f"H-bond classification ({c.criteria_mode})")
+                else:
+                    # generic / auto: one line per donor→acceptor pair type
+                    pair_types = sorted(
+                        {pt for fr in self.frame_results
+                         for pt in fr.hbonds_by_pair_type}
+                    )
+                    for pt in pair_types:
+                        counts = [len(fr.hbonds_by_pair_type.get(pt, []))
+                                  for fr in self.frame_results]
+                        ax.plot(recs, counts, "o-", markersize=3,
+                                label=f"{pt[0]}→{pt[1]}")
+                    if not pair_types:
+                        ax.plot(recs, [0] * len(recs), "o-", color="gray",
+                                label="(no H-bonds detected)")
+                    ax.set_ylabel("number of H-bonds")
+                    ax.set_title(
+                        f"H-bond count per pair type ({c.criteria_mode})"
+                    )
                 ax.set_xlabel("record")
-                ax.set_ylabel("number of molecules")
-                ax.set_title(f"H-bond classification ({c.criteria_mode})")
                 ax.legend()
                 ax.grid(True, alpha=0.3)
                 fig.tight_layout()
@@ -728,6 +756,86 @@ class Analyzer:
         if c.compute_lifetime and len(self.frame_results) >= 2:
             out_paths.update(self._write_lifetime_outputs())
 
+        # Per-molecule 2D structure diagram of the detected H-bond sites
+        if c.do_diagram:
+            out_paths.update(self._write_diagram_outputs())
+
+        return out_paths
+
+    def _write_diagram_outputs(self) -> Dict[str, str]:
+        """Render a 2D structure diagram per molecular species, marking the
+        detected donor (red) / acceptor (cyan) atoms. Requires RDKit; skipped
+        with a warning if unavailable or if a molecule cannot be perceived."""
+        from . import diagram as _dg
+        c = self.config
+        out_paths: Dict[str, str] = {}
+
+        donor_by_type = getattr(self, "donor_sites_by_type", {}) or {}
+        acceptor_by_type = getattr(self, "acceptor_sites_by_type", {}) or {}
+        donors_per_mol: Dict[int, set] = {}
+        acceptors_per_mol: Dict[int, set] = {}
+        donor_types_per_mol: Dict[int, set] = {}
+        acceptor_types_per_mol: Dict[int, set] = {}
+        for dtype, sites in donor_by_type.items():
+            for s in sites:
+                donors_per_mol.setdefault(s.mol_index, set()).add(s.d_local)
+                donor_types_per_mol.setdefault(s.mol_index, set()).add(dtype)
+        for atype, sites in acceptor_by_type.items():
+            for s in sites:
+                acceptors_per_mol.setdefault(s.mol_index, set()).add(s.a_local)
+                acceptor_types_per_mol.setdefault(s.mol_index, set()).add(atype)
+
+        if not donors_per_mol and not acceptors_per_mol:
+            if c.verbose:
+                print("  (diagram skipped: no donor/acceptor atoms detected)")
+            return {}
+
+        rec0 = c.record_start
+        try:
+            frame = self.traj.get_frame(rec0)
+        except Exception:
+            frame = self.traj.get_frame(0)
+
+        # Group molecules into unique species by element signature (robust to
+        # per-atom-unique force-field type names).
+        species: Dict[tuple, int] = {}
+        for mi, topo in enumerate(self.traj.molecules):
+            sig = tuple(_dg.element_from_name(a.atom_name) for a in topo.atoms)
+            species.setdefault(sig, mi)
+        multi = len(species) > 1
+        n_done = 0
+        for sig, mi in species.items():
+            d_atoms = sorted(donors_per_mol.get(mi, set()))
+            a_atoms = sorted(acceptors_per_mol.get(mi, set()))
+            if not d_atoms and not a_atoms:
+                continue
+            topo = self.traj.molecules[mi]
+            coords = frame.positions[mi]
+            mol, reason = _dg.build_mol_from_topology(
+                topo, coords, charge=c.diagram_charge,
+            )
+            if mol is None:
+                print(f"Warning: diagram skipped for {topo.mol_name}: {reason}")
+                continue
+            dnames = ", ".join(sorted(donor_types_per_mol.get(mi, set()))) or "—"
+            anames = ", ".join(sorted(acceptor_types_per_mol.get(mi, set()))) or "—"
+            legend = (f"{topo.mol_name}   red = donor ({dnames})   "
+                      f"cyan = acceptor ({anames})")
+            suffix = f"_diagram_{topo.mol_name}" if multi else "_diagram"
+            png = f"{c.out_prefix}{suffix}.png"
+            svg = f"{c.out_prefix}{suffix}.svg"
+            try:
+                _dg.draw_hbond_diagram(mol, d_atoms, a_atoms, png, svg,
+                                       legend=legend)
+            except Exception as e:  # noqa: BLE001
+                print(f"Warning: diagram render failed for {topo.mol_name}: {e}")
+                continue
+            key = f"diagram_{topo.mol_name}" if multi else "diagram"
+            out_paths[key] = png
+            out_paths[key + "_svg"] = svg
+            n_done += 1
+        if c.verbose and n_done:
+            print(f"  diagram: {n_done} molecular species rendered")
         return out_paths
 
     def _write_distance_outputs(self) -> Dict[str, str]:

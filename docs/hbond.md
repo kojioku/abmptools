@@ -37,7 +37,8 @@ v1.27.0 候補 (per-functional-group classification) で「分子単位 1 役割
 | `<prefix>_colored.bdf` | Mol_Name リネーム + Draw_Attributes (`colorize_mode` が `molname` / `both` の時) |
 | `<prefix>_action.bdf` + `<prefix>_show.act` | Mol_Name 維持 + autorun action (OCTA gourmet 用、`colorize_mode` が `action` / `both` の時) |
 | `<prefix>_show.py` | autorun ラッパーなしのプレーン script (OCTA viewer Python パネル用、`<prefix>.bdf` に対して Run、`colorize_mode` が `action` / `both` の時) |
-| `<prefix>_count.png` | count vs record プロット |
+| `<prefix>_count.png` | count vs record プロット。imc は dual/chain/single/free **分子数**、generic/auto は donor_type→acceptor_type **ペア種別ごとの H-bond 本数**(classify_mode で凡例が切り替わる) |
+| `<prefix>_diagram[_<molname>].{png,svg}` | **分子種ごとの 2D 構造式**に検出した H-bond サイトを色分け(赤=donor / シアン=acceptor)。topology(`Atom_Name` の元素 + 結合 + record0 座標)から RDKit で構築し、結合次数は幾何から知覚。RDKit 必須(無ければ警告で skip)。`--no-diagram` で抑制、`--diagram-charge` で電荷指定。分子種が 1 つなら `<prefix>_diagram.{png,svg}`、複数なら mol_name 付き |
 | `<prefix>_distance_stats.csv` | クラス別 (`all` / `COOH-COOH` / `COOH-COOH (dual)` / `COOH-COOH (chain/single)` / `COOH-amide`) の d(D...A) 統計量 (`n`, `mean`, `median`, `std`, `peak`, `p25`, `p75`) |
 | `<prefix>_distance_hist.csv` | 同じデータの long-form ヒストグラム (`label`, `bin_center_DA`, `count`) — 任意の再描画用 |
 | `<prefix>_distance_hist.png` | A: 全 H-bond の d(D...A) ヒストグラム (mean / peak 注釈付き) |
@@ -317,6 +318,10 @@ python -m abmptools.hbond <bdf_path> \
 --distance-d-max FLOAT    d ヒストグラム上限 Å (default 3.6 = LC cutoff + slack)
 --distance-bin-width FLOAT  d ヒストグラム bin 幅 Å (default 0.05)
 --angle-bin-width FLOAT     2-D heatmap の ∠ bin 幅 deg (default 5.0)
+--no-diagram              分子種ごとの 2D 構造式 (H-bond サイト色分け) を抑制
+                          (default は RDKit があれば自動生成)
+--diagram-charge INT      diagram の結合次数知覚 (DetermineBondOrders) に渡す
+                          正味電荷 (default 0 = 中性)
 ```
 
 ### Python API
