@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-06-26
+
 ### Added — hbond per-molecule 2D structure diagram (検出 H-bond サイトの可視化)
 
 - 解析実行時に **分子種ごとの 2D 構造式**を自動出力し、検出した donor (赤) /
