@@ -75,6 +75,15 @@ class HydroxylGroup:
 
 
 @dataclass
+class EtherGroup:
+    """Ether-type oxygen acceptor: ``o_atom`` = O bonded to two carbons
+    (C-O-C) with no hydrogen. Covers dialkyl / aryl ethers and the
+    single-bonded ester oxygen."""
+    mol_index: int
+    o_atom: int
+
+
+@dataclass
 class AmineDonorGroup:
     """N-H donor site (typically secondary/primary amide, primary/secondary amine).
 
@@ -237,6 +246,41 @@ def detect_hydroxyls(
                 out.append(HydroxylGroup(
                     mol_index=mi, oh_atom=oh_atom, ho_atom=ho_neigh[0]
                 ))
+    return out
+
+
+def detect_ethers(
+    molecules: List[MoleculeTopology],
+    mapping: Optional[FunctionalTagMapping] = None,
+) -> List[EtherGroup]:
+    """Find ether-type oxygen acceptors: an O bonded to **exactly two carbons**
+    (C-O-C) with **no hydrogen**.
+
+    Covers dialkyl / aryl ethers and the single-bonded ester oxygen; excludes
+    hydroxyl O (has an H neighbour) and carbonyl O (a single heavy neighbour,
+    i.e. the C=O appears as degree-1 in the bond graph). Element + connectivity
+    based (not tag based), so it works for force fields that have no dedicated
+    ether atom type — e.g. OpenFF SMIRNOFF, whose per-atom-unique names make the
+    element fallback tag an ether O as ``carbonyl_O``. ``mapping`` is accepted
+    for signature parity with the other detectors but is not used.
+    """
+    from .diagram import element_from_name
+    out: List[EtherGroup] = []
+    for mi, topo in enumerate(molecules):
+        elems = [element_from_name(a.atom_name) for a in topo.atoms]
+        adj: Dict[int, List[int]] = defaultdict(list)
+        for b in topo.bonds:
+            adj[b.atom1].append(b.atom2)
+            adj[b.atom2].append(b.atom1)
+        for ai, e in enumerate(elems):
+            if e != "O":
+                continue
+            nbr_elems = [elems[j] for j in adj[ai] if 0 <= j < len(elems)]
+            if "H" in nbr_elems:
+                continue   # hydroxyl / water oxygen, not an ether
+            heavy = [x for x in nbr_elems if x != "H"]
+            if len(heavy) == 2 and all(x == "C" for x in heavy):
+                out.append(EtherGroup(mol_index=mi, o_atom=ai))
     return out
 
 

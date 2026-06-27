@@ -62,9 +62,9 @@ from .func_tags import (
     get_mapping, tag_atoms,
 )
 from .functional_groups import (
-    AmideGroup, AmineDonorGroup, CarboxylGroup, HydroxylGroup,
+    AmideGroup, AmineDonorGroup, CarboxylGroup, EtherGroup, HydroxylGroup,
     detect_amides, detect_amine_donors, detect_carboxyls,
-    detect_hydroxyls, summarize_groups,
+    detect_ethers, detect_hydroxyls, summarize_groups,
 )
 from .lifetime import (
     PairKey, PairLifetime,
@@ -96,8 +96,9 @@ __all__ = [
     "get_mapping", "tag_atoms",
     # functional groups
     "CarboxylGroup", "AmideGroup", "HydroxylGroup", "AmineDonorGroup",
+    "EtherGroup",
     "detect_carboxyls", "detect_amides", "detect_hydroxyls",
-    "detect_amine_donors", "summarize_groups",
+    "detect_amine_donors", "detect_ethers", "summarize_groups",
     # detector
     "HBond", "HBondCriteria", "DonorSite", "AcceptorSite",
     "detect_hbonds", "minimum_image_vector",

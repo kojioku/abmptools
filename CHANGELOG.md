@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Added — hbond ether-oxygen acceptor detection (`detect_ethers`)
+
+- `abmptools.hbond.functional_groups.detect_ethers` を追加: **C-O-C エーテル酸素**
+  (酸素が炭素 2 個と結合・H 無し)を acceptor として検出する。element + 結合グラフ
+  ベースで、ester の単結合 O も拾う。OpenFF SMIRNOFF のように専用 ether atom type が
+  無い FF でも動作する(従来 element fallback はエーテル O を `carbonyl_O` と tag して
+  いたが、結合次数=1 の真の C=O と区別して degree=2 を ether と判定)。
+- `--classify-mode auto` がエーテル O を検出時に自動で `ether_O` を acceptor に追加。
+  `_build_acceptor_sites_by_type` の `ether_O` 経路を実 detector に置換(従来は no-op
+  stub)。2D diagram もエーテル O を acceptor として色付けする。
+- 実機: APZ (aripiprazole) で butoxy エーテル O を検出し、record 0 で
+  `amide_donor→ether_O` を 6 本検出(従来は 0)。`EtherGroup` / `detect_ethers` を
+  公開 API に追加。test `tests/hbond/test_functional_groups.py` (+3)、hbond suite 90 passed。
+
 ## [2.3.0] - 2026-06-26
 
 ### Added — hbond per-molecule 2D structure diagram (検出 H-bond サイトの可視化)

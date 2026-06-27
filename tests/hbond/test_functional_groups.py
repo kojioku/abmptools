@@ -63,3 +63,42 @@ def test_summarize_groups(imc_traj):
     assert s["n_amides"] == 125
     assert s["n_mols_with_carboxyl"] == 125
     assert s["n_mols_with_amide"] == 125
+
+
+# --- ether detection (element + connectivity, FF-agnostic) -------------------
+
+from abmptools.hbond.bdf_reader import AtomInfo, BondInfo, MoleculeTopology
+from abmptools.hbond.functional_groups import detect_ethers
+
+
+def _mol(atom_names, bonds):
+    atoms = [AtomInfo(atom_id=i, atom_name=nm, atom_type=nm)
+             for i, nm in enumerate(atom_names)]
+    bond_objs = [BondInfo(type_name="", atom1=a, atom2=b, order=1.0)
+                 for a, b in bonds]
+    return MoleculeTopology(mol_name="LIG", atoms=atoms, bonds=bond_objs)
+
+
+def test_detect_ethers_dimethyl_ether():
+    # CH3-O-CH3: O bonded to two carbons, no H -> one ether
+    names = ["C", "O", "C", "H", "H", "H", "H", "H", "H"]
+    bonds = [(0, 1), (1, 2), (0, 3), (0, 4), (0, 5), (2, 6), (2, 7), (2, 8)]
+    ethers = detect_ethers([_mol(names, bonds)])
+    assert len(ethers) == 1
+    assert ethers[0].mol_index == 0
+    assert ethers[0].o_atom == 1
+
+
+def test_detect_ethers_excludes_hydroxyl():
+    # methanol C-O-H: the O has an H neighbour -> not an ether
+    names = ["C", "O", "H", "H", "H", "H"]
+    bonds = [(0, 1), (1, 2), (0, 3), (0, 4), (0, 5)]
+    assert detect_ethers([_mol(names, bonds)]) == []
+
+
+def test_detect_ethers_excludes_carbonyl():
+    # acetone C(=O): the carbonyl O has a single heavy neighbour -> not an ether
+    names = ["C", "O", "C", "C", "H", "H", "H", "H", "H", "H"]
+    bonds = [(0, 1), (0, 2), (0, 3),
+             (2, 4), (2, 5), (2, 6), (3, 7), (3, 8), (3, 9)]
+    assert detect_ethers([_mol(names, bonds)]) == []

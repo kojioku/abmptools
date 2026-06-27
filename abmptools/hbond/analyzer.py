@@ -293,19 +293,14 @@ class Analyzer:
                     (g.mol_index, g.oh_atom) for g in hydroxyls
                 ]
         if "ether_O" in acceptor_groups:
-            # detect ether-type O via tag scan (hydroxyl_O w/o H counts as ether)
-            from .func_tags import TAG_CARBONYL_O
-            sites: List[AcceptorSite] = []
-            for mi, topo in enumerate(self.traj.molecules):
-                tags = [self.mapping.get_tag(a.atom_type) for a in topo.atoms]
-                for ai, t in enumerate(tags):
-                    if t in (TAG_CARBONYL_O,):
-                        pass  # already covered by carboxyl_O / amide_O / etc.
-            # Best-effort fallback: rely on user-provided detect_hydroxyls path
-            # for now; users with ether systems can extend func_tags mapping.
+            from .functional_groups import detect_ethers
+            ethers = detect_ethers(self.traj.molecules, mapping=self.mapping)
+            sites = [AcceptorSite(g.mol_index, g.o_atom) for g in ethers]
             if sites:
                 sites_by_type["ether_O"] = sites
-                meta_by_type["ether_O"] = [(s.mol_index, s.acceptor_a) for s in sites]
+                meta_by_type["ether_O"] = [
+                    (g.mol_index, g.o_atom) for g in ethers
+                ]
         return sites_by_type, meta_by_type
 
     def _auto_groups(self) -> Tuple[List[str], List[str]]:
@@ -314,13 +309,12 @@ class Analyzer:
         Used by ``classify_mode='auto'``. Returns ``(donor_groups,
         acceptor_groups)`` listing only the functional-group types actually
         detected (carboxyl / amide / secondary-amide N-H / amine N-H /
-        hydroxyl). ``ether_O`` is NOT auto-listed because there is no reliable
-        ether detector yet (GAFF2 ``os``-tag only); pass ``--acceptor-groups
-        ether_O`` explicitly if needed.
+        hydroxyl / ether). Ether oxygens (C-O-C) are auto-listed as acceptors
+        when present (e.g. the butoxy linker in aripiprazole).
         """
         if self.traj is None:
             self.load()
-        from .functional_groups import detect_hydroxyls
+        from .functional_groups import detect_hydroxyls, detect_ethers
         donors: List[str] = []
         acceptors: List[str] = []
         if self.carboxyls:
@@ -336,6 +330,8 @@ class Analyzer:
             acceptors.append("hydroxyl_O")
         if self.amides:
             acceptors.append("amide_O")
+        if detect_ethers(self.traj.molecules, mapping=self.mapping):
+            acceptors.append("ether_O")
         return donors, acceptors
 
     def run(self) -> List[FrameResult]:
