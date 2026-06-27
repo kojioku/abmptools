@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-06-27
+
 ### Added — hbond ether-oxygen acceptor detection (`detect_ethers`)
 
 - `abmptools.hbond.functional_groups.detect_ethers` を追加: **C-O-C エーテル酸素**
