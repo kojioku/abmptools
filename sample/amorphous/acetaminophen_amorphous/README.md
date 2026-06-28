@@ -73,7 +73,12 @@ acetaminophen は OH と amide の相互供与で密な network を作る。
 
 `pair_stats.csv` / `pairs.csv` / `count.png` / `distance_stats.csv` /
 `distance_hist.{csv,png}` / `distance_by_class.png` / `distance_angle_2d.png` /
-`lifetime.csv` / `autocorr.{csv,png}`。
+`lifetime.csv` / `autocorr.{csv,png}` / **`diagram.{png,svg}`**。
+
+`diagram.{png,svg}`(`abmptools 2.4.0`+、解析時に自動生成)は分子の 2D 構造式に検出した
+H-bond サイトを色分け表示する: **赤=donor(amide N–H)/ シアン=acceptor(amide C=O)/
+マゼンタ=donor かつ acceptor**。acetaminophen は **phenol OH が donor かつ acceptor →
+マゼンタ**(`2.4.1`+)。`count.png` は generic/auto で donor→acceptor ペア種別ごとの本数。
 
 ## 備考
 
