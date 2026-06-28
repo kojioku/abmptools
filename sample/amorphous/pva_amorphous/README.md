@@ -65,6 +65,10 @@ ON) が自動で element + bond graph から ``hydroxyl_O`` / ``hydroxyl_H`` 等
 - `output/pva_hbond_pair_stats.csv`: per-record の `hydroxyl -> hydroxyl_O` 集計
   (n_hbonds, n_uniq_donors, n_uniq_acceptors, ratio_*_busy)
 - `output/pva_hbond_pairs.csv`: H-bond ペア一覧
+- `output/pva_hbond_count.png`: ペア種別ごとの本数 vs record(`hydroxyl→hydroxyl_O`)
+- `output/pva_hbond_diagram.{png,svg}`: 2D 構造式に H-bond サイトを色分け
+  (`abmptools 2.4.0`+ で解析時に自動生成、`2.4.1`+ で both=magenta)。**PVA は全 OH が
+  donor かつ acceptor → 全 OH がマゼンタ**(下記の色規約と同じ)
 - `output/pva_hbond.bdf`: Mol_Name 維持 + Attributes に
   `hbond=Donor/Acceptor/Both` を append (J-OCTA Attribute フィルタ用)
 - `output/pva_hbond_action.bdf` + `_show.act`: gourmet autorun
