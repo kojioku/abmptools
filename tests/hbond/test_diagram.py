@@ -82,3 +82,23 @@ def test_draw_hbond_diagram_writes_files(tmp_path):
     assert set(written) == {png, svg}
     import os
     assert os.path.getsize(png) > 0 and os.path.getsize(svg) > 0
+
+
+def test_draw_hbond_diagram_both_role(tmp_path):
+    # an atom present in BOTH donor and acceptor lists (e.g. an OH oxygen) must
+    # render without error via the donor+acceptor (magenta) branch.
+    pytest.importorskip("rdkit")
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+
+    ref = Chem.AddHs(Chem.MolFromSmiles("CC(=O)N"))
+    assert AllChem.EmbedMolecule(ref, randomSeed=1) == 0
+    topo, coords = _mock_topology_from_rdkit(ref)
+    mol, reason = build_mol_from_topology(topo, coords, charge=0)
+    assert mol is not None, reason
+    n_idx, c_idx, o_idx = mol.GetSubstructMatches(
+        Chem.MolFromSmarts("[NX3][CX3]=[OX1]"))[0]
+    png = str(tmp_path / "both.png")
+    written = draw_hbond_diagram(mol, [n_idx, o_idx], [o_idx], png)  # O in both
+    import os
+    assert written == [png] and os.path.getsize(png) > 0

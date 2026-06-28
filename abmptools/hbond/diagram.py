@@ -26,6 +26,7 @@ _ONE_LETTER = set("HCNOFPSKIBW")
 
 DONOR_COLOR = (0.92, 0.30, 0.30)     # red
 ACCEPTOR_COLOR = (0.20, 0.75, 0.90)  # cyan
+BOTH_COLOR = (0.85, 0.45, 0.85)      # magenta (donor AND acceptor, e.g. an OH)
 
 
 def element_from_name(name: str) -> str:
@@ -99,8 +100,11 @@ def draw_hbond_diagram(
     legend: str = "",
     donor_note: str = "donor",
     acceptor_note: str = "acceptor",
+    both_note: str = "donor+acceptor",
 ) -> List[str]:
-    """Render ``mol`` 2D with donor (red) / acceptor (cyan) atoms highlighted.
+    """Render ``mol`` 2D with the H-bond sites highlighted: donor-only red,
+    acceptor-only cyan, **donor+acceptor magenta** (e.g. an OH oxygen that both
+    donates and accepts), matching the colorize Donor/Acceptor/Both convention.
 
     ``donor_atoms`` / ``acceptor_atoms`` are atom indices into ``mol`` (the
     heavy donor atom, e.g. amide N, and the acceptor atom, e.g. carbonyl O).
@@ -111,15 +115,22 @@ def draw_hbond_diagram(
     from rdkit.Chem import AllChem
     from rdkit.Chem.Draw import rdMolDraw2D
 
+    donor_set = {int(i) for i in donor_atoms}
+    acceptor_set = {int(i) for i in acceptor_atoms}
+    both_set = donor_set & acceptor_set
     work = Chem.Mol(mol)
-    for i in donor_atoms:
-        work.GetAtomWithIdx(int(i)).SetProp("_hb_role", "donor")
-    for i in acceptor_atoms:
-        work.GetAtomWithIdx(int(i)).SetProp("_hb_role", "acceptor")
+    for i in donor_set | acceptor_set:
+        role = ("both" if i in both_set
+                else "donor" if i in donor_set else "acceptor")
+        work.GetAtomWithIdx(i).SetProp("_hb_role", role)
 
     heavy = Chem.RemoveHs(work)
     AllChem.Compute2DCoords(heavy)  # 2D depiction, not a projection of the 3D pose
 
+    color_by_role = {"donor": DONOR_COLOR, "acceptor": ACCEPTOR_COLOR,
+                     "both": BOTH_COLOR}
+    note_by_role = {"donor": donor_note, "acceptor": acceptor_note,
+                    "both": both_note}
     hi_atoms: List[int] = []
     atom_cols: Dict[int, Tuple[float, float, float]] = {}
     for a in heavy.GetAtoms():
@@ -127,8 +138,8 @@ def draw_hbond_diagram(
             continue
         role = a.GetProp("_hb_role")
         hi_atoms.append(a.GetIdx())
-        atom_cols[a.GetIdx()] = DONOR_COLOR if role == "donor" else ACCEPTOR_COLOR
-        a.SetProp("atomNote", donor_note if role == "donor" else acceptor_note)
+        atom_cols[a.GetIdx()] = color_by_role[role]
+        a.SetProp("atomNote", note_by_role[role])
 
     written: List[str] = []
     targets = [("png", png_path)] + ([("svg", svg_path)] if svg_path else [])

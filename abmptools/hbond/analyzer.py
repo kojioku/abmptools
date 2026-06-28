@@ -817,6 +817,8 @@ class Analyzer:
             anames = ", ".join(sorted(acceptor_types_per_mol.get(mi, set()))) or "—"
             legend = (f"{topo.mol_name}   red = donor ({dnames})   "
                       f"cyan = acceptor ({anames})")
+            if set(d_atoms) & set(a_atoms):   # an atom is both donor and acceptor
+                legend += "   magenta = donor+acceptor"
             suffix = f"_diagram_{topo.mol_name}" if multi else "_diagram"
             png = f"{c.out_prefix}{suffix}.png"
             svg = f"{c.out_prefix}{suffix}.svg"

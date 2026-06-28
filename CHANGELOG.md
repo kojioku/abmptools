@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-06-28
+
+### Changed — hbond diagram: donor+acceptor atoms drawn magenta
+
+- 2D H-bond-site diagram で、**donor かつ acceptor の原子**(例: OH 酸素、both 役割)を
+  **マゼンタ**で描くようにした(従来は acceptor 色で上書きされ donor 役割が見えなかった)。
+  donor-only=赤 / acceptor-only=シアン / both=マゼンタ で、colorize の Donor/Acceptor/Both
+  規約と一致。凡例にも「magenta = donor+acceptor」を重複時に追記。
+- `draw_hbond_diagram` に `both_note`(default `"donor+acceptor"`)を追加(後方互換)。
+  test +1、hbond suite 91 passed。acetaminophen/PVA の phenol/alcohol OH が both で正しく表示。
+
 ## [2.4.0] - 2026-06-27
 
 ### Added — hbond ether-oxygen acceptor detection (`detect_ethers`)
