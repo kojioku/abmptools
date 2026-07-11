@@ -125,7 +125,39 @@ def create_interchange(
         kwargs["charge_from_molecules"] = molecules
     interchange = Interchange.from_smirnoff(**kwargs)
 
+    _restore_residue_names(interchange.topology, molecules)
     return interchange
+
+
+def _restore_residue_names(topology: Any, source_molecules: Any) -> None:
+    """Write meaningful GROMACS residue names onto the exported topology.
+
+    ``Topology.from_pdb`` matches the Packmol PDB (residue name 'UNL') to the
+    supplied templates, so the exported .gro/.top would otherwise label every
+    molecule 'UNL'. Match each topology molecule back to its source molecule to
+    recover its name (IMC/PVP/…) and write it as the residue name, so downstream
+    per-species analysis (e.g. abmptools.hbond mixtures) can tell components
+    apart by ``mol_name``. Done here (not at molecule prep) because a non-'UNL'
+    resname in the intermediate PDB breaks ``from_pdb`` residue matching.
+    """
+    from .molecule_prep import apply_residue_name
+    by_natoms = {}   # n_atoms -> source molecule (fast pre-filter for matching)
+    for src in source_molecules:
+        by_natoms.setdefault(src.n_atoms, []).append(src)
+    for tmol in topology.molecules:
+        match = None
+        for src in by_natoms.get(tmol.n_atoms, []):
+            try:
+                if tmol.is_isomorphic_with(src):
+                    match = src
+                    break
+            except Exception:
+                continue
+        # apply_residue_name reads .name; set it from the matched source (or keep
+        # the topology molecule's own name / default).
+        if match is not None and getattr(match, "name", ""):
+            tmol.name = match.name
+        apply_residue_name(tmol)
 
 
 def export_gromacs(

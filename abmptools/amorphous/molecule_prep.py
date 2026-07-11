@@ -115,29 +115,31 @@ def prepare_molecule(
     if not name:
         mol.name = mol.name or "MOL"
 
-    _apply_residue_name(mol)
     _maybe_assign_partial_charges(mol, charge_method, nagl_model)
 
-    logger.info("Prepared molecule '%s': %d atoms, MW=%.2f g/mol (resname %s)",
-                mol.name, mol.n_atoms, _molecular_weight(mol),
-                _residue_name_for(mol.name))
+    logger.info("Prepared molecule '%s': %d atoms, MW=%.2f g/mol",
+                mol.name, mol.n_atoms, _molecular_weight(mol))
     return mol
 
 
 def _residue_name_for(name: str) -> str:
     """GROMACS-safe residue name from a molecule name: alphanumeric, upper,
     truncated to the 5-char .gro residue-name field (e.g. 'IMC', 'PVP',
-    'acetaminophen' -> 'ACETA'). Empty -> 'MOL'."""
+    'acetaminophen' -> 'ACETA'). Empty -> 'MOL'.
+
+    Applied at GROMACS-export time (see ``parameterizer.apply_residue_names``);
+    NOT at molecule-prep time, because writing a non-``UNL`` residue name into
+    the intermediate Packmol PDB breaks ``Topology.from_pdb`` residue matching.
+    """
     base = "".join(ch for ch in (name or "") if ch.isalnum())[:5].upper()
     return base or "MOL"
 
 
-def _apply_residue_name(mol) -> None:
-    """Write a meaningful residue name onto every atom's metadata so the
-    exported GROMACS .gro/.top carry a per-molecule resname derived from
-    ``mol.name`` instead of OpenFF's default ``UNL``. This lets downstream
-    per-species analysis (e.g. abmptools.hbond mixtures) tell components apart
-    by name rather than by atom count."""
+def apply_residue_name(mol) -> None:
+    """Write a residue name derived from ``mol.name`` onto every atom's metadata
+    (so a GROMACS export carries a meaningful per-molecule resname instead of
+    OpenFF's default ``UNL``). Used on the exported Interchange topology, not on
+    the prep-time molecule (which feeds the Packmol PDB)."""
     resname = _residue_name_for(mol.name)
     for atom in mol.atoms:
         atom.metadata["residue_name"] = resname
