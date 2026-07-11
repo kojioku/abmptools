@@ -115,12 +115,32 @@ def prepare_molecule(
     if not name:
         mol.name = mol.name or "MOL"
 
+    _apply_residue_name(mol)
     _maybe_assign_partial_charges(mol, charge_method, nagl_model)
 
-    logger.info("Prepared molecule '%s': %d atoms, MW=%.2f g/mol",
-                mol.name, mol.n_atoms,
-                _molecular_weight(mol))
+    logger.info("Prepared molecule '%s': %d atoms, MW=%.2f g/mol (resname %s)",
+                mol.name, mol.n_atoms, _molecular_weight(mol),
+                _residue_name_for(mol.name))
     return mol
+
+
+def _residue_name_for(name: str) -> str:
+    """GROMACS-safe residue name from a molecule name: alphanumeric, upper,
+    truncated to the 5-char .gro residue-name field (e.g. 'IMC', 'PVP',
+    'acetaminophen' -> 'ACETA'). Empty -> 'MOL'."""
+    base = "".join(ch for ch in (name or "") if ch.isalnum())[:5].upper()
+    return base or "MOL"
+
+
+def _apply_residue_name(mol) -> None:
+    """Write a meaningful residue name onto every atom's metadata so the
+    exported GROMACS .gro/.top carry a per-molecule resname derived from
+    ``mol.name`` instead of OpenFF's default ``UNL``. This lets downstream
+    per-species analysis (e.g. abmptools.hbond mixtures) tell components apart
+    by name rather than by atom count."""
+    resname = _residue_name_for(mol.name)
+    for atom in mol.atoms:
+        atom.metadata["residue_name"] = resname
 
 
 def _load_molecule_from_pdb(pdb_path: str, name: str = "") -> Any:
