@@ -50,7 +50,7 @@ Author: Koji Okuwaki
 - 非晶質 MD の H-bond 解析 (hbond)
     - OCTA COGNAC `.udf` / `.bdf` トラジェクトリから水素結合を検出・分類・可視化するサブパッケージ
     - 2 つの解析モード切替 (`--classify-mode {imc,generic}`):
-        - **imc mode**: COOH を 4 species (cyclic dimer / chain / COOH→amide / free) に分類、Yuan 2015 (Mol. Pharm. 12, 4518) の 13C SSNMR Table 1 と直接比較可能
+        - **imc mode**: COOH を 4 species (cyclic dimer / chain / COOH→amide / free) に分類、Yuan 2015 (Mol. Pharm. 12, 4518) の 13C SSNMR H-bond 帰属に倣う (実験値は原著参照・非再掲)
         - **generic mode** (v1.28+): 任意の donor-type × acceptor-type ペア統計 (PVA / peptide / アルコール / 混合系向け)
     - Luzar-Chandler 幾何判定 (d_DA ≤ 3.5 Å, ∠ ≥ 120°) + 直交 PBC 最短像
     - **Element + bond-graph fallback** (v1.28+, default ON) で OpenFF SMIRNOFF UDF (per-atom unique `MOL0_X`) を **antechamber 不要**で直接解析
