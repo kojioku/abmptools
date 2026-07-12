@@ -54,4 +54,4 @@ by the same author (Koji Okuwaki), so the porting is in-house. No DPDgen
 source code is bundled; `abmptools.cg.dpd` provides an independent
 implementation that consumes the same fcews-unified aij.dat format
 (Python dict script: `aij = [[seg_i, seg_j, value], ...]` or `chi = [...]`).
-For reference DPDgen samples, see /home/okuwaki/repos/dpdgen (private).
+Reference DPDgen samples live in a separate (private) dpdgen repository.
