@@ -310,7 +310,7 @@ def assign_charges_to_bulk(
 #
 #     S·λ² + (P-N)·λ + (P+N-S) = 0
 #
-# の |λ|<1 の根として求まる (詳細は docs/udfcharge.md / SI/A列再現方法.md)。
+# の |λ|<1 の根として求まる (詳細は docs/udfcharge.md)。
 #
 # もう一つの中和ルール ``mode="uniform"`` (均等分配): 過剰分 S を全原子に均等に
 # 分散して中和する。

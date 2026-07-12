@@ -172,7 +172,7 @@ print(r.input_total, "->", r.output_total, "λ=", r.lam)
 
 - `--mode proportional` (既定): `|q|` 比例分配。
   `A_i = B_i/(1−λ)` (B_i>0) / `B_i/(1+λ)` (B_i<0)、 λ は
-  `S·λ² + (P−N)·λ + (P+N−S) = 0` の |λ|<1 根 (`SI/A列再現方法.md`)。
+  `S·λ² + (P−N)·λ + (P+N−S) = 0` の |λ|<1 根。
   正電荷が反転する (`|S|≥Σ|q|`) ケースは `ValueError`
 - `--mode uniform`: 均等分配。 `A_i = B_i + S/N` で**常に厳密・一意**
 

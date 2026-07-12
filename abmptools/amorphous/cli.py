@@ -28,7 +28,10 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     inp.add_argument("--smiles", nargs="+", metavar="SMILES",
                      help="SMILES strings for each component")
     inp.add_argument("--name", nargs="+", metavar="NAME",
-                     help="Names for each component (optional)")
+                     help="Names for each component (optional). Also becomes the "
+                          "GROMACS residue name (alphanumeric, upper-cased, "
+                          "5-char, e.g. IMC/PVP) so downstream per-species "
+                          "analysis can tell components apart; defaults to MOL.")
     inp.add_argument("--pubchem_cid", nargs="+", metavar="CID",
                      help="PubChem CIDs; each CID is resolved to a 3D SDF "
                           "and treated as --mol input for that component. "

@@ -118,9 +118,31 @@ def prepare_molecule(
     _maybe_assign_partial_charges(mol, charge_method, nagl_model)
 
     logger.info("Prepared molecule '%s': %d atoms, MW=%.2f g/mol",
-                mol.name, mol.n_atoms,
-                _molecular_weight(mol))
+                mol.name, mol.n_atoms, _molecular_weight(mol))
     return mol
+
+
+def _residue_name_for(name: str) -> str:
+    """GROMACS-safe residue name from a molecule name: alphanumeric, upper,
+    truncated to the 5-char .gro residue-name field (e.g. 'IMC', 'PVP',
+    'acetaminophen' -> 'ACETA'). Empty -> 'MOL'.
+
+    Applied at GROMACS-export time (see ``parameterizer.apply_residue_names``);
+    NOT at molecule-prep time, because writing a non-``UNL`` residue name into
+    the intermediate Packmol PDB breaks ``Topology.from_pdb`` residue matching.
+    """
+    base = "".join(ch for ch in (name or "") if ch.isalnum())[:5].upper()
+    return base or "MOL"
+
+
+def apply_residue_name(mol) -> None:
+    """Write a residue name derived from ``mol.name`` onto every atom's metadata
+    (so a GROMACS export carries a meaningful per-molecule resname instead of
+    OpenFF's default ``UNL``). Used on the exported Interchange topology, not on
+    the prep-time molecule (which feeds the Packmol PDB)."""
+    resname = _residue_name_for(mol.name)
+    for atom in mol.atoms:
+        atom.metadata["residue_name"] = resname
 
 
 def _load_molecule_from_pdb(pdb_path: str, name: str = "") -> Any:
