@@ -122,15 +122,17 @@ _XVG_TO_UDF_STATS = {
     # Batch_Average, Total_Average} (each leaf is a scalar, no further field).
     "Temperature":   ("Temperature", "",         "[K]"),
     "Pressure":      ("Pressure",    "",         "[bar]"),
+    # xvg `Pressure` is the virial pressure WITHOUT the long-range dispersion
+    # correction; the barostat-controlled (true) pressure = Pressure + Pres. DC.
+    # Both legends fold to Statistics_Data.Pressure and are summed by
+    # _aggregate_statistics_per_frame (same folding as Proper+Improper Dih. ->
+    # Torsion), matching J-OCTA's converter. Verified on a J-OCTA reference
+    # (DRO10-PVP10 NPT, ref_p = 1 bar, 100k steps): avg Pressure alone = 44 MPa,
+    # but avg(Pressure + Pres. DC) = 0.22 MPa ~= the 0.1 MPa barostat target
+    # (and bit-matches the J-OCTA-exported BDF's Statistics_Data.Pressure).
+    "Pres. DC":      ("Pressure",    "",         "[bar]"),
     "Density":       ("Density",     "",         "[kg/m^3]"),
     "Volume":        ("Volume",      "",         "[nm^3]"),
-    # NOTE: xvg `Pres. DC` (LJ tail-correction pressure contribution) is
-    # intentionally NOT added to `Pressure` here. GROMACS already includes the
-    # DC contribution inside its reported `Pressure` value, so summing the two
-    # would double-count. A OCTA viewer-generated reference UDF was observed to
-    # carry `Pressure = xvg.Pressure + xvg.'Pres. DC'`; we deliberately diverge
-    # from that convention since it appears to be OCTA viewer-specific (and likely
-    # incorrect for GROMACS-default tail-correction settings).
 }
 
 
