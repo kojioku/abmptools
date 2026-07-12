@@ -285,6 +285,7 @@ Use `-h` with any module for full option details.
 - **[Developer Quickstart](docs/dev_quickstart.md)** — Setup and code conventions
 - **[I/O Spec](docs/io_spec.md)** — File format specifications
 - **[gro2udf](docs/gro2udf.md)** / **[udf2gro](docs/udf2gro.md)** — GROMACS ↔ OCTA conversion
+- **[trajectory](docs/trajectory.md)** — Cross-platform (Windows-native) Python wrapper around `gmx trjconv` / `gmx energy` (thin / nojump / wrap-pbc / energy-extract; replaces per-sample bash scripts)
 - **[udfcharge](docs/udfcharge.md)** / **[tutorial_udfcharge](docs/tutorial_udfcharge.md)** — single-molecule → bulk UDF charge transfer
 - **[geomopt](docs/geomopt.md)** / **[amorphous](docs/amorphous.md)** — Optimization and structure building
 - **[membrane](docs/membrane.md)** / **[tutorial_membrane_us](docs/tutorial_membrane_us.md)** — Peptide-bilayer umbrella-sampling PMF (AA, CHARMM36 / Lipid21)
@@ -295,6 +296,7 @@ Use `-h` with any module for full option details.
 - **[cg_segmenter](docs/cg_segmenter.md)** — CG (coarse-grained) segment builder + DPDgen input exporter. Physically splits a molecule into ring / chain segments with H or CH3 caps; allows atom sharing across fused-ring segments. Exports DPDgen `{name}_monomer` + `{name}_calc_sett` with path-based bond hierarchy (bond12 / bond13_150 / bond14_150) and angle potentials (cognac 余角 convention, eq=30/60/0 for ring-bend / cis-double-bond / linear) (v1.24.0+)
 - **[cg.dpd](docs/cg_dpd.md)** — CG → DPD 系入力ビルダー (v1.26.0 候補). `cg_segmenter` 出力 (`{name}_monomer` + `{name}_calc_sett`) と fcews `aij.dat` (Python 辞書) から、 **R1 (Cognac DPD 入力 UDF `*_uin.udf`)** と **R2 (J-OCTA `*.dpm` + `monomer-lib/<seg>/Virtual.mom` + `#Message.txt`、 B 案=user template patch)** の 2 ルートを生成。 R1 は plain text writer (UDFManager 非依存)、 R2 は user 提供 dpm template の `\begin{data}` 内 5 ブロックを brace-aware patch (class 定義 = 商用 J-OCTA spec は温存)。 dpdgen ロジックを参考に abmptools 内で自前実装、 subprocess も import もなし
 - **[hbond](docs/hbond.md)** — Hydrogen-bond analyzer for COGNAC `.udf` / `.bdf` trajectories with two analysis modes: **imc mode** classifies COOH into the **4 species** (dual cyclic dimer / chain / single COOH→amide / free) mirroring the Yuan 2015 (Mol. Pharm. 12, 4518) solid-state-NMR H-bond assignment, and **generic mode** (v1.28+) reports donor-type × acceptor-type pair statistics for arbitrary systems (PVA / peptide / alcohols). Luzar-Chandler geometry (d_DA ≤ 3.5 Å, ∠ ≥ 120°) with orthogonal PBC. **Element + bond-graph fallback** (v1.28+) lets OpenFF SMIRNOFF UDFs (per-atom unique `MOL0_X`) work without an antechamber GAFF patch. Writes Mol_Name-preserved BDF (J-OCTA pre-render) + 3-color BDF (gourmet) + Python panel `.py` script (J-OCTA post-render) + Attributes-tagged BDF (J-OCTA filter). CLI + Python API + Jupyter ipywidgets UI; samples on amorphous indomethacin (`sample/hbond/imc_amorphous/`) and PVA (`sample/amorphous/pva_amorphous/`) (v1.25.0+, 4-species + generic + element fallback in v1.27/v1.28.0 candidate)
+- **[formulation](docs/formulation.md)** / **[tutorial_formulation_smoke](docs/tutorial_formulation_smoke.md)** — Peptide formulation / aggregation MD builder + analysis (Hossain 2023 reproduction; ff14SB + GAFF2 + TIP3P, Windows-native OpenFF route; H-bond / SASA / DSSP / co-cluster-network analysis; v2.0.0+)
 - **[grest](docs/grest.md)** / **[tutorial_grest](docs/tutorial_grest.md)** — GENESIS gREST_SSCR replica-exchange with solute tempering (REST + SSCR, AMBER ff19SB + TIP3P; v1.20.0+)
 - **[mmgbsa](docs/mmgbsa.md)** / **[tutorial_mmgbsa](docs/tutorial_mmgbsa.md)** — GENESIS atdyn-based MM/GBSA single-point ΔG_bind for protein-ligand complexes (AMBER ff14SB + GAFF/GAFF2 via acpype; v1.22.0+)
 - **[crystal](docs/crystal.md)** / **[tutorial_crystal_fmo](docs/tutorial_crystal_fmo.md)** — Organic-crystal FMO pipeline (CIF → supercell → fragment cut → ABINIT-MP AJF + HPC jobscripts, `abmp-crystal` CLI; v1.23.0+)
@@ -305,7 +307,7 @@ Use `-h` with any module for full option details.
 ## Testing
 
 ```bash
-pytest tests/ -v                     # 1613 tests collected (1.23.0+ 時点)
+pytest tests/ -v                     # 1913 tests collected (2.5.0 時点)
 pytest tests/ -v -k molcalc          # specific module
 pytest tests/test_regression.py -v   # regression tests (60 bundled + 16 gated)
 ```

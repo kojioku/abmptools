@@ -154,3 +154,15 @@ For new developers approaching this codebase:
     すべてへ転写する (例: 量子化学/FMO で求めた電荷を MD バルク系へ反映)。
     `electrostatic_Site[].ES_Element` 規約 (charge[e] × 18.224159264) を
     gro2udf / udf2gro と共有。
+17. **`docs/hbond.md`** + **`docs/tutorial_hbond_imc.md`** —
+    `abmptools.hbond` (1.25.0+); COGNAC `.udf` / `.bdf`(や MDAnalysis 経由の
+    GROMACS)trajectory の水素結合解析。imc 4-species 分類 / generic
+    donor×acceptor pair 統計 / lifetime + Luzar-Chandler C(t) / gourmet・J-OCTA
+    向け着色 BDF + per-frame アニメーション。
+18. **`docs/gro2udf.md`** + **`docs/trajectory.md`** — GROMACS ↔ OCTA/COGNAC
+    変換 (`gro2udf` = top/gro/xtc/edr → UDF) と GROMACS trajectory 後処理
+    (`trajectory` = gmx trjconv / energy の Windows-native ラッパー)。
+19. **`docs/formulation.md`** + **`docs/tutorial_formulation_smoke.md`** —
+    `abmptools.formulation` (2.0.0+); ペプチド製剤 / 凝集 MD の構築 + 解析
+    (Hossain 2023 再現、ff14SB + GAFF2 + TIP3P、H-bond / SASA / DSSP /
+    co-cluster network)。
