@@ -1,8 +1,9 @@
 # run_demo.sh の生成物 (再生成可能なのでコミットしない)
-toy*.gro
-toy.top
-toy.prmtop
+*.gro
+*.top
+*.prmtop
 *.tpr
+*.ndx
 *.pdb
 *.in
 *.log

@@ -90,6 +90,8 @@ def check(path, frags, contact, hole):
         tsol = cKDTree(sol)
         ncon = np.array([len(x) for x in tsol.query_ball_point(sol, 8.0)])
         exposed = sol[ncon < np.percentile(ncon, 25)]
+        if len(exposed) == 0:          # 全原子の接触数が均一なとき (小さな溶質等)
+            exposed = sol
         gap = float(cKDTree(wo).query(exposed, k=1)[0].max())
     hole_ok = np.isnan(gap) or gap < hole
 
