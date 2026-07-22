@@ -1,0 +1,11 @@
+# run_demo.sh の生成物 (再生成可能なのでコミットしない)
+toy*.gro
+toy.top
+toy.prmtop
+*.tpr
+*.pdb
+*.in
+*.log
+*.mdp
+mdout.mdp
+\#*\#

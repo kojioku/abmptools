@@ -14,6 +14,7 @@
 | `2_optmask-frame_v2.sh` | 上の PBC 再構成を cpptraj `autoimage` 化した **推奨版** |
 | `check_contact.py` | 切り出した液滴が「複合体が接触した状態」かを機械検証 |
 | `3_fmosetup.sh` | 液滴 PDB から ajf (FMO 入力) を生成 |
+| `sample/` | 本問題を数十 KB・数秒で再現する極小 toy 系デモ ([sample/README.md](sample/README.md)) |
 
 ```bash
 bash 0_parmed.sh CR8_AF3_MD_cpx_solv_noIon.top
