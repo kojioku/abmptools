@@ -287,11 +287,13 @@ pip install abmptools[grest]
 
 | ツール | 用途 | 推奨バージョン |
 |---|---|---|
-| GENESIS `spdyn` / `atdyn` / `remd_convert` | replica MD + parameter sort、`https://github.com/genesis-release-r-ccs/genesis` から build (icx で `fileio_data_.c` の `ftello64`/`fseeko64` を `ftello`/`fseeko` に置換するパッチが必要な場合あり、`grest.md` 参照) | ≥ 2.1、**LGPL-3.0-or-later** |
-| AmberTools (`tleap` 必須 + `cpptraj` around モード時) | AMBER prmtop+coor 生成 + REST 残基 around-mode 解決 | ≥ 22 |
+| GENESIS `spdyn` / `atdyn` / `remd_convert` | replica MD + parameter sort、`https://github.com/genesis-release-r-ccs/genesis` から build (icx で `fileio_data_.c` の `ftello64`/`fseeko64` を `ftello`/`fseeko` に置換するパッチが必要な場合あり、`grest.md` 参照)。**REST 温度幅の auto 調整 `param_tuning` は GENESIS 本体機能**(外部ツール不要) | ≥ 2.1、**LGPL-3.0-or-later** |
+| AmberTools `tleap` | AMBER prmtop+coor 生成(`input_pdb` 経路。持ち込みトポロジー `prmtop_file`/`coor_file` 時は不要) | ≥ 22 |
+| AmberTools `cpptraj` | REST 残基の距離/SASA 解決 — `around` / `smallmol`(ligand+pocket) / `ppi_sscr`(表面荷電残基 `surf`) の各自動選択、および 1D PMF 距離時系列 | ≥ 22 |
+| `acpype` | **`smallmol` タンパク-リガンド build のみ**: リガンドの GAFF/GAFF2 + AM1-BCC パラメータ化(`abmptools.genesis.mmgbsa` を in-process 流用) | ≥ 2022(`pip install acpype`、GPL-3.0) |
 | `mpirun` (OpenMPI / MPICH) | 並列レプリカ実行 | — |
 
-force field files: AmberTools 同梱の ff19SB + TIP3P を使用、本パッケージは追加 ITP を持たない。
+force field files: AmberTools 同梱の ff14SB/ff19SB + TIP3P（+ リガンドは GAFF2）を使用、本パッケージは追加 ITP を持たない。
 
 ## Optional Dependencies — abmptools.fragmenter (1.21.0+)
 
