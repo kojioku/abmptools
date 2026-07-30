@@ -148,21 +148,29 @@ For new developers approaching this codebase:
     MP2/6-31G(d) reference summary: urea / glycine / benzene /
     naphthalene with E' in crystal vs MP2 total isolated, sum-IFIE,
     wall time, and CIF source attribution).
-16. **`docs/udfcharge.md`** + **`docs/tutorial_udfcharge.md`** —
+16. **`docs/cg_dpd.md`** + **`docs/tutorial_cg_dpd_udf.md`** —
+    `abmptools.cg.dpd`; CG segment + fcews `aij.dat` から COGNAC DPD 入力 UDF /
+    OCTA viewer dpm を生成。 既存 UDF に対する操作として **`assign-aij`**
+    (aij.dat の χ / a を既存 UDF の `Pair_Interaction[].DPD.a` に割り当て) と
+    **`list-molecules` / `rebuild-udf`** (既存 UDF から分子情報を取り出し、
+    割合とセルサイズを指定して構造を生成。 `ratio_list` を並べれば一括) を提供。
+    組成・箱の計算と dpdgen 資産の読み込みは dpdgen (`udfdpd_io` / `camuslib`)
+    の挙動に合わせている。
+17. **`docs/udfcharge.md`** + **`docs/tutorial_udfcharge.md`** —
     `abmptools.udfcharge`; OCTA/COGNAC UDF への per-atom 電荷割り当て。
     単分子 UDF (電荷あり) の partial charge を、 バルク系 UDF の同名分子
     すべてへ転写する (例: 量子化学/FMO で求めた電荷を MD バルク系へ反映)。
     `electrostatic_Site[].ES_Element` 規約 (charge[e] × 18.224159264) を
     gro2udf / udf2gro と共有。
-17. **`docs/hbond.md`** + **`docs/tutorial_hbond_imc.md`** —
+18. **`docs/hbond.md`** + **`docs/tutorial_hbond_imc.md`** —
     `abmptools.hbond` (1.25.0+); COGNAC `.udf` / `.bdf`(や MDAnalysis 経由の
     GROMACS)trajectory の水素結合解析。imc 4-species 分類 / generic
     donor×acceptor pair 統計 / lifetime + Luzar-Chandler C(t) / gourmet・J-OCTA
     向け着色 BDF + per-frame アニメーション。
-18. **`docs/gro2udf.md`** + **`docs/trajectory.md`** — GROMACS ↔ OCTA/COGNAC
+19. **`docs/gro2udf.md`** + **`docs/trajectory.md`** — GROMACS ↔ OCTA/COGNAC
     変換 (`gro2udf` = top/gro/xtc/edr → UDF) と GROMACS trajectory 後処理
     (`trajectory` = gmx trjconv / energy の Windows-native ラッパー)。
-19. **`docs/formulation.md`** + **`docs/tutorial_formulation_smoke.md`** —
+20. **`docs/formulation.md`** + **`docs/tutorial_formulation_smoke.md`** —
     `abmptools.formulation` (2.0.0+); ペプチド製剤 / 凝集 MD の構築 + 解析
     (Hossain 2023 再現、ff14SB + GAFF2 + TIP3P、H-bond / SASA / DSSP /
     co-cluster network)。

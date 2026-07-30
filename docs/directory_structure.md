@@ -53,6 +53,8 @@ abmptools/                  ← Repository root
 │   ├── membrane.md
 │   ├── tutorial_membrane_us.md
 │   ├── cg_membrane.md
+│   ├── cg_dpd.md
+│   ├── tutorial_cg_dpd_udf.md
 │   ├── tutorial_cg_membrane_us.md
 │   ├── geomopt.md
 │   ├── qmopt.md
@@ -181,6 +183,8 @@ pytest ベースのテストスイート。**1530 tests collected** (1.22.0 時�
 | `cg_membrane.md` | Martini 3 ペプチド-膜 PMF ビルダー (CG reference) |
 | `tutorial_cg_membrane_us.md` | 同上の step-by-step (smoke 5-6 分 + production 45 分) |
 | `cg_peptide.md` | Martini 3 ペプチド CG ビルダー (CG reference、1.18.0+) |
+| `cg_dpd.md` | CG → DPD 系入力ビルダー (Cognac UDF / OCTA viewer dpm、assign-aij / rebuild-udf) |
+| `tutorial_cg_dpd_udf.md` | 既存 DPD UDF への χ 割り当てと、その分子を使った構造のバッチ生成 |
 | `peptide_builders.md` | 3 種ペプチドビルダー横断比較 (AA membrane / CG peptide / CG membrane) |
 | `grest.md` / `tutorial_grest.md` | GENESIS gREST_SSCR ビルダー (1.20.0+、subsystem reference + step-by-step) |
 | `mmgbsa.md` / `tutorial_mmgbsa.md` | GENESIS MM/GBSA single-point ΔG_bind (1.22.0+、subsystem reference + step-by-step) |
