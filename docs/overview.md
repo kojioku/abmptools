@@ -148,7 +148,8 @@ For new developers approaching this codebase:
     MP2/6-31G(d) reference summary: urea / glycine / benzene /
     naphthalene with E' in crystal vs MP2 total isolated, sum-IFIE,
     wall time, and CIF source attribution).
-16. **`docs/cg_dpd.md`** + **`docs/tutorial_cg_dpd_udf.md`** —
+16. **`docs/cg_dpd.md`** + tutorial 3 本 (**`tutorial_cg_dpd_build.md`** /
+    **`tutorial_cg_dpd_udf.md`** / **`tutorial_cg_dpd_structure.md`**) —
     `abmptools.cg.dpd`; CG segment + fcews `aij.dat` から COGNAC DPD 入力 UDF /
     OCTA viewer dpm を生成。 既存 UDF に対する操作として **`assign-aij`**
     (aij.dat の χ / a を既存 UDF の `Pair_Interaction[].DPD.a` に割り当て) と
