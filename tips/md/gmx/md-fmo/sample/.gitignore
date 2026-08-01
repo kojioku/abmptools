@@ -1,0 +1,12 @@
+# run_demo.sh の生成物 (再生成可能なのでコミットしない)
+*.gro
+*.top
+*.prmtop
+*.tpr
+*.ndx
+*.pdb
+*.in
+*.log
+*.mdp
+mdout.mdp
+\#*\#
