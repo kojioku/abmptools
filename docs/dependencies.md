@@ -293,7 +293,7 @@ pip install abmptools[grest]
 
 force field files: AmberTools 同梱の ff19SB + TIP3P を使用、本パッケージは追加 ITP を持たない。
 
-## Optional Dependencies — abmptools.fragmenter (1.21.0+)
+## Optional Dependencies — rdkit (`[fragmenter]` extras)
 
 FMO 自動フラグメント分割サブパッケージ (small molecules / lipids / polymers)。
 

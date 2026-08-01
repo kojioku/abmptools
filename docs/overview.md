@@ -53,7 +53,6 @@ ABMPTools is a Python toolkit for pre-processing, post-processing, and analysis 
 | CG Membrane PMF | `cg.membrane` (`MembraneCGBuildConfig`, insane + cg.peptide sub-call) | Martini 3 peptide-bilayer umbrella-sampling PMF builder. AA membrane より 30-100× 速い (v1.19.0+). |
 | GENESIS gREST | `genesis.grest` (`GrestBuilder`, `python -m abmptools.genesis.grest` CLI) | GENESIS gREST_SSCR (Replica-Exchange Solute Tempering with Solute Side Chain Repartitioning) 5-stage builder + replica transition / acceptance / PMF 解析 (AMBER ff19SB + TIP3P; v1.20.0+). |
 | GENESIS MM/GBSA | `genesis.mmgbsa` (`MmgbsaBuilder`, `python -m abmptools.genesis.mmgbsa` CLI) | GENESIS atdyn `[ENERGY] implicit_solvent=GBSA` による protein-ligand 単フレーム MM/GBSA ΔG_bind builder (AMBER ff14SB + GAFF/GAFF2 via acpype; v1.22.0+). |
-| Auto Fragmentation | `fragmenter` (`AutoFragmenter`, `python -m abmptools.fragmenter` CLI) | FMO 自動フラグメント分割: PDB → 連結成分 → canonical SMILES グループ化 → C-C 単結合切断 → log2config 互換 segment_data.dat 出力。Jupyter UI (ipywidgets) と headless CLI (SVG + JSON 編集) の 2 系統 (v1.21.0+). |
 
 ## Supported ABINIT-MP Versions
 
@@ -120,9 +119,6 @@ For new developers approaching this codebase:
 10. **`docs/peptide_builders.md`** — Cross-cutting selection guide for the
     three peptide-from-sequence builders (AA membrane / CG peptide /
     CG membrane); compares resolution, cost, license, and use cases.
-11. **`docs/fragmenter.md`** — `abmptools.fragmenter` (1.21.0+); FMO
-    automatic fragment splitter for small molecules / lipids / polymers
-    (canonical SMILES grouping + C-C MW walk + Jupyter UI / headless CLI).
 12. **`docs/grest.md`** + **`docs/tutorial_grest.md`** —
     `abmptools.genesis.grest` (1.20.0+); GENESIS gREST_SSCR replica
     exchange with solute tempering (AMBER ff19SB + TIP3P, 4-12 replicas
@@ -133,11 +129,6 @@ For new developers approaching this codebase:
     GAFF/GAFF2 via acpype, 4-stage pipeline: split PDB → parameterize →
     GBSA single-point → ΔG_bind aggregation).
     Protein / DNA stays on the existing `log2config` route.
-14. **`docs/cg_segmenter.md`** — `abmptools.fragmenter.cg_segmenter` (1.24.0+);
-    CG (粗視化) 用セグメント構築ツール。fragmenter (FMO 用、BDA/BAA で擬似分割) の
-    姉妹で、**物理的に分子を分割し H/CH3 cap を付与**、fused ring の atom 共有を
-    許容する。コレステロールや EUD-E のような ring + 側鎖ありポリマーを CG MD
-    用に分割する用途。
 15. **`docs/crystal.md`** + **`docs/tutorial_crystal_fmo.md`** —
     `abmptools.crystal` (1.23.0+); organic-crystal FMO pipeline
     (CIF → supercell → fragment cut → ABINIT-MP AJF + HPC jobscripts;
@@ -148,15 +139,6 @@ For new developers approaching this codebase:
     MP2/6-31G(d) reference summary: urea / glycine / benzene /
     naphthalene with E' in crystal vs MP2 total isolated, sum-IFIE,
     wall time, and CIF source attribution).
-16. **`docs/cg_dpd.md`** + tutorial 3 本 (**`tutorial_cg_dpd_build.md`** /
-    **`tutorial_cg_dpd_udf.md`** / **`tutorial_cg_dpd_structure.md`**) —
-    `abmptools.cg.dpd`; CG segment + fcews `aij.dat` から COGNAC DPD 入力 UDF /
-    OCTA viewer dpm を生成。 既存 UDF に対する操作として **`assign-aij`**
-    (aij.dat の χ / a を既存 UDF の `Pair_Interaction[].DPD.a` に割り当て) と
-    **`list-molecules` / `rebuild-udf`** (既存 UDF から分子情報を取り出し、
-    割合とセルサイズを指定して構造を生成。 `ratio_list` を並べれば一括) を提供。
-    組成・箱の計算と dpdgen 資産の読み込みは dpdgen (`udfdpd_io` / `camuslib`)
-    の挙動に合わせている。
 17. **`docs/udfcharge.md`** + **`docs/tutorial_udfcharge.md`** —
     `abmptools.udfcharge`; OCTA/COGNAC UDF への per-atom 電荷割り当て。
     単分子 UDF (電荷あり) の partial charge を、 バルク系 UDF の同名分子

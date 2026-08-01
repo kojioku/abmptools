@@ -92,20 +92,6 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 - **ΔG_bind 計算**: GENESIS `ENERGY` 列は `U = U_FF + ΔG_solv` の合計 (doc 05_Energy.rst:564) なので `ΔG_bind = E_c - E_l - E_r` で全 MM/GBSA 寄与込み。POC `4_analyse.py` は等価な分解形 `(egas + S)_c - (egas + S)_l - (egas + S)_r` を使用 (`egas = E - S`)、両者は代数的に同一。`compute_dg_bind` (合計形) + `compute_dg_components` (分解報告 `{dg_mm, dg_solv, dg_bind}`) を提供
 - **LGPL-3.0+ / GPL-3.0 互換**: GENESIS (LGPL-3.0+) と acpype (GPL-3.0) は subprocess only -- abmptools 本体 (Apache-2.0、v1.23.0+) と互換 (mere aggregation)
 
-### FMO Fragment Auto-splitter (`fragmenter`)
-
-- End-to-end **FMO 自動フラグメント分割** ツール: PDB → RDKit で 4-strategy bond perception (proximity → CONECT-only → `sanitize=False` → `obabel`) → heavy-atom-only canonical SMILES でグループ化 → graph diameter (heavy-atom-only 2-pass BFS) で主鎖検出 → 累積 MW + 側鎖 MW を加算しながら `target_mw` (default 200 g/mol) ごとに C-C 切断候補を提案 → `RWMol` で破壊的に bond 削除 → `log2config` 互換 `segment_data.dat` 出力 (pdb2fmo がそのまま読む)
-- 対象は **小分子 / 脂質 / ポリマー** (タンパク質・DNA は対象外、既存 `log2config` 経路へ流す方針)
-- フィルタ: 環内 / 多重結合 / ヘテロ隣接 (N/O/S/P/F/Cl/Br/I) を除外、いずれも config で off 可能
-- ポリマー γ 経路 (`declare_same_pattern`): 異なる SMILES (PE N=10 / N=11 等) を明示的に同一視、master (最も cut の多い group) のパターンを atom-path-index 対応で短い chain にも転送
-- 3 つの UI 経路:
-  - **A: Jupyter UI** (`AutoFragmenter.from_pdb` + `open_panel`、ipywidgets dropdown / SVG / checkbox)
-  - **C: ヘッドレス CLI** (`python -m abmptools.fragmenter {suggest,apply,example}` + SVG+JSON review bundle)
-  - **API**: 関数 chain (`load_pdb_molecules` → `group_by_smiles` → `suggest_cuts_for_groups` → `export_to_system`)
-- データクラス: `FragmenterConfig` / `CutSite` / `MoleculeGroup` / `FragmentResult` (JSON 往復可能)
-- 14 unit tests (10 basic + 4 polymer)、5 実 PDB 検証ケース (ketoprofen / PE N=20 / PP N=10 / propane×5+acetone×3 / antibody+ligand)
-- 依存: `pip install abmptools[fragmenter]` (rdkit-pypi >= 2022.09、BSD-3-Clause)、Jupyter UI を使うなら `[jupyter]` extras も
-
 ### Crystal-FMO Pipeline (`crystal`)
 
 - End-to-end **organic-crystal FMO** workflow: CIF → supercell PDB → fragment cut around a target solute → ABINIT-MP AJF (with full-precision `&XYZ` block) → optional `--run-local` invocation → `getifiepieda` postprocessing (IFIE/PIEDA + MonomerEnergy)
@@ -292,9 +278,6 @@ Use `-h` with any module for full option details.
 - **[cg_membrane](docs/cg_membrane.md)** / **[tutorial_cg_membrane_us](docs/tutorial_cg_membrane_us.md)** — Martini 3 peptide-bilayer PMF (CG, 30-100× faster than AA, KGG-POPC smoke 5 min / production 45 min)
 - **[cg_peptide](docs/cg_peptide.md)** — Martini 3 peptide CG builder (peptide-only in water box, sub-called by `cg.membrane` or standalone)
 - **[peptide_builders](docs/peptide_builders.md)** — Selection guide across 3 peptide-from-sequence builders (AA membrane / CG peptide / CG membrane)
-- **[fragmenter](docs/fragmenter.md)** — FMO automatic fragment splitter for small molecules / lipids / polymers (canonical SMILES grouping + C-C MW walk + Jupyter UI / headless CLI; v1.21.0+)
-- **[cg_segmenter](docs/cg_segmenter.md)** — CG (coarse-grained) segment builder + DPDgen input exporter. Physically splits a molecule into ring / chain segments with H or CH3 caps; allows atom sharing across fused-ring segments. Exports DPDgen `{name}_monomer` + `{name}_calc_sett` with path-based bond hierarchy (bond12 / bond13_150 / bond14_150) and angle potentials (cognac 余角 convention, eq=30/60/0 for ring-bend / cis-double-bond / linear) (v1.24.0+)
-- **[cg.dpd](docs/cg_dpd.md)** / tutorials: **[build](docs/tutorial_cg_dpd_build.md)** / **[udf](docs/tutorial_cg_dpd_udf.md)** / **[structure](docs/tutorial_cg_dpd_structure.md)** — CG → DPD 系入力ビルダー (v1.26.0 候補). `cg_segmenter` 出力 (`{name}_monomer` + `{name}_calc_sett`) や dpdgen 形式 monomer と fcews `aij.dat` (χ / a、Python 辞書) から、 **R1 (Cognac DPD 入力 UDF `*_uin.udf`)** と **R2 (OCTA viewer `*.dpm` + `monomer-lib/<seg>/Virtual.mom` + `#Message.txt`、 B 案=user template patch)** を生成。 R1 は UDFManager の named-path writer (cognac112 スキーマ準拠 = ロード可能。 OCTA 必須)、 R2 は user 提供 dpm template の `\begin{data}` 内 5 ブロックを brace-aware patch (class 定義 = 商用 spec は温存)。 **既存 UDF に対する操作**として `assign-aij` (aij.dat の χ / a を `Pair_Interaction[].DPD.a` に割り当て) と `list-molecules` / `rebuild-udf` (既存 UDF の分子で、割合とセルサイズを指定して構造を生成。 `ratio_list` を並べれば一括) を提供。 dpdgen ロジックを参考に abmptools 内で自前実装、 subprocess も import もなし
 - **[hbond](docs/hbond.md)** — Hydrogen-bond analyzer for COGNAC `.udf` / `.bdf` trajectories with two analysis modes: **imc mode** classifies COOH into the **4 species** (dual cyclic dimer / chain / single COOH→amide / free) mirroring the Yuan 2015 (Mol. Pharm. 12, 4518) solid-state-NMR H-bond assignment, and **generic mode** (v1.28+) reports donor-type × acceptor-type pair statistics for arbitrary systems (PVA / peptide / alcohols). Luzar-Chandler geometry (d_DA ≤ 3.5 Å, ∠ ≥ 120°) with orthogonal PBC. **Element + bond-graph fallback** (v1.28+) lets OpenFF SMIRNOFF UDFs (per-atom unique `MOL0_X`) work without an antechamber GAFF patch. Writes Mol_Name-preserved BDF (J-OCTA pre-render) + 3-color BDF (gourmet) + Python panel `.py` script (J-OCTA post-render) + Attributes-tagged BDF (J-OCTA filter). CLI + Python API + Jupyter ipywidgets UI; samples on amorphous indomethacin (`sample/hbond/imc_amorphous/`) and PVA (`sample/amorphous/pva_amorphous/`) (v1.25.0+, 4-species + generic + element fallback in v1.27/v1.28.0 candidate)
 - **[formulation](docs/formulation.md)** / **[tutorial_formulation_smoke](docs/tutorial_formulation_smoke.md)** — Peptide formulation / aggregation MD builder + analysis (Hossain 2023 reproduction; ff14SB + GAFF2 + TIP3P, Windows-native OpenFF route; H-bond / SASA / DSSP / co-cluster-network analysis; v2.0.0+)
 - **[grest](docs/grest.md)** / **[tutorial_grest](docs/tutorial_grest.md)** — GENESIS gREST_SSCR replica-exchange with solute tempering (REST + SSCR, AMBER ff19SB + TIP3P; v1.20.0+)

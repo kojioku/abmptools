@@ -323,41 +323,6 @@ comps = compute_dg_components(
 # {"dg_mm": -160.09, "dg_solv": +121.82, "dg_bind": -38.27}
 ```
 
-## fragmenter: RDKit 不在時の挙動?
-
-`abmptools.fragmenter` は RDKit (BSD-3-Clause、`pip install
-abmptools[fragmenter]`) を必須とし、optional dependency 設計。
-`from abmptools.fragmenter import ...` は RDKit 不在時に
-`ImportError` を出す:
-
-```
-ImportError: abmptools.fragmenter requires rdkit. Install via:
-  pip install abmptools[fragmenter]
-```
-
-その他の abmptools サブパッケージ (cpfmanager / amorphous / membrane
-等) は `import abmptools` 時に lazy import するため、RDKit 不在でも
-影響なく利用可能。
-
-Jupyter UI 経路 (A) は追加で `[jupyter]` extras が必要:
-```bash
-pip install abmptools[fragmenter,jupyter]
-```
-
-## fragmenter: POPC bilayer の embed が失敗する?
-
-POPC のような 130+ atom の脂質は RDKit `EmbedMolecule` (3D conformer
-generation) が高い確率で失敗する (small-molecule 設計のため)。
-fragmenter は脂質単分子の SMILES グループ化までは動くが、初期 3D 配置
-を必要とする後段ステップでエラーになる場合がある。
-
-回避策:
-- 脂質系のフラグメント分割は **`abmptools.cg.peptide` / `cg.membrane`** の
-  既存ルート (Martini 3 + insane) や **`abmptools.membrane`** (AA + tleap +
-  packmol-memgen) を使う。
-- どうしても `fragmenter` を使いたい場合は、脂質単分子を tleap や
-  packmol-memgen で先に PDB 化してから `fragmenter suggest` に渡す。
-
 ## What is the `tips/` directory?
 
 The `tips/` directory contains auxiliary scripts for MD post-processing workflows with AMBER, GROMACS, and NAMD. These are standalone helper scripts, not part of the core `abmptools` package.

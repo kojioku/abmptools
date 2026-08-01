@@ -23,15 +23,6 @@ try:
 except ImportError:
     pass
 try:
-    from .fragmenter import (
-        FragmenterConfig,
-        CutSite,
-        MoleculeGroup,
-        FragmentResult,
-    )
-except ImportError:
-    pass
-try:
     from . import crystal as crystal  # noqa: F401
 except ImportError:
     pass

@@ -18,8 +18,6 @@ Windows ネイティブ運用したい組織への参照資料を兼ねる。
 | `abmptools.crystal` (OpenFF route) | ✅ | ✅ | **✅** | ✅ |
 | `abmptools.cg.peptide` (Martini 3 + vermouth) | ✅ | ✅ | **✅** | ✅ |
 | `abmptools.cg.membrane` (insane + cg.peptide) | ✅ | ✅ | ⚠ | ✅ |
-| `abmptools.cg.dpd` (Cognac UDF) | ✅ | ✅ | **✅** | ✅ |
-| `abmptools.fragmenter` (FMO 自動分割) | ✅ | ✅ | **✅** | ✅ |
 | `abmptools.hbond` (J-OCTA UDF colorize) | ✅ | ✅ | **✅** | ✅ |
 | `abmptools.gro2udf` (GROMACS → cognac UDF) | ✅ | ✅ | **✅** | ✅ |
 | `abmptools.formulation` (Amber route, tleap) | ✅ | ✅ | ❌ | ✅ |
@@ -28,7 +26,6 @@ Windows ネイティブ運用したい組織への参照資料を兼ねる。
 | `abmptools.genesis.mmgbsa` (acpype + tleap + atdyn) | ✅ | ✅ | ❌ | ✅ |
 | `abmptools.genesis.grest` (tleap + atdyn) | ✅ | ✅ | ❌ | ✅ |
 | `abmptools.geomopt` (DFT 経由) | ✅ | ✅ | △ | ✅ |
-| `abmptools.fragmenter.cg_segmenter` (CG segment + DPDgen) | ✅ | ✅ | **✅** | ✅ |
 | FMO 解析 CLI (`generateajf` / `getifiepieda` / `convertcpf` 等) | ✅ | ✅ | **✅** | ✅ |
 | `abinitmp` ビルド (Fortran 90) | ✅ | ✅ | ❌ (gfortran/MSYS2 経由なら可) | ✅ |
 

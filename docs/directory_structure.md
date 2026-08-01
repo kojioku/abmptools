@@ -19,7 +19,6 @@ abmptools/                  ← Repository root
 │   ├── genesis/            ← GENESIS 系統 (1.20.0+)
 │   │   ├── grest/          ← gREST_SSCR replica exchange (atdyn/spdyn + remd_convert)
 │   │   └── mmgbsa/         ← GENESIS MM/GBSA single-point ΔG_bind (atdyn + acpype + tleap)
-│   ├── fragmenter/         ← FMO 自動フラグメント分割 (rdkit + ipywidgets) (1.21.0+)
 │   ├── geomopt/            ← 構造最適化 (PySCF, MACE)
 │   └── f90/                ← Fortran extension
 │       ├── src/
@@ -31,7 +30,6 @@ abmptools/                  ← Repository root
 │   ├── test_cli_scripts.py ← 全14 CLIスクリプトのargparseテスト
 │   ├── test_grest_*.py     ← genesis.grest (1.20.0、159 tests + 1 slow)
 │   ├── test_mmgbsa_*.py    ← genesis.mmgbsa (1.22.0、117 tests + 1 slow)
-│   ├── fragmenter/         ← fragmenter (1.21.0、14 tests)
 │   ├── fixtures/           ← 共通テスト fixture (gbsa_logs/ 等)
 │   └── test_*.py           ← 各モジュールの単体テスト
 ├── docs/                   ← Documentation
@@ -53,10 +51,6 @@ abmptools/                  ← Repository root
 │   ├── membrane.md
 │   ├── tutorial_membrane_us.md
 │   ├── cg_membrane.md
-│   ├── cg_dpd.md
-│   ├── tutorial_cg_dpd_build.md
-│   ├── tutorial_cg_dpd_udf.md
-│   ├── tutorial_cg_dpd_structure.md
 │   ├── tutorial_cg_membrane_us.md
 │   ├── geomopt.md
 │   ├── qmopt.md
@@ -158,7 +152,6 @@ pytest ベースのテストスイート。**1530 tests collected** (1.22.0 時�
 | サブパッケージ (AA) | 14+ | 127+ | core, gro2udf, udf2gro, **udfcharge** (21), amorphous, geomopt, **membrane** |
 | **サブパッケージ (CG, 1.18.0+)** | 23 | **287** | `cg.peptide` 117 + `cg.membrane` 170 (+ 4 slow integration) |
 | **サブパッケージ (GENESIS, 1.20.0+)** | 17 | **276** | `genesis.grest` 159 + `genesis.mmgbsa` 117 (+ 2 slow integration、tools 不在時 auto-skip) |
-| **`fragmenter` (1.21.0+)** | 2 | **14** | basic + polymer の 2 ファイル、RDKit 必須 |
 | CLIスクリプト | 1 | 50 | 全 CLI の argparse テスト |
 
 詳細は `tests/TEST_COVERAGE.md` を参照。
@@ -185,14 +178,9 @@ pytest ベースのテストスイート。**1530 tests collected** (1.22.0 時�
 | `cg_membrane.md` | Martini 3 ペプチド-膜 PMF ビルダー (CG reference) |
 | `tutorial_cg_membrane_us.md` | 同上の step-by-step (smoke 5-6 分 + production 45 分) |
 | `cg_peptide.md` | Martini 3 ペプチド CG ビルダー (CG reference、1.18.0+) |
-| `cg_dpd.md` | CG → DPD 系入力ビルダー (Cognac UDF / OCTA viewer dpm、assign-aij / rebuild-udf) |
-| `tutorial_cg_dpd_build.md` | monomer と aij から DPD 入力 UDF を作る (build-udf / verify / 多成分系) |
-| `tutorial_cg_dpd_udf.md` | 既存 DPD UDF への χ 割り当てと、その分子を使った構造のバッチ生成 |
-| `tutorial_cg_dpd_structure.md` | 初期構造 (座標生成・固定粒子の拘束・Morse bond) |
 | `peptide_builders.md` | 3 種ペプチドビルダー横断比較 (AA membrane / CG peptide / CG membrane) |
 | `grest.md` / `tutorial_grest.md` | GENESIS gREST_SSCR ビルダー (1.20.0+、subsystem reference + step-by-step) |
 | `mmgbsa.md` / `tutorial_mmgbsa.md` | GENESIS MM/GBSA single-point ΔG_bind (1.22.0+、subsystem reference + step-by-step) |
-| `fragmenter.md` | FMO automatic fragment splitter (1.21.0+、graph-diameter MW walk + canonical SMILES + γ polymer) |
 | `geomopt.md` / `qmopt.md` | 構造最適化 |
 | `licenses_third_party.md` | サードパーティライセンス |
 

@@ -469,47 +469,6 @@ inputs[*].cif (one or more CIF files)
 
 Orchestrated end-to-end by `abmptools.crystal.builder.CrystalOrchestrator.run()` (Stage 1〜5 を逐次、`fail_fast` 制御、N inputs 並列)。Default は `legacy` engine (既存実績尊重)、`ase` は opt-in (`cif_engine.engine: ase`)。座標は `is_xyz=True` で `&XYZ` block 埋め込み。
 
-## FMO Fragment Auto-splitter Pipeline (1.21.0+)
-
-`abmptools.fragmenter` は MD pipeline ではなく、PDB → fragment
-definition (`segment_data.dat`) のワンショット静的解析パイプライン。
-
-```
-input.pdb
-        │
-        ▼
-pdb_loader (RDKit、4-strategy bond perception) ──→ List[Mol] (連結成分)
-   1. proximityBonding=True,  sanitize=True   (default、CONECT 優先 + 近接補完)
-   2. proximityBonding=False, sanitize=True   (CONECT のみ信用、誤結合回避)
-   3. proximityBonding=True,  sanitize=False  (best effort、valence エラー時)
-   4. obabel 前処理 → 再ロード                (subprocess fallback)
-        │
-        ▼
-grouping (heavy-atom-only canonical SMILES)    ──→ List[MoleculeGroup]
-   - MoleculeGroup: pattern, members, atom_to_member
-        │
-        ▼
-auto_split (graph diameter MW walk)            ──→ List[CutSite]
-   ・graph diameter (heavy-atom-only 2-pass BFS) で主鎖検出
-   ・主鎖 walk + 側鎖 MW を累積
-   ・累積 ≥ target_mw (default 200) で C-C 切断 candidate
-   ・filter: 環内 / 多重結合 / ヘテロ隣接 (N/O/S/P/F/Cl/Br/I) 除外
-        │
-        ▼
-[A 経路 = Jupyter UI]   open_panel: ipywidgets dropdown / SVG / checkbox
-[C 経路 = ヘッドレス]   suggest → group_NNN.svg + group_NNN.json
-                        (cut_sites.enabled 編集 → apply)
-        │
-        ▼
-cut_apply (RWMol で破壊的に bond 削除)         ──→ List[FragmentResult]
-        │
-        ▼
-expand_to_system (n_copies 全コピーへ展開)     ──→ segment_data.dat
-                                                  (log2config 互換、pdb2fmo がそのまま読む)
-```
-
-ポリマー γ 経路 (`declare_same_pattern`) はオプションで、異なる SMILES (PE N=10 / N=11 等) を明示的に同一視し、master (最も cut の多い group) のパターンを atom-path-index 対応で短い chain にも転送する。
-
 ## Internal Data Structures
 
 All modules converge on **pandas DataFrames** for structured data:

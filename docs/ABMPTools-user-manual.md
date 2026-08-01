@@ -825,34 +825,6 @@ python -m abmptools.genesis.grest analyze --config kgg.json --run-dir ./out --wh
 
 GENESIS (LGPL-3.0+) と AmberTools は subprocess only、未同梱 (`https://github.com/genesis-release-r-ccs/genesis` から build)。
 
-### `abmptools.fragmenter` (1.21.0、FMO 自動フラグメント分割)
-
-PDB → RDKit で 4-strategy bond perception → heavy-atom-only canonical
-SMILES でグループ化 → graph diameter (heavy-atom-only 2-pass BFS) で主鎖検出
-→ 累積 MW + 側鎖 MW を加算しながら `target_mw` (default 200 g/mol) ごとに
-C-C 切断候補を提案 → `RWMol` で破壊的に bond 削除 → `log2config` 互換
-`segment_data.dat` 出力。対象は **小分子 / 脂質 / ポリマー** (タンパク質・DNA は
-対象外、既存 `log2config` 経路へ流す方針)。
-
-| Doc | 内容 |
-|---|---|
-| [`docs/fragmenter.md`](fragmenter.md) | Subsystem reference (296 行、設計判断 / API / γ ポリマー経路 / 5 実 PDB 検証ケース) |
-| `sample/fragmenter/{pe_n20,pp_n10,propane5_acetone3}.pdb` | 検証用 PDB セット (PE N=20 / PP N=10 / 小分子混合) |
-
-CLI:
-
-```bash
-python -m abmptools.fragmenter example > config.json
-python -m abmptools.fragmenter suggest --config config.json --pdb mol.pdb -o ./out
-# ./out/group_NNN.svg で cut sites を確認、./out/group_NNN.json の cut_sites.enabled を編集
-python -m abmptools.fragmenter apply   --config config.json --pdb mol.pdb \
-    --review-dir ./out -o ./fragments    # → segment_data.dat
-```
-
-Jupyter UI 経路: `from abmptools.fragmenter import AutoFragmenter, open_panel; af = AutoFragmenter.from_pdb('mol.pdb', config); open_panel(af)` で ipywidgets 経由 SVG + checkbox 編集。
-
-依存は RDKit (BSD-3-Clause、`pip install abmptools[fragmenter]`)、Jupyter 経路は `[fragmenter,jupyter]` でまとめて install。
-
 ### `abmptools.genesis.mmgbsa` (1.22.0、GENESIS MM/GBSA single-point ΔG_bind)
 
 GENESIS atdyn の `[ENERGY] implicit_solvent=GBSA` を使った protein-ligand

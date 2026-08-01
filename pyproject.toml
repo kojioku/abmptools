@@ -93,10 +93,11 @@ mmgbsa = [
     # (genesis.grest の ff19SB とは意図的に別、MM/GBSA で広く使われる安定 default)。
     # See abmptools/genesis/mmgbsa/__init__.py + docs/mmgbsa.md.
 ]
+# rdkit を使う機能 (hbond の官能基判定 / formulation の小分子処理 / geomopt) 用。
+# extras 名は後方互換のため据え置き。
 fragmenter = [
     "rdkit-pypi>=2022.09",  # 分子構造の正規化 (canonical SMILES)、SVG 描画、bond perception
                             # PyPI、BSD-3-Clause
-    # Optional: Open Babel CLI (`obabel`) — bond perception フォールバック (subprocess)
 ]
 crystal = [
     # Phase A は legacy ファイル (numpy/pandas のみ) を再 export するだけなので
