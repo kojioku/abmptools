@@ -4,7 +4,7 @@
 Windows ネイティブ運用したい組織への参照資料を兼ねる。
 
 > **要約**: Linux / macOS は全機能 OK。 Windows ネイティブは **AmberTools が install
-> できない** ため `genesis.*` の build pipeline は不可。 WSL2 が使える組織なら
+> できない** ため tleap を要する build pipeline は不可。 WSL2 が使える組織なら
 > Linux と同等。 `formulation` は **OpenFF route (`force_field_route="openff"`)
 > で Windows native 化完了** — multi-chain protein + disulfide (insulin) を含め
 > tleap/acpype 不要で全 OS build 可能 (詳細下記 "OpenFF route" 節)。
@@ -25,8 +25,6 @@ Windows ネイティブ運用したい組織への参照資料を兼ねる。
 | `abmptools.formulation` (Amber route, tleap) | ✅ | ✅ | ❌ | ✅ |
 | `abmptools.formulation` (**OpenFF route**, `force_field_route="openff"`) | ✅ | ✅ | **✅** | ✅ |
 | `abmptools.membrane` (CHARMM/AMBER backend) | ✅ | ✅ | ❌ | ✅ |
-| `abmptools.genesis.mmgbsa` (acpype + tleap + atdyn) | ✅ | ✅ | ❌ | ✅ |
-| `abmptools.genesis.grest` (tleap + atdyn) | ✅ | ✅ | ❌ | ✅ |
 | `abmptools.geomopt` (DFT 経由) | ✅ | ✅ | △ | ✅ |
 | `abmptools.fragmenter.cg_segmenter` (CG segment + DPDgen) | ✅ | ✅ | **✅** | ✅ |
 | FMO 解析 CLI (`generateajf` / `getifiepieda` / `convertcpf` 等) | ✅ | ✅ | **✅** | ✅ |

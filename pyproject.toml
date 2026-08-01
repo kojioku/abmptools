@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abmptools"
-version = "2.8.0"
+version = "2.9.0"
 description = "Pre/post-processing and analysis toolkit for ABINIT-MP Fragment Molecular Orbital calculations"
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "Apache-2.0"
@@ -65,33 +65,6 @@ cg = [
     #                (+ optional water.gro, auto-gen via gmx insert-molecules)
     #   cg.membrane: 上記 3 ITP + martini_v3.0.0_phospholipids_v1.itp
     # See abmptools/cg/peptide/README.md and abmptools/cg/membrane/README.md.
-]
-grest = [
-    "matplotlib>=3.5",  # replica transition / acceptance / PMF プロット
-    # External tools (subprocess only, never bundled):
-    #   GENESIS spdyn / atdyn / remd_convert (>=2.1) — LGPL-3.0-or-later
-    #     build from https://github.com/genesis-release-r-ccs/genesis
-    #     (icx で fileio_data_.c の ftello64/fseeko64 を ftello/fseeko に
-    #      置換するパッチが必要な場合あり。docs/grest.md 参照)
-    #   ambertools (>=22) — tleap (必須) + cpptraj (around モード時)
-    #   mpirun (OpenMPI / MPICH) — 並列レプリカ実行
-    # Force field files: AmberTools 同梱 (ff19SB / TIP3P)、本パッケージは追加 ITP なし。
-    # See abmptools/genesis/grest/__init__.py + docs/grest.md.
-]
-mmgbsa = [
-    "biopython>=1.80",  # PDB splitter (Stage 1)
-    "matplotlib>=3.5",  # ΔG_bind 棒グラフ (Stage 4、grest と shared)
-    # External tools (subprocess only, never bundled):
-    #   GENESIS atdyn (>=2.1) — LGPL-3.0-or-later
-    #     build from https://github.com/genesis-release-r-ccs/genesis
-    #   ambertools (>=22) — tleap (必須)
-    #   acpype (>=2022.7.21) — GPL-3.0、ligand GAFF/GAFF2 + AM1-BCC
-    #     pip install acpype  または  conda install -c conda-forge acpype
-    #     subprocess only (mere aggregation per GPL FAQ)
-    #   mpirun (OpenMPI / MPICH) — `mpirun -np 1 atdyn`
-    # Force field default: ff14SB + DNA.OL15 + RNA.OL3 + TIP3P + GAFF/GAFF2
-    # (genesis.grest の ff19SB とは意図的に別、MM/GBSA で広く使われる安定 default)。
-    # See abmptools/genesis/mmgbsa/__init__.py + docs/mmgbsa.md.
 ]
 fragmenter = [
     "rdkit-pypi>=2022.09",  # 分子構造の正規化 (canonical SMILES)、SVG 描画、bond perception

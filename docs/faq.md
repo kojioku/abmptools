@@ -114,7 +114,6 @@ The `sample/` directory contains working examples:
 |-----------|----------|-----|
 | `sample/convertcpf/` | CPF conversion/filtering | `bash run.sh` |
 | `sample/generate_difie/` | DIFIE averaging (TrpCage, CS4) | `bash run.sh` |
-| `sample/gbsa/` | GBSA solvation setup | `bash run.sh` |
 | `sample/generateajf/` | AJF generation | `bash run.sh` |
 | `sample/log2config/` | Log to config extraction | `bash run.sh` |
 | `sample/log2cpf/` | Log to CPF conversion | `bash run.sh` |
@@ -245,83 +244,6 @@ ERROR 1 [file windows/win_018/window.mdp]:
 Root cause: the bilayer xy-extent exceeds half the post-NPT compressed shortest box vector, but the window MDP lacks an explicit `pull-group1-pbcatom` directive.
 
 Fix in 1.19.0+: `MembraneCGBuilder._stage6_mdps` calls `find_pbc_center_atom` on `system_ions.gro` + `index.ndx` to locate the atom closest to the bilayer COM, then injects `pull-group1-pbcatom = <atom>` into every window MDP. If you build with an older builder version, manually compute it (`python -c "from abmptools.cg.membrane.pulling import find_pbc_center_atom; print(find_pbc_center_atom(gro_path='system_ions.gro', ndx_path='index.ndx', group_name='Bilayer'))"`) and append the line to each `windows/win_NNN/window.mdp`.
-
-## GENESIS: `make` fails with `ftello64`/`fseeko64` undeclared under icx?
-
-POC build caveat for `analysis/src/lib/fileio_data_.c`:
-
-```
-fileio_data_.c:42:11: error: call to undeclared function 'ftello64';
-                       ISO C99 and later do not support implicit function declarations
-```
-
-icx (Intel oneAPI's Clang-based C compiler) does not auto-import the
-non-standard `ftello64` / `fseeko64` symbols that GENESIS' analysis
-helper relies on. Patch with sed:
-
-```bash
-sed -i 's/ftello64/ftello/g; s/fseeko64/fseeko/g' \
-    analysis/src/lib/fileio_data_.c
-./configure CC=icx FC=ifx
-make
-```
-
-This affects both `abmptools.genesis.grest` (1.20.0+) and
-`abmptools.genesis.mmgbsa` (1.22.0+) since both shell out to GENESIS.
-gcc/gfortran builds are unaffected.
-
-## GENESIS MM/GBSA: how do I install acpype?
-
-acpype is GPL-3.0 (subprocess-only invocation by abmptools, mere
-aggregation per FSF GPL FAQ — no abmptools license contagion).
-
-```bash
-# conda (推奨、AmberTools と同じ env に揃う):
-mamba install -c conda-forge acpype ambertools
-
-# pip:
-pip install acpype
-# antechamber + parmchk2 + ambmask が PATH に必要、AmberTools とセットで
-```
-
-Verify:
-```bash
-which acpype tleap atdyn
-acpype --version
-```
-
-`abmptools.genesis.mmgbsa validate --config <cfg>` で全 4 ツール
-(atdyn / tleap / acpype / mpirun) の resolve を確認できる。
-
-## GENESIS MM/GBSA: ΔG_bind の単位と符号は?
-
-単位は GENESIS atdyn のネイティブ **kcal/mol** (AMBER 力場の慣習)。
-符号は化学の慣例に従い **負 = 結合有利、正 = 結合不利**。
-
-ΔG_bind の式 (GENESIS doc 05_Energy.rst:564 の `U = U_FF + ΔG_solv`
-規約):
-
-```
-ΔG_bind = E_complex - E_ligand - E_receptor   [kcal/mol]
-```
-
-ENERGY 列にすでに SOLVATION が含まれているため、SOLVATION 列を別途
-足すと **二重カウント**になる。POC `4_analyse.py` の式
-`(egas + S)_c - (egas + S)_l - (egas + S)_r` は
-`egas = E - S` から代数的に上式と同一。
-
-`compute_dg_components` で MM 部 (ΔE_MM) と solvation 部 (ΔG_solv) の
-分解報告も可能 (3 値の和は ΔG_bind と一致):
-
-```python
-from abmptools.genesis.mmgbsa.analysis import compute_dg_components
-comps = compute_dg_components(
-    complex_e=-8855.2124, complex_s=-2029.5026,
-    ligand_e=8.8654, ligand_s=-57.5072,
-    receptor_e=-8825.8078, receptor_s=-2093.8123,
-)
-# {"dg_mm": -160.09, "dg_solv": +121.82, "dg_bind": -38.27}
-```
 
 ## fragmenter: RDKit 不在時の挙動?
 

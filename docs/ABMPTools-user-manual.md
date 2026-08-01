@@ -745,7 +745,7 @@ e.g.) `python -m abmptools.pdbmodify -mode resnum -aresname -reatm -i cyc.pdb.1`
 ## 新サブパッケージ (1.18.0+)
 
 このマニュアルは FMO/IFIE/PIEDA/CPF まわりの legacy 機能を中心に書かれている。
-1.18.0 以降に追加された **CG (Martini 3) 系統**、**GENESIS 系統**、および
+1.18.0 以降に追加された **CG (Martini 3) 系統**および
 **FMO 自動フラグメント分割**サブパッケージは独立したモジュールとして
 設計されており、それぞれ専用 doc + tutorial がある。
 
@@ -797,34 +797,6 @@ python -m abmptools.cg.membrane build    --config kgg_popc.json --ff-dir ./ff -o
 NT=8 bash ./out/run.sh   # em → nvt → npt → pull → 13-31 windows → wham
 ```
 
-### `abmptools.genesis.grest` (1.20.0、GENESIS gREST_SSCR replica exchange)
-
-GENESIS gREST_SSCR (Replica-Exchange with Solute Tempering — Solute
-Side-Chain Repartitioning) を end-to-end に組める最初の GENESIS 系統
-モジュール。AMBER ff19SB + TIP3P を `tleap` で勾配し、prmtop+coor を
-経由して minimize → equilibrate → grest → remd_convert → 1D distance
-PMF まで自動化する。
-
-| Doc | 内容 |
-|---|---|
-| [`docs/grest.md`](grest.md) | Subsystem reference (license / 5-stage pipeline / API / 6 design rationales / caveats / defaults) |
-| [`docs/tutorial_grest.md`](tutorial_grest.md) | Step-by-step (env + GENESIS build → smoke 5-6 分 → POC reproduction → analyze 解釈) |
-| `sample/grest/kgg_smoke.json` | 4 replica × 4000 nsteps smoke config |
-| `sample/grest/poc_reproduction.json` | 12 replica × 60M nsteps POC re-run config |
-
-CLI:
-
-```bash
-python -m abmptools.genesis.grest example > kgg.json
-python -m abmptools.genesis.grest validate --config kgg.json
-python -m abmptools.genesis.grest build    --config kgg.json -o ./out
-bash ./out/run.sh   # mpirun -np N spdyn で 4-12 replica REMD
-python -m abmptools.genesis.grest analyze --config kgg.json --run-dir ./out --what all \
-    --mask1 "rno:96 and an:NZ" --mask2 "rno:274 and an:OD1"
-```
-
-GENESIS (LGPL-3.0+) と AmberTools は subprocess only、未同梱 (`https://github.com/genesis-release-r-ccs/genesis` から build)。
-
 ### `abmptools.fragmenter` (1.21.0、FMO 自動フラグメント分割)
 
 PDB → RDKit で 4-strategy bond perception → heavy-atom-only canonical
@@ -852,45 +824,6 @@ python -m abmptools.fragmenter apply   --config config.json --pdb mol.pdb \
 Jupyter UI 経路: `from abmptools.fragmenter import AutoFragmenter, open_panel; af = AutoFragmenter.from_pdb('mol.pdb', config); open_panel(af)` で ipywidgets 経由 SVG + checkbox 編集。
 
 依存は RDKit (BSD-3-Clause、`pip install abmptools[fragmenter]`)、Jupyter 経路は `[fragmenter,jupyter]` でまとめて install。
-
-### `abmptools.genesis.mmgbsa` (1.22.0、GENESIS MM/GBSA single-point ΔG_bind)
-
-GENESIS atdyn の `[ENERGY] implicit_solvent=GBSA` を使った protein-ligand
-単フレーム MM/GBSA ΔG_bind 計算。AMBER ff14SB + DNA.OL15 + RNA.OL3 + TIP3P
-+ GAFF/GAFF2 経路 (POC `sample/gbsa/legacy_scripts/` を typed dataclass +
-JSON config + CLI に再構成したもの)。GENESIS 系統 2 番目のモジュール、
-1.20.0 grest との並走。
-
-| Doc | 内容 |
-|---|---|
-| [`docs/mmgbsa.md`](mmgbsa.md) | Subsystem reference (license posture / 4-stage pipeline / API / CLI / 6 design rationales / caveats / defaults) |
-| [`docs/tutorial_mmgbsa.md`](tutorial_mmgbsa.md) | Step-by-step ops (env + GENESIS build → smoke 2-5 分 → POC reproduction 30-60 分 → 解析解釈 → 失敗パターン) |
-| `sample/gbsa/example_config.json` | 4 POC targets reproduction |
-| `sample/gbsa/smoke_config.json` | 1 target smoke (CI / 動作確認) |
-| `sample/gbsa/legacy_scripts/` | POC scripts 4 個 (1_devidepdb / 2_setupmd / 3_rungbsa / 4_analyse) を温存 |
-
-CLI (7 sub-command + folder-mode shortcut):
-
-```bash
-python -m abmptools.genesis.mmgbsa example > config.json
-python -m abmptools.genesis.mmgbsa validate --config config.json
-
-# config-mode (推奨、再現性):
-python -m abmptools.genesis.mmgbsa pipeline --config config.json -o ./out
-
-# folder-mode shortcut (POC 互換):
-python -m abmptools.genesis.mmgbsa pipeline -i ./input -r 201 -o ./out
-
-# Stage ごと再開:
-python -m abmptools.genesis.mmgbsa divide       --config config.json -o ./out
-python -m abmptools.genesis.mmgbsa parameterize --config config.json -o ./out
-python -m abmptools.genesis.mmgbsa run          --config config.json -o ./out
-python -m abmptools.genesis.mmgbsa analyze      --config config.json --run-dir ./out
-```
-
-ΔG_bind 計算は GENESIS doc `05_Energy.rst:564` の `U = U_FF + ΔG_solv` 規約に従い、`ΔG_bind = E_complex - E_ligand - E_receptor` (ENERGY 列差) を採用。POC `4_analyse.py` の `(egas + S)_c - (egas + S)_l - (egas + S)_r` 式と代数的に同一。`compute_dg_components` で MM 部 (ΔE_MM) と solvation 部 (ΔG_solv) の分解報告も可能。
-
-GENESIS atdyn (LGPL-3.0+) と acpype (GPL-3.0) は subprocess only、未同梱。Biopython (BSD + Biopython License) と matplotlib (PSF/BSD) は `pip install abmptools[mmgbsa]` で自動 install。
 
 ### `abmptools.crystal` (1.23.0、有機物結晶 FMO ワークフロー)
 

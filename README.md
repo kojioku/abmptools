@@ -74,24 +74,6 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 - Default umbrella: 13 windows (z = -1.5 to +1.5 nm), k = 1000 kJ/mol/nm², 1 ns/window (50,000 steps × dt=20 fs); pulling 5 ns × 1 nm/ns
 - **Apache-2.0 / GPL-2.0 / MIT 互換のみ**: `insane` (GPL-2.0) と `vermouth-martinize` (Apache-2.0) は subprocess only -- abmptools 本体 (Apache-2.0、v1.23.0+) は mere aggregation で license 接触なし
 
-### GENESIS gREST_SSCR (`genesis.grest`)
-
-- End-to-end **GENESIS gREST_SSCR** builder + analysis: protein PDB → `tleap` で AMBER ff19SB + TIP3P → REST 残基確定 (explicit / around モード両対応) → 温度ラダー生成 (auto geometric / manual 両対応) → 4 つの GENESIS `.inp` (`step1_minimize` / `step2_equilibrate` / `step3_grest` / `step5_remd_convert`) + `mpirun -np N spdyn` 用 `run.sh` を生成
-- 解析: `analyze` サブコマンドで replica transition plot / acceptance ratio plot / `remd_convert` で param sort / 1D 距離 PMF (`-kT log P(r)`) を実装
-- データクラス: `GrestBuildConfig` / `RESTSelectionSpec` / `ReplicaTemperatureSpec` / `MinimizationStage` / `EquilibrationStage` / `GrestStage` (5 段 nested JSON 往復)
-- CLI: `python -m abmptools.genesis.grest {build,validate,example,analyze}` (argparse)
-- **LGPL-3.0-or-later 互換**: GENESIS (`spdyn` / `atdyn` / `remd_convert`) は subprocess only -- abmptools 本体 (Apache-2.0、v1.23.0+) と互換 (mere aggregation per LGPL §5/§6)
-- `abmptools/genesis/` は GENESIS 系統 namespace の最初の occupant。後続で `genesis/reus/` / `genesis/fep/` を計画
-
-### GENESIS MM/GBSA (`genesis.mmgbsa`)
-
-- End-to-end **GENESIS MM/GBSA** ΔG_bind builder + analysis: protein-ligand complex PDB + ligand 残基番号 → Biopython で receptor/ligand 分割 → acpype (GAFF/GAFF2 + AM1-BCC) + tleap で 3 系 (complex/ligand/receptor) の AMBER prmtop+inpcrd → `mpirun -np 1 atdyn` で `[ENERGY] implicit_solvent=GBSA` 単フレーム評価 → `[STEP4]` log パース → `ΔG_bind = (E+S)_complex - (E+S)_ligand - (E+S)_receptor` を CSV + 棒グラフ出力
-- データクラス: `MMGBSABuildConfig` / `TargetSpec` / `ForceFieldSet` / `LigandParameterization` / `EnergyProtocol` / `MinimizationProtocol` (5 段 nested JSON 往復)
-- CLI: `python -m abmptools.genesis.mmgbsa {build,validate,example,divide,parameterize,run,analyze,pipeline}` (7 sub-command + folder-mode shortcut `-i / -r / -c` で POC 互換)
-- 力場 default: AMBER **ff14SB** + DNA.OL15 + RNA.OL3 + TIP3P + GAFF/GAFF2 (POC 通り、grest の ff19SB とは意図的に別)
-- **ΔG_bind 計算**: GENESIS `ENERGY` 列は `U = U_FF + ΔG_solv` の合計 (doc 05_Energy.rst:564) なので `ΔG_bind = E_c - E_l - E_r` で全 MM/GBSA 寄与込み。POC `4_analyse.py` は等価な分解形 `(egas + S)_c - (egas + S)_l - (egas + S)_r` を使用 (`egas = E - S`)、両者は代数的に同一。`compute_dg_bind` (合計形) + `compute_dg_components` (分解報告 `{dg_mm, dg_solv, dg_bind}`) を提供
-- **LGPL-3.0+ / GPL-3.0 互換**: GENESIS (LGPL-3.0+) と acpype (GPL-3.0) は subprocess only -- abmptools 本体 (Apache-2.0、v1.23.0+) と互換 (mere aggregation)
-
 ### FMO Fragment Auto-splitter (`fragmenter`)
 
 - End-to-end **FMO 自動フラグメント分割** ツール: PDB → RDKit で 4-strategy bond perception (proximity → CONECT-only → `sanitize=False` → `obabel`) → heavy-atom-only canonical SMILES でグループ化 → graph diameter (heavy-atom-only 2-pass BFS) で主鎖検出 → 累積 MW + 側鎖 MW を加算しながら `target_mw` (default 200 g/mol) ごとに C-C 切断候補を提案 → `RWMol` で破壊的に bond 削除 → `log2config` 互換 `segment_data.dat` 出力 (pdb2fmo がそのまま読む)
@@ -297,8 +279,6 @@ Use `-h` with any module for full option details.
 - **[cg.dpd](docs/cg_dpd.md)** — CG → DPD 系入力ビルダー (v1.26.0 候補). `cg_segmenter` 出力 (`{name}_monomer` + `{name}_calc_sett`) と fcews `aij.dat` (Python 辞書) から、 **R1 (Cognac DPD 入力 UDF `*_uin.udf`)** と **R2 (J-OCTA `*.dpm` + `monomer-lib/<seg>/Virtual.mom` + `#Message.txt`、 B 案=user template patch)** の 2 ルートを生成。 R1 は plain text writer (UDFManager 非依存)、 R2 は user 提供 dpm template の `\begin{data}` 内 5 ブロックを brace-aware patch (class 定義 = 商用 J-OCTA spec は温存)。 dpdgen ロジックを参考に abmptools 内で自前実装、 subprocess も import もなし
 - **[hbond](docs/hbond.md)** — Hydrogen-bond analyzer for COGNAC `.udf` / `.bdf` trajectories with two analysis modes: **imc mode** classifies COOH into the **4 species** (dual cyclic dimer / chain / single COOH→amide / free) mirroring the Yuan 2015 (Mol. Pharm. 12, 4518) solid-state-NMR H-bond assignment, and **generic mode** (v1.28+) reports donor-type × acceptor-type pair statistics for arbitrary systems (PVA / peptide / alcohols). Luzar-Chandler geometry (d_DA ≤ 3.5 Å, ∠ ≥ 120°) with orthogonal PBC. **Element + bond-graph fallback** (v1.28+) lets OpenFF SMIRNOFF UDFs (per-atom unique `MOL0_X`) work without an antechamber GAFF patch. Writes Mol_Name-preserved BDF (J-OCTA pre-render) + 3-color BDF (gourmet) + Python panel `.py` script (J-OCTA post-render) + Attributes-tagged BDF (J-OCTA filter). CLI + Python API + Jupyter ipywidgets UI; samples on amorphous indomethacin (`sample/hbond/imc_amorphous/`) and PVA (`sample/amorphous/pva_amorphous/`) (v1.25.0+, 4-species + generic + element fallback in v1.27/v1.28.0 candidate)
 - **[formulation](docs/formulation.md)** / **[tutorial_formulation_smoke](docs/tutorial_formulation_smoke.md)** — Peptide formulation / aggregation MD builder + analysis (Hossain 2023 reproduction; ff14SB + GAFF2 + TIP3P, Windows-native OpenFF route; H-bond / SASA / DSSP / co-cluster-network analysis; v2.0.0+)
-- **[grest](docs/grest.md)** / **[tutorial_grest](docs/tutorial_grest.md)** — GENESIS gREST_SSCR replica-exchange with solute tempering (REST + SSCR, AMBER ff19SB + TIP3P; v1.20.0+)
-- **[mmgbsa](docs/mmgbsa.md)** / **[tutorial_mmgbsa](docs/tutorial_mmgbsa.md)** — GENESIS atdyn-based MM/GBSA single-point ΔG_bind for protein-ligand complexes (AMBER ff14SB + GAFF/GAFF2 via acpype; v1.22.0+)
 - **[crystal](docs/crystal.md)** / **[tutorial_crystal_fmo](docs/tutorial_crystal_fmo.md)** — Organic-crystal FMO pipeline (CIF → supercell → fragment cut → ABINIT-MP AJF + HPC jobscripts, `abmp-crystal` CLI; v1.23.0+)
 - **[crystal_verification](docs/crystal_verification.md)** — verification matrix for the crystal subpackage (Phase A-D coverage)
 - **[crystal_public_molecule_references](docs/crystal_public_molecule_references.md)** — 4-molecule MP2/6-31G(d) reference summary (urea / glycine / benzene / naphthalene)
@@ -370,7 +350,7 @@ NOTICE-file attribution and the explicit patent grant. See
 the transition note.
 
 Third-party dependencies (numpy / pandas / ase / rdkit / OpenMM / OpenFF
-Toolkit / GROMACS / AmberTools / vermouth / insane / GENESIS / acpype /
+Toolkit / GROMACS / AmberTools / vermouth / insane / acpype /
 ABINIT-MP, etc.) keep their respective licenses; a complete inventory
 is in [`docs/licenses_third_party.md`](docs/licenses_third_party.md).
 
