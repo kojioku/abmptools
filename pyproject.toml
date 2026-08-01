@@ -51,63 +51,11 @@ membrane = [
     # Optional: gromacs[build=nompi_cuda*] for GPU offload (separate env).
     # See docs/dependencies.md for the full recipe.
 ]
-cg = [
-    "vermouth>=0.10",   # martinize2 (PyPI、Apache-2.0)
-    "insane>=1.2",      # Martini lipid bilayer assembly (PyPI、GPL-2.0)
-                        # subprocess 経由のみ、ソース改変・同梱なし
-    "pyyaml>=6.0",      # YAML 入力 (optional; JSON only でも動く)
-    # External tools (subprocess、conda 推奨):
-    #   gromacs (>=2021)  — gmx insert-molecules / solvate / genion / grompp /
-    #                       make_ndx / mdrun / wham
-    #   ambertools (>=22) — tleap (推奨、不在時は extended-backbone fallback)
-    # Force field files (本パッケージ未同梱、cgmartini.nl から取得):
-    #   cg.peptide:  martini_v3.0.0.itp / _solvents_v1 / _ions_v1
-    #                (+ optional water.gro, auto-gen via gmx insert-molecules)
-    #   cg.membrane: 上記 3 ITP + martini_v3.0.0_phospholipids_v1.itp
-    # See abmptools/cg/peptide/README.md and abmptools/cg/membrane/README.md.
-]
-grest = [
-    "matplotlib>=3.5",  # replica transition / acceptance / PMF プロット
-    # External tools (subprocess only, never bundled):
-    #   GENESIS spdyn / atdyn / remd_convert (>=2.1) — LGPL-3.0-or-later
-    #     build from https://github.com/genesis-release-r-ccs/genesis
-    #     (icx で fileio_data_.c の ftello64/fseeko64 を ftello/fseeko に
-    #      置換するパッチが必要な場合あり。docs/grest.md 参照)
-    #   ambertools (>=22) — tleap (必須) + cpptraj (around モード時)
-    #   mpirun (OpenMPI / MPICH) — 並列レプリカ実行
-    # Force field files: AmberTools 同梱 (ff19SB / TIP3P)、本パッケージは追加 ITP なし。
-    # See abmptools/genesis/grest/__init__.py + docs/grest.md.
-]
-mmgbsa = [
-    "biopython>=1.80",  # PDB splitter (Stage 1)
-    "matplotlib>=3.5",  # ΔG_bind 棒グラフ (Stage 4、grest と shared)
-    # External tools (subprocess only, never bundled):
-    #   GENESIS atdyn (>=2.1) — LGPL-3.0-or-later
-    #     build from https://github.com/genesis-release-r-ccs/genesis
-    #   ambertools (>=22) — tleap (必須)
-    #   acpype (>=2022.7.21) — GPL-3.0、ligand GAFF/GAFF2 + AM1-BCC
-    #     pip install acpype  または  conda install -c conda-forge acpype
-    #     subprocess only (mere aggregation per GPL FAQ)
-    #   mpirun (OpenMPI / MPICH) — `mpirun -np 1 atdyn`
-    # Force field default: ff14SB + DNA.OL15 + RNA.OL3 + TIP3P + GAFF/GAFF2
-    # (genesis.grest の ff19SB とは意図的に別、MM/GBSA で広く使われる安定 default)。
-    # See abmptools/genesis/mmgbsa/__init__.py + docs/mmgbsa.md.
-]
 # rdkit を使う機能 (hbond の官能基判定 / formulation の小分子処理 / geomopt) 用。
 # extras 名は後方互換のため据え置き。
 fragmenter = [
     "rdkit-pypi>=2022.09",  # 分子構造の正規化 (canonical SMILES)、SVG 描画、bond perception
                             # PyPI、BSD-3-Clause
-]
-crystal = [
-    # Phase A は legacy ファイル (numpy/pandas のみ) を再 export するだけなので
-    # 追加依存なしでも動く。Phase C 以降で必須:
-    "ase>=3.22",       # CIF 読み込み、対称展開、スーパーセル (LGPL-2.1+)
-    "pyyaml>=6.0",     # YAML config loader (JSON でも動くが推奨)
-    # External tools (subprocess only, never bundled):
-    #   abinitmp (Open ver.1 rev20+) — `--run-local` 時のみ。HPC ジョブ提出は
-    #     abmptools.crystal が job script を出力し、ユーザが pjsub/sbatch する
-    # See abmptools/crystal/__init__.py + docs/crystal.md (Phase D 追加予定).
 ]
 jupyter = [
     "ipywidgets>=8.0",  # notebook UI のインタラクティブ要素 (dropdown / checkbox / button)
@@ -195,7 +143,6 @@ abmp-pdbmodify = "abmptools.pdbmodify:main"
 abmp-ajf2config = "abmptools.ajf2config:main"
 abmp-ajfserial = "abmptools.ajfserial:main"
 abmp-addsolvfrag = "abmptools.addsolvfrag:main"
-abmp-crystal = "abmptools.crystal.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["abmptools*"]

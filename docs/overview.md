@@ -1,31 +1,5 @@
 # ABMPTools Overview
 
-## Project Name & Version
-
-**ABMPTools** (ABINIT-MP Tools)
-Author: Koji Okuwaki
-
-> Latest released version on PyPI: v1.15.4 (refactor/all line).
-> v1.16.0 (core / amorphous updates), v1.17.0 (membrane subpackage),
-> v1.17.1 (mixed-lipid support), v1.17.2 (extended lipid table + discovery
-> API), v1.17.3 (CHARMM36 backend 実機検証 + 7 件 bug fix),
-> **v1.18.0 (`cg.peptide` subpackage — Martini 3 peptide CG builder)**,
-> **v1.19.0 (`cg.membrane` subpackage — Martini 3 peptide-membrane
-> PMF via insane + umbrella sampling)**,
-> **v1.20.0 (`genesis.grest` subpackage — GENESIS gREST_SSCR replica
-> exchange with solute tempering)**,
-> **v1.21.0 (`fragmenter` subpackage — FMO automatic fragment splitter
-> for small molecules / lipids / polymers)**,
-> **v1.22.0 (`genesis.mmgbsa` subpackage — GENESIS MM/GBSA
-> single-point ΔG_bind via atdyn implicit GBSA)**,
-> and **v1.23.0 (`crystal` subpackage — organic-crystal FMO pipeline:
-> CIF → supercell → fragment cut → ABINIT-MP AJF + HPC jobscripts;
-> Phase A–D = skeleton + regression fixture + 8-subcommand CLI +
-> `--run-local` + ASE PBC unwrap, includes 4 public-molecule MP2/6-31G(d)
-> reference set: urea / glycine / benzene / naphthalene)** are staged on
-> `develop`, not yet released to `main` / PyPI. See
-> [`CHANGELOG.md`](../CHANGELOG.md) for the per-version detail.
-
 ## What is ABMPTools?
 
 ABMPTools is a Python toolkit for pre-processing, post-processing, and analysis of Fragment Molecular Orbital (FMO) calculations performed with [ABINIT-MP](https://fmodd.jp/member_contents/manual_ABINIT-MP/). It provides:
@@ -35,24 +9,6 @@ ABMPTools is a Python toolkit for pre-processing, post-processing, and analysis 
 - **FMO input generation** — Automatically generate AJF input files from PDB structures with fragment assignment.
 - **File format conversion** — Convert between PDB, LOG, CPF, UDF (OCTA COGNAC), CIF, and XYZ formats.
 - **Dynamic IFIE (DIFIE)** — Average IFIE data across MD trajectory snapshots into a single CPF with mean/standard-deviation statistics.
-
-## Key Capabilities
-
-| Category | Modules | Description |
-|----------|---------|-------------|
-| Analysis | `getifiepieda`, `anlfmo`, `cpf2ifielist`, `getcharge` | IFIE/PIEDA extraction, fragment interaction matrices, charge analysis |
-| CPF Management | `cpfmanager`, `convertcpf`, `generate_difie`, `log2cpf` | Parse/write/convert CPF files, create DIFIE averages |
-| FMO Setup | `generateajf`, `pdb2fmo`, `udf2fmo`, `setfmo`, `addsolvfrag` | Generate AJF inputs, assign fragments, handle solvation |
-| File Conversion | `log2config`, `ajf2config`, `readcif`, `pdbmodify`, `ajfserial` | Format conversion and PDB editing utilities |
-| MD Integration | `udf_io`, `udfrm_io`, `udfcreate`, `gro2udf`, `udf2gro`, `udfcharge` | OCTA COGNAC UDF file handling, GROMACS ↔ OCTA conversion, and single-molecule → bulk charge transfer |
-| Structure Optimization | `geomopt.{MacePdbOptimizer, OpenFFOpenMMMinimizer, QMOptimizerPySCF}` | MACE / OpenFF / PySCF-DFT driven geometry optimization for PDB inputs |
-| Amorphous Builder | `amorphous` (`build_amorphous.py`) | SMILES / SDF / PubChem CID (via `amorphous.pubchem`) multi-component amorphous builder (Packmol + OpenFF + AM1-BCC), auto-generates 5-stage GROMACS annealing protocol and VMD-friendly trajectory post-processing |
-| Membrane Builder | `membrane` (`MembraneUSBuilder`) | Lipid-bilayer + peptide umbrella-sampling PMF builder (packmol-memgen + AMBER `ff19SB`/`Lipid21`/TIP3P or CHARMM36 backend → semiisotropic NPT → z-pulling → per-window US → `gmx wham`). GPU-aware `run.sh`. Designed commercial-license-clean (no CGenFF / CHARMM-GUI). |
-| Crystal-FMO Pipeline | `crystal` (`CrystalOrchestrator`, `abmp-crystal` CLI) | Organic-crystal FMO workflow: CIF → supercell PDB (legacy parser or ASE backend with PBC unwrap) → fragment cut around solute → ABINIT-MP AJF (full-precision `&XYZ` block) → PJM/SLURM/PBS/local jobscripts → optional `--run-local` execution → `getifiepieda` postprocessing. 8-subcommand CLI driven by single YAML/JSON config. |
-| CG Peptide Builder | `cg.peptide` (`PeptideBuildConfig`, vermouth-martinize2) | Martini 3 peptide CG system builder. tleap (optional) で AA PDB → martinize2 で CG 化 → GROMACS solvate / genion / MDP / run.sh まで end-to-end (v1.18.0+). |
-| CG Membrane PMF | `cg.membrane` (`MembraneCGBuildConfig`, insane + cg.peptide sub-call) | Martini 3 peptide-bilayer umbrella-sampling PMF builder. AA membrane より 30-100× 速い (v1.19.0+). |
-| GENESIS gREST | `genesis.grest` (`GrestBuilder`, `python -m abmptools.genesis.grest` CLI) | GENESIS gREST_SSCR (Replica-Exchange Solute Tempering with Solute Side Chain Repartitioning) 5-stage builder + replica transition / acceptance / PMF 解析 (AMBER ff19SB + TIP3P; v1.20.0+). |
-| GENESIS MM/GBSA | `genesis.mmgbsa` (`MmgbsaBuilder`, `python -m abmptools.genesis.mmgbsa` CLI) | GENESIS atdyn `[ENERGY] implicit_solvent=GBSA` による protein-ligand 単フレーム MM/GBSA ΔG_bind builder (AMBER ff14SB + GAFF/GAFF2 via acpype; v1.22.0+). |
 
 ## Supported ABINIT-MP Versions
 
@@ -97,63 +53,32 @@ python -m abmptools.log2cpf -i calculation.log -o output.cpf
 python -m abmptools.generate_difie -i traj-xxx.cpf -t 1 10 1 -f 1-100 -np 4
 ```
 
+## Key Capabilities
+
+| 分類 | モジュール | 概要 |
+|---|---|---|
+| FMO 入力生成 | `generateajf` / `pdb2fmo` / `addsolvfrag` | PDB から ajf を作る。溶媒フラグメント付加も |
+| FMO 結果解析 | `anlfmo` / `getifiepieda` / `generate_difie` | IFIE / PIEDA の抽出・集計、trajectory 平均 |
+| ファイル変換 | `cpfmanager` / `logmanager` / `abinit_io` | CPF / log / ajf の読み書き |
+| 構造最適化 | `geomopt` / `qmopt` | 座標最適化のラッパ |
+| アモルファス構築 | `amorphous` | packmol + OpenFF による非晶質系の構築 |
+| 水素結合解析 | `hbond` | 4 力場対応、寿命・4-species 分類・2D diagram |
+| 製剤系 MD | `formulation` | ペプチド製剤の構築・解析 |
+| 膜透過 PMF | `membrane` | umbrella sampling による PMF (AMBER / CHARMM36) |
+| OCTA 連携 | `gro2udf` / `udf2gro` / `udfcharge` | GROMACS ⇄ COGNAC UDF の変換、電荷転写 |
+| trajectory 操作 | `trajectory` | gmx trjconv / energy のラッパ |
+
 ## Where to Start Reading
 
-For new developers approaching this codebase:
-
-1. **`abmptools/__init__.py`** — Package entry point; see what is exported.
-2. **`abmptools/mol_io.py`** — Base I/O class; all coordinate handling builds on this.
-3. **`abmptools/cpfmanager.py`** — Central data manager; understand CPF parsing and pandas DataFrame usage.
-4. **`abmptools/getifiepieda.py`** — Primary analysis CLI; shows how modules compose together.
-5. **`docs/ABMPTools-user-manual.md`** — Comprehensive user manual with option descriptions and output examples.
-6. **`sample/`** — Working examples with `run.sh` scripts for each workflow.
-7. **`docs/tutorial_membrane_us.md`** — Step-by-step ops tutorial for the
-   `membrane` subpackage (peptide-bilayer Umbrella Sampling, AA backend).
-8. **`docs/cg_membrane.md`** + **`docs/tutorial_cg_membrane_us.md`** —
-   Martini 3 CG version of the membrane PMF builder
-   (`cg.membrane`); 30-100× faster wall time than AA, smoke run completes
-   in 5-6 min on 8-thread CPU.
-9. **`docs/cg_peptide.md`** — Martini 3 peptide CG builder
-   (`cg.peptide`); peptide-only system in water box, used standalone or
-   sub-called by `cg.membrane`.
-10. **`docs/peptide_builders.md`** — Cross-cutting selection guide for the
-    three peptide-from-sequence builders (AA membrane / CG peptide /
-    CG membrane); compares resolution, cost, license, and use cases.
-12. **`docs/grest.md`** + **`docs/tutorial_grest.md`** —
-    `abmptools.genesis.grest` (1.20.0+); GENESIS gREST_SSCR replica
-    exchange with solute tempering (AMBER ff19SB + TIP3P, 4-12 replicas
-    + REST residue selection + temperature ladder).
-13. **`docs/mmgbsa.md`** + **`docs/tutorial_mmgbsa.md`** —
-    `abmptools.genesis.mmgbsa` (1.22.0+); GENESIS atdyn-based MM/GBSA
-    single-point ΔG_bind for protein-ligand complexes (AMBER ff14SB +
-    GAFF/GAFF2 via acpype, 4-stage pipeline: split PDB → parameterize →
-    GBSA single-point → ΔG_bind aggregation).
-    Protein / DNA stays on the existing `log2config` route.
-15. **`docs/crystal.md`** + **`docs/tutorial_crystal_fmo.md`** —
-    `abmptools.crystal` (1.23.0+); organic-crystal FMO pipeline
-    (CIF → supercell → fragment cut → ABINIT-MP AJF + HPC jobscripts;
-    8-subcommand CLI: `abmp-crystal {expand,fragment,jobs,pipeline,
-    postproc,nearest,validate,example}`). Companion docs:
-    **`docs/crystal_verification.md`** (verification matrix) +
-    **`docs/crystal_public_molecule_references.md`** (4-molecule
-    MP2/6-31G(d) reference summary: urea / glycine / benzene /
-    naphthalene with E' in crystal vs MP2 total isolated, sum-IFIE,
-    wall time, and CIF source attribution).
-17. **`docs/udfcharge.md`** + **`docs/tutorial_udfcharge.md`** —
-    `abmptools.udfcharge`; OCTA/COGNAC UDF への per-atom 電荷割り当て。
-    単分子 UDF (電荷あり) の partial charge を、 バルク系 UDF の同名分子
-    すべてへ転写する (例: 量子化学/FMO で求めた電荷を MD バルク系へ反映)。
-    `electrostatic_Site[].ES_Element` 規約 (charge[e] × 18.224159264) を
-    gro2udf / udf2gro と共有。
-18. **`docs/hbond.md`** + **`docs/tutorial_hbond_imc.md`** —
-    `abmptools.hbond` (1.25.0+); COGNAC `.udf` / `.bdf`(や MDAnalysis 経由の
-    GROMACS)trajectory の水素結合解析。imc 4-species 分類 / generic
-    donor×acceptor pair 統計 / lifetime + Luzar-Chandler C(t) / gourmet・J-OCTA
-    向け着色 BDF + per-frame アニメーション。
-19. **`docs/gro2udf.md`** + **`docs/trajectory.md`** — GROMACS ↔ OCTA/COGNAC
-    変換 (`gro2udf` = top/gro/xtc/edr → UDF) と GROMACS trajectory 後処理
-    (`trajectory` = gmx trjconv / energy の Windows-native ラッパー)。
-20. **`docs/formulation.md`** + **`docs/tutorial_formulation_smoke.md`** —
-    `abmptools.formulation` (2.0.0+); ペプチド製剤 / 凝集 MD の構築 + 解析
-    (Hossain 2023 再現、ff14SB + GAFF2 + TIP3P、H-bond / SASA / DSSP /
-    co-cluster network)。
+1. **`docs/overview.md`** (本ページ) — 全体像とクイックスタート
+2. **`docs/architecture.md`** — モジュール構成と設計方針
+3. **`docs/directory_structure.md`** — ディレクトリの地図
+4. **`docs/dataflow.md`** — 入出力の流れ
+5. **`docs/io_spec.md`** — ファイル形式の仕様
+6. サブシステム別リファレンス — `amorphous.md` / `hbond.md` / `formulation.md` /
+   `membrane.md` / `gro2udf.md` / `udf2gro.md` / `udfcharge.md` / `trajectory.md` /
+   `geomopt.md` / `qmopt.md`
+7. チュートリアル — `amorphous_tutorial.md` / `tutorial_hbond_imc.md` /
+   `tutorial_formulation_smoke.md` / `tutorial_membrane_us.md` / `tutorial_udfcharge.md`
+8. **`docs/dependencies.md`** / **`docs/platform_support.md`** — 依存と動作環境
+9. **`docs/faq.md`** — よくある詰まりどころ

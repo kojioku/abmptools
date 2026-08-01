@@ -35,12 +35,6 @@ ABMPTools reads and writes multiple file formats used in Fragment Molecular Orbi
 - **Dependency**: Requires optional `UDFManager` library.
 - **Usage**: Extract frames for FMO calculation setup.
 
-### CIF (Crystallographic Information File)
-
-- **Module**: `readcif.py`
-- **Functions**: `getcartesiancellvec()`, `getcartesianmol()`, `intocell()`
-- **Usage**: Convert crystal structures to Cartesian coordinates for FMO input.
-
 ### XYZ
 
 - **Module**: `mol_io.py` (`read_xyz()`)

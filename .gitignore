@@ -31,3 +31,6 @@ mdout.mdp
 # CSVs go into the repo).
 sample/crystal/*/out_*/
 sample/crystal/*/*.run.stdout
+
+# セッション作業用スクラッチ (コミット対象外)
+work_rebuild/

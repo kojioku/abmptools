@@ -4,33 +4,9 @@
 Windows ネイティブ運用したい組織への参照資料を兼ねる。
 
 > **要約**: Linux / macOS は全機能 OK。 Windows ネイティブは **AmberTools が install
-> できない** ため `genesis.*` の build pipeline は不可。 WSL2 が使える組織なら
 > Linux と同等。 `formulation` は **OpenFF route (`force_field_route="openff"`)
 > で Windows native 化完了** — multi-chain protein + disulfide (insulin) を含め
 > tleap/acpype 不要で全 OS build 可能 (詳細下記 "OpenFF route" 節)。
-
-## OS 別 sub-package 対応
-
-| Sub-package | Linux | macOS | **Windows native** | WSL2 |
-|---|:---:|:---:|:---:|:---:|
-| `abmptools.trajectory` (gmx trjconv/energy wrapper) | ✅ | ✅ | **✅** | ✅ |
-| `abmptools.amorphous` (OpenFF route) | ✅ | ✅ | **✅** | ✅ |
-| `abmptools.crystal` (OpenFF route) | ✅ | ✅ | **✅** | ✅ |
-| `abmptools.cg.peptide` (Martini 3 + vermouth) | ✅ | ✅ | **✅** | ✅ |
-| `abmptools.cg.membrane` (insane + cg.peptide) | ✅ | ✅ | ⚠ | ✅ |
-| `abmptools.hbond` (J-OCTA UDF colorize) | ✅ | ✅ | **✅** | ✅ |
-| `abmptools.gro2udf` (GROMACS → cognac UDF) | ✅ | ✅ | **✅** | ✅ |
-| `abmptools.formulation` (Amber route, tleap) | ✅ | ✅ | ❌ | ✅ |
-| `abmptools.formulation` (**OpenFF route**, `force_field_route="openff"`) | ✅ | ✅ | **✅** | ✅ |
-| `abmptools.membrane` (CHARMM/AMBER backend) | ✅ | ✅ | ❌ | ✅ |
-| `abmptools.genesis.mmgbsa` (acpype + tleap + atdyn) | ✅ | ✅ | ❌ | ✅ |
-| `abmptools.genesis.grest` (tleap + atdyn) | ✅ | ✅ | ❌ | ✅ |
-| `abmptools.geomopt` (DFT 経由) | ✅ | ✅ | △ | ✅ |
-| FMO 解析 CLI (`generateajf` / `getifiepieda` / `convertcpf` 等) | ✅ | ✅ | **✅** | ✅ |
-| `abinitmp` ビルド (Fortran 90) | ✅ | ✅ | ❌ (gfortran/MSYS2 経由なら可) | ✅ |
-
-凡例: ✅ 動作確認済 / **太字** Windows native で動く重要項目 / ⚠ 一部制約あり /
-❌ ネイティブ不可 / △ 設定次第
 
 ## Module 別 install 可否
 
@@ -154,18 +130,6 @@ Windows native 動作を明示的に保証している module。 設計選択:
 "force_field_route": "amber"    // default (Linux/macOS)
 "force_field_route": "openff"   // 全 OS (Windows native)
 ```
-
-### 実装上の重要ポイント (insulin で確立)
-
-| 課題 | 対応 |
-|---|---|
-| `Molecule.from_polymer_pdb` が multi-chain+disulfide 非対応 | **`Topology.from_pdb`** (OpenFF 0.14+) — 1 分子認識 + S-S 自動検出 (手動宣言不要) |
-| OpenFF は explicit H 必須、 crystal water が邪魔 | **PDBFixer** `removeHeterogens(keepWater=False)` + `addMissingHydrogens(7.0)` |
-| **full mixture の `Interchange.from_smirnoff` が O(N²) で 2 時間+** | **単一コピー parametrize (~4 秒) → `[molecules]` count 複製** (GROMACS の moleculetype count 参照の本来の使い方) |
-| `am1bcc` は `sqm` (Linux 専用) | protein=ff14SB **library charges**、 small mol=gasteiger/nagl precomputed (`protein_flags` で振り分け) |
-| `gmx genion` が ion moleculetype を要求 | Na+/Cl- を単一 topology に含めて moleculetype 定義のみ生成、 `[molecules]` 除外 |
-| 非標準残基 (D-Phe1/D-Trp4/Thr-ol) | Amber route の whole-peptide GAFF (`parameterize_method="gaff"`) で対応 (D-octreotide)。 OpenFF route は標準 protein のみ |
-| >99999 atom 系の gro serial wrap | `ndx.parse_gro_residues` を 1-based 行番号に修正済 (insulin 156k で発覚) |
 
 ### 実証済 (実機 build)
 

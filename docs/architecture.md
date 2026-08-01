@@ -168,32 +168,6 @@ AJF  ──→ ajfserial  ──→ Numbered AJF files
 PDB  ──→ pdbmodify  ──→ PDB (edited)
 ```
 
-## Subpackages
-
-In addition to the flat `abmptools/*.py` layer described above, the package ships several subpackages that each encapsulate a self-contained workflow:
-
-- **`abmptools.gro2udf` / `abmptools.udf2gro`** — bidirectional conversion between GROMACS (`.gro / .top / .mdp / .itp`) and OCTA COGNAC UDF. See [`gro2udf.md`](gro2udf.md) / [`udf2gro.md`](udf2gro.md).
-- **`abmptools.udfcharge`** — per-atom charge transfer between OCTA COGNAC UDFs: read partial charges from a single-molecule UDF and assign them to every same-named molecule in a bulk UDF (shares the `electrostatic_Site[].ES_Element` = charge[e] × 18.224159264 convention with gro2udf / udf2gro). See [`udfcharge.md`](udfcharge.md) / [`tutorial_udfcharge.md`](tutorial_udfcharge.md).
-- **`abmptools.geomopt`** — pluggable geometry optimization (MACE / OpenFF-OpenMM / PySCF-DFT). Each backend is a lazy-imported class under `geomopt/`. See [`geomopt.md`](geomopt.md) and [`qmopt.md`](qmopt.md).
-- **`abmptools.amorphous`** — multi-component amorphous builder (SMILES / SDF / PubChem CID → Packmol packing → OpenFF parameterization with AM1-BCC → GROMACS 5-stage annealing protocol + VMD-friendly PBC wrap script). The `amorphous.pubchem` submodule is a dependency-free (`urllib`-only) wrapper around the PubChem PUG REST API, raising `PubChemNo3DError` when no 3D conformer is available. See [`amorphous.md`](amorphous.md).
-- **`abmptools.membrane`** — peptide-bilayer umbrella-sampling builder (packmol-memgen lipid + peptide PDB → AMBER ff19SB+Lipid21 via tleap+parmed → semiisotropic NPT equilibration → z-pulling → per-window MDPs → `gmx wham`). Designed to be commercial-license-clean: CGenFF web server and CHARMM-GUI auto-generation are forbidden by design. See [`membrane.md`](membrane.md).
-- **`abmptools.cg.peptide`** — Martini 3 peptide CG system builder (residue sequence + counts + box → `tleap`/extended-backbone fallback for atomistic PDB → `martinize2 -ff martini3001` for CG mapping → `gmx insert-molecules` → `gmx solvate` (Martini W, auto-generated when needed) → `gmx genion` for NaCl 0.15 M → em/nvt/npt/md.mdp + `run.sh`). vermouth-martinize (Apache-2.0) is invoked via `subprocess` only (no source bundled or modified). See [`cg/peptide/README.md`](../abmptools/cg/peptide/README.md). New in v1.18.0.
-- **`abmptools.cg.membrane`** — Martini 3 peptide-membrane PMF builder (umbrella sampling). Internally sub-calls `abmptools.cg.peptide` for the CG peptide; embeds it via `insane` (GPL-2.0, subprocess only) into a POPC bilayer; post-processes the topology (4 ITP includes + `Protein → molecule_0` rename + `NA+/CL- → NA/CL` normalization); generates 13-31 windows of NPT-semiisotropic umbrella MDPs (with `pull-group1-pbcatom` injected for the bilayer group); reuses `abmptools.membrane.{pulling,pmf,mdp_us_protocol}` helpers via duck-typed imports for `gmx wham` analysis. CG dt=20 fs gives 30-100× wall-time speedup over AA membrane. See [`cg_membrane.md`](cg_membrane.md) and [`tutorial_cg_membrane_us.md`](tutorial_cg_membrane_us.md). New in v1.19.0.
-- **`abmptools.genesis.grest`** — GENESIS gREST_SSCR (generalized Replica-Exchange with Solute Tempering — Solute Side-Chain Repartitioning) builder + analysis. Drives `tleap` for AMBER ff19SB + TIP3P parameterization, resolves REST solute residues via explicit list or `cpptraj` `<:radius` mask, generates a geometric / manual temperature ladder, renders 4 GENESIS `.inp` files (minimize / equilibrate / grest / remd_convert), and emits `mpirun -np N spdyn` driven `run.sh`. Post-MD `analyze` subcommand: replica transition plot, acceptance ratio plot, 1D distance PMF (`-kT log P(r)` from cpptraj distance time-series). GENESIS (LGPL-3.0+) and AmberTools are subprocess-only (no bundling, no linking). See [`grest.md`](grest.md) and [`tutorial_grest.md`](tutorial_grest.md). First module under the `abmptools.genesis/` namespace, new in v1.20.0.
-- **`abmptools.genesis.mmgbsa`** — GENESIS atdyn-based MM/GBSA single-point ΔG_bind for protein-ligand binding free-energy estimation. 4-stage pipeline: split PDB into receptor + ligand (Biopython) → parameterize 3 systems (acpype with GAFF/GAFF2 + AM1-BCC for the ligand, then `tleap` for complex/ligand/receptor with AMBER ff14SB + DNA.OL15 + RNA.OL3 + TIP3P) → run `mpirun -np 1 atdyn` with `[ENERGY] implicit_solvent=GBSA` + NOBC + 1-step minimize → parse `[STEP4] Compute Single Point Energy` log + compute `ΔG_bind = E_complex - E_ligand - E_receptor` (per GENESIS doc 05_Energy.rst:564, the `ENERGY` column already contains `U_FF + ΔG_solv`) + emit CSV + matplotlib bar plot. Acpype (GPL-3.0) and GENESIS atdyn (LGPL-3.0+) are subprocess-only. CLI: `python -m abmptools.genesis.mmgbsa {example,validate,divide,parameterize,run,analyze,pipeline}` with both JSON config and folder-mode shortcut (`-i / -r / -c` for POC compatibility). See [`mmgbsa.md`](mmgbsa.md) and [`tutorial_mmgbsa.md`](tutorial_mmgbsa.md). Second module under `abmptools.genesis/`, new in v1.22.0.
-- **`abmptools.hbond`** — Hydrogen-bond analyzer for COGNAC `.udf` / `.bdf` trajectories with two analysis modes. **imc mode** classifies each COOH into 4 species (cyclic dimer / chain / single COOH→amide / free) mirroring the Yuan 2015 (Mol. Pharm. 12, 4518) NMR H-bond assignment; **generic mode** (v1.28+) reports donor-type × acceptor-type pair statistics for arbitrary systems (PVA / peptide / alcohols / mixtures). 12 modules covering UDFManager wrapping (`bdf_reader`), force-field-agnostic functional tagging with 4 built-in FF mappings + element + bond-graph fallback (`func_tags`, `functional_groups`, fallback makes OpenFF SMIRNOFF UDFs work without an antechamber GAFF patch), Luzar-Chandler / strict / custom geometric H-bond detection with orthogonal-PBC minimum image (`hbond_detector`), the IMC classifier and generic pair-type statistics (`classifier`, `pair_type_stats`), continuous / intermittent lifetime + unbiased Luzar-Chandler autocorrelation `C(t)` + τ_HB (`lifetime`), and four visualisation routes via `colorizer` (Mol_Name rename + Draw_Attributes for gourmet, autorun `.act` for gourmet, plain `.py` Python panel script for OCTA viewer, per-atom Attributes tagging for OCTA viewer filtering). CLI (`python -m abmptools.hbond ... --classify-mode {imc,generic} --donor-groups ... --acceptor-groups ...`) + Python API (`Analyzer`, `AnalyzerConfig`) + Jupyter ipywidgets UI (`open_panel(bdf_path)` with mode dropdown + functional-group checkboxes + RDKit 2D structure preview). Samples: `sample/hbond/imc_amorphous/` (IMC + MD species-fraction plot) and `sample/amorphous/pva_amorphous/` (PVA 10-mer × 30 OpenFF Sage + AM1-BCC + 5-stage MD + generic-mode demo). See [`hbond.md`](hbond.md) and the end-to-end IMC tutorial [`tutorial_hbond_imc.md`](tutorial_hbond_imc.md). New in v1.25.0; 4-species classifier + Yuan NMR plot in v1.27.0 candidate; generic mode + element fallback + PVA sample in v1.28.0 candidate.
-- **`abmptools.crystal`** — organic-crystal FMO pipeline that produces ABINIT-MP AJF inputs and HPC jobscripts from one or more CIF files. 5-stage flow: (1) CIF → supercell PDB via legacy parser (`readcif.py`) or ASE backend (`cif_engine_ase.py` with `ase.io.read` + `Atoms.repeat` + bond-graph `unwrap_molecules` for PBC boundary fix), (2) PDB → `for_abmp/*.{ajf,pdb}` with fragment cut around solute (re-using `setfmo` + `pdb2fmo` with `is_xyz=True` for full-precision `&XYZ` block), (3) HPC jobscripts (PJM / SLURM / PBS / `local`, `string.Template` rendered + `runbatch.sh`), (4) optional `--run-local` invocation (`mpirun -np N abinitmp` for MPI-flat builds), (5) optional `getifiepieda` postprocessing (IFIE/PIEDA CSV + nearest-atom annotation). Driven by a single `CrystalBuildConfig` (one top-level dataclass + 6 leaves: `CIFInputSpec` / `CIFEngineConfig` / `FragmentTemplate` / `FMOMethod` / `HPCJobSpec` / `PostProcessSpec`) with YAML/JSON round-trip. CLI: `abmp-crystal {expand,fragment,jobs,pipeline,postproc,nearest,validate,example}` (8 subcommands, also `python -m abmptools.crystal`). ASE (LGPL-2.1+) and ABINIT-MP (separate distribution) are subprocess-only. Includes `abmptools/crystal/legacy/` namespace re-exporting the flat-layout 5 modules (`readcif`, `pdb2fmo`, `ajf2config`, `pdbmodify`, `getifiepieda`) for backward compatibility. See [`crystal.md`](crystal.md) + [`tutorial_crystal_fmo.md`](tutorial_crystal_fmo.md) + [`crystal_verification.md`](crystal_verification.md) + [`crystal_public_molecule_references.md`](crystal_public_molecule_references.md) (4-molecule MP2/6-31G(d) reference set). New in v1.23.0.
-- **`abmptools.core`** — shared dataclasses used across the subpackages above:
-  `SystemModel`, `AnnealProtocol`, `ClusterData`, `FixedLabel`, plus the
-  `ensemble_family` flag and `classify_ensemble()` helper that distinguish
-  COGNAC-only ensembles (e.g. `NPT_Andersen_Nose_Hoover`) from
-  GROMACS-representable ones. The `amorphous` and `membrane` subpackages
-  build a `SystemModel` from their respective inputs and then use
-  `SimulationParams` (semiisotropic Pcoupl, multi-group thermostats, etc.)
-  to drive the writer layer.
-
-All subpackages use lazy imports for heavy scientific dependencies (OpenMM, RDKit, PySCF, etc.), so `import abmptools` remains cheap even if those optional stacks are not installed.
-
 ## Fortran Extension Integration
 
 `abmptools/f90/src/readifiepiedalib.f90` (219 lines) provides a fast log file parser for IFIE/PIEDA data. It is:
@@ -203,27 +177,6 @@ All subpackages use lazy imports for heavy scientific dependencies (OpenMM, RDKi
 3. Optional — the `-nof90` flag forces pure-Python fallback.
 
 **Note**: MP3/MP4 extraction requires the Fortran module. PB-IFIE, BSSE-IFIE, and monomer/dimer energies require the `-nof90` (pure Python) path.
-
-## CLI Entry Points
-
-All CLIs are invoked as `python -m abmptools.<module>`:
-
-| Module | Purpose | Key Arguments |
-|--------|---------|---------------|
-| `generateajf` | Generate AJF templates | `-i` (PDB), `-basis`, `--method`, `-pb`, `-np` |
-| `getifiepieda` | Extract IFIE/PIEDA | `--frag`, `--mol`, `--ffmatrix`, `--tfmatrix`, `-t`, `-np` |
-| `log2cpf` | Convert log to CPF | `-i` (input), `-o` (output) |
-| `log2config` | Convert log to config | `-i` (input), `-o` (output), `-np` |
-| `pdb2fmo` | PDB to FMO setup | `-i` (PDB), `-p` (parameter file) |
-| `generate_difie` | Create DIFIE CPF | `-i` (template), `-t` (range), `-z` (padding), `-np` |
-| `convertcpf` | Convert CPF versions | `-i` (input), `-v` (version), `-f` (fragments) |
-| `udf2fmo` | UDF to FMO setup | `-i` (UDF), `-p` (param), `-s` (solutes), `-r` (record) |
-| `pdbmodify` | Modify PDB files | `-i`, `-move`, `-mode`, `-str` |
-| `getcharge` | Extract charges | `-i` (log), `-t` (type), `-f` (fragments) |
-| `addsolvfrag` | Add solvation | `-i` (PDB), `-temp` (template), `-solv` |
-| `ajfserial` | Numbered AJF files | `-i` (template), `-t` (range), `-str` |
-| `cpf2ifielist` | CPF to IFIE list | `-i` (CPF), `-f` (fragment range) |
-| `crystal` (also `abmp-crystal`) | Organic-crystal FMO pipeline | subcommands: `expand` / `fragment` / `jobs` / `pipeline` / `postproc` / `nearest` / `validate` / `example`; `--config` (YAML/JSON), `--run-local` |
 
 ## Where to Start Reading
 

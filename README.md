@@ -56,55 +56,6 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
   trajectories with `gmx trjconv -pbc mol -ur compact` for VMD-friendly
   `*_pbc.xtc` / `_pbc.gro` outputs
 
-### Martini 3 Peptide CG System (`cg.peptide`)
-
-- End-to-end Martini 3 peptide CG system builder: residue sequence (1-letter) + counts + box → `martinize2 -ff martini3001` で CG mapping → `gmx insert-molecules` で peptide 配置 → `gmx solvate` で Martini W → `gmx genion` で NaCl 中和 + 0.15 M → em/nvt/npt/md.mdp + `run.sh` を生成
-- atomistic PDB は **tleap** (推奨; full sidechain) または extended-backbone fallback (tleap 不在時; 芳香族残基では NaN bead artifact の可能性あり、警告ログ)
-- データクラス: `PeptideSpec` / `PeptideBuildConfig` (`@dataclass`、JSON 往復、YAML optional)
-- CLI: `python -m abmptools.cg.peptide {build,validate,example}` (argparse)
-- **Apache-2.0 互換のみ**: `vermouth-martinize` を `subprocess` で呼ぶのみ、改変・同梱なし。Martini 3 force field `.itp` は本パッケージ未同梱で `validate` サブコマンドが取得手順を表示
-- `abmptools/cg/` namespace は MO-AAMD-CGMD マルチスケール基盤の CG 系統として新設。後続で `cg/polymer/` (polyply 経由) や `cg/smallmol/` (Auto-Martini 経由) を計画
-
-### Martini 3 Peptide-Membrane PMF (`cg.membrane`)
-
-- End-to-end Martini 3 peptide-bilayer **umbrella sampling** builder: cg.peptide で M3 CG ペプチド生成 → `insane` (GPL-2.0、subprocess only) で POPC bilayer に埋め込み → topology composer で 4 ITP includes / `Protein → molecule_0` / `NA+/CL- → NA/CL` 正規化 → `index.ndx` (Bilayer / Peptide / W / NA / CL / Non_Bilayer) → em / nvt / npt-semiisotropic + pull-direction-periodic + 13 window static umbrella + `run.sh` を生成
-- AA 系の `membrane` (CHARMM36 / Lipid21) と並走する CG 版。`abmptools.membrane.{pulling,pmf,mdp_us_protocol}` の generic helpers を **import 経由で再利用** (コード重複ゼロ)
-- データクラス: `MembraneCGBuildConfig` / `LipidMix` / `PeptideMembraneSpec` / `EquilibrationCGProtocol` / `PullingCGProtocol` / `UmbrellaCGProtocol` (5 段 nested JSON 往復)
-- CLI: `python -m abmptools.cg.membrane {build,validate,example,make-windows,wham}` (argparse)
-- Default umbrella: 13 windows (z = -1.5 to +1.5 nm), k = 1000 kJ/mol/nm², 1 ns/window (50,000 steps × dt=20 fs); pulling 5 ns × 1 nm/ns
-- **Apache-2.0 / GPL-2.0 / MIT 互換のみ**: `insane` (GPL-2.0) と `vermouth-martinize` (Apache-2.0) は subprocess only -- abmptools 本体 (Apache-2.0、v1.23.0+) は mere aggregation で license 接触なし
-
-### GENESIS gREST_SSCR (`genesis.grest`)
-
-- End-to-end **GENESIS gREST_SSCR** builder + analysis: protein PDB → `tleap` で AMBER ff19SB + TIP3P → REST 残基確定 (explicit / around モード両対応) → 温度ラダー生成 (auto geometric / manual 両対応) → 4 つの GENESIS `.inp` (`step1_minimize` / `step2_equilibrate` / `step3_grest` / `step5_remd_convert`) + `mpirun -np N spdyn` 用 `run.sh` を生成
-- 解析: `analyze` サブコマンドで replica transition plot / acceptance ratio plot / `remd_convert` で param sort / 1D 距離 PMF (`-kT log P(r)`) を実装
-- データクラス: `GrestBuildConfig` / `RESTSelectionSpec` / `ReplicaTemperatureSpec` / `MinimizationStage` / `EquilibrationStage` / `GrestStage` (5 段 nested JSON 往復)
-- CLI: `python -m abmptools.genesis.grest {build,validate,example,analyze}` (argparse)
-- **LGPL-3.0-or-later 互換**: GENESIS (`spdyn` / `atdyn` / `remd_convert`) は subprocess only -- abmptools 本体 (Apache-2.0、v1.23.0+) と互換 (mere aggregation per LGPL §5/§6)
-- `abmptools/genesis/` は GENESIS 系統 namespace の最初の occupant。後続で `genesis/reus/` / `genesis/fep/` を計画
-
-### GENESIS MM/GBSA (`genesis.mmgbsa`)
-
-- End-to-end **GENESIS MM/GBSA** ΔG_bind builder + analysis: protein-ligand complex PDB + ligand 残基番号 → Biopython で receptor/ligand 分割 → acpype (GAFF/GAFF2 + AM1-BCC) + tleap で 3 系 (complex/ligand/receptor) の AMBER prmtop+inpcrd → `mpirun -np 1 atdyn` で `[ENERGY] implicit_solvent=GBSA` 単フレーム評価 → `[STEP4]` log パース → `ΔG_bind = (E+S)_complex - (E+S)_ligand - (E+S)_receptor` を CSV + 棒グラフ出力
-- データクラス: `MMGBSABuildConfig` / `TargetSpec` / `ForceFieldSet` / `LigandParameterization` / `EnergyProtocol` / `MinimizationProtocol` (5 段 nested JSON 往復)
-- CLI: `python -m abmptools.genesis.mmgbsa {build,validate,example,divide,parameterize,run,analyze,pipeline}` (7 sub-command + folder-mode shortcut `-i / -r / -c` で POC 互換)
-- 力場 default: AMBER **ff14SB** + DNA.OL15 + RNA.OL3 + TIP3P + GAFF/GAFF2 (POC 通り、grest の ff19SB とは意図的に別)
-- **ΔG_bind 計算**: GENESIS `ENERGY` 列は `U = U_FF + ΔG_solv` の合計 (doc 05_Energy.rst:564) なので `ΔG_bind = E_c - E_l - E_r` で全 MM/GBSA 寄与込み。POC `4_analyse.py` は等価な分解形 `(egas + S)_c - (egas + S)_l - (egas + S)_r` を使用 (`egas = E - S`)、両者は代数的に同一。`compute_dg_bind` (合計形) + `compute_dg_components` (分解報告 `{dg_mm, dg_solv, dg_bind}`) を提供
-- **LGPL-3.0+ / GPL-3.0 互換**: GENESIS (LGPL-3.0+) と acpype (GPL-3.0) は subprocess only -- abmptools 本体 (Apache-2.0、v1.23.0+) と互換 (mere aggregation)
-
-### Crystal-FMO Pipeline (`crystal`)
-
-- End-to-end **organic-crystal FMO** workflow: CIF → supercell PDB → fragment cut around a target solute → ABINIT-MP AJF (with full-precision `&XYZ` block) → optional `--run-local` invocation → `getifiepieda` postprocessing (IFIE/PIEDA + MonomerEnergy)
-- Two CIF backends: `engine='legacy'` (the historical hand-rolled parser, byte-equivalent with v1.22.0 csp7 outputs) and `engine='ase'` (ASE space-group expansion, arbitrary `layer`)
-- 8-subcommand CLI: `abmp-crystal {expand,fragment,jobs,pipeline,postproc,nearest,validate,example}` driven by a single YAML/JSON config (`CrystalBuildConfig` + 7 leaf dataclasses)
-- HPC scheduler templates: PJM / SLURM / PBS / `local`. The `local` scheduler combined with `--run-local` invokes `abinitmp` directly per AJF (smoke / single-shot reference runs)
-- Numeric reference frozen for csp7 R00001 layer3 HF/6-31G (9h on 1 core, abinitmp v2r8) as `frag1-dimer-es-false-{ifiesum,ifiedt}.csv` from the in-tree `getifiepieda` post-processor — no parallel parser duplication
-- `abmptools.anlfmo` gained HF-log support along the way (5 defensive edits, MP2 production path unchanged)
-- Bundled tutorial: `docs/tutorial_crystal_fmo.md` (9 sections, including reference-establishment recipe); design notes: `docs/crystal.md`; verification matrix: `docs/crystal_verification.md`
-- Sample driver/config: `sample/crystal/csp7_smoke/` (cif and `UNK.ajf` template are private and live in `abmptools-sample` — staged automatically when `ABMPTOOLS_SAMPLE_DIR` is set)
-- Public-molecule MP2/6-31G(d) reference set: `sample/crystal/{urea,glycine,benzene,naphthalene}/` with `reference/expected_layer3_mp2_631gd_{ifiesum,ifiedt}.csv` + isolated-monomer total. Cross-molecule summary in `docs/crystal_public_molecule_references.md`
-- Dependencies: `pip install abmptools[crystal]` (`ase >= 3.22` / `pyyaml >= 6.0`); ABINIT-MP for `--run-local` only
-
 ### H-bond Analyzer for COGNAC Trajectories (`hbond`)
 
 - **OCTA COGNAC `.udf` / `.bdf` 専用** の H-bond 解析サブパッケージ。非晶質 MD で
@@ -195,98 +146,6 @@ Installation runs `make` to compile the optional Fortran shared library for acce
 - **Required**: Python 3.8+, numpy, pandas
 - **Optional**: UDFManager (OCTA COGNAC), gfortran, OpenBabel, PySCF, ASE, OpenMM, Packmol
 
-## Quick Start
-
-```bash
-# Extract IFIE for fragment 10, within 8 Å
-python -m abmptools.getifiepieda --frag 10 -d 8.0 -i calculation.log
-
-# Generate AJF input from PDB
-python -m abmptools.generateajf -i protein.pdb -basis 6-31G* --method MP2
-
-# Convert log to CPF
-python -m abmptools.log2cpf -i calculation.log -o output.cpf
-
-# Create DIFIE-averaged CPF from trajectory
-python -m abmptools.generate_difie -i traj-xxx.cpf -t 1 10 1 -f 1-100 -np 4
-
-# Convert UDF to GROMACS
-python -m abmptools.udf2gro.cli -i system.udf -o output
-
-# Convert GROMACS to UDF
-python -m abmptools.gro2udf.cli -i system.gro -t system.top -o output.udf
-
-# Transfer charges from a single-molecule UDF to all same-named molecules in a bulk UDF
-python -m abmptools.udfcharge transfer --template mol.udf --bulk bulk.udf --out bulk_charged.udf
-
-# Restore a neutralized UDF's charges to a target integer formal charge
-python -m abmptools.udfcharge restore --udf mol.udf --formal-charge 12 --out mol_q+12.udf
-
-# Build an amorphous mixture from SMILES (50 ketoprofen molecules, density 0.8 g/cm^3)
-python -m abmptools.amorphous --smiles "OC(=O)C(C)c1cccc(C(=O)c2ccccc2)c1" \
-    --name ketoprofen --n_mol 50 --density 0.8 --output_dir ./ketoprofen
-
-# Or use an external 3D SDF (e.g. from PubChem) as the initial conformer
-python -m abmptools.amorphous --mol ketoprofen_pubchem_cid3825.sdf \
-    --name ketoprofen --n_mol 50 --density 0.8 --output_dir ./ketoprofen_pubchem
-
-# Or let abmptools fetch the 3D SDF straight from PubChem (1.15.3+)
-python -m abmptools.amorphous --pubchem_cid 3825 \
-    --name ketoprofen --n_mol 50 --density 0.8 --output_dir ./ketoprofen_pubchem
-
-# Build a Martini 3 peptide CG system (KGG x5 + RGG x5 in 10 nm box)
-python -m abmptools.cg.peptide example > kgg.json   # 最小 example
-python -m abmptools.cg.peptide validate --config kgg.json --ff-dir ./ff
-python -m abmptools.cg.peptide build    --config kgg.json --ff-dir ./ff -o ./out
-
-# Martini 3 peptide-membrane PMF (umbrella sampling) — abmptools.cg.membrane
-python -m abmptools.cg.membrane example > kgg_popc.json
-python -m abmptools.cg.membrane validate --config kgg_popc.json --ff-dir ./ff
-python -m abmptools.cg.membrane build    --config kgg_popc.json --ff-dir ./ff -o ./out
-bash ./out/run.sh                                    # em → nvt → npt → pull → 13 windows → wham
-# 上記で out/run/run.sh が生成される。Martini 3 .itp は cgmartini.nl から
-# 別途取得が必要 (本パッケージ未同梱)。詳細は abmptools/cg/peptide/README.md。
-
-# Build a peptide-bilayer Umbrella Sampling system (AMBER backend)
-python - <<'PY'
-from abmptools.membrane import (MembraneConfig, MembraneUSBuilder,
-    LipidSpec, PeptideSpec, USProtocol)
-cfg = MembraneConfig(
-    backend="amber",
-    lipids=[LipidSpec(resname="POPC", n_per_leaflet=32)],
-    peptide=PeptideSpec(name="aa5", sequence="AAAAA"),
-    output_dir="./membrane_run", seed=42,
-    umbrella=USProtocol(z_min_nm=-1.5, z_max_nm=+1.5, window_spacing_nm=0.25),
-)
-print(MembraneUSBuilder(cfg).build()["run_script"])
-PY
-```
-
-Use `-h` with any module for full option details.
-
-## Documentation
-
-- **[User Manual](docs/ABMPTools-user-manual.md)** — CLI options, output formats, and workflow examples
-- **[Architecture](docs/architecture.md)** — Class hierarchy and design overview
-- **[Developer Quickstart](docs/dev_quickstart.md)** — Setup and code conventions
-- **[I/O Spec](docs/io_spec.md)** — File format specifications
-- **[gro2udf](docs/gro2udf.md)** / **[udf2gro](docs/udf2gro.md)** — GROMACS ↔ OCTA conversion
-- **[trajectory](docs/trajectory.md)** — Cross-platform (Windows-native) Python wrapper around `gmx trjconv` / `gmx energy` (thin / nojump / wrap-pbc / energy-extract; replaces per-sample bash scripts)
-- **[udfcharge](docs/udfcharge.md)** / **[tutorial_udfcharge](docs/tutorial_udfcharge.md)** — single-molecule → bulk UDF charge transfer
-- **[geomopt](docs/geomopt.md)** / **[amorphous](docs/amorphous.md)** — Optimization and structure building
-- **[membrane](docs/membrane.md)** / **[tutorial_membrane_us](docs/tutorial_membrane_us.md)** — Peptide-bilayer umbrella-sampling PMF (AA, CHARMM36 / Lipid21)
-- **[cg_membrane](docs/cg_membrane.md)** / **[tutorial_cg_membrane_us](docs/tutorial_cg_membrane_us.md)** — Martini 3 peptide-bilayer PMF (CG, 30-100× faster than AA, KGG-POPC smoke 5 min / production 45 min)
-- **[cg_peptide](docs/cg_peptide.md)** — Martini 3 peptide CG builder (peptide-only in water box, sub-called by `cg.membrane` or standalone)
-- **[peptide_builders](docs/peptide_builders.md)** — Selection guide across 3 peptide-from-sequence builders (AA membrane / CG peptide / CG membrane)
-- **[hbond](docs/hbond.md)** — Hydrogen-bond analyzer for COGNAC `.udf` / `.bdf` trajectories with two analysis modes: **imc mode** classifies COOH into the **4 species** (dual cyclic dimer / chain / single COOH→amide / free) mirroring the Yuan 2015 (Mol. Pharm. 12, 4518) solid-state-NMR H-bond assignment, and **generic mode** (v1.28+) reports donor-type × acceptor-type pair statistics for arbitrary systems (PVA / peptide / alcohols). Luzar-Chandler geometry (d_DA ≤ 3.5 Å, ∠ ≥ 120°) with orthogonal PBC. **Element + bond-graph fallback** (v1.28+) lets OpenFF SMIRNOFF UDFs (per-atom unique `MOL0_X`) work without an antechamber GAFF patch. Writes Mol_Name-preserved BDF (J-OCTA pre-render) + 3-color BDF (gourmet) + Python panel `.py` script (J-OCTA post-render) + Attributes-tagged BDF (J-OCTA filter). CLI + Python API + Jupyter ipywidgets UI; samples on amorphous indomethacin (`sample/hbond/imc_amorphous/`) and PVA (`sample/amorphous/pva_amorphous/`) (v1.25.0+, 4-species + generic + element fallback in v1.27/v1.28.0 candidate)
-- **[formulation](docs/formulation.md)** / **[tutorial_formulation_smoke](docs/tutorial_formulation_smoke.md)** — Peptide formulation / aggregation MD builder + analysis (Hossain 2023 reproduction; ff14SB + GAFF2 + TIP3P, Windows-native OpenFF route; H-bond / SASA / DSSP / co-cluster-network analysis; v2.0.0+)
-- **[grest](docs/grest.md)** / **[tutorial_grest](docs/tutorial_grest.md)** — GENESIS gREST_SSCR replica-exchange with solute tempering (REST + SSCR, AMBER ff19SB + TIP3P; v1.20.0+)
-- **[mmgbsa](docs/mmgbsa.md)** / **[tutorial_mmgbsa](docs/tutorial_mmgbsa.md)** — GENESIS atdyn-based MM/GBSA single-point ΔG_bind for protein-ligand complexes (AMBER ff14SB + GAFF/GAFF2 via acpype; v1.22.0+)
-- **[crystal](docs/crystal.md)** / **[tutorial_crystal_fmo](docs/tutorial_crystal_fmo.md)** — Organic-crystal FMO pipeline (CIF → supercell → fragment cut → ABINIT-MP AJF + HPC jobscripts, `abmp-crystal` CLI; v1.23.0+)
-- **[crystal_verification](docs/crystal_verification.md)** — verification matrix for the crystal subpackage (Phase A-D coverage)
-- **[crystal_public_molecule_references](docs/crystal_public_molecule_references.md)** — 4-molecule MP2/6-31G(d) reference summary (urea / glycine / benzene / naphthalene)
-- **[licenses_third_party](docs/licenses_third_party.md)** — third-party dependency license inventory (Apache-2.0 compatibility matrix)
-
 ## Testing
 
 ```bash
@@ -339,23 +198,6 @@ cd sample/amorphous/mixture_json        && bash run_sample.sh   # multi-componen
 ```
 
 See [`docs/amorphous_tutorial.md`](docs/amorphous_tutorial.md) for the hands-on walk-through and [`sample/amorphous/ketoprofen/README.md`](sample/amorphous/ketoprofen/README.md) for an annotated run log of the ketoprofen build.
-
-## License
-
-ABMPTools is licensed under the **Apache License, Version 2.0**. See the
-[`LICENSE`](LICENSE) file for the full text and the [`NOTICE`](NOTICE)
-file for attribution and citation requirements.
-
-The project was previously distributed under MIT (≤ v1.22.0); v1.23.0
-onwards switches to Apache-2.0 to strengthen the citation request via
-NOTICE-file attribution and the explicit patent grant. See
-[`CHANGELOG.md`](CHANGELOG.md) `[Unreleased]` → "License migration" for
-the transition note.
-
-Third-party dependencies (numpy / pandas / ase / rdkit / OpenMM / OpenFF
-Toolkit / GROMACS / AmberTools / vermouth / insane / GENESIS / acpype /
-ABINIT-MP, etc.) keep their respective licenses; a complete inventory
-is in [`docs/licenses_third_party.md`](docs/licenses_third_party.md).
 
 ## How to cite
 

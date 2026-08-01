@@ -4,9 +4,8 @@
 
 Public API
 ----------
-- :func:`run_pdb2fmo` -- in-process driver (param dict 渡し可、abmptools
-  内の他サブパッケージから直接呼び出す経路。`abmptools.crystal.builder.
-  CrystalOrchestrator` 等で使用)
+- :func:`run_pdb2fmo` -- in-process driver (param dict 渡し可、subprocess を
+  介さず同一プロセス内から呼び出す経路)
 - :func:`main`        -- 既存 CLI エントリ (`python -m abmptools.pdb2fmo`
   / `abmp-pdb2fmo`)。挙動は完全保持; 内部で run_pdb2fmo を呼ぶ
 """
@@ -115,9 +114,8 @@ def run_pdb2fmo(
     instance per input PDB, ``setrfmoparam`` from a dict, optional
     ``is_xyz`` flag, cutmode-aware ``oname`` resolution, then
     ``getcontact_rmapfmopdb``. Suitable for callers inside the same
-    Python process (``abmptools.crystal.builder.CrystalOrchestrator``
-    is the canonical user); the CLI ``main()`` is a thin wrapper around
-    this function.
+    Python process; the CLI ``main()`` is a thin wrapper around this
+    function.
 
     Parameters
     ----------

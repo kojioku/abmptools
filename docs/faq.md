@@ -191,36 +191,6 @@ Options:
    ```
    Requires a working CUDA driver inside WSL2 (already the case with recent `libcuda.so`).
 
-## CG (Martini 3): How do I install the Martini 3 force field files?
-
-`abmptools.cg.peptide` (1.18.0+) and `abmptools.cg.membrane` (1.19.0+) do **not** bundle the Martini 3 ITPs because cgmartini.nl distributes them under unspecified terms. Users download `martini_v300.zip` and unzip the required ITPs into `./ff/`:
-
-```bash
-mkdir ff
-curl -L -o /tmp/m300.zip \
-    https://cgmartini-library.s3.ca-central-1.amazonaws.com/1_Downloads/ff_parameters/martini3/martini_v300.zip
-unzip -o -j /tmp/m300.zip \
-    "martini_v300/martini_v3.0.0.itp" \
-    "martini_v300/martini_v3.0.0_solvents_v1.itp" \
-    "martini_v300/martini_v3.0.0_ions_v1.itp" \
-    "martini_v300/martini_v3.0.0_phospholipids_v1.itp" \
-    -d ff/
-```
-
-`cg.peptide` needs the first 3 ITPs; `cg.membrane` adds the phospholipid ITP. The `validate` subcommand (`python -m abmptools.cg.peptide validate ...` / `python -m abmptools.cg.membrane validate ...`) checks all required files are present. Please cite Souza et al. 2021 *Nat. Methods* in any publication using the Martini 3 force field.
-
-## CG: My cg.membrane PMF has 30-80 kJ/mol left/right asymmetry — bug?
-
-No. This is a known limitation of **single-direction umbrella sampling**: the peptide is pulled from +z above the bilayer to -z below in one trajectory, so each window inherits a sampling history biased toward that direction. The two water-side minima should be physically equivalent for a homogeneous bilayer, but with finite per-window MD time the WHAM integration anchors PMF=0 at one end and the other end drifts.
-
-Mitigations (not implemented in 1.19.0):
-
-1. **Bidirectional pulling + Bennett acceptance** — pull `+z → -z` and `-z → +z` separately, combine forward/reverse forces.
-2. **Replica-exchange umbrella sampling** — use `plumed` to swap windows during MD.
-3. **Post-process symmetrize** — fit and force-symmetrize about z=0 (only valid for a symmetric system).
-
-The same artifact appears in AA membrane Phase D (CHARMM36) and is documented in `docs/membrane.md` Phase C+. See `docs/tutorial_cg_membrane_us.md` §5 for details.
-
 ## CG: My pull stage hangs at step 0 with 99% CPU and no progress?
 
 Symptom: `pull/pull.log` shows only `Step 0` and `pull.xtc` does not grow.
@@ -228,100 +198,6 @@ Symptom: `pull/pull.log` shows only `Step 0` and `pull.xtc` does not grow.
 Root cause: pull MDP has both `pull-coord1-geometry = direction-periodic` AND a `pull-group1-pbcatom = N` line. With Martini 3 dt=20 fs, this combination puts the integrator in a deadlock loop. AA membrane (dt=2 fs) does not see this pathology.
 
 Fix in 1.19.0+: `MembraneCGBuilder._stage6_mdps` only injects pbcatom into **window MDPs** (which use `direction` geometry, dynamic-box compatible). The pull MDP relies on `direction-periodic`'s internal periodic image handling and does not need pbcatom. If you build with an older builder version, manually remove `pull-group1-pbcatom` from `pull/pull.mdp` and re-grompp.
-
-## CG: `gmx grompp` on a window MDP fails with "Pull group 1 is larger than half the box"?
-
-Symptom (typically at the bilayer-center window, e.g. `win_018/window.mdp` for 31-window protocol):
-
-```
-ERROR 1 [file windows/win_018/window.mdp]:
-  When the maximum distance from a pull group reference atom to other
-  atoms in the group is larger than 0.5 times half the box size a
-  centrally placed atom should be chosen as pbcatom. Pull group 1 is
-  larger than that and does not have a specific atom selected as
-  reference atom.
-```
-
-Root cause: the bilayer xy-extent exceeds half the post-NPT compressed shortest box vector, but the window MDP lacks an explicit `pull-group1-pbcatom` directive.
-
-Fix in 1.19.0+: `MembraneCGBuilder._stage6_mdps` calls `find_pbc_center_atom` on `system_ions.gro` + `index.ndx` to locate the atom closest to the bilayer COM, then injects `pull-group1-pbcatom = <atom>` into every window MDP. If you build with an older builder version, manually compute it (`python -c "from abmptools.cg.membrane.pulling import find_pbc_center_atom; print(find_pbc_center_atom(gro_path='system_ions.gro', ndx_path='index.ndx', group_name='Bilayer'))"`) and append the line to each `windows/win_NNN/window.mdp`.
-
-## GENESIS: `make` fails with `ftello64`/`fseeko64` undeclared under icx?
-
-POC build caveat for `analysis/src/lib/fileio_data_.c`:
-
-```
-fileio_data_.c:42:11: error: call to undeclared function 'ftello64';
-                       ISO C99 and later do not support implicit function declarations
-```
-
-icx (Intel oneAPI's Clang-based C compiler) does not auto-import the
-non-standard `ftello64` / `fseeko64` symbols that GENESIS' analysis
-helper relies on. Patch with sed:
-
-```bash
-sed -i 's/ftello64/ftello/g; s/fseeko64/fseeko/g' \
-    analysis/src/lib/fileio_data_.c
-./configure CC=icx FC=ifx
-make
-```
-
-This affects both `abmptools.genesis.grest` (1.20.0+) and
-`abmptools.genesis.mmgbsa` (1.22.0+) since both shell out to GENESIS.
-gcc/gfortran builds are unaffected.
-
-## GENESIS MM/GBSA: how do I install acpype?
-
-acpype is GPL-3.0 (subprocess-only invocation by abmptools, mere
-aggregation per FSF GPL FAQ — no abmptools license contagion).
-
-```bash
-# conda (推奨、AmberTools と同じ env に揃う):
-mamba install -c conda-forge acpype ambertools
-
-# pip:
-pip install acpype
-# antechamber + parmchk2 + ambmask が PATH に必要、AmberTools とセットで
-```
-
-Verify:
-```bash
-which acpype tleap atdyn
-acpype --version
-```
-
-`abmptools.genesis.mmgbsa validate --config <cfg>` で全 4 ツール
-(atdyn / tleap / acpype / mpirun) の resolve を確認できる。
-
-## GENESIS MM/GBSA: ΔG_bind の単位と符号は?
-
-単位は GENESIS atdyn のネイティブ **kcal/mol** (AMBER 力場の慣習)。
-符号は化学の慣例に従い **負 = 結合有利、正 = 結合不利**。
-
-ΔG_bind の式 (GENESIS doc 05_Energy.rst:564 の `U = U_FF + ΔG_solv`
-規約):
-
-```
-ΔG_bind = E_complex - E_ligand - E_receptor   [kcal/mol]
-```
-
-ENERGY 列にすでに SOLVATION が含まれているため、SOLVATION 列を別途
-足すと **二重カウント**になる。POC `4_analyse.py` の式
-`(egas + S)_c - (egas + S)_l - (egas + S)_r` は
-`egas = E - S` から代数的に上式と同一。
-
-`compute_dg_components` で MM 部 (ΔE_MM) と solvation 部 (ΔG_solv) の
-分解報告も可能 (3 値の和は ΔG_bind と一致):
-
-```python
-from abmptools.genesis.mmgbsa.analysis import compute_dg_components
-comps = compute_dg_components(
-    complex_e=-8855.2124, complex_s=-2029.5026,
-    ligand_e=8.8654, ligand_s=-57.5072,
-    receptor_e=-8825.8078, receptor_s=-2093.8123,
-)
-# {"dg_mm": -160.09, "dg_solv": +121.82, "dg_bind": -38.27}
-```
 
 ## What is the `tips/` directory?
 
