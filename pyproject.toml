@@ -52,10 +52,14 @@ membrane = [
     # See docs/dependencies.md for the full recipe.
 ]
 # rdkit を使う機能 (hbond の官能基判定 / formulation の小分子処理 / geomopt) 用。
-# extras 名は後方互換のため据え置き。
-fragmenter = [
+rdkit = [
     "rdkit-pypi>=2022.09",  # 分子構造の正規化 (canonical SMILES)、SVG 描画、bond perception
                             # PyPI、BSD-3-Clause
+]
+# 旧名。`fragmenter` サブパッケージは本 repo には無いが、この extras 名で
+# rdkit を入れている手順書・環境があるため alias として残す。新規は [rdkit] を使う。
+fragmenter = [
+    "abmptools[rdkit]",
 ]
 jupyter = [
     "ipywidgets>=8.0",  # notebook UI のインタラクティブ要素 (dropdown / checkbox / button)
@@ -65,7 +69,7 @@ jupyter = [
 hbond = [
     "matplotlib>=3.5",  # count vs record プロット (任意)
     # 必須: numpy (本体)、UDFManager (OCTA 同梱、PyPI には無い)
-    # Jupyter UI を使う場合は [jupyter] + [fragmenter] (rdkit) を併用。
+    # Jupyter UI を使う場合は [jupyter] + [rdkit] を併用。
     # External tools (任意):
     #   OCTA gourmet — 生成された colored.bdf の可視化に使う
     # See abmptools/hbond/__init__.py + docs/hbond.md.
