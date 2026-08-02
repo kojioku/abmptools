@@ -16,7 +16,7 @@ FMO に投入する前にこのスクリプトで機械的にチェックする�
 使い方 (残基番号でフラグメントを指定; cpptraj の :N-M と同じ番号):
     python3 check_contact.py \\
         --frag A:1-840 --frag B:841-1184 --frag lig:1185 \\
-        CR8_AF3_MD_pr-optedpdb/*_fmo_mask.pdb
+        <head>-optedpdb/*_fmo_mask.pdb
 
 --frag を省略すると、溶質(非水)を単一フラグメント扱いにし、
 水和殻チェックのみ行う。

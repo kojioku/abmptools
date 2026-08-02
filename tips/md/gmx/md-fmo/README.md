@@ -12,16 +12,24 @@
 | `1_trajsep.sh` | トラジェクトリから指定区間・間隔でフレームを `.gro` に切り出し |
 | `2_optmask-frame.sh` | 各フレームを最小化 → PBC 再構成 → 液滴を切り出し (**旧版**) |
 | `2_optmask-frame_v2.sh` | 上の PBC 再構成を cpptraj `autoimage` 化した **推奨版** |
+| `2b_recover-from-center1.sh` | 既に旧版を流した後の**救済用**。最小化をやり直さず液滴だけ作り直す |
 | `check_contact.py` | 切り出した液滴が「複合体が接触した状態」かを機械検証 |
 | `3_fmosetup.sh` | 液滴 PDB から ajf (FMO 入力) を生成 |
 | `sample/` | 本問題 (複合体の分離・水和殻の穴) を溶媒つき toy 系・数秒で再現するデモ ([sample/README.md](sample/README.md)) |
 
 ```bash
-bash 0_parmed.sh CR8_AF3_MD_cpx_solv_noIon.top
-bash 1_trajsep.sh -f CR8_AF3_MD_pr.xtc -s CR8_AF3_MD_pr.gro
+bash 0_parmed.sh <system>.top
+bash 1_trajsep.sh -f <traj>.xtc -s <system>.gro
 cd gmxpdbs-foropt
 bash ../2_optmask-frame_v2.sh -n index.solute.ndx -p <top> -f <traj>
 bash ../3_fmosetup.sh
+```
+
+既に旧 `2_optmask-frame.sh` を流し終えている場合は、`*_fmo_center1.pdb` が残っていれば
+最小化をやり直さずに液滴だけ作り直せる (数分):
+
+```bash
+bash 2b_recover-from-center1.sh
 ```
 
 ## なぜ v2 (autoimage) を推奨するか
@@ -86,3 +94,46 @@ python3 check_contact.py \
 - フラグメント間の実座標最小距離が `--contact` (既定 5 Å) 未満 → 接触 OK
 - 水和殻の最大空隙が `--hole` (既定 8 Å) 未満 → イメージング健全
 - 依存: `numpy`, `scipy`
+- NG が 1 つでもあれば exit 1 を返すのでバッチに組み込める
+
+**接触距離だけを見ないこと。** `-pbc cluster` は「接触は戻すのに水和殻を置き去りにする
+(溶質が脱水する)」失敗をする。溶媒つき toy 系でも再現でき (空隙 3.7 Å → 13.9 Å、
+接触距離は正常のまま)、実データの破綻フレームでは空隙が 19–28 Å に達した。
+`max_gap` を必ず併せて確認する。
+
+## NG が出たときの切り分け
+
+1. **抽出直後の生 `.gro` を先に調べる**。
+   ```bash
+   python3 check_contact.py --frag ... gmxpdbs-foropt/<head>_<i>.gro
+   ```
+   ここで既に NG なら **PBC の問題ではなく、実際に解離している**可能性が高い
+   (長時間 MD では起こりうる)。生が正常なら壊しているのは後処理側。
+   実測例では生 20/20 が正常で、破綻は全て後処理由来だった。
+2. **`anchor` を変えてみる** — 相手タンパクを anchor にすると通ることがある。
+3. NG フレームは**除外する**。無理に直すより使わない方が安全。
+
+## よくある落とし穴 (道具側)
+
+1. **conda/miniconda を PATH 先頭に置くと `cpptraj` が AmberTools 版でなくなる**。
+   同梱の別ビルドを掴む。python はフルパス変数で持つのが安全:
+   ```bash
+   source <gromacs>/bin/GMXRC
+   source <amber>/amber.sh
+   PY=<miniconda>/bin/python3      # PATH には入れない
+   ```
+2. **`gmx trjconv -pbc cluster` に `.pdb` を渡すと無言で空ファイルを吐く**。
+   中間ファイルは `.gro` で繋ぐこと。`-pbc whole` は `.pdb` でも通るので気づきにくい。
+3. **`gmx make_ndx` は `keep 0` を先に打たないとグループ番号がずれる**。
+   ずれたまま cluster にかけると
+   `Fatal error: Molecule 1 marked for clustering but not atom 1 in it` で落ちる。
+   ```
+   keep 0
+   a 1-<溶質末尾の原子番号>
+   name 1 solute
+   q
+   ```
+4. **cpptraj `autoimage` の `mobile` マスクは対象が空だとセットアップで落ちる**
+   (`Could not set up image list` → `Could not allocate mobile list`)。
+   無溶媒系では `mobile` を**省く**。
+5. `mask ... maskpdb` の出力は連番 `.1` が付くので `mv` が要る。
