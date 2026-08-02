@@ -125,6 +125,34 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 
 ## Installation
 
+### From PyPI (normal use)
+
+```bash
+pip install abmptools
+```
+
+Updating:
+
+```bash
+pip install --upgrade abmptools
+```
+
+Checking what you actually got — run this **outside the repository**, since a
+source tree in the current directory shadows the installed package:
+
+```bash
+cd /tmp
+pip show abmptools | head -2
+python -c "import abmptools; print(abmptools.__file__)"
+```
+
+If `Location` and `__file__` disagree, another copy is winning.
+
+Optional extras pull in the plotting and chemistry dependencies a given
+subpackage needs, e.g. `pip install 'abmptools[hbond]'`.
+
+### From source (development)
+
 Editable install is recommended for day-to-day use and development:
 
 ```bash
