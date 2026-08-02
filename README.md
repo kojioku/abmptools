@@ -149,7 +149,7 @@ Installation runs `make` to compile the optional Fortran shared library for acce
 ## Testing
 
 ```bash
-pytest tests/ -v                     # 1913 tests collected (2.5.0 時点)
+pytest tests/ -v                     # 1300 tests collected (2.9.0 時点)
 pytest tests/ -v -k molcalc          # specific module
 pytest tests/test_regression.py -v   # regression tests (60 bundled + 16 gated)
 ```

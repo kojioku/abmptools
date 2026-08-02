@@ -68,7 +68,7 @@ abmptools/
 │   ├── udf2gro/        ← OCTA UDF → GROMACS 変換
 │   ├── amorphous/      ← アモルファス系構築
 │   └── geomopt/        ← 構造最適化
-├── tests/              ← pytest テストスイート (658 tests)
+├── tests/              ← pytest テストスイート (1300 tests)
 ├── sample/             ← Working examples with run.sh
 ├── docs/               ← Documentation
 └── setup.py            ← Build configuration
@@ -154,7 +154,7 @@ python -m abmptools.getifiepieda --frag 10 -d 8.0 -i test.log -nof90
 
 ```bash
 # 全テスト実行
-pytest tests/ -v              # 658 tests
+pytest tests/ -v              # 1300 tests
 
 # 特定モジュールのみ
 pytest tests/ -v -k molcalc

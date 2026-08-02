@@ -97,7 +97,7 @@ python -m abmptools.trajectory wrap_pbc --traj prod\prod.xtc --tpr prod\prod.tpr
 
 ## `abmptools.trajectory` の Windows 互換設計
 
-今回 (v2.0.0+) 新規追加した `abmptools.trajectory` は全 sub-package で **唯一**
+`abmptools.trajectory` (v2.0.0+) は全 sub-package で **唯一**
 Windows native 動作を明示的に保証している module。 設計選択:
 
 | 選択 | 理由 |
@@ -155,3 +155,4 @@ Windows native 動作を明示的に保証している module。 設計選択:
 ## 変更履歴
 
 - **2026-06-06**: 初版作成。 v2.0.0 時点の対応状況 + Phase 1 (`formulation` Windows route) 計画
+- **2026-08-02**: v2.9.0 で開発中手法のサブパッケージを分離。 対応表は公開分のみを載せる

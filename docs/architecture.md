@@ -168,6 +168,20 @@ AJF  ──→ ajfserial  ──→ Numbered AJF files
 PDB  ──→ pdbmodify  ──→ PDB (edited)
 ```
 
+## Shared Layer (`abmptools/core/`)
+
+Small pieces that more than one sub-package needs, kept here so none of them
+has to import another.
+
+| module | 提供するもの | 利用側 |
+|---|---|---|
+| `system_model.py` | `SystemModel` / `SimulationParams` — MD 系の記述と実行条件 | `amorphous` / `membrane` / `formulation` |
+| `acpype.py` | acpype (GAFF2 / AM1-BCC) の subprocess ラッパ。`run_acpype` / `AcpypeResult` / `LigandParameterization` | `formulation.small_molecule` |
+| `_subprocess.py` | 外部コマンド実行の薄いラッパ (`CommandError` / `run_command`) | `core.acpype` |
+
+`acpype.py` と `_subprocess.py` は v2.9.0 で `core` に移した。以前はそれぞれ別の
+サブパッケージの内部にあり、そこへ手を伸ばす形の相互依存が残っていた。
+
 ## Fortran Extension Integration
 
 `abmptools/f90/src/readifiepiedalib.f90` (219 lines) provides a fast log file parser for IFIE/PIEDA data. It is:
