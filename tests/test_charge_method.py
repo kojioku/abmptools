@@ -26,8 +26,14 @@ class _FakeMol:
 
 def _patch_nagl_wrapper(monkeypatch):
     """openff-nagl 非導入環境でも nagl 経路を試せるよう、 NAGLToolkitWrapper を
-    instantiation 不要のダミーに差し替える (実 NAGL は CI windows ジョブで検証)。"""
-    import openff.toolkit.utils.nagl_wrapper as nw
+    instantiation 不要のダミーに差し替える。
+
+    差し替え対象そのものは openff-toolkit 側にあるので、 それすら無い環境では
+    skip する (差し替えられないものを patch しても意味がない)。"""
+    nw = pytest.importorskip(
+        "openff.toolkit.utils.nagl_wrapper",
+        reason="openff-toolkit is not installed; the nagl dispatch path cannot be exercised",
+    )
     monkeypatch.setattr(nw, "NAGLToolkitWrapper", lambda: object())
 
 

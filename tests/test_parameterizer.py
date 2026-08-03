@@ -31,6 +31,10 @@ def _patch_openff(captured):
             captured["pdb"] = pdb_path
             t = cls()
             t.box_vectors = None
+            # create_interchange は戻り値の topology を _restore_residue_names に
+            # 渡し、 そこで .molecules を反復する。 residue 名の復元自体は
+            # このテストの検証対象ではないので、 空で通す。
+            t.molecules = []
             return t
 
     class _Molecule:
@@ -44,11 +48,18 @@ def _patch_openff(captured):
     interchange_mod = types.ModuleType("openff.interchange")
 
     class _Interchange:
+        def __init__(self, topology):
+            # 実物と同じく topology を保持する。 create_interchange は戻り値の
+            # .topology を _restore_residue_names に渡すので、 stub が持たないと
+            # そこで AttributeError になる。
+            self.topology = topology
+
         @classmethod
-        def from_smirnoff(cls, force_field, topology):
+        def from_smirnoff(cls, force_field, topology, **kwargs):
             captured["force_field"] = force_field
             captured["topology"] = topology
-            return cls()
+            captured["kwargs"] = kwargs
+            return cls(topology)
 
     interchange_mod.Interchange = _Interchange
 
