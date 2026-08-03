@@ -10,8 +10,8 @@
 set -e
 cd "$(dirname "$0")"
 
-ENV_BIN=/home/okuwaki/.local/share/mamba/envs/abmptoolsenv/bin
-AMBER_BIN=/home/okuwaki/.local/share/mamba/envs/AmberTools25/bin
+ENV_BIN="${ENV_BIN:-$(dirname "$(command -v python)")}"   # 環境変数で上書き可
+AMBER_BIN="${AMBER_BIN:-$(dirname "$(command -v antechamber 2>/dev/null || echo /usr/bin/false)")}"
 PY="$ENV_BIN/python"
 SDF="input/pubchem_name_acetaminophen.sdf"   # 3D SDF fetched from PubChem
 

@@ -2,7 +2,7 @@ import os
 import subprocess
 
 # User setup
-spdynpath = '/home/okuwaki/GENESIS_Tutorials-2022/Programs/genesis-2.1.2/bin/spdyn'
+spdynpath = os.environ.get('SPDYN', 'spdyn')   # PATH 上の spdyn、または環境変数で指定
 np = 1
 OMP_NUM_THREADS = 4
 

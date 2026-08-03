@@ -4,8 +4,8 @@
 # 3) run md/run_all.sh for the 5-stage GROMACS MD.
 set -e
 cd "$(dirname "$0")"
-ENV_BIN=/home/okuwaki/.local/share/mamba/envs/abmptoolsenv/bin
-AMBER_BIN=/home/okuwaki/.local/share/mamba/envs/AmberTools25/bin
+ENV_BIN="${ENV_BIN:-$(dirname "$(command -v python)")}"   # 環境変数で上書き可
+AMBER_BIN="${AMBER_BIN:-$(dirname "$(command -v antechamber 2>/dev/null || echo /usr/bin/false)")}"
 PY="$ENV_BIN/python"
 export PATH="$AMBER_BIN:$ENV_BIN:$PATH"
 ( cd input && "$PY" build_pvp_oligomer.py )

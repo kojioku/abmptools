@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 # Variables
 group2_value = "rno:306"  # Change this value as needed
-rmsd_analysis_path = "/home/okuwaki/GENESIS_Tutorials-2022/Programs/genesis-2.1.2/bin/rmsd_analysis"
+rmsd_analysis_path = os.environ.get('RMSD_ANALYSIS', 'rmsd_analysis')
 combined_output_file = 'combined_output.txt'
 
 # Template for rmsd.inp

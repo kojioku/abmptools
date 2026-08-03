@@ -45,7 +45,7 @@ micromamba install -n abmptoolsenv -c conda-forge -y \
 同梱の `run_sample.sh` を使う (最新の推奨):
 
 ```bash
-cd /home/okuwaki/llm-project/fcews-workspace/abmptools/sample/amorphous/ketoprofen
+cd <abmptools>/sample/amorphous/ketoprofen
 export PATH=~/.local/share/mamba/envs/abmptoolsenv/bin:$PATH
 bash run_sample.sh
 ```
