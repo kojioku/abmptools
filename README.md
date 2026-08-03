@@ -56,18 +56,6 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
   trajectories with `gmx trjconv -pbc mol -ur compact` for VMD-friendly
   `*_pbc.xtc` / `_pbc.gro` outputs
 
-### Peptide-Bilayer Umbrella Sampling (`membrane`)
-
-- End-to-end PMF builder for peptide membrane permeation: bilayer + peptide + water + ions → AMBER (`ff19SB` + `Lipid21` + TIP3P / Joung-Cheatham) or CHARMM36 backend → semiisotropic NPT equilibration → z-pulling → per-window umbrella MDPs → `gmx wham` PMF
-- packmol-memgen lipid placement (no CHARMM-GUI dependency); peptide built from one-letter sequence via `tleap`, capped with ACE/NME by default
-- Two parameterisation routes:
-  - `backend="amber"` — fully commercial-OK (`tleap` + `parmed` → GROMACS top/gro)
-  - `backend="charmm36"` — MacKerell-free CHARMM36 parameter values via Klauda lab GROMACS port (`pdb2gmx`); CGenFF / CHARMM-GUI **forbidden by design** to keep the route commercial-clean
-- GPU acceleration hook in the generated `run.sh` (`MDRUN_OPTS` env var)
-- Bundled tutorial walks through poly-Ala 5-mer + POPC bilayer end-to-end
-- Sample driver/config (Phase D = L9 verification, both backends in parallel):
-  `sample/membrane/amber_phaseD/` (AMBER ff19SB + Lipid21 + TIP3P, PMF +86.7 kJ/mol) and `sample/membrane/charmm_phaseD/` (CHARMM36 Klauda port, PMF +97.9 kJ/mol, Δ-11.3 kJ/mol vs AMBER — typical FF gap)
-
 ## Supported ABINIT-MP Versions
 
 - ABINIT-MP v1: Rev.10–23
@@ -127,7 +115,7 @@ Installation runs `make` to compile the optional Fortran shared library for acce
 ## Testing
 
 ```bash
-pytest tests/ -v                     # 1013 tests collected (2.11.0 時点)
+pytest tests/ -v                     # 927 tests collected (2.12.0 時点)
 pytest tests/ -v -k molcalc          # specific module
 pytest tests/test_regression.py -v   # regression tests (60 bundled + 16 gated)
 ```

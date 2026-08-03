@@ -62,7 +62,6 @@ python -m abmptools.generate_difie -i traj-xxx.cpf -t 1 10 1 -f 1-100 -np 4
 | ファイル変換 | `cpfmanager` / `logmanager` / `abinit_io` | CPF / log / ajf の読み書き |
 | 構造最適化 | `geomopt` / `qmopt` | 座標最適化のラッパ |
 | アモルファス構築 | `amorphous` | packmol + OpenFF による非晶質系の構築 |
-| 膜透過 PMF | `membrane` | umbrella sampling による PMF (AMBER / CHARMM36) |
 | OCTA 連携 | `gro2udf` / `udf2gro` / `udfcharge` | GROMACS ⇄ COGNAC UDF の変換、電荷転写 |
 | trajectory 操作 | `trajectory` | gmx trjconv / energy のラッパ |
 
@@ -74,9 +73,9 @@ python -m abmptools.generate_difie -i traj-xxx.cpf -t 1 10 1 -f 1-100 -np 4
 4. **`docs/dataflow.md`** — 入出力の流れ
 5. **`docs/io_spec.md`** — ファイル形式の仕様
 6. サブシステム別リファレンス — `amorphous.md` /
-   `membrane.md` / `gro2udf.md` / `udf2gro.md` / `udfcharge.md` / `trajectory.md` /
+   `gro2udf.md` / `udf2gro.md` / `udfcharge.md` / `trajectory.md` /
    `geomopt.md` / `qmopt.md`
 7. チュートリアル — `amorphous_tutorial.md` /
-   `tutorial_membrane_us.md` / `tutorial_udfcharge.md`
+   `tutorial_udfcharge.md`
 8. **`docs/dependencies.md`** / **`docs/platform_support.md`** — 依存と動作環境
 9. **`docs/faq.md`** — よくある詰まりどころ

@@ -119,7 +119,6 @@ The `sample/` directory contains working examples:
 | `sample/log2cpf/` | Log to CPF conversion | `bash run.sh` |
 | `sample/rmsd/` | RMSD analysis | `bash run.sh` |
 | `sample/amorphous/` | 非晶質系の構築 (複数例) | `bash run_sample.sh` |
-| `sample/membrane/` | 膜透過 PMF | driver script 参照 |
 | `sample/gro2udf/`, `sample/udf2gro/`, `sample/udfcharge/` | GROMACS ⇄ COGNAC UDF | `bash run.sh` |
 
 ## How do I use CPFManager programmatically?
@@ -192,14 +191,6 @@ Options:
    micromamba create -n gmxcuda -c conda-forge gromacs=2025.4=mpi_openmpi_cuda_*
    ```
    Requires a working CUDA driver inside WSL2 (already the case with recent `libcuda.so`).
-
-## CG: My pull stage hangs at step 0 with 99% CPU and no progress?
-
-Symptom: `pull/pull.log` shows only `Step 0` and `pull.xtc` does not grow.
-
-Root cause: pull MDP has both `pull-coord1-geometry = direction-periodic` AND a `pull-group1-pbcatom = N` line. With Martini 3 dt=20 fs, this combination puts the integrator in a deadlock loop. AA membrane (dt=2 fs) does not see this pathology.
-
-Fix in 1.19.0+: `MembraneCGBuilder._stage6_mdps` only injects pbcatom into **window MDPs** (which use `direction` geometry, dynamic-box compatible). The pull MDP relies on `direction-periodic`'s internal periodic image handling and does not need pbcatom. If you build with an older builder version, manually remove `pull-group1-pbcatom` from `pull/pull.mdp` and re-grompp.
 
 ## What is the `tips/` directory?
 

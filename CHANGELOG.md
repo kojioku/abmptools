@@ -4,6 +4,34 @@
 
 (次のリリースに向けた変更はまだありません)
 
+## [2.12.0] - 2026-08-04
+
+### Removed — ペプチド-脂質膜 PMF を非公開リポジトリへ移設
+
+`formulation` と同じ理由。系を組んで終わりではなく、**2 つの力場ルートを合成**し
+(AMBER: ff19SB + Lipid21 + TIP3P / CHARMM36: Klauda port、CGenFF は設計上不採用)、
+z-pulling → umbrella window → `gmx wham` で **PMF まで出す**。どの力場をどう
+組み合わせ、window をどう配るかがコードに埋まっている。
+
+**この移設で壊れるものは無い**。公開側に当該サブパッケージを import している
+モジュールは無く、逆にこちらが公開側の何かを import してもいなかった
+(完全に独立した葉)。
+
+- extras `[membrane]` を削除。
+- **`tests/regression/reference/main/udf2fmo_membrane*` は残る**。パスに
+  membrane を含むが `udf2fmo` (公開ツール) のリファレンスで、無関係。
+- 参照の整理: `docs/{overview,architecture,dependencies,licenses_third_party,
+  faq,amorphous}.md`、`docs/ABMPTools-user-manual.md`、README。
+  `docs/faq.md` の "CG: My pull stage hangs at step 0" は CG ビルダー固有の
+  項目なので落とした (移設先の tutorial に同じ内容がある)。
+
+### 注記 — 公開範囲の整理はこれで一区切り
+
+v2.9.0 以降、開発途上の手法を順次非公開へ移した。公開を続けるのは
+**確立手法のユーティリティと ABINIT-MP まわりの解析・変換**:
+FMO 入力生成 / IFIE・PIEDA 解析 / CPF・log 変換 / 非晶質構築 /
+GROMACS ⇄ COGNAC UDF 変換 / 構造最適化 / トラジェクトリ後処理。
+
 ## [2.11.0] - 2026-08-03
 
 ### Removed — ペプチド製剤ワークフローを非公開リポジトリへ移設

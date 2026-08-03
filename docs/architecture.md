@@ -175,7 +175,7 @@ has to import another.
 
 | module | 提供するもの | 利用側 |
 |---|---|---|
-| `system_model.py` | `SystemModel` / `SimulationParams` — MD 系の記述と実行条件 | `amorphous` / `membrane` |
+| `system_model.py` | `SystemModel` / `SimulationParams` — MD 系の記述と実行条件 | `amorphous` |
 | `acpype.py` | acpype (GAFF2 / AM1-BCC) の subprocess ラッパ。`run_acpype` / `AcpypeResult` / `LigandParameterization` | 中立層 (out-of-tree consumers) |
 | `_subprocess.py` | 外部コマンド実行の薄いラッパ (`CommandError` / `run_command`) | `core.acpype` |
 

@@ -8,11 +8,6 @@ OpenFF でパラメータ化 → Packmol で初期配置 → GROMACS アニー�
 > + 出力の歩き方 + つまずきポイント対処) を先に読むのがおすすめ。
 > 本ドキュメントは CLI/API のリファレンスです。
 >
-> **Sister subpackage**: [`abmptools.membrane`](membrane.md) は 2D 周期の脂質
-> 二重膜系 (peptide-bilayer Umbrella Sampling / PMF) 向け。本モジュールは
-> 3D ランダムボックス系 (アモルファス・混合溶媒) 向け。両者とも
-> `abmptools.core.SystemModel` を共有するが、stage 構成と Pcoupl 規約が異なる。
-
 ## インストール
 
 ```bash
