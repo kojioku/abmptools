@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abmptools"
-version = "2.10.0"
+version = "2.11.0"
 description = "Pre/post-processing and analysis toolkit for ABINIT-MP Fragment Molecular Orbital calculations"
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "Apache-2.0"
@@ -51,7 +51,7 @@ membrane = [
     # Optional: gromacs[build=nompi_cuda*] for GPU offload (separate env).
     # See docs/dependencies.md for the full recipe.
 ]
-# rdkit を使う機能 (formulation の小分子処理 / geomopt) 用。
+# rdkit を使う機能 (geomopt の構造正規化) 用。
 rdkit = [
     "rdkit-pypi>=2022.09",  # 分子構造の正規化 (canonical SMILES)、SVG 描画、bond perception
                             # PyPI、BSD-3-Clause
@@ -65,51 +65,6 @@ jupyter = [
     "ipywidgets>=8.0",  # notebook UI のインタラクティブ要素 (dropdown / checkbox / button)
     "ipykernel",        # Jupyter notebook server カーネル
     # 注: A 経路 (Jupyter UI) を使う場合のみ必要。CLI ヘッドレス経路 (C) では不要。
-]
-formulation = [
-    "parmed>=4.0",          # prmtop → GROMACS top コンバート
-    "rdkit-pypi>=2022.09",  # SMILES → 3D embed (small molecule の初期座標)
-    "matplotlib>=3.5",      # 解析プロット
-    # External tools (subprocess only, never bundled):
-    #   ambertools (>=22) — tleap (必須, ff14SB + GAFF2)
-    #   acpype (>=2022.7.21) — GPL-3.0, GAFF2 + AM1-BCC, mere aggregation
-    #     pip install acpype  または  conda install -c conda-forge acpype
-    #   packmol — multi-component cubic-box random placement
-    #   gromacs (>=2021) — gmx grompp / mdrun / hbond / sasa / dssp / wham
-    # Force field default: ff14SB (peptide) + GAFF2 (small mol) + TIP3P + JC ions
-    # (CHARMM36 + CGenFF は学術ライセンスのため採用せず — 商用利用可能な OSS のみ)
-    # See abmptools/formulation/__init__.py + docs/formulation.md.
-]
-formulation-analysis = [
-    # MDAnalysis is GPL-2.0 → user opt-in install only; abmptools wheel
-    # itself does not ship or link MDAnalysis code.
-    "MDAnalysis>=2.6,<3.0",
-    "networkx>=3.0",
-    "matplotlib>=3.5",
-    # See docs/licenses_third_party.md for the GPL posture rationale.
-]
-formulation-openff = [
-    # Windows native build route (force_field_route="openff"): tleap/acpype 不要。
-    # all-pip / all-OS で AmberTools を回避する protein-aware パイプライン。
-    # 注 (Windows conda): メタパッケージ openff-toolkit は AmberTools に hard-depend し
-    #   Windows で conda solve 不能。 conda 経由なら openff-toolkit-base (RDKit backend、
-    #   ambertools 非依存) を使う。 pip の openff-toolkit は ambertools を pip 依存に
-    #   持たないので install 自体は可 (AM1-BCC=sqm は不可だが library charges は OK)。
-    #   docs/platform_support.md の Windows recipe / .github/workflows/windows-native.yml 参照。
-    "openff-toolkit>=0.14.0",      # Topology.from_pdb (multi-chain + disulfide)
-    "openff-interchange>=0.3.0",   # SMIRNOFF → GROMACS top/gro
-    "openff-amber-ff-ports>=0.0.3", # ff14SB SMIRNOFF (protein library charges)
-    "openff-nagl>=0.3",            # 小分子の ML-AM1-BCC 電荷 (sqm 不要、 Windows native)
-    "openff-nagl-models>=0.1",     # NAGL の学習済みモデル (.pt) 同梱
-    "openmm>=8.0",                 # PDBFixer backend
-    "pdbfixer>=1.9",               # water 除去 + 欠損補完 + explicit H 付加
-    "rdkit-pypi>=2022.09",         # small molecule SMILES → 3D
-    "matplotlib>=3.5",
-    # sequence からの peptide 3D build に必要 (pdb_path 入力時は不要):
-    "PeptideBuilder>=1.1",         # sequence → extended chain (natural L-AA)
-    "biopython>=1.79",             # PeptideBuilder の PDB I/O
-    # External tools (subprocess only): packmol、 gmx (solvate/genion/editconf)。
-    # See docs/platform_support.md "OpenFF route (実装済)" 節。
 ]
 geomopt = [
     "pyscf",

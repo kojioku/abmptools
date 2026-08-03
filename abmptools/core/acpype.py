@@ -21,9 +21,8 @@ We pick the ``.frcmod`` and ``.mol2`` files matching the configured
 atom type (gaff vs gaff2).
 
 This lives in :mod:`abmptools.core` rather than inside one subsystem
-because more than one caller needs it (``formulation`` here, plus
-out-of-tree consumers). Keeping it neutral avoids a subsystem-to-
-subsystem dependency.
+because more than one caller needs it, including out-of-tree consumers.
+Keeping it neutral avoids a subsystem-to-subsystem dependency.
 
 License posture: acpype is GPL-3.0; abmptools shells out via subprocess
 only (no source modification or linking), which is mere aggregation per

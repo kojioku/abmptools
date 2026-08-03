@@ -45,8 +45,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="python -m abmptools.trajectory",
         description="Cross-platform GROMACS trajectory post-processor "
-                    "(thin + nojump unwrap + PBC wrap)。 sample/formulation の "
-                    "aggregation run + amorphous の wrap_pbc / gen_for_udf 共通基盤。",
+                    "(thin + nojump unwrap + PBC wrap)。 amorphous の "
+                    "wrap_pbc / gen_for_udf の共通基盤。",
     )
     sub = p.add_subparsers(dest="cmd", required=True)
 

@@ -127,7 +127,7 @@ Installation runs `make` to compile the optional Fortran shared library for acce
 ## Testing
 
 ```bash
-pytest tests/ -v                     # 1139 tests collected (2.10.0 時点)
+pytest tests/ -v                     # 1013 tests collected (2.11.0 時点)
 pytest tests/ -v -k molcalc          # specific module
 pytest tests/test_regression.py -v   # regression tests (60 bundled + 16 gated)
 ```
@@ -192,6 +192,7 @@ private package (`moldeck`) that builds on this one. It currently covers:
 | Organic-crystal FMO | CIF to FMO inputs, lattice energy and deformation |
 | Enhanced sampling / binding free energy | GENESIS gREST_SSCR and MM/GBSA end to end |
 | Hydrogen-bond analysis | Detection, per-functional-group roles, lifetimes, and trajectory colouring |
+| Peptide formulation | Solvated peptide + excipient systems end to end: build, equilibrate, then aggregation, contacts, secondary structure, SASA and release PMF |
 | FMO interaction maps | Ligand-pocket contribution maps from IFIE/PIEDA |
 
 The dependency runs one way — those workflows import `abmptools`, never the

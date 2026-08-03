@@ -114,11 +114,13 @@ The `sample/` directory contains working examples:
 |-----------|----------|-----|
 | `sample/convertcpf/` | CPF conversion/filtering | `bash run.sh` |
 | `sample/generate_difie/` | DIFIE averaging (TrpCage, CS4) | `bash run.sh` |
-| `sample/gbsa/` | GBSA solvation setup | `bash run.sh` |
 | `sample/generateajf/` | AJF generation | `bash run.sh` |
 | `sample/log2config/` | Log to config extraction | `bash run.sh` |
 | `sample/log2cpf/` | Log to CPF conversion | `bash run.sh` |
 | `sample/rmsd/` | RMSD analysis | `bash run.sh` |
+| `sample/amorphous/` | 非晶質系の構築 (複数例) | `bash run_sample.sh` |
+| `sample/membrane/` | 膜透過 PMF | driver script 参照 |
+| `sample/gro2udf/`, `sample/udf2gro/`, `sample/udfcharge/` | GROMACS ⇄ COGNAC UDF | `bash run.sh` |
 
 ## How do I use CPFManager programmatically?
 
