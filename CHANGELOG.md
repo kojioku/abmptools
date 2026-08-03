@@ -2,7 +2,27 @@
 
 ## [Unreleased]
 
-(次のリリースに向けた変更はまだありません)
+### Removed — 移設に伴う取り残しの整理
+
+リポジトリを精査して見つかった残骸を落とした。機能への影響は無い。
+
+- **`tips/udftips/` (12 本)** — 移設先に**バイト単位で同一のもの**があり、
+  そちらは 19 本に育っていて tutorial から名指しで参照されている。
+  こちら側を参照している doc は無かったので、二重管理を解消するために削除。
+- **`docs/figures/` (4 ファイル)** — 参照していた doc が移設済みで孤立していた。
+  移設先の doc が既にこの 4 つを参照していたので、そちらへ移した
+  (リンク切れが 5 箇所解消)。
+
+### Fixed — 公開物から個人環境の情報を除去
+
+- **ハードコードされた個人パス**を除去。`.xvg` の gmx ヘッダ
+  (`# Executable: /home/...`) と `.top` の `; input:` 行。
+  以前 `*.py` / `*.md` / `*.sh` だけを見て「除去済み」と判断していたが、
+  データファイルが対象から漏れていた。**拡張子を限定せず全テキストを走査**して
+  0 件を確認。
+- **内部の作業メモ名への参照 7 箇所**を落とした (`.gitignore` / CHANGELOG /
+  `sample/amorphous/*/run_sample.sh` / `abmptools/udfcharge/core.py`)。
+  知見の本文は残し、非公開ノートの名前と保管場所への言及だけを削った。
 
 ## [2.12.0] - 2026-08-04
 
@@ -1520,7 +1540,7 @@ Phase D 完了後、abinitmp v2r8 で **csp7 R00001 layer3 HF/6-31G の
 - 計算実行時の所要時間 (2026-05-07 → 2026-05-08): 9h 14min 33s
   (33253 sec, exit 0) on WSL2 + 1 core。OMP_NUM_THREADS=4 環境
   変数は abinitmp v2r8 build に効かず、MPI 並列前提と判明
-  に退避 (memory `feedback_artifact_placement` 準拠)、repo には
+  に退避 (重量級の成果物は repo 外へ)、repo には
   excerpt のみ commit
 - `getifiepieda` 経由 CSV 化は今回 skip (log の `## HF-IFIE` block を
   Python regex で直接抽出)。CSV 経路は将来追加予定 (※ 2026-05-09 で
@@ -1530,7 +1550,7 @@ Phase D 完了後、abinitmp v2r8 で **csp7 R00001 layer3 HF/6-31G の
 
 - legacy `expected_layer3_hf_631g.json` (21 KB) と
   `excerpt_layer3_hf_631g.log` (10 KB) は archival のため残置。
-  test 経路は読まない (削除しない方針 = memory `feedback_no_deletions`)
+  test 経路は読まない (履歴の参照用に残置)
 - production (Fugaku csp7 1500 構造、MP2/6-31Gdag) は影響なし —
   anlfmo.py 修正は HF log 用の防御を追加しただけ、MP2 path は不変
 - 1 構造 + HF 6-31G という小規模で getifiepieda 経路が成立
@@ -1676,7 +1696,7 @@ peptide + bilayer + water + ion の smoke build を end-to-end で完走でき�
 
 ### Documentation
 
-- 業界実態を `memory/` に文書化 (`project_membrane_charmm36_gotchas.md`):
+- 業界実態を調査してまとめた:
   - ~95% の academic は CHARMM-GUI を使い pdb2gmx を完全回避
   - 少数派は psfgen + charmm2gmx (Wacha & Lemkul 2023 *JCIM*)
   - 完全 commercial-OK の membrane builder は packmol-memgen のみ

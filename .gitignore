@@ -1,7 +1,7 @@
 *bdf
 # Exception: lightweight input BDF bundled with tutorial samples (< 2 MB each).
 # Heavy intermediate / colored BDF outputs are kept in the abmptools-sample
-# repository (see feedback_artifact_placement).
+# repository (results are archived outside it).
 !sample/hbond/imc_amorphous/input/*.bdf
 bkp
 ABMPTools.egg-info
@@ -22,7 +22,7 @@ martini_v300.zip
 # gmx grompp default output (created when grompp is run from the repo root)
 mdout.mdp
 
-# abmptools.crystal smoke / numeric-reference run artifacts (full logs go to OneDrive)
+# crystal smoke / numeric-reference run artifacts (full logs are archived elsewhere)
 .smoke_artifacts/
 
 # abmptools.crystal public-molecule pipeline outputs (log, ajf, pdb under

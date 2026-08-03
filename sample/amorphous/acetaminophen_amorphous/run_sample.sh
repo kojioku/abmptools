@@ -6,7 +6,7 @@
 #
 # 64 molecules packed at density 1.2 g/cm^3, OpenFF Sage 2.1.0, AM1-BCC charges,
 # GROMACS 5-stage annealing MD. T_high=400 K instead of OpenFF default 600 K
-# (per feedback_openff_thigh_for_small_organic: small organics gas out at 600 K).
+# (small organics can gas out at the OpenFF default of 600 K).
 set -e
 cd "$(dirname "$0")"
 

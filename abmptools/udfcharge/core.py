@@ -14,7 +14,7 @@ COGNAC UDF の電荷規約 (gro2udf / udf2gro と共通):
 
 注意点:
 - ``UDFManager.put`` は numpy float32 をサイレントに 0 化するため、 ES_Element は
-  必ず Python ``float()`` で渡す ([[reference_udfmanager_put_numpy_silent_zero]])。
+  必ず Python ``float()`` で渡す (numpy スカラーは silently 0 として書き込まれる)。
 - Set_of_Molecules は static record (``jump(-1)``) に格納される。
 """
 
