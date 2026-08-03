@@ -56,56 +56,6 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
   trajectories with `gmx trjconv -pbc mol -ur compact` for VMD-friendly
   `*_pbc.xtc` / `_pbc.gro` outputs
 
-### H-bond Analyzer for COGNAC Trajectories (`hbond`)
-
-- **OCTA COGNAC `.udf` / `.bdf` 専用** の H-bond 解析サブパッケージ。非晶質 MD で
-  カルボキシル基同士の dual H-bond (環状二量体) と COOH→アミド C=O の single H-bond
-  を区別して数え、gourmet で 3 色可視化できる UDF を出力する
-- 検出基準は **Luzar-Chandler** (`d(D-A) ≤ 3.5 Å`, `∠(D-H-A) ≥ 120°`) を default、
-  **strict** (`d(H-A) ≤ 2.5 Å`, `∠ ≥ 150°`)、**custom** (任意閾値) も選択可能。
-  直交 cubic box の minimum image PBC 対応
-- 官能基自動検出: GAFF2 atomtype (`c`/`oh`/`ho`/`o`/`n`) + bond graph で carboxyl /
-  amide / hydroxyl を機械的に同定 (SMARTS 不要)。Tertiary amide 判定付き
-- 3 経路: CLI (`python -m abmptools.hbond <bdf> -o prefix`) / Python API
-  (`Analyzer`, `AnalyzerConfig`) / Jupyter ipywidgets UI (`open_panel(bdf_path)`、
-  RDKit 2D 構造図上で carboxyl/amide ハイライト + matplotlib count plot)
-- 出力: per-record summary CSV (官能基単位の dual/single/free 数 + 比率) +
-  per-functional-group classification CSV + H-bond pair CSV + colored BDF
-  + Mol_Name 維持 plain BDF + count vs record PNG
-- 色付け: `<prefix>_colored.bdf` は `Set_of_Molecules.molecule[i].Mol_Name` を
-  3 グループ (`IMC_DUAL` / `IMC_SINGLE` / `IMC_FREE`) にリネームし、
-  `Draw_Attributes.Molecule[]` に named color (Red/Blue/Gray) を書き込む
-  (**GOURMET Draw_Attributes の color は select 型 9 色名のみ、RGBA tuple 不可**)。
-  `<prefix>.bdf` は Mol_Name 維持コピーで **J-OCTA プリ描画でも分子が空表示にならない**
-- バンドル sample (IMC): `sample/hbond/imc_amorphous/` (非晶質インドメタシン
-  T=450 K、125 分子。**4-species per-COOH**: dual=10 / chain=41 / single=38 /
-  free=36; per-amide: accept=49 / free=76。4-species の枠組みは Yuan et al. 2015
-  Mol. Pharm. 12, 4518 の固体 NMR 帰属に倣う。掲載は MD 値のみ・論文の図表は非再現)
-- バンドル sample (PVA, v1.28+): `sample/amorphous/pva_amorphous/` — PVA 10-mer
-  × 30、OpenFF Sage + AM1-BCC + 5-stage MD + xtc→UDF + hbond generic mode の
-  end-to-end 例 (平均 198.8 H-bonds/record、ratio_donor_busy=65.2%)
-- 依存: `pip install abmptools[hbond]` (matplotlib for plot)、Jupyter UI を使うなら
-  `[jupyter]` + `[rdkit]` を併用。UDFManager は OCTA に同梱
-- **v1.26.0+ 拡張**: FF 抽象化 (GAFF2/OPLS-AA/CHARMM36/OpenFF)、任意官能基対選択
-  (donor: carboxyl/amide_donor/amine_donor/hydroxyl × acceptor: carboxyl_O/amide_O/
-  hydroxyl_O/ether_O)、secondary amide N-H donor 対応、multi-record lifetime +
-  Luzar-Chandler 自己相関 `C(t)` + τ_HB 算出
-- **v1.27.0 候補**: per-functional-group classification (1 分子内に複数 COOH/amide
-  がある場合に役割が混在するケースに正しく対応)、`<prefix>.bdf` 併出
-  (J-OCTA プリ描画用)、`<prefix>_classification.csv` 新規追加、
-  **4-species 分類** (dual/chain/single/free、枠組みは Yuan 2015 IMC NMR 帰属に
-  倣う)。MD species-fraction plot script (`plot_nmr_comparison.py`、MD 値のみ・
-  論文図表は非再現) 同梱
-- **v1.28.0 候補**: **generic mode** (`--classify-mode generic`) で COOH を持た
-  ない任意系 (PVA / peptide / アルコール / 混合系) の donor-type × acceptor-type
-  pair 統計に対応 (新規 `<prefix>_pair_stats.csv` + atom-role `Donor/Acceptor/Both`
-  色付け)。**element + bond-graph fallback** (default ON) で OpenFF SMIRNOFF UDF
-  (per-atom unique `MOL0_X`) を **antechamber GAFF patch 不要**で直接解析可能。
-  Jupyter UI に `Mode:` dropdown 追加。J-OCTA Viewer 用 plain `.py` script 併出
-  (autorun crash 回避用)、`<prefix>.bdf` Attributes に `hbond=Dual/Chain/Single/
-  Free/Accept` (imc mode) または `Donor/Acceptor/Both` (generic mode) を append
-  (J-OCTA Attribute フィルタでカテゴリ可視化)
-
 ### Peptide-Bilayer Umbrella Sampling (`membrane`)
 
 - End-to-end PMF builder for peptide membrane permeation: bilayer + peptide + water + ions → AMBER (`ff19SB` + `Lipid21` + TIP3P / Joung-Cheatham) or CHARMM36 backend → semiisotropic NPT equilibration → z-pulling → per-window umbrella MDPs → `gmx wham` PMF
@@ -149,7 +99,7 @@ python -c "import abmptools; print(abmptools.__file__)"
 If `Location` and `__file__` disagree, another copy is winning.
 
 Optional extras pull in the plotting and chemistry dependencies a given
-subpackage needs, e.g. `pip install 'abmptools[hbond]'`.
+subpackage needs, e.g. `pip install 'abmptools[amorphous]'`.
 
 ### From source (development)
 
@@ -177,7 +127,7 @@ Installation runs `make` to compile the optional Fortran shared library for acce
 ## Testing
 
 ```bash
-pytest tests/ -v                     # 1271 tests collected (2.9.1 時点)
+pytest tests/ -v                     # 1139 tests collected (2.10.0 時点)
 pytest tests/ -v -k molcalc          # specific module
 pytest tests/test_regression.py -v   # regression tests (60 bundled + 16 gated)
 ```
@@ -226,6 +176,30 @@ cd sample/amorphous/mixture_json        && bash run_sample.sh   # multi-componen
 ```
 
 See [`docs/amorphous_tutorial.md`](docs/amorphous_tutorial.md) for the hands-on walk-through and [`sample/amorphous/ketoprofen/README.md`](sample/amorphous/ketoprofen/README.md) for an annotated run log of the ketoprofen build.
+
+## Beyond this package
+
+`abmptools` covers the generic layer: file formats, established-method
+utilities, and the analysis and conversion tools around ABINIT-MP. Workflows
+for methods still under active development are maintained separately, in a
+private package (`moldeck`) that builds on this one. It currently covers:
+
+| Area | What it automates |
+|---|---|
+| DPD / coarse-grained input | Building Cognac UDF and OCTA viewer inputs from a segmented structure, assigning interaction parameters, composing systems |
+| FMO fragmentation | Proposing fragment splits for arbitrary molecules and exporting `segment_data` |
+| Martini 3 builders | Peptide systems, and peptide-membrane PMF via umbrella sampling |
+| Organic-crystal FMO | CIF to FMO inputs, lattice energy and deformation |
+| Enhanced sampling / binding free energy | GENESIS gREST_SSCR and MM/GBSA end to end |
+| Hydrogen-bond analysis | Detection, per-functional-group roles, lifetimes, and trajectory colouring |
+| FMO interaction maps | Ligand-pocket contribution maps from IFIE/PIEDA |
+
+The dependency runs one way — those workflows import `abmptools`, never the
+reverse — so nothing here depends on having them.
+
+It is **not publicly distributed**: it is proprietary and handed out
+individually, on request and subject to approval. Contact the author below if
+you have a use for it.
 
 ## How to cite
 

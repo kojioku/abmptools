@@ -504,6 +504,5 @@ python -m abmptools.gro2udf --from-top build\system.top md\05_npt_final.gro ^
 ### `UDFExportError: UDFManager module is required but could not be imported`
 
 OCTA の `python3/` ディレクトリへ `PYTHONPATH` を通していない。section 1.2 の
-手順 ([tutorial_hbond_imc.md](tutorial_hbond_imc.md#12-udfmanager-の入手-octa--octa-viewer))
-通り、`OCTA85_HOME` / `UDF_DEF_PATH` / `PYTHONPATH` × 2 (GOURMET + ENGINES)
-の 4 行を `~/.bashrc` に追記してから `source ~/.bashrc` で反映。
+`OCTA85_HOME` / `UDF_DEF_PATH` / `PYTHONPATH` × 2 (GOURMET + ENGINES)
+の 4 行を `~/.bashrc` に追記してから `source ~/.bashrc` で反映する。

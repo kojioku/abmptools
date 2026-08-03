@@ -68,7 +68,7 @@ abmptools/
 │   ├── udf2gro/        ← OCTA UDF → GROMACS 変換
 │   ├── amorphous/      ← アモルファス系構築
 │   └── geomopt/        ← 構造最適化
-├── tests/              ← pytest テストスイート (1271 tests)
+├── tests/              ← pytest テストスイート (1139 tests)
 ├── sample/             ← Working examples with run.sh
 ├── docs/               ← Documentation
 └── setup.py            ← Build configuration
@@ -99,7 +99,7 @@ Observations from the codebase (not formal style guide):
 - Comments and variable names are a mix of English and Japanese.
 - **Docstrings** are Japanese Google-style (`Args:`, `Returns:`, `Raises:`)。全公開メソッド/クラス/モジュールに記述済み。
 - **型ヒント** は `from __future__ import annotations` + モダン構文 (`list[str]`, `X | None`) を使用。
-- **テスト** は pytest で 1271 件。`tests/` ディレクトリに 79 ファイル。`monkeypatch` でCLI引数をテスト。
+- **テスト** は pytest で 1139 件。`tests/` ディレクトリに 61 ファイル。`monkeypatch` でCLI引数をテスト。
 
 ## Adding a New Module
 
@@ -154,7 +154,7 @@ python -m abmptools.getifiepieda --frag 10 -d 8.0 -i test.log -nof90
 
 ```bash
 # 全テスト実行
-pytest tests/ -v              # 1271 tests
+pytest tests/ -v              # 1139 tests
 
 # 特定モジュールのみ
 pytest tests/ -v -k molcalc

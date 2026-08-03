@@ -136,7 +136,7 @@ def _restore_residue_names(topology: Any, source_molecules: Any) -> None:
     supplied templates, so the exported .gro/.top would otherwise label every
     molecule 'UNL'. Match each topology molecule back to its source molecule to
     recover its name (IMC/PVP/…) and write it as the residue name, so downstream
-    per-species analysis (e.g. abmptools.hbond mixtures) can tell components
+    per-species analysis of a mixture can tell components
     apart by ``mol_name``. Done here (not at molecule prep) because a non-'UNL'
     resname in the intermediate PDB breaks ``from_pdb`` residue matching.
     """

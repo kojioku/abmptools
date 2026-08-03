@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abmptools"
-version = "2.9.1"
+version = "2.10.0"
 description = "Pre/post-processing and analysis toolkit for ABINIT-MP Fragment Molecular Orbital calculations"
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "Apache-2.0"
@@ -51,7 +51,7 @@ membrane = [
     # Optional: gromacs[build=nompi_cuda*] for GPU offload (separate env).
     # See docs/dependencies.md for the full recipe.
 ]
-# rdkit を使う機能 (hbond の官能基判定 / formulation の小分子処理 / geomopt) 用。
+# rdkit を使う機能 (formulation の小分子処理 / geomopt) 用。
 rdkit = [
     "rdkit-pypi>=2022.09",  # 分子構造の正規化 (canonical SMILES)、SVG 描画、bond perception
                             # PyPI、BSD-3-Clause
@@ -65,14 +65,6 @@ jupyter = [
     "ipywidgets>=8.0",  # notebook UI のインタラクティブ要素 (dropdown / checkbox / button)
     "ipykernel",        # Jupyter notebook server カーネル
     # 注: A 経路 (Jupyter UI) を使う場合のみ必要。CLI ヘッドレス経路 (C) では不要。
-]
-hbond = [
-    "matplotlib>=3.5",  # count vs record プロット (任意)
-    # 必須: numpy (本体)、UDFManager (OCTA 同梱、PyPI には無い)
-    # Jupyter UI を使う場合は [jupyter] + [rdkit] を併用。
-    # External tools (任意):
-    #   OCTA gourmet — 生成された colored.bdf の可視化に使う
-    # See abmptools/hbond/__init__.py + docs/hbond.md.
 ]
 formulation = [
     "parmed>=4.0",          # prmtop → GROMACS top コンバート

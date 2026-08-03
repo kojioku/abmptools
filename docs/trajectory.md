@@ -78,5 +78,4 @@ out = thin_and_nojump(trajectory="prod/prod.xtc", tpr="prod/prod.tpr", skip=10)
 
 - 上流の MD 生成: [`amorphous.md`](./amorphous.md) / [`formulation.md`](./formulation.md)
   (どちらも `wrap_pbc` 相当の後処理を内部で使う)。
-- 生成した `.xtc` を可視化・解析へ: [`gro2udf.md`](./gro2udf.md)(COGNAC UDF 化) /
-  [`hbond.md`](./hbond.md)(MDAnalysis 経由で直接読める)。
+- 生成した `.xtc` を可視化・解析へ: [`gro2udf.md`](./gro2udf.md)(COGNAC UDF 化)。
