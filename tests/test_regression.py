@@ -209,6 +209,7 @@ def test_convertcpf_gly5(tmp_path, in_cpf, out_cpf):
 # udf2gro (added during refactor)
 # ---------------------------------------------------------------------------
 def test_udf2gro(tmp_path):
+    pytest.importorskip("UDFManager")  # OCTA 同梱。無い環境では検証できない
     """udf2gro output must match pre-refactor reference."""
     udf_src = os.path.join(SAMPLE_DIR, "udf2gro", "input", "test.udf")
     shutil.copy(udf_src, tmp_path / "test.udf")
@@ -230,6 +231,7 @@ def test_udf2gro(tmp_path):
 # gro2udf: udf + gro mode (added during refactor)
 # ---------------------------------------------------------------------------
 def test_gro2udf_udf_gro_mode(tmp_path):
+    pytest.importorskip("UDFManager")  # OCTA 同梱。無い環境では検証できない
     """gro2udf udf+gro mode output must match pre-refactor reference."""
     src_dir = os.path.join(SAMPLE_DIR, "gro2udf", "udf_and_gro_mode", "input")
     for f in os.listdir(src_dir):
@@ -251,6 +253,7 @@ def test_gro2udf_udf_gro_mode(tmp_path):
 # gro2udf: --from-top mode (added during refactor)
 # ---------------------------------------------------------------------------
 def test_gro2udf_from_top_mode(tmp_path):
+    pytest.importorskip("UDFManager")  # OCTA 同梱。無い環境では検証できない
     """gro2udf --from-top mode output must match pre-refactor reference."""
     src_dir = os.path.join(SAMPLE_DIR, "gro2udf", "gro_top_mode", "input")
     for f in os.listdir(src_dir):

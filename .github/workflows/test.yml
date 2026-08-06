@@ -1,0 +1,100 @@
+name: test
+
+# push のたびに走る。前身の windows-native.yml は pull_request + paths 条件で、
+# main へ直接 push する運用と噛み合わず 1 度しか実際に動かなかった。
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: pytest (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # pyproject の requires-python は >=3.8。下限と現行の 2 点で見る。
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+
+      # ランナーには OCTA / AmberTools / GROMACS / openff が無いので、
+      # それらを要するテストは skip される。ここで守れるのは
+      # 「素の Python + numpy/pandas で動く範囲」であって全体ではない。
+      - name: Run tests
+        run: pytest -q -m "not slow" --tb=short
+
+  build:
+    name: build & inspect artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+
+      - name: twine check
+        run: twine check dist/*
+
+      # サブパッケージを移設・削除したリリースで、setuptools が古い build/lib を
+      # 再利用して「消したはずのもの」を wheel に入れる事故があった (2026-08-04)。
+      # ランナーは毎回まっさらなので原理的に起きないが、混入の検出自体を残す。
+      - name: Inspect wheel contents
+        run: |
+          python - <<'PY'
+          import glob, sys, zipfile
+
+          EXPECTED = {
+              "amorphous", "core", "f90", "geomopt",
+              "gro2udf", "trajectory", "udf2gro", "udfcharge",
+          }
+
+          wheel = glob.glob("dist/*.whl")[0]
+          names = zipfile.ZipFile(wheel).namelist()
+          found = {
+              p.split("/")[1]
+              for p in names
+              if p.startswith("abmptools/") and p.count("/") > 1
+          }
+
+          unexpected = found - EXPECTED
+          missing = EXPECTED - found
+          print("wheel     :", wheel)
+          print("subpackages:", sorted(found))
+
+          if unexpected:
+              print("::error::unexpected subpackages in wheel:", sorted(unexpected))
+          if missing:
+              print("::error::expected subpackages missing from wheel:", sorted(missing))
+          sys.exit(1 if (unexpected or missing) else 0)
+          PY
+
+      - name: Install the built wheel and import it
+        run: |
+          python -m venv /tmp/v
+          /tmp/v/bin/python -m pip install --quiet dist/*.whl
+          # リポジトリの外で import する。カレントにソースがあると
+          # そちらが優先され、wheel を検証したことにならない。
+          cd /tmp
+          /tmp/v/bin/python -c "
+          import abmptools
+          from abmptools import anlfmo, setfmo, CPFManager
+          print('import OK:', abmptools.__file__)
+          "

@@ -137,6 +137,10 @@ def test_export_raises_diagnostic_for_missing_template(tmp_path):
     from abmptools.gro2udf.top_exporter import TopExporter, UDFExportError
     model = _minimal_topmodel([])
     exporter = TopExporter()
+    # template 不在の診断メッセージを見るテストだが、UDFManager が無いと
+    # その手前で import エラーになり、別のメッセージが返る。
+    pytest.importorskip("UDFManager")
+
     with pytest.raises(UDFExportError) as excinfo:
         exporter.export_model(
             model,
