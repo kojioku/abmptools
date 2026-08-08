@@ -1885,11 +1885,17 @@ class anlfmo(pdio):
             return [], [], [], [], []
 
         for i in range(len(ifie)):
+            # HF-IFIE が -2 Hartree を下回る対は共有結合で繋がっており、IFIE が
+            # 物理的な相互作用を表さないので落とす。分散補正 (GRIMME/JUNG/HILL) も
+            # 同じ対の値なので一緒に落とす — f90/src/readifiepiedalib.f90 と揃える。
             if float(ifie[i][4]) < -2:
                 ifie[i][4] = 0.0
                 if self.logMethod != 'HF':
                     ifie[i][5] = 0.0
                     ifie[i][6] = 0.0
+                    ifie[i][7] = 0.0
+                    ifie[i][8] = 0.0
+                    ifie[i][9] = 0.0
 
         return ifie, pieda, momene, dimene, bsse
 
@@ -1981,11 +1987,17 @@ class anlfmo(pdio):
 
         for i in range(len(ifie)):
             # print(ifie[i][4])
+            # HF-IFIE が -2 Hartree を下回る対は共有結合で繋がっており、IFIE が
+            # 物理的な相互作用を表さないので落とす。分散補正 (GRIMME/JUNG/HILL) も
+            # 同じ対の値なので一緒に落とす — f90/src/readifiepiedalib.f90 と揃える。
             if float(ifie[i][4]) < -2:
                 ifie[i][4] = 0.0
                 if self.logMethod != 'HF':
                     ifie[i][5] = 0.0
                     ifie[i][6] = 0.0
+                    ifie[i][7] = 0.0
+                    ifie[i][8] = 0.0
+                    ifie[i][9] = 0.0
 
         return ifie, pieda, solv
 
