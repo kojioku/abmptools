@@ -8,6 +8,8 @@ from __future__ import annotations
 from typing import Any
 
 import sys
+import contextlib
+import gc
 import os
 import copy
 import re
@@ -22,6 +24,22 @@ from multiprocessing import Pool
 _F90_MAX_PAIRS = 5_000_000
 
 logger = logging.getLogger(__name__)
+
+@contextlib.contextmanager
+def _gc_disabled():
+    """世代別 GC を一時停止する。
+
+    大量の短命な list/str を作る解析ループ用。循環参照を作らない処理にのみ
+    使うこと — 参照カウントだけで回収できる前提で GC を止めている。
+    """
+    was_enabled = gc.isenabled()
+    gc.disable()
+    try:
+        yield
+    finally:
+        if was_enabled:
+            gc.enable()
+
 
 try:
     import numpy as np
@@ -1809,25 +1827,33 @@ class anlfmo(pdio):
             logger.error("can't open %s", fname)
             return ifie, pieda, momene, dimene
 
-        with open(fname, "rt") as file:
+        # 大きなログではここで 1000 万個規模の文字列とリストを作る。世代別 GC が
+        # その全体を何度も走査しにいくため、行数が増えるほど超線形に遅くなる
+        # (1.5M 行で 2.23s → GC を止めると 0.79s)。
+        with _gc_disabled(), open(fname, "rt") as file:
             flag = False
             momflag = False
             dimflag = False
             for line in file:
-                # itemList = text[i][:-1].split()
-                # itemList = file.readline().strip().split()
-                itemList = line.strip().split()
+                # split() は引数なしなら前後の空白を無視するので strip() は不要。
+                itemList = line.split()
 
                 # print itemList
                 if len(itemList) < 2:
                     continue
-                if itemList[1:3] == ['MONOMER', 'ENERGY']:
+
+                # 節の見出しは必ず '##' で始まる。表の本体行 (大きなログでは全体の
+                # 99% 以上) が見出し判定のリストスライスを毎行作るのを避けるため、
+                # 以下の見出し判定はすべてこのフラグで短絡させる。
+                ismark = itemList[0] == '##'
+
+                if ismark and itemList[1:3] == ['MONOMER', 'ENERGY']:
                     momflag = True
                     continue
-                if itemList[1:3] == ['DIMER', 'ENERGY']:
+                if ismark and itemList[1:3] == ['DIMER', 'ENERGY']:
                     dimflag = True
                     continue
-                if itemList[1:3] == ['DIMER', '<S^2>']:
+                if ismark and itemList[1:3] == ['DIMER', '<S^2>']:
                     dimflag = False
                 if dimflag:
                     dimcount += 1
@@ -1842,11 +1868,11 @@ class anlfmo(pdio):
                         momene.append(itemList)
                         momflag = False
 
-                if itemList[1] == 'MP2-IFIE' or itemList[1] == 'HF-IFIE':
+                if ismark and (itemList[1] == 'MP2-IFIE' or itemList[1] == 'HF-IFIE'):
                     flag = True
                     # head.append(itemList)
                     continue
-                if itemList[1] == 'PIEDA':
+                if ismark and itemList[1] == 'PIEDA':
                     flag = False
                     pflag = True
                     # print('pieda start!!')
@@ -1858,19 +1884,21 @@ class anlfmo(pdio):
                         ifie.append(itemList[:-2])
                     else:
                         ifie.append(itemList)
-                if len(itemList) < 2:
-                    continue
+                    # 表の本体行はこの先の判定に一切かからない。見出し行だけ
+                    # 従来どおり後段へ通し、挙動を変えないようにする。
+                    if not ismark:
+                        continue
 
                 # after pieda or BSSE (break)
-                if itemList[1] == 'Mulliken':
+                if ismark and itemList[1] == 'Mulliken':
                     # flag = False
                     break
                 # for BSSE
-                if pflag and itemList[:5] == ['##','BSSE', 'for','non-bonding','MP2-IFIE']:
+                if ismark and pflag and itemList[:5] == ['##','BSSE', 'for','non-bonding','MP2-IFIE']:
                     pflag = False
                     # print('pieda end! next is BSSE')
                     continue
-                if itemList[:4] == ['##','BSSE', 'for', 'MP2-IFIE']:
+                if ismark and itemList[:4] == ['##','BSSE', 'for', 'MP2-IFIE']:
                     bsseflag = True
                     # print('BSSE start!')
                     continue

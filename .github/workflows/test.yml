@@ -61,8 +61,10 @@ jobs:
           python - <<'PY'
           import glob, sys, zipfile
 
+          # f90/ はここに入れない。ビルド生成物 (.so) は .gitignore 対象で、
+          # ランナーのまっさらなクローンには存在しないため wheel にも入らない。
           EXPECTED = {
-              "amorphous", "core", "f90", "geomopt",
+              "amorphous", "core", "geomopt",
               "gro2udf", "trajectory", "udf2gro", "udfcharge",
           }
 
