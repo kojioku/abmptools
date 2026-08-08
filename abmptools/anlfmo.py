@@ -16,6 +16,11 @@ from .pdb_io import pdb_io as pdio
 import time
 from multiprocessing import Pool
 
+# Fortran リーダ (f90/src/readifiepiedalib.f90) の固定長配列サイズ。
+# 向こうの dimension() と必ず一致させること。1734 フラグメント (= IFIE 1.5M 行) の
+# 実ログで 5M は 3 倍の余裕がある。ここを上げると確保量が線形に増える点に注意。
+_F90_MAX_PAIRS = 5_000_000
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -2285,6 +2290,8 @@ class anlfmo(pdio):
         if not os.path.exists(tgtlog):
             logger.warning('Warning: %s is not exist: skip data', tgtlog)
             return []
+        from ctypes import c_char_p, create_string_buffer
+
         f = np.ctypeslib.load_library(self.f90sofile, ".")
 
         f.readifiepieda_.argtypes = [
@@ -2315,28 +2322,36 @@ class anlfmo(pdio):
         enc_str = instr.encode('utf-8')
         instr = create_string_buffer(enc_str)
 
-        ifi = np.empty(100000000, dtype=np.int32)
-        ifj = np.empty(100000000, dtype=np.int32)
-        pii = np.empty(100000000, dtype=np.int32)
-        pij = np.empty(100000000, dtype=np.int32)
-        dist = np.empty(100000000, dtype=np.float64)
-        hfifie = np.empty(100000000, dtype=np.float64)
-        mp2ifie = np.empty(100000000, dtype=np.float64)
-        prtype1 = np.empty(100000000, dtype=np.float64)
-        grimme = np.empty(100000000, dtype=np.float64)
-        jung = np.empty(100000000, dtype=np.float64)
-        hill = np.empty(100000000, dtype=np.float64)
-        es = np.empty(100000000, dtype=np.float64)
-        ex = np.empty(100000000, dtype=np.float64)
-        ct = np.empty(100000000, dtype=np.float64)
-        di = np.empty(100000000, dtype=np.float64)
-        erest = np.empty(100000000, dtype=np.float64)
-        qval = np.empty(100000000, dtype=np.float64)
-        fdimesint = np.empty(100000000, dtype=np.int32)
+        ifi = np.empty(_F90_MAX_PAIRS, dtype=np.int32)
+        ifj = np.empty(_F90_MAX_PAIRS, dtype=np.int32)
+        pii = np.empty(_F90_MAX_PAIRS, dtype=np.int32)
+        pij = np.empty(_F90_MAX_PAIRS, dtype=np.int32)
+        dist = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
+        hfifie = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
+        mp2ifie = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
+        prtype1 = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
+        grimme = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
+        jung = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
+        hill = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
+        es = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
+        ex = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
+        ct = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
+        di = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
+        erest = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
+        qval = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
+        fdimesint = np.empty(_F90_MAX_PAIRS, dtype=np.int32)
         ifpair = np.empty(1, dtype=np.int32)
         pipair = np.empty(1, dtype=np.int32)
 
         f.readifiepieda_(instr, ifi, ifj, pii, pij, dist, hfifie, mp2ifie, prtype1, grimme, jung, hill, es, ex, ct, di, erest, qval, fdimesint, ifpair, pipair)
+
+        # Fortran 側は固定長配列に書き込み、境界検査を持たない。上限に達していたら
+        # 静かに切り捨てられているので、黙って部分的な結果を返さない。
+        if ifpair[0] >= _F90_MAX_PAIRS or pipair[0] >= _F90_MAX_PAIRS:
+            raise RuntimeError(
+                f"Fortran reader hit its fixed array bound ({_F90_MAX_PAIRS} pairs); "
+                f"results would be truncated. Use the Python reader (f90soflag=False)."
+            )
 
         if ifpair == 0:
             logger.warning('Warning: %s is not converged: skip data', tgtlog)

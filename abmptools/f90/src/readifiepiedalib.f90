@@ -5,11 +5,11 @@ subroutine readifiepieda(inname, frag_i, frag_j, pfrag_i, pfrag_j, dist, hfifie,
 ! Author: Koji Okuwaki
 implicit none
 integer i, j, skip
-character*1, dimension(100000000):: fdimes
+character*1, dimension(5000000):: fdimes
 character*40 head
-integer, dimension(100000000):: frag_i, frag_j, pfrag_i, pfrag_j, fdimesint
-double precision, dimension(100000000):: dist, hfifie,mp2ifie,prtype1,grimme,jung,hill
-double precision, dimension(100000000):: es,ex,ct,di,erest,qval
+integer, dimension(5000000):: frag_i, frag_j, pfrag_i, pfrag_j, fdimesint
+double precision, dimension(5000000):: dist, hfifie,mp2ifie,prtype1,grimme,jung,hill
+double precision, dimension(5000000):: es,ex,ct,di,erest,qval
 
 integer ifpair, pipair
 logical disp
