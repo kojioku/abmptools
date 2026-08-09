@@ -168,6 +168,11 @@ do i = 1, ifpair
 end do
 
 999 continue
+! 装置番号を解放する。これが無いと同じプロセスから 2 度目に呼んだとき、
+! unit 17 が EOF に居座ったままになり 2 回目は 0 件、3 回目は
+! "Sequential READ or WRITE not allowed after EOF marker" で異常終了する。
+! 複数ログを回すモードはこの経路を繰り返し呼ぶ。
+close(17)
 end subroutine
 
 !      ## HF-IFIE
