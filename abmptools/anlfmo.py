@@ -23,6 +23,37 @@ from multiprocessing import Pool
 # 実ログで 5M は 3 倍の余裕がある。ここを上げると確保量が線形に増える点に注意。
 _F90_MAX_PAIRS = 5_000_000
 
+# ログの `Method =` ごとの IFIE 表の列。ABINIT-MP は手法によって列の顔ぶれ自体を
+# 変えるので (MP4 だけ 7 値で 1 列多い)、表を読む側と DataFrame を作る側で同じ
+# 定義を使う。先頭 4 つは共通で、5 つ目以降が Hartree の数値列。
+_IFIE_COLUMNS = {
+    'HF': ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE'],
+    'MP2': ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
+            'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL'],
+    'MP3': ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
+            'USER-MP2', 'MP3-IFIE', 'USER-MP3', 'PADE[2/1]'],
+    'CCPT': ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
+             'GRIMME-MP2', 'MP3-IFIE', 'GRIMME-MP3', 'MP4-IFIE',
+             'GRIMME-MP4'],
+}
+
+# 数値列が始まる位置 (I, J, DIST, DIMER-ES の次)。
+_IFIE_FIRST_VALUE = 4
+
+# 表の見出し (`## MP2-IFIE` 等) から Method 名への対応。
+_IFIE_HEADINGS = {
+    'HF-IFIE': 'HF',
+    'MP2-IFIE': 'MP2',
+    'MP3-IFIE': 'MP3',
+    'MP4-IFIE': 'CCPT',
+}
+
+
+def _icolumn_for(log_method):
+    """`Method =` の値に対応する IFIE 表の列名を返す。未知なら MP2 とみなす。"""
+    return list(_IFIE_COLUMNS.get(log_method, _IFIE_COLUMNS['MP2']))
+
+
 logger = logging.getLogger(__name__)
 
 @contextlib.contextmanager
@@ -79,8 +110,7 @@ class anlfmo(pdio):
         self.molname = []
         self.criteria = []
         self.tgtpos = []
-        self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
-                        'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL']
+        self.icolumn = _icolumn_for('MP2')
         self.bicolumn = ['I', 'J', 'DIST', 'DIMER-ES-BSSE', 'HF-BSSE',
                          'MP2-BSSE', 'PR-T1-BSSE', 'GRIMME-BSSE',
                          'JUNG-BSSE', 'HILL-BSSE']
@@ -814,14 +844,9 @@ class anlfmo(pdio):
         df['I'] = df['I'].astype(int)
         df['J'] = df['J'].astype(int)
         df['DIST'] = df['DIST'].astype(float)
-        df['HF-IFIE'] = df['HF-IFIE'].astype(float) * 627.5095
-
-        if self.logMethod == 'MP2':
-            df['MP2-IFIE'] = df['MP2-IFIE'].astype(float) * 627.5095
-            df['PR-TYPE1'] = df['PR-TYPE1'].astype(float) * 627.5095
-            df['GRIMME'] = df['GRIMME'].astype(float) * 627.5095
-            df['JUNG'] = df['JUNG'].astype(float) * 627.5095
-            df['HILL'] = df['HILL'].astype(float) * 627.5095
+        # 数値列はログ上すべて Hartree。列名は手法ごとに違うので位置で回す。
+        for col in self.icolumn[_IFIE_FIRST_VALUE:]:
+            df[col] = df[col].astype(float) * 627.5095
 
         # print('solv', solv)
         if len(solv) != 0:
@@ -1063,6 +1088,35 @@ class anlfmo(pdio):
         return
 
 
+    def _ffmatrix_partner_rows(self, df: pd.DataFrame, f1: int) -> pd.DataFrame:
+        """f1 と self.tgt2frag の各フラグメントの組を tgt2frag と同じ並びで返す。
+
+        IFIE 表では f1 が I 側と J 側のどちらに来るか決まっていないので、相手側が
+        必ず 'I' に来るよう入れ替えてから絞る。素朴に
+        `I.isin(tgt2frag) | J.isin(tgt2frag)` と書くと、f1 自身が tgt2frag に
+        含まれる場合に f1 の組が全件通ってしまう。
+
+        f1 と f1 自身の組は表に存在しないため、tgt2frag に f1 が含まれるときは
+        ゼロ行を補って行数を tgt2frag に揃える (この DataFrame は
+        `index=self.tgt2frag` の列として代入されるので、行数が合わないと
+        ValueError になる)。
+        """
+        # f1 が I 側にある行は I/J を入れ替えて、相手側を 'I' に統一する。
+        tgtdf1 = df[(df['I'] == f1)].rename(columns={'I': 'J', 'J': 'I'})
+        tgtdf2 = df[(df['J'] == f1)]
+        tgtdf = pd.concat([tgtdf1, tgtdf2])
+
+        tgtfrags = [f for f in self.tgt2frag if f != f1]
+        tgtdf_filter = tgtdf[tgtdf['I'].isin(tgtfrags)]
+
+        if f1 in self.tgt2frag:
+            adddf = pd.DataFrame(
+                [f1, f1] +
+                [0 for i in range(len(tgtdf_filter.columns) - 2)],
+                index=tgtdf_filter.columns).T
+            tgtdf_filter = pd.concat([tgtdf_filter, adddf]).sort_values('I')
+        return tgtdf_filter
+
     def gettgtdf_n2ffmatrix(self, mydf: pd.DataFrame | None = None) -> None:
         """IFIEデータからフラグメント-フラグメント行列を生成する。
 
@@ -1099,29 +1153,7 @@ class anlfmo(pdio):
 
             for f1 in self.tgt1frag:
                 fragids = []
-                tgtdf1 = df[(df['I'] == f1)].rename(columns={'I':'J', 'J':'I'})
-                tgtdf2 = df[(df['J'] == f1)]
-                # tgtdf = tgtdf1._append(tgtdf2)
-                tgtdf = pd.concat([tgtdf1, tgtdf2])
-                # print(tgtdf)
-
-                tgtfrags = copy.deepcopy(self.tgt2frag)
-                try:
-                    tgtfrags.remove(f1)
-                except ValueError:
-                    pass
-                tgtdf_filter = tgtdf[(tgtdf['I'].isin(tgtfrags)) | (tgtdf['J'].isin(tgtfrags))]
-
-                # print(tgtdf_filter.columns.tolist())
-                if f1 in self.tgt2frag:
-                    # print ([i for i in range(len(tgtdf_filter.columns))])
-                    adddf = pd.DataFrame(
-                        [f1, f1] +
-                        [0 for i in range(len(tgtdf_filter.columns)-2)],
-                        index=tgtdf_filter.columns).T
-                    # tgtdf_filter = tgtdf_filter.append(adddf).sort_values('I')
-                    tgtdf_filter = pd.concat([tgtdf_filter, adddf]).sort_values('I')
-                logger.debug(tgtdf_filter.head())
+                tgtdf_filter = self._ffmatrix_partner_rows(df, f1)
 
                 hfifie = 0
                 mp2corr = 0
@@ -1169,8 +1201,7 @@ class anlfmo(pdio):
         elif self.logMethod == 'HF':
             for f1 in self.tgt1frag:
                 fragids = []
-                tgtdf = df[(df['I'] == f1) | (df['J'] == f1)]
-                tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
+                tgtdf_filter = self._ffmatrix_partner_rows(df, f1)
 
                 hfifie = 0
                 hfifie = tgtdf_filter['HF-IFIE'].values.tolist()
@@ -1205,8 +1236,7 @@ class anlfmo(pdio):
 
             for f1 in self.tgt1frag:
                 fragids = []
-                tgtdf = df[(df['I'] == f1) | (df['J'] == f1)]
-                tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
+                tgtdf_filter = self._ffmatrix_partner_rows(df, f1)
 
                 logger.debug('%s', tgtdf_filter)
                 hfifie = 0
@@ -1279,8 +1309,7 @@ class anlfmo(pdio):
 
             for f1 in self.tgt1frag:
                 fragids = []
-                tgtdf = df[(df['I'] == f1) | (df['J'] == f1)]
-                tgtdf_filter = tgtdf[(tgtdf['I'].isin(self.tgt2frag)) | (tgtdf['J'].isin(self.tgt2frag))]
+                tgtdf_filter = self._ffmatrix_partner_rows(df, f1)
 
                 hfifie = 0
                 mp3corr = 0
@@ -1868,7 +1897,9 @@ class anlfmo(pdio):
                         momene.append(itemList)
                         momflag = False
 
-                if ismark and (itemList[1] == 'MP2-IFIE' or itemList[1] == 'HF-IFIE'):
+                # `## MP2-IFIE` だけでなく MP3 / MP4(CCPT) の表も受ける。
+                # 手法ごとに列の顔ぶれが違うので、列名は self.icolumn 側で切替える。
+                if ismark and itemList[1] in _IFIE_HEADINGS:
                     flag = True
                     # head.append(itemList)
                     continue
@@ -1879,15 +1910,16 @@ class anlfmo(pdio):
                     continue
                 if flag:
                     count += 1
-                if flag and count > 2:
+                # 見出し行 ('##' 始まり) は表の行ではないので入れない。PIEDA 節を
+                # 持たないログ (MP4 で実在) では表の終わりが `## Mulliken` まで
+                # 伸び、その見出し自体が 4 要素の行として混入していた。
+                if flag and count > 2 and not ismark:
                     if self.logMethod == 'HF':
                         ifie.append(itemList[:-2])
                     else:
                         ifie.append(itemList)
-                    # 表の本体行はこの先の判定に一切かからない。見出し行だけ
-                    # 従来どおり後段へ通し、挙動を変えないようにする。
-                    if not ismark:
-                        continue
+                    # 表の本体行はこの先の判定に一切かからない。
+                    continue
 
                 # after pieda or BSSE (break)
                 if ismark and itemList[1] == 'Mulliken':
@@ -1917,18 +1949,24 @@ class anlfmo(pdio):
             logger.warning("can't read ifie %s", fname.split("/")[-1])
             return [], [], [], [], []
 
+        # PIEDA だけ読めて IFIE が 0 行、という組み合わせは上の条件をすり抜ける。
+        # 見出しを取り違えたときに黙って空の結果が下流へ流れるのを防ぐ。
+        if not ifie:
+            logger.warning(
+                "no IFIE rows read from %s (method=%s); "
+                "the IFIE table heading may be unrecognized",
+                fname.split("/")[-1], self.logMethod)
+
         for i in range(len(ifie)):
             # HF-IFIE が -2 Hartree を下回る対は共有結合で繋がっており、IFIE が
-            # 物理的な相互作用を表さないので落とす。分散補正 (GRIMME/JUNG/HILL) も
-            # 同じ対の値なので一緒に落とす — f90/src/readifiepiedalib.f90 と揃える。
-            if float(ifie[i][4]) < -2:
-                ifie[i][4] = 0.0
+            # 物理的な相互作用を表さないので落とす。同じ対の分散補正や高次項も
+            # 一緒に落とす — f90/src/readifiepiedalib.f90 と揃える。数値列の数は
+            # 手法で変わる (MP2/MP3 は 6、MP4 は 7) ので行の末尾まで回す。
+            if float(ifie[i][_IFIE_FIRST_VALUE]) < -2:
+                ifie[i][_IFIE_FIRST_VALUE] = 0.0
                 if self.logMethod != 'HF':
-                    ifie[i][5] = 0.0
-                    ifie[i][6] = 0.0
-                    ifie[i][7] = 0.0
-                    ifie[i][8] = 0.0
-                    ifie[i][9] = 0.0
+                    for k in range(_IFIE_FIRST_VALUE + 1, len(ifie[i])):
+                        ifie[i][k] = 0.0
 
         return ifie, pieda, momene, dimene, bsse
 
@@ -2021,16 +2059,14 @@ class anlfmo(pdio):
         for i in range(len(ifie)):
             # print(ifie[i][4])
             # HF-IFIE が -2 Hartree を下回る対は共有結合で繋がっており、IFIE が
-            # 物理的な相互作用を表さないので落とす。分散補正 (GRIMME/JUNG/HILL) も
-            # 同じ対の値なので一緒に落とす — f90/src/readifiepiedalib.f90 と揃える。
-            if float(ifie[i][4]) < -2:
-                ifie[i][4] = 0.0
+            # 物理的な相互作用を表さないので落とす。同じ対の分散補正や高次項も
+            # 一緒に落とす — f90/src/readifiepiedalib.f90 と揃える。数値列の数は
+            # 手法で変わる (MP2/MP3 は 6、MP4 は 7) ので行の末尾まで回す。
+            if float(ifie[i][_IFIE_FIRST_VALUE]) < -2:
+                ifie[i][_IFIE_FIRST_VALUE] = 0.0
                 if self.logMethod != 'HF':
-                    ifie[i][5] = 0.0
-                    ifie[i][6] = 0.0
-                    ifie[i][7] = 0.0
-                    ifie[i][8] = 0.0
-                    ifie[i][9] = 0.0
+                    for k in range(_IFIE_FIRST_VALUE + 1, len(ifie[i])):
+                        ifie[i][k] = 0.0
 
         return ifie, pieda, solv
 
@@ -2417,7 +2453,7 @@ class anlfmo(pdio):
 
         # CCPT case
         elif self.logMethod == 'CCPT':
-            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'GRIMME-MP2', 'MP3-IFIE','GRIMME-MP3', 'MP4-IFIE' ]
+            self.icolumn = _icolumn_for('CCPT')
 
             ifdf = pd.DataFrame(columns=self.icolumn)
             ifdf['I'] = copy.deepcopy(ifi[:ifpair[0]])
@@ -2430,6 +2466,13 @@ class anlfmo(pdio):
             ifdf['MP3-IFIE'] = copy.deepcopy(grimme[:ifpair[0]])
             ifdf['GRIMME-MP3'] = copy.deepcopy(jung[:ifpair[0]])
             ifdf['MP4-IFIE'] = copy.deepcopy(hill[:ifpair[0]])
+            # Fortran 側は 1 行につき 6 値しか read しないので、MP4 表の 7 列目
+            # GRIMME-MP4 は取得できない。列は残して欠測にし、Python リーダとの
+            # 列構成のずれを避ける。この列が要るなら f90soflag=False を使う。
+            ifdf['GRIMME-MP4'] = np.nan
+            logger.warning(
+                'the Fortran reader cannot provide GRIMME-MP4; '
+                'use the Python reader (f90soflag=False) if that column is needed')
 
         # MP2 case
         else:
@@ -2563,15 +2606,7 @@ class anlfmo(pdio):
         # readsingleifie performs the same step at line 2608-2620; multi mode
         # was missing it, causing ValueError on HF logs (10 vs 7 columns).
         self.logMethod = self.getlogmethod(self.tgtlogs[0])
-        if self.logMethod == 'HF':
-            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE']
-        elif self.logMethod == 'MP3':
-            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
-                            'USER-MP2', 'MP3-IFIE', 'USER-MP3', 'PADE[2/1]']
-        elif self.logMethod == 'CCPT':
-            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
-                            'GRIMME-MP2', 'MP3-IFIE', 'GRIMME-MP3', 'MP4-IFIE']
-        # MP2 keeps the __init__ default (10 columns)
+        self.icolumn = _icolumn_for(self.logMethod)
         logger.info('## read multi mode')
         st = time.time()
         p = Pool(self.pynp)
@@ -2705,20 +2740,18 @@ class anlfmo(pdio):
 
         logger.info('## read single mode')
         self.logMethod = self.getlogmethod(self.tgtlogs)
-        if self.logMethod == 'HF':
-            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE']
-        elif self.logMethod == 'MP3':
-            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
-                            'USER-MP2', 'MP3-IFIE', 'USER-MP3', 'PADE[2/1]']
-        elif self.logMethod == 'CCPT':
-            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE',
-                            'GRIMME-MP2', 'MP3-IFIE', 'GRIMME-MP3', 'MP4-IFIE']
+        self.icolumn = _icolumn_for(self.logMethod)
         self.getpbflag(self.tgtlogs)
 
         # self.logMethod = 'MP2'
+        # MP3/CCPT は MP2 と列の顔ぶれが違う (PR-TYPE1/GRIMME/JUNG/HILL が無い)。
+        # --ffmatrix 以外のモードはその列名を直接参照しているため、まだ通せない。
         if self.matrixtype != 'frags-frags' \
                 and (self.logMethod == 'MP3' or self.logMethod == 'CCPT'):
-            logger.error('Error: %s mode for this mode is unsupported yet.', self.logMethod)
+            logger.error(
+                'Error: %s logs are only supported by the --ffmatrix mode; '
+                'other modes still assume the MP2 column set '
+                '(PR-TYPE1/GRIMME/JUNG/HILL).', self.logMethod)
             sys.exit()
 
         # pb python-based capture only in this version.

@@ -2,6 +2,50 @@
 
 ## [Unreleased]
 
+### Added — MP3 / MP4(CCPT) ログを Python リーダで読めるようにした
+
+これまで Python リーダは `## MP2-IFIE` と `## HF-IFIE` の表しか見ておらず、
+**MP3 / MP4 のログからは 1 行も読めていなかった** (Fortran リーダのみ対応)。
+
+ABINIT-MP は `Method` によって IFIE 表の**列の顔ぶれ自体**を変える。
+単に列が増えるのではない:
+
+| Method | DIMER-ES より後の列 |
+|---|---|
+| `MP2` | HF-IFIE, MP2-IFIE, PR-TYPE1, GRIMME, JUNG, HILL (6) |
+| `MP3` | HF-IFIE, MP2-IFIE, USER-MP2, MP3-IFIE, USER-MP3, PADE[2/1] (6) |
+| `CCPT` | HF-IFIE, MP2-IFIE, GRIMME-MP2, MP3-IFIE, GRIMME-MP3, MP4-IFIE, **GRIMME-MP4** (7) |
+
+3 箇所に散っていた列定義を `_IFIE_COLUMNS` に一本化し、見出しの判定・単位換算
+(×627.5095)・共有結合対のマスクをすべてこの定義から導くようにした。
+
+**`GRIMME-MP4` は Fortran リーダでは取得できない** (1 行につき 6 値しか
+`read` しないため 7 列目が落ちる)。Python リーダはこの列も読む。Fortran 経路
+では列を残して欠測にし、警告を出す。
+
+### Fixed — `--ffmatrix` が MP3/MP4 で必ず失敗していた
+
+`ValueError: Length of values (863) does not match length of index (20)`。
+
+相手側フラグメントで絞るべきところが
+`I.isin(tgt2frag) | J.isin(tgt2frag)` になっており、**注目フラグメント自身が
+対象範囲に含まれると全組が通っていた**。MP2 分岐だけは相手側を `I` に寄せる
+入れ替えと自己ペアの補完を行っていて正しかったので、その手順を
+`_ffmatrix_partner_rows()` に切り出し、HF / MP3 / CCPT の 3 分岐も同じ経路に
+乗せた。
+
+### Fixed — IFIE が 0 行でも黙って通ることがあった
+
+警告は「IFIE も PIEDA も BSSE も読めなかった」ときだけ出ていた。MP3 ログは
+PIEDA が読めてしまうため、**IFIE が空でも無警告**で下流へ流れていた。
+0 行なら手法名を添えて警告する。
+
+### Fixed — PIEDA 節を持たないログで見出し行が表に混入していた
+
+MP4 のログには PIEDA 節が無く、IFIE 表の終端が `## Mulliken` まで伸びる。
+その見出し自体が 4 要素の行として IFIE に追加され `IndexError` になっていた。
+`##` で始まる行は表の行として扱わない。
+
 ### Fixed — 共有結合フラグメント対で分散補正が捨てられていなかった
 
 IFIE 表の `HF-IFIE < -2 Hartree` は共有結合で繋がった対の目印で、その IFIE は
@@ -29,9 +73,11 @@ Python 側を Fortran に合わせて 6 列とも落とすように修正。Pyth
 - **配列あふれの検査が無かった** — 上限に達すると黙って切り捨てられる。
   Python 側で検知して `RuntimeError` にした。
 
-**未修正の既知の問題**: Fortran 側は `close(17)` を行わないため、1 プロセスで
-1 ファイルしか読めない (2 回目は空を返し、3 回目は Fortran runtime error で
-プロセスごと停止する)。複数ログを回すモードは Fortran 経路では正しく動かない。
+- **`close(17)` が無く 1 プロセスで 1 ファイルしか読めなかった** — 装置番号が
+  EOF に居座るため、2 回目の呼び出しは 0 件を返し、3 回目は
+  `Sequential READ or WRITE not allowed after EOF marker` でプロセスごと停止
+  していた。複数ログを回すモードはこの経路を繰り返し呼ぶので機能していない。
+  subroutine の出口で閉じるようにした (同一ログの 4 連続読み出しで確認)。
 
 ### Performance — IFIE ログの読み取りを約 3.8 倍高速化
 
