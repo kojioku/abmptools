@@ -105,12 +105,10 @@ pip install .
 
 `--user` is usually unnecessary; pip handles both virtual environments and system Python appropriately.
 
-Installation runs `make` to compile the optional Fortran shared library for accelerated IFIE/PIEDA reading. If `gfortran` is not available, the install still succeeds without Fortran acceleration.
-
 ### Requirements
 
 - **Required**: Python 3.8+, numpy, pandas
-- **Optional**: UDFManager (OCTA COGNAC), gfortran, OpenBabel, PySCF, ASE, OpenMM, Packmol
+- **Optional**: UDFManager (OCTA COGNAC), OpenBabel, PySCF, ASE, OpenMM, Packmol
 
 ## Testing
 

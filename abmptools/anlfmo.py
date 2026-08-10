@@ -18,11 +18,6 @@ from .pdb_io import pdb_io as pdio
 import time
 from multiprocessing import Pool
 
-# Fortran リーダ (f90/src/readifiepiedalib.f90) の固定長配列サイズ。
-# 向こうの dimension() と必ず一致させること。1734 フラグメント (= IFIE 1.5M 行) の
-# 実ログで 5M は 3 倍の余裕がある。ここを上げると確保量が線形に増える点に注意。
-_F90_MAX_PAIRS = 5_000_000
-
 # ログの `Method =` ごとの IFIE 表の列。ABINIT-MP は手法によって列の顔ぶれ自体を
 # 変えるので (MP4 だけ 7 値で 1 列多い)、表を読む側と DataFrame を作る側で同じ
 # 定義を使う。先頭 4 つは共通で、5 つ目以降が Hartree の数値列。
@@ -171,8 +166,6 @@ class anlfmo(pdio):
         self.writeresnamecsv = True
 
         mydir = os.path.dirname(os.path.abspath(__file__))
-        self.f90sofile = mydir + '/f90/bin/readifiepiedalib.so'
-        self.f90soflag = True
 
         # for svd
         self.matrixtype = 'normal'
@@ -1581,10 +1574,7 @@ class anlfmo(pdio):
             tgtdf_filter = tgtdf[tgtdf['DIST'] < self.dist]
         elif self.tgt2type == 'dimer-es':
             logger.info('--- ifie around tgt %s without Dimer-es approximation ---', self.tgt1frag)
-            if self.f90soflag:
-                tgtdf_filter = tgtdf[tgtdf['DIMER-ES'] == 0]
-            else:
-                tgtdf_filter = tgtdf[tgtdf['DIMER-ES'] == 'F']
+            tgtdf_filter = tgtdf[tgtdf['DIMER-ES'] == 'F']
 
         return tgtdf, tgtdf_filter
 
@@ -1960,8 +1950,8 @@ class anlfmo(pdio):
         for i in range(len(ifie)):
             # HF-IFIE が -2 Hartree を下回る対は共有結合で繋がっており、IFIE が
             # 物理的な相互作用を表さないので落とす。同じ対の分散補正や高次項も
-            # 一緒に落とす — f90/src/readifiepiedalib.f90 と揃える。数値列の数は
-            # 手法で変わる (MP2/MP3 は 6、MP4 は 7) ので行の末尾まで回す。
+            # 一緒に落とす。数値列の数は手法で変わる (MP2/MP3 は 6、MP4 は 7)
+            # ので行の末尾まで回す。
             if float(ifie[i][_IFIE_FIRST_VALUE]) < -2:
                 ifie[i][_IFIE_FIRST_VALUE] = 0.0
                 if self.logMethod != 'HF':
@@ -2060,8 +2050,8 @@ class anlfmo(pdio):
             # print(ifie[i][4])
             # HF-IFIE が -2 Hartree を下回る対は共有結合で繋がっており、IFIE が
             # 物理的な相互作用を表さないので落とす。同じ対の分散補正や高次項も
-            # 一緒に落とす — f90/src/readifiepiedalib.f90 と揃える。数値列の数は
-            # 手法で変わる (MP2/MP3 は 6、MP4 は 7) ので行の末尾まで回す。
+            # 一緒に落とす。数値列の数は手法で変わる (MP2/MP3 は 6、MP4 は 7)
+            # ので行の末尾まで回す。
             if float(ifie[i][_IFIE_FIRST_VALUE]) < -2:
                 ifie[i][_IFIE_FIRST_VALUE] = 0.0
                 if self.logMethod != 'HF':
@@ -2342,167 +2332,6 @@ class anlfmo(pdio):
         # print(ifdf_filter)
         return ifdf_filter, ifdfsum
 
-    def read_ifpif90(self, tgtlog: str) -> list[pd.DataFrame] | list:
-        '''read ifpif90.so and call readifiepieda_
-        Args:
-            tgtlog (str): target log file name
-        Returns:
-            ifdf_filters (list): list of ifdf_filter
-        '''
-
-        logger.info('read %s', tgtlog)
-        if not os.path.exists(tgtlog):
-            logger.warning('Warning: %s is not exist: skip data', tgtlog)
-            return []
-        from ctypes import c_char_p, create_string_buffer
-
-        f = np.ctypeslib.load_library(self.f90sofile, ".")
-
-        f.readifiepieda_.argtypes = [
-            c_char_p,
-            np.ctypeslib.ndpointer(dtype=np.int32),
-            np.ctypeslib.ndpointer(dtype=np.int32),
-            np.ctypeslib.ndpointer(dtype=np.int32),
-            np.ctypeslib.ndpointer(dtype=np.int32),
-            np.ctypeslib.ndpointer(dtype=np.float64),
-            np.ctypeslib.ndpointer(dtype=np.float64),
-            np.ctypeslib.ndpointer(dtype=np.float64),
-            np.ctypeslib.ndpointer(dtype=np.float64),
-            np.ctypeslib.ndpointer(dtype=np.float64),
-            np.ctypeslib.ndpointer(dtype=np.float64),
-            np.ctypeslib.ndpointer(dtype=np.float64),
-            np.ctypeslib.ndpointer(dtype=np.float64),
-            np.ctypeslib.ndpointer(dtype=np.float64),
-            np.ctypeslib.ndpointer(dtype=np.float64),
-            np.ctypeslib.ndpointer(dtype=np.float64),
-            np.ctypeslib.ndpointer(dtype=np.float64),
-            np.ctypeslib.ndpointer(dtype=np.float64),
-            np.ctypeslib.ndpointer(dtype=np.int32),
-            np.ctypeslib.ndpointer(dtype=np.int32),
-            np.ctypeslib.ndpointer(dtype=np.int32),
-            ]
-
-        instr = tgtlog
-        enc_str = instr.encode('utf-8')
-        instr = create_string_buffer(enc_str)
-
-        ifi = np.empty(_F90_MAX_PAIRS, dtype=np.int32)
-        ifj = np.empty(_F90_MAX_PAIRS, dtype=np.int32)
-        pii = np.empty(_F90_MAX_PAIRS, dtype=np.int32)
-        pij = np.empty(_F90_MAX_PAIRS, dtype=np.int32)
-        dist = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
-        hfifie = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
-        mp2ifie = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
-        prtype1 = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
-        grimme = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
-        jung = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
-        hill = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
-        es = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
-        ex = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
-        ct = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
-        di = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
-        erest = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
-        qval = np.empty(_F90_MAX_PAIRS, dtype=np.float64)
-        fdimesint = np.empty(_F90_MAX_PAIRS, dtype=np.int32)
-        ifpair = np.empty(1, dtype=np.int32)
-        pipair = np.empty(1, dtype=np.int32)
-
-        f.readifiepieda_(instr, ifi, ifj, pii, pij, dist, hfifie, mp2ifie, prtype1, grimme, jung, hill, es, ex, ct, di, erest, qval, fdimesint, ifpair, pipair)
-
-        # Fortran 側は固定長配列に書き込み、境界検査を持たない。上限に達していたら
-        # 静かに切り捨てられているので、黙って部分的な結果を返さない。
-        if ifpair[0] >= _F90_MAX_PAIRS or pipair[0] >= _F90_MAX_PAIRS:
-            raise RuntimeError(
-                f"Fortran reader hit its fixed array bound ({_F90_MAX_PAIRS} pairs); "
-                f"results would be truncated. Use the Python reader (f90soflag=False)."
-            )
-
-        if ifpair == 0:
-            logger.warning('Warning: %s is not converged: skip data', tgtlog)
-            return []
-        #check
-        # print ('i', ifi[0], ifj[0])
-        # print ('j', ifi[1], ifj[1])
-        # print ('dist', dist[0:2])
-        # print ('dist', hfifie[0:2])
-        # print ('fdimesint', fdimesint[0:2])
-        logger.debug('ifpair %s pipair %s', ifpair, pipair)
-
-        # fdimesstr = []
-        # for i in range(ifpair[0]):
-        #     if fdimesint[i] == 1:
-        #         fdimesstr.append('F')
-        #     elif fdimesint[i] == 2:
-        #         fdimesstr.append('T')
-
-        # MP3 case
-        if self.logMethod == 'MP3':
-            self.icolumn = ['I', 'J', 'DIST', 'DIMER-ES', 'HF-IFIE', 'MP2-IFIE', 'USER-MP2', 'MP3-IFIE','USER-MP3', 'PADE[2/1]']
-
-            ifdf = pd.DataFrame(columns=self.icolumn)
-            ifdf['I'] = copy.deepcopy(ifi[:ifpair[0]])
-            ifdf['J'] = copy.deepcopy(ifj[:ifpair[0]])
-            ifdf['DIST'] = copy.deepcopy(dist[:ifpair[0]])
-            ifdf['DIMER-ES'] = copy.deepcopy(fdimesint[:ifpair[0]])
-            ifdf['HF-IFIE'] = copy.deepcopy(hfifie[:ifpair[0]])
-            ifdf['MP2-IFIE'] = copy.deepcopy(mp2ifie[:ifpair[0]])
-            ifdf['USER-MP2'] = copy.deepcopy(prtype1[:ifpair[0]])
-            ifdf['MP3-IFIE'] = copy.deepcopy(grimme[:ifpair[0]])
-            ifdf['USER-MP3'] = copy.deepcopy(jung[:ifpair[0]])
-            ifdf['PADE[2/1]'] = copy.deepcopy(hill[:ifpair[0]])
-
-        # CCPT case
-        elif self.logMethod == 'CCPT':
-            self.icolumn = _icolumn_for('CCPT')
-
-            ifdf = pd.DataFrame(columns=self.icolumn)
-            ifdf['I'] = copy.deepcopy(ifi[:ifpair[0]])
-            ifdf['J'] = copy.deepcopy(ifj[:ifpair[0]])
-            ifdf['DIST'] = copy.deepcopy(dist[:ifpair[0]])
-            ifdf['DIMER-ES'] = copy.deepcopy(fdimesint[:ifpair[0]])
-            ifdf['HF-IFIE'] = copy.deepcopy(hfifie[:ifpair[0]])
-            ifdf['MP2-IFIE'] = copy.deepcopy(mp2ifie[:ifpair[0]])
-            ifdf['GRIMME-MP2'] = copy.deepcopy(prtype1[:ifpair[0]])
-            ifdf['MP3-IFIE'] = copy.deepcopy(grimme[:ifpair[0]])
-            ifdf['GRIMME-MP3'] = copy.deepcopy(jung[:ifpair[0]])
-            ifdf['MP4-IFIE'] = copy.deepcopy(hill[:ifpair[0]])
-            # Fortran 側は 1 行につき 6 値しか read しないので、MP4 表の 7 列目
-            # GRIMME-MP4 は取得できない。列は残して欠測にし、Python リーダとの
-            # 列構成のずれを避ける。この列が要るなら f90soflag=False を使う。
-            ifdf['GRIMME-MP4'] = np.nan
-            logger.warning(
-                'the Fortran reader cannot provide GRIMME-MP4; '
-                'use the Python reader (f90soflag=False) if that column is needed')
-
-        # MP2 case
-        else:
-            ifdf = pd.DataFrame(columns=self.icolumn)
-            ifdf['I'] = copy.deepcopy(ifi[:ifpair[0]])
-            ifdf['J'] = copy.deepcopy(ifj[:ifpair[0]])
-            ifdf['DIST'] = copy.deepcopy(dist[:ifpair[0]])
-            ifdf['DIMER-ES'] = copy.deepcopy(fdimesint[:ifpair[0]])
-            ifdf['HF-IFIE'] = copy.deepcopy(hfifie[:ifpair[0]])
-            ifdf['MP2-IFIE'] = copy.deepcopy(mp2ifie[:ifpair[0]])
-            ifdf['PR-TYPE1'] = copy.deepcopy(prtype1[:ifpair[0]])
-            ifdf['GRIMME'] = copy.deepcopy(grimme[:ifpair[0]])
-            ifdf['JUNG'] = copy.deepcopy(jung[:ifpair[0]])
-            ifdf['HILL'] = copy.deepcopy(hill[:ifpair[0]])
-
-        # PIEDA
-        pidf = pd.DataFrame(columns=self.pcolumn)
-        pidf['I'] = copy.deepcopy(pii[:pipair[0]])
-        pidf['J'] = copy.deepcopy(pij[:pipair[0]])
-        pidf['ES'] = copy.deepcopy(es[:pipair[0]])
-        pidf['EX'] = copy.deepcopy(ex[:pipair[0]])
-        pidf['CT-mix'] = copy.deepcopy(ct[:pipair[0]])
-        pidf['DI(MP2)'] = copy.deepcopy(di[:pipair[0]])
-        # LRD
-        if self.is_disp:
-            pidf['Erest'] = copy.deepcopy(erest[:pipair[0]])
-        pidf['q(I=>J)'] = copy.deepcopy(qval[:pipair[0]])
-
-        return [ifdf, pidf]
-
 
     def read_ifpimulti(self, i: int) -> Any:
         ''' read ifpi and pieda from multi log file
@@ -2514,22 +2343,11 @@ class anlfmo(pdio):
         '''
 
         # i: log number
-        # read ifpi f90
         momenedf = None
-        if self.f90soflag:
-            # get ifie using f90 module
-            logger.info("use fortran library")
-            dfs = self.read_ifpif90(self.tgtlogs[i])
-            if len(dfs) == 0:
-                return None
-            ifdf, pidf = dfs
-
-        # note: nof90(py) mode only can get momnomer energy
-        else:
-            dfs = self.read_ifiepiedas(self.tgtlogs[i])
-            if len(dfs) == 0:
-                return None
-            ifdf, pidf, momenedf, dimenedf, bssedf = dfs
+        dfs = self.read_ifiepiedas(self.tgtlogs[i])
+        if len(dfs) == 0:
+            return None
+        ifdf, pidf, momenedf, dimenedf, bssedf = dfs
 
         # IFIE pieda filter
         tgt2type = self.tgt2type
@@ -2777,21 +2595,9 @@ class anlfmo(pdio):
             # sys.exit()
             return self
 
-        if self.f90soflag:
-            logger.info("use fortran library")
-            ifpidfs = self.read_ifpif90(self.tgtlogs)
-            self.ifdf = ifpidfs[0]
-            self.pidf = ifpidfs[1]
-            # print(self.ifdf)
-            # print(self.pidf)
-
-        else:
-            ifie, pieda, momene, dimene, bsse = self.read_ifiepieda(self.tgtlogs)
-            df = self.getifiedf(ifie)
-            self.ifdf = df
-
-            pidf = self.getpiedadf(pieda)
-            self.pidf = pidf
+        ifie, pieda, momene, dimene, bsse = self.read_ifiepieda(self.tgtlogs)
+        self.ifdf = self.getifiedf(ifie)
+        self.pidf = self.getpiedadf(pieda)
 
         return
 

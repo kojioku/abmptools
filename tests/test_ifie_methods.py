@@ -84,7 +84,6 @@ def _write_log(tmp_path, method):
 
 def _read(path):
     obj = anlfmo()
-    obj.f90soflag = False
     obj.anlmode = "frag"
     obj.tgt1frag = [1]
     obj.logMethod = obj.getlogmethod(path)
@@ -139,8 +138,8 @@ def test_bonded_pair_is_zeroed_across_every_value_column(tmp_path, method):
         assert row[col] == 0.0, col
 
 
-def test_mp4_keeps_the_column_the_fortran_reader_drops(tmp_path):
-    """GRIMME-MP4 は MP4 表の 7 列目。Fortran リーダは 6 値しか読まない。"""
+def test_mp4_reads_the_seventh_value_column(tmp_path):
+    """GRIMME-MP4 は MP4 表にだけ現れる 7 列目。他の手法は 6 列で終わる。"""
     _, df = _read(_write_log(tmp_path, "CCPT"))
     assert "GRIMME-MP4" in df.columns
     row = df[(df["I"] == 3) & (df["J"] == 1)].iloc[0]
@@ -170,7 +169,6 @@ def test_unreadable_ifie_table_warns(tmp_path, caplog):
             "            2    1    0.1   0.2   0.3   0.4   0.5\n"
         )
     obj = anlfmo()
-    obj.f90soflag = False
     obj.anlmode = "frag"
     obj.tgt1frag = [1]
     obj.logMethod = obj.getlogmethod(path)

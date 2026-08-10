@@ -7,7 +7,6 @@ ABMPTools follows an **inheritance-based layered architecture**:
 - A **core I/O layer** provides coordinate reading, molecular math, and fragment management.
 - **Data managers** (`CPFManager`, `LOGManager`) handle ABINIT-MP-specific file formats independently.
 - **Analysis and setup modules** compose the above layers into CLI-driven workflows.
-- A **Fortran extension** accelerates the performance-critical IFIE/PIEDA reading path.
 
 Key design patterns:
 - **Class inheritance chain** for progressive capability building.
@@ -113,8 +112,6 @@ The primary analysis CLI. Supports multiple modes:
 | Multi-sample | `--multi i -t start end interval` | Time-series IFIE with parallel reading |
 | In-molecule | `--fraginmol i j MOL k` | Intra-molecular fragment interactions |
 
-Uses the Fortran library (`readifiepiedalib.so`) when available; falls back to Python with `-nof90`.
-
 ### `anlfmo.py` — Advanced FMO Analysis
 
 Inherits from `pdb_io`. Provides:
@@ -182,15 +179,18 @@ has to import another.
 `acpype.py` と `_subprocess.py` は v2.9.0 で `core` に移した。以前はそれぞれ別の
 サブパッケージの内部にあり、そこへ手を伸ばす形の相互依存が残っていた。
 
-## Fortran Extension Integration
+## IFIE/PIEDA Reading
 
-`abmptools/f90/src/readifiepiedalib.f90` (219 lines) provides a fast log file parser for IFIE/PIEDA data. It is:
+`anlfmo.read_ifiepieda()` parses the log in Python. The column set follows the
+log's `Method` keyword — `MP2`, `MP3` and `CCPT` (MP4) each name their columns
+differently, and MP4 carries one extra (`GRIMME-MP4`); see `_IFIE_COLUMNS`.
 
-1. Compiled to `readifiepiedalib.so` via `Makefile` (using gfortran with `-shared -fPIC`).
-2. Loaded at runtime by `getifiepieda.py` using `ctypes`.
-3. Optional — the `-nof90` flag forces pure-Python fallback.
+A Fortran shared library used to offer an alternative reader. It was removed
+once the Python reader became the faster of the two, and it never supported
+`GRIMME-MP4`, PB-IFIE, BSSE-IFIE or the monomer/dimer energies.
 
-**Note**: MP3/MP4 extraction requires the Fortran module. PB-IFIE, BSSE-IFIE, and monomer/dimer energies require the `-nof90` (pure Python) path.
+**Note**: MP3/CCPT logs are only handled by the `--ffmatrix` mode; the other
+modes still assume the MP2 column names.
 
 ## Where to Start Reading
 

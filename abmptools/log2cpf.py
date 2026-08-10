@@ -43,8 +43,10 @@ def get_args():
                         help='output file',
                         )
 
+    # Fortran リーダは廃止済み。既存のコマンドを壊さないよう受け付けるだけ。
     parser.add_argument('-nof90', '--nof90so',
-                        help='use f90',
+                        help='deprecated and ignored; '
+                             'reading is always done in Python',
                         action='store_false',
                         default=True)
 

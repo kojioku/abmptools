@@ -116,7 +116,6 @@ LOG file ──→ anlfmo.readlog()
                  ├──→ fragment info (getfraginfo)
                  ├──→ IFIE/PIEDA data extraction
                  │         │
-                 │    [optional: Fortran SO for speed]
                  │         │
                  ▼         ▼
            getifiepieda.py (mode selection)

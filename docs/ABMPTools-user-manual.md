@@ -91,7 +91,7 @@ log ファイルから各種IFIE情報を取得するモジュール
     -dimeres, (--dimeres)
         Dimer-ES範囲内の情報のみを取得
     -nof90, (--nof90so)
-        Fortranライブラリを使用しないフラグ
+        非推奨。読み込みは常に Python で行うため、指定しても何も起きない
     -nores, (--noresinfo)
         残基名情報を出力結果に記載しない（処理時間短縮)
     -dimene DIMENE DIMENE, (--dimene)
@@ -348,9 +348,8 @@ frag i と分子AのIFIEの時系列変化
 
 
 #### 注意点
-- MP3, MP4の取得はfortranモジュールオプションのみ対応しています。
-- PB-IFIE, BSSE-IFIEの取得は-nof90 オプションのみ対応しています。
-- monomer energy, dimer energy は-nof90 オプションのみ対応しています。
+- MP3, MP4 (CCPT) の取得は --ffmatrix モードのみ対応しています。
+  他のモードは MP2 の列名 (PR-TYPE1/GRIMME/JUNG/HILL) を前提にしています。
 - 一部ローカル版の出力に対応していない可能性があります。
 
 

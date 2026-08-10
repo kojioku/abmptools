@@ -288,7 +288,6 @@ class TestSetupmode:
             )
         )
         assert aobj.exceptfrag == [5, 10]
-        assert aobj.f90soflag is False
         assert aobj.pynp == 4
         assert aobj.addresinfo is False
         assert aobj.dimfrag1 == 3

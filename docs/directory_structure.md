@@ -47,12 +47,6 @@
 | `udfrm_io.py` | UDF to PDB/XYZ conversion with PBC handling (inherits `udf_io`) |
 | `udf2fmo.py` | UDF to FMO converter CLI |
 
-## `abmptools/f90/` — Fortran Extension
-
-- **`src/readifiepiedalib.f90`** (219 lines) — High-performance IFIE/PIEDA reader for log files.
-- **`bin/readifiepiedalib.so`** (21 KB) — Pre-compiled shared library loaded at runtime by `getifiepieda.py`.
-- Compiled via `Makefile` using `gfortran`. Falls back to pure Python if unavailable.
-
 ## `sample/` — Sample Data & Workflows
 
 Each subdirectory contains input data and a `run.sh` script:
@@ -71,7 +65,6 @@ Each subdirectory contains input data and a `run.sh` script:
 
 | File | Purpose |
 |------|---------|
-| `setup.py` | setuptools configuration; triggers `make` for Fortran compilation |
-| `Makefile` | Compiles `readifiepiedalib.f90` → `readifiepiedalib.so` |
+| `setup.py` | setuptools configuration (metadata lives in `pyproject.toml`) |
 | `input_param` | Parameter template for `pdb2fmo` (cut mode, solute, criteria, etc.) |
 | `segment_data.dat` | Fragment definition format (Python dict / binary) |

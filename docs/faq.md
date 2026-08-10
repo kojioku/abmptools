@@ -6,7 +6,7 @@
 pip install --user .
 ```
 
-This installs the `abmptools` package and attempts to compile the Fortran shared library. If `gfortran` is not available, the install still succeeds — the Fortran acceleration is optional.
+This installs the `abmptools` package.
 
 Ensure `numpy` and `pandas` are installed in your environment (they are not auto-installed; see [dependencies.md](dependencies.md)).
 
@@ -63,27 +63,21 @@ The output CPF can be visualized in Biostation Viewer.
 
 ## Do I need gfortran?
 
-No. gfortran is optional and only needed to compile the Fortran shared library (`readifiepiedalib.so`) that accelerates IFIE/PIEDA reading from log files.
+No. Reading is done entirely in Python; there is no compiled extension to
+build. Earlier versions shipped a Fortran reader, which was removed once the
+Python one became the faster of the two.
 
-- **With gfortran**: Run `make` or install via `pip install --user .` to compile the library.
-- **Without gfortran**: All functionality works via pure Python. Use the `-nof90` flag with `getifiepieda` to explicitly use the Python path.
+The `-nof90` flag is still accepted so existing commands keep working, but it
+no longer does anything.
 
-Note that some features are only available via specific paths:
-- MP3/MP4 extraction requires the Fortran module.
-- PB-IFIE, BSSE-IFIE, monomer/dimer energies require the pure Python mode (`-nof90`).
+## Which methods can I read?
 
-## How do I use the Fortran-accelerated IFIE reader?
+`MP2`, `MP3` and `CCPT` (MP4) logs are all supported. Each names its columns
+differently and MP4 carries one extra (`GRIMME-MP4`); the column set follows
+the log's `Method` keyword.
 
-If the Fortran library is compiled (present at `abmptools/f90/bin/readifiepiedalib.so`), it is loaded automatically by `getifiepieda.py`. To disable it:
-
-```bash
-python -m abmptools.getifiepieda --frag 10 -d 8.0 -i calc.log -nof90
-```
-
-To compile manually:
-```bash
-make    # in repository root
-```
+MP3 and CCPT logs are only handled by the `--ffmatrix` mode — the other modes
+still assume the MP2 column names.
 
 ## What are the supported ABINIT-MP versions?
 

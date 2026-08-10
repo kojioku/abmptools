@@ -30,12 +30,12 @@ Non-editable install (e.g. for production deployment):
 pip install .
 ```
 
-`--user` is usually unnecessary; pip handles both virtual environments and system Python appropriately. Installation runs `make` to compile the optional Fortran shared library (`readifiepiedalib.so`). If `gfortran` is not available, the install still succeeds — the Fortran acceleration is optional.
+`--user` is usually unnecessary; pip handles both virtual environments and system Python appropriately.
 
 ### Requirements
 
 - **Required**: numpy, pandas
-- **Optional**: UDFManager (OCTA COGNAC), gfortran (Fortran acceleration), OpenBabel (`obabel` CLI)
+- **Optional**: UDFManager (OCTA COGNAC), OpenBabel (`obabel` CLI)
 
 ## Quick Example
 

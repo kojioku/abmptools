@@ -108,8 +108,11 @@ def get_args():
                         help='get dimer-es info',
                         action='store_true')
 
+    # Fortran リーダは廃止し、読み取りは Python に一本化した。既存のコマンドを
+    # 壊さないようフラグは受け付けるが、値は使わない。
     parser.add_argument('-nof90', '--nof90so',
-                        help='use f90',
+                        help='deprecated and ignored; '
+                             'reading is always done in Python',
                         action='store_false',
                         default=True)
 
@@ -180,7 +183,6 @@ def setupmode(aobj, args):
         print('Error! No input log name')
         sys.exit()
 
-    print('f90soflag =', args.nof90so)
     print('addresinfo =', args.noresinfo)
     print('zero padding =', args.zp)
     print('monomer energy label =', args.momene)
@@ -263,7 +265,6 @@ def setupmode(aobj, args):
         aobj.tgt2type = 'dimer-es'
 
     aobj.exceptfrag = args.exclude
-    aobj.f90soflag = args.nof90so
     aobj.pynp = args.pynp
     aobj.addresinfo = args.noresinfo
     aobj.dimfrag1 = args.dimene[0]

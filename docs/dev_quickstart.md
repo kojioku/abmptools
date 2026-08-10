@@ -5,7 +5,6 @@
 - Python 3.8+ (recommended)
 - numpy
 - pandas
-- (Optional) gfortran — for Fortran-accelerated IFIE/PIEDA reading
 - (Optional) OpenBabel — for XYZ→PDB conversion
 - (Optional) UDFManager — for OCTA COGNAC MD workflows
 
@@ -21,20 +20,6 @@ pip install --user -e .
 # Or standard install
 pip install --user .
 ```
-
-The install triggers `make` to compile the Fortran shared library. If gfortran is absent, this step fails silently and the package installs without Fortran acceleration.
-
-## Building the Fortran Extension
-
-```bash
-# From repository root
-make
-
-# Verify the library was built
-ls -la abmptools/f90/bin/readifiepiedalib.so
-```
-
-The `Makefile` compiles `abmptools/f90/src/readifiepiedalib.f90` into `abmptools/f90/bin/readifiepiedalib.so` using gfortran with `-shared -fPIC` flags.
 
 ## Running Sample Workflows
 
@@ -147,7 +132,7 @@ print(fraginfo)
 python -m abmptools.getifiepieda -h
 
 # Run with verbose output (most modules print progress to stdout)
-python -m abmptools.getifiepieda --frag 10 -d 8.0 -i test.log -nof90
+python -m abmptools.getifiepieda --frag 10 -d 8.0 -i test.log
 ```
 
 ## テスト

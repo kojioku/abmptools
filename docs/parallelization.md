@@ -100,5 +100,3 @@ This pattern is used in:
    - For file-heavy workloads (many log/CPF files): match the number of CPU cores.
    - For memory-heavy workloads (large CPF files): keep `-np` modest (4–8) to avoid memory pressure.
    - On shared systems: respect other users' resource allocations.
-
-6. **Fortran library interaction**: The Fortran shared library (`readifiepiedalib.so`) is loaded independently in each worker process, so parallel Fortran-accelerated reading works correctly.

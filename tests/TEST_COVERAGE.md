@@ -239,7 +239,6 @@
 | `read_ifiepieda` | IFIE/PIEDA読み込み | ログパース | fixture |
 | `read_pieda` | PIEDA読み込み | ログパース | fixture |
 | `read_pbifiepieda` | PB-IFIE/PIEDA読み込み | ログパース | fixture |
-| `read_ifpif90` | Fortranバイナリ読み込み | f90ライブラリ依存 | importorskip |
 | `read_ifpimulti` | 複数構造IFIE読み込み | ログパース | fixture |
 | `readlog` | ログファイル読み込み | ファイルI/O | fixture |
 | `read_fraginfo` | フラグメント情報読み込み | ファイルI/O | fixture |

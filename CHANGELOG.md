@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+### Removed — Fortran リーダを廃止し、読み込みを Python に一本化
+
+`readifiepiedalib.so` (ctypes 経由) を使う経路と `read_ifpif90()` を削除した。
+**既定の読み込み経路が Fortran から Python に変わる**が、出力は一致する
+(末尾桁 1e-6 の丸めを除く)。
+
+速度上の理由が無くなったため:
+
+| ログ | 行数 | Python | Fortran |
+|---|---:|---:|---:|
+| 6lu7 164 MB | 1,502,511 | **1.09 s** | 1.95 s |
+| 6m0j 43 MB | 372,816 | **0.26 s** | 0.62 s |
+
+Python は行数に対して線形 (0.67 µs/行)。Fortran は行数によらない約 0.18 秒の
+固定費 (0.7 GB の固定長配列のゼロクリア) を持つため、小さいログほど不利だった。
+
+機能面でも Python が上回る。Fortran は 1 行につき 6 値しか読まないため MP4 の
+`GRIMME-MP4` を落とし、PB-IFIE / BSSE-IFIE / monomer・dimer energy にも
+対応していなかった。
+
+- **`-nof90` / `--nof90so` は受け付けるが無視する**。既存のコマンドやスクリプト
+  を壊さないために残した。
+- `anlfmo` の `f90soflag` / `f90sofile` 属性は削除。代入しても副作用は無い。
+- gfortran はビルドにも実行にも不要になった。`Makefile` と `abmptools/f90/` は
+  参照されなくなったので削除してよい。
+
 ### Added — MP3 / MP4(CCPT) ログを Python リーダで読めるようにした
 
 これまで Python リーダは `## MP2-IFIE` と `## HF-IFIE` の表しか見ておらず、
@@ -61,7 +87,7 @@ Python 側を Fortran に合わせて 6 列とも落とすように修正。Pyth
 回帰テストの参照 5 ファイルがこの値を焼き込んでいたため再生成した。差分が
 分散補正 3 列だけに限られることを確認済み。
 
-### Fixed — Fortran リーダの不具合
+### Fixed — Fortran リーダの不具合 (その後この経路ごと廃止)
 
 `--nof90` を外したときに通る経路。**いずれも従来から動作していなかった**。
 
