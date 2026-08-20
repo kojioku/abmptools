@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.13.0] - 2026-08-20
 
 ### Removed — Fortran リーダを廃止し、読み込みを Python に一本化
 
