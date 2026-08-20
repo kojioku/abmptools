@@ -197,7 +197,11 @@ def test_integration_methane_systemmodel_shape(_methane_system, _p):
     assert m.title == "methane_integration"
     assert m.ensemble_family == "gromacs_ok"
     assert len(m.atom_types) == 5           # C + 4H unique per methane
-    assert m.mol_sequence == [("MOL0", 4)]
+    # interchange names the moleculetype after Molecule.name, which the
+    # fixture sets to "methane". It emitted "MOL0" only while the name was
+    # unset; this expectation read "MOL0" until openff-interchange 0.4.2
+    # started carrying the name through.
+    assert m.mol_sequence == [("methane", 4)]
     assert len(m.atom_positions) == 20      # 5 atoms × 4 methanes
     assert m.cell is not None
     assert m.cell.a == pytest.approx(2.0)

@@ -2,6 +2,26 @@
 
 ## [2.13.0] - 2026-08-20
 
+### Fixed — 分子に名前を付けると OCTA viewer の元素着色が壊れていた
+
+`gro2udf` は OpenFF interchange の per-atom type 名を `<元素><番号>` に直して
+UDF に書く (`MOL0_4` → `C4`)。**OCTA viewer は type 名の先頭 1 文字を元素記号と
+解釈する**ため、この変換を怠ると `M` が Mg / Mn と読まれ、CPK 配色が壊れて
+atom type ごとにランダムな色が振られる。
+
+判定が `^MOL\d+_(\d+)$` の**リテラル固定**だった。ところが interchange は
+**type 名を分子名から作る**。`Molecule.name` が未設定なら `MOL0_4`、設定済みなら
+`methane_4` になる (openff-interchange 0.4.2 で確認)。つまり**利用者が分子に名前を
+付けた瞬間に変換が黙って止まり**、`methane_0` がそのまま書かれて `m` が元素として
+読まれていた。文字列としては妥当なので**エラーにならず、描画だけが劣化する**。
+
+- 判定を「同じ topology 内の moleculetype 名 + `_<数字>`」に変更。この条件は
+  OPLS の `opls_267` (prefix が moleculetype でない) や GAFF の `c3` を巻き込まない。
+- `mol_names` 未指定時は従来の `MOL<n>_<i>` を維持するので、既存呼び出しは不変。
+- テスト +13。`tests/test_interchange_adapter.py` の期待値 `("MOL0", 4)` は
+  分子名が捨てられていた頃の記述だったため `("methane", 4)` に訂正
+  (fixture は `name="methane"` を明示的に渡しており、保持されるのが正しい)。
+
 ### Removed — Fortran リーダを廃止し、読み込みを Python に一本化
 
 `readifiepiedalib.so` (ctypes 経由) を使う経路と `read_ifpif90()` を削除した。

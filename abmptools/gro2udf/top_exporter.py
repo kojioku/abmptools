@@ -18,7 +18,7 @@ import os
 import shutil
 from contextlib import contextmanager
 from pathlib import Path
-from typing import List, Optional
+from typing import Iterable, List, Optional
 
 from .top_model import KB_AMU_A2_PS2_K, GROFrameData, TopModel
 from .top_parser import TopParser
@@ -215,23 +215,39 @@ def _aggregate_statistics_per_frame(frames, energy_times, energy_series):
     return per_frame
 
 
-def _display_type_name(type_name: str, element: str) -> str:
-    """Convert an OpenFF interchange-style ``MOL0_<N>`` atom-type name to
-    an ``<element><N>`` form (e.g. ``MOL0_4`` -> ``C4``), so OCTA viewer's
-    3D viewer can infer the element from the leading character.
+def _display_type_name(
+    type_name: str,
+    element: str,
+    mol_names: Iterable[str] = (),
+) -> str:
+    """Convert an OpenFF interchange per-atom type name to ``<element><N>``.
 
-    Non-OpenFF type names (GAFF ``c3``, OPLS ``opls_267``, etc.) are passed
-    through unchanged — they already start with the element letter by
-    convention.
+    OpenFF SMIRNOFF / interchange assigns each atom a unique type named
+    ``<moleculetype>_<index>``. OCTA viewer reads the **leading character**
+    of a type name as the element symbol, so those names must be rewritten
+    or the viewer assigns a different random colour per atom type and
+    element-based CPK rendering breaks. ``methane_4`` -> ``C4`` keeps the
+    per-atom uniqueness that LJ ``Pair_Interaction`` needs while restoring
+    correct rendering.
 
-    Why: OpenFF SMIRNOFF / interchange assigns per-atom unique type names
-    starting with the prefix ``MOL0_``. OCTA viewer treats the leading character
-    as the element symbol; "M" is interpreted as Mg / Mn and the viewer
-    falls back to assigning a different random color to every atom type,
-    breaking element-based CPK rendering. Prefixing with the actual element
-    letter restores correct rendering while preserving the per-atom uniqueness
-    needed by LJ Pair_Interaction.
+    Conventional force-field type names (GAFF ``c3``, OPLS ``opls_267``)
+    pass through unchanged.
+
+    *mol_names* is the set of moleculetype names in the same topology, and
+    is what separates the two cases: an interchange type name is exactly
+    ``<one of those names>_<digits>``. Matching on the prefix rather than a
+    fixed literal matters because **interchange names the type after the
+    molecule**: it emitted ``MOL0_4`` when the molecule had no name, and
+    emits ``methane_4`` once one is set (openff-interchange 0.4.2 with
+    ``Molecule.name``). Hard-coding ``MOL\\d+`` silently stopped converting
+    the moment callers started naming their molecules.
+
+    With *mol_names* empty the old ``MOL<n>_<i>`` literal is still honoured,
+    so callers that cannot supply the topology keep working.
     """
+    prefix, sep, suffix = type_name.rpartition("_")
+    if sep and suffix.isdigit() and prefix in set(mol_names):
+        return f"{element}{suffix}"
     m = _OPENFF_TYPE_RE.match(type_name)
     if m:
         return f"{element}{m.group(1)}"
@@ -483,6 +499,7 @@ class TopExporter:
 
     @staticmethod
     def _write_set_of_molecules(uobj, model: TopModel) -> None:
+        mol_names = {s.name for s in model.mol_specs}
         """Port of add_set_of_molecules_byTop."""
         uobj.jump(-1)
 
@@ -528,7 +545,8 @@ class TopExporter:
                 # - これにより `Atom_Type_Name` / `interaction_Site[].Type_Name`
                 #   / `Molecular_Attributes.Atom_Type[].Name` が完全に同一値
                 #   となり、UDF 内の atom type 参照整合性が自然に取れる。
-                display_type = _display_type_name(atom.type_name, atom.element)
+                display_type = _display_type_name(
+                    atom.type_name, atom.element, mol_names)
                 uobj.put(atom.element,
                          "Set_of_Molecules.molecule[].atom[].Atom_Name",
                          [imol, iatom])
@@ -760,6 +778,7 @@ class TopExporter:
     @staticmethod
     def _write_molecular_attributes(uobj, model: TopModel) -> None:
         """Port of add_molecular_attributes_byTop."""
+        mol_names = {s.name for s in model.mol_specs}
         uobj.jump(-1)
 
         # --- Atom_Type (unique types in order of first appearance) ---
@@ -773,7 +792,8 @@ class TopExporter:
             for atom in spec.atoms:
                 if atom.type_name not in seen_keys:
                     seen_keys.add(atom.type_name)
-                    display = _display_type_name(atom.type_name, atom.element)
+                    display = _display_type_name(
+                        atom.type_name, atom.element, mol_names)
                     seen_types.append((display, atom.type_name))
 
         for ndata, (display, raw_type) in enumerate(seen_types):
@@ -865,6 +885,7 @@ class TopExporter:
 
     @staticmethod
     def _write_interactions(uobj, model: TopModel) -> None:
+        mol_names = {s.name for s in model.mol_specs}
         """Port of add_interactions."""
         uobj.jump(-1)
 
@@ -876,7 +897,7 @@ class TopExporter:
             for atom in spec.atoms:
                 used_types.add(atom.type_name)
                 display_map[atom.type_name] = _display_type_name(
-                    atom.type_name, atom.element)
+                    atom.type_name, atom.element, mol_names)
 
         # Molecular_Attributes.Interaction_Site_Type
         ncount = 0
