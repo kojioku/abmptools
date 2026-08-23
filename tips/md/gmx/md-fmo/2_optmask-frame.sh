@@ -127,6 +127,9 @@ require() {
     fi
 }
 
+#: 溶媒とみなす残基名 (check_contact.py の WATER_RESNAMES と同じ)。
+_SOLVENT_RESNAMES="WAT HOH SOL TIP3 T3P"
+
 # Amber prmtop の %FLAG POINTERS 12 番目 = NRES。10I8 固定長で読む。
 nres_of_prmtop() {
     awk '/^%FLAG POINTERS/{f=1; next}
@@ -153,6 +156,43 @@ validate_mask() {
     fi
 }
 
+# anchor / fixed に溶媒が入っていないか調べる。
+#
+# 範囲チェック (validate_mask) だけでは足りない。溶媒つきの系では NRES が
+# 水込みで数万になるので、溶質しか無い前提で書いた ":1-840" のようなマスクが
+# 範囲内に収まってしまい素通りする。実測: EGFR (NRES=22215) で ":1-840" は
+# 検査を通り、水 516 残基を anchor に巻き込む。
+# autoimage の anchor に溶媒が入ると基準が壊れるので、ここで止める。
+solvent_in_mask() {
+    local name=$1 mask=$2 n
+    n=$(printf '%s' "$mask" | grep -oE '[0-9]+(-[0-9]+)?' | awk -v RS=' ' '{print}' |
+        awk -F- 'NF==1{print $1"|"$1} NF==2{print $1"|"$2}' |
+        awk -F'|' -v labels="$(residue_labels)" -v sol="$_SOLVENT_RESNAMES" '
+            BEGIN { split(labels, L, " "); split(sol, S, " ")
+                    for (i in S) issol[S[i]] = 1 }
+            { for (r = $1; r <= $2; r++) if (issol[L[r]]) c++ }
+            END { print c + 0 }')
+    if [ "${n:-0}" -gt 0 ]; then
+        echo "ERROR: ${name}=\"${mask}\" に溶媒が ${n} 残基入っている。" >&2
+        echo "       autoimage の anchor / fixed は溶質だけを指すこと。" >&2
+        echo "       (範囲チェックは通る。溶媒つきの系では NRES が水込みで" >&2
+        echo "        数万になるため、溶質前提のマスクが範囲内に収まってしまう)" >&2
+        echo "       スクリプト冒頭のマスクを系に合わせて直すこと。" >&2
+        exit 1
+    fi
+}
+
+# prmtop の %FLAG RESIDUE_LABEL を空白区切りで返す (1 始まりで添字が残基番号)。
+residue_labels() {
+    awk '/^%FLAG RESIDUE_LABEL/{f=1; next}
+         f && /^%FORMAT/{next}
+         f && /^%FLAG/{exit}
+         f { for (i = 1; i + 3 <= length($0); i += 4) {
+                 v = substr($0, i, 4); gsub(/ /, "", v)
+                 if (v != "") printf "%s ", v
+             } }' "$prmtop"
+}
+
 # ---------------------------------------------------------------- checks
 
 require "$minscript" "minimize 用 mdp が無い"
@@ -170,6 +210,9 @@ validate_mask anchormask "$anchormask" "$nres"
 validate_mask fixedmask  "$fixedmask"  "$nres"
 validate_mask maskinfo   "$maskinfo"   "$nres"
 [ "$dofit" = "1" ] && validate_mask fitmask "$fitmask" "$nres"
+
+solvent_in_mask anchormask "$anchormask"
+solvent_in_mask fixedmask  "$fixedmask"
 
 echo "threads for minimize = ${optomp}"
 
