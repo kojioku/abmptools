@@ -2,6 +2,43 @@
 
 ## [Unreleased]
 
+### Fixed — `udf2gro` が `Unit_Parameter` の無い UDF を黙って誤変換していた
+
+`udf2gro` は値を `udf.get(..., "[nm]")` のように**単位を指定して読んでおり、変換
+ロジック自体は正しい**。実際の換算は UDFManager が UDF の `Unit_Parameter`
+(1 sigma が何 nm か、1 epsilon が何 kJ/mol か) を基準に行う。
+
+**問題**: `Unit_Parameter` が無いと換算は**黙って素通りする**。J-OCTA lemon が出す
+全原子 UDF はこれを持たないため、Å の座標が nm、kcal/mol の epsilon が kJ/mol と
+して書き出されていた。`gmx grompp` は形式が正しいので通してしまい、**箱が 10 倍
+(= 密度 1/1000) の系が警告なしに走る**ため極めて気付きにくい。
+
+同じ値 (`1.0, 4.184, 0.1`) は `gro2udf` の template が既に書いている
+(上記 OCTA8.4 対応の項)。書き出す側は持っていたが、読む側が確認していなかった。
+
+**修正**: `UdfAdapter._ensure_unit_parameter()` を追加。
+
+- UDF が `Unit_Parameter` を宣言していればそれを使う (従来どおり)
+- 宣言が無く指定も無ければ **`RuntimeError` で止める** (対処法を示すメッセージつき)
+- `unit_parameter='all_atom'` (長さ Å / エネルギー kcal/mol = `(1.0, 4.184, 0.1)`) か
+  `(Mass[amu], Energy[kJ/mol], Length[nm])` のタプルで明示できる
+
+```bash
+python -m abmptools.udf2gro in.udf out --unit all_atom
+```
+
+```python
+Exporter().export("in.udf", "out", unit_parameter="all_atom")
+```
+
+**検証**: 修正後の出力を `gaff.dat` の実値と照合。bond C-H `b0=0.10969 nm /
+kb=276646.08 kJ/mol/nm²`、angle c3-c3-hc `th0=109.80° / cth=387.4384`、
+LJ c3 `σ=0.339967 nm / ε=0.4577296 kJ/mol`、1-4 対 351 組、box 2.29911 nm —
+**すべて一致**。PE 20 量体 25 分子の系 5 種を GROMACS 2026.3 で完走させ、
+`LJ-14` の項が出る (= 1-4 相互作用が入っている) ことも確認した。
+
+テスト: `tests/test_udf2gro_unit_parameter.py` (7 件)。
+
 ### Removed — 移設に伴う取り残しの整理
 
 リポジトリを精査して見つかった残骸を落とした。機能への影響は無い。

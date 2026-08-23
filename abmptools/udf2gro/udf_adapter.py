@@ -142,8 +142,96 @@ def _get_proper_dihedral_params(udf, j: int, n: int, kk: float):
 class UdfAdapter:
     """Reads a UDFManager object and produces a SystemModel."""
 
-    def __init__(self, udf):
+    #: Unit_Parameter が無い UDF に当てる既定のスケール。
+    #: 全原子 UDF (J-OCTA / AMBER / GAFF 系) の慣用単位 = 長さ Å, エネルギー kcal/mol。
+    #: (Mass [amu], Energy [kJ/mol], Length [nm])
+    ALL_ATOM_UNIT = (1.0, 4.184, 0.1)
+
+    def __init__(self, udf, unit_parameter=None):
+        """
+        Parameters
+        ----------
+        udf : UDFManager
+        unit_parameter : tuple | str | None
+            ``Unit_Parameter`` が UDF に無いときに使うスケール
+            ``(Mass[amu], Energy[kJ/mol], Length[nm])``。
+            ``"all_atom"`` で :data:`ALL_ATOM_UNIT` (Å / kcal/mol)。
+            ``None`` かつ UDF にも無ければ **エラーにする** (黙って
+            無次元値を GROMACS 単位として書き出さないため)。
+        """
         self._udf = udf
+        if isinstance(unit_parameter, str):
+            if unit_parameter != "all_atom":
+                raise ValueError(
+                    f"unit_parameter={unit_parameter!r} は不明です "
+                    "('all_atom' か (mass, energy, length) のタプル)"
+                )
+            unit_parameter = self.ALL_ATOM_UNIT
+        self._unit_parameter = unit_parameter
+
+    # ------------------------------------------------------------------
+    # Unit system
+    # ------------------------------------------------------------------
+
+    def _ensure_unit_parameter(self):
+        """``Unit_Parameter`` が宣言されているか確かめる。
+
+        本アダプタは値を ``udf.get(..., "[nm]")`` のように **単位を指定して**
+        読んでおり、換算は UDFManager に任せている。その換算は UDF の
+        ``Unit_Parameter`` (1 sigma が何 nm か、1 epsilon が何 kJ/mol か) に
+        基づく。
+
+        **``Unit_Parameter`` が無いと換算は黙って素通りする。** その場合
+        Å の座標が nm、kcal/mol の epsilon が kJ/mol として書き出され、
+        ``gmx grompp`` は形式が正しいので通してしまう。箱が 10 倍
+        (= 密度 1/1000) の系が警告なしに走るので、極めて気付きにくい。
+
+        そこで:
+
+        * UDF が持っていればそれを使う (何もしない)
+        * ``unit_parameter`` が渡されていればメモリ上に注入する
+        * どちらも無ければ **エラーにする**
+        """
+        udf = self._udf
+        declared = None
+        try:
+            declared = udf.get("Unit_Parameter.Length")
+        except Exception:                       # noqa: BLE001 - 古い定義には無い
+            declared = None
+
+        if declared:
+            logger.info(
+                "Unit_Parameter: Mass=%s amu, Energy=%s kJ/mol, Length=%s nm (UDF 宣言値)",
+                udf.get("Unit_Parameter.Mass"),
+                udf.get("Unit_Parameter.Energy"),
+                declared,
+            )
+            return
+
+        if self._unit_parameter is None:
+            raise RuntimeError(
+                "この UDF は Unit_Parameter を宣言していません。\n"
+                "UDFManager の単位換算はこれを基準に行うため、このまま変換すると\n"
+                "Å の値が nm、kcal/mol の値が kJ/mol として書き出されます\n"
+                "(grompp は通ってしまい、箱が 10 倍 = 密度 1/1000 の系が走ります)。\n"
+                "\n"
+                "全原子 UDF (J-OCTA / GAFF 系、長さ Å・エネルギー kcal/mol) なら:\n"
+                "    Exporter().export(udf, prefix, unit_parameter='all_atom')\n"
+                "    python -m abmptools.udf2gro in.udf out --unit all_atom\n"
+                "別のスケールなら (Mass[amu], Energy[kJ/mol], Length[nm]) を渡すか、\n"
+                "UDF 側に Unit_Parameter を書いてください。"
+            )
+
+        mass, energy, length = self._unit_parameter
+        udf.put(float(mass), "Unit_Parameter.Mass")
+        udf.put(float(energy), "Unit_Parameter.Energy")
+        udf.put(float(length), "Unit_Parameter.Length")
+        logger.warning(
+            "UDF に Unit_Parameter が無いので、指定された値を当てました "
+            "(Mass=%s amu, Energy=%s kJ/mol, Length=%s nm)。"
+            "UDF 側に書いておくと以後この指定は不要です",
+            mass, energy, length,
+        )
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -156,6 +244,7 @@ class UdfAdapter:
         GROMACS変換用の中間表現にまとめる。
         """
         udf = self._udf
+        self._ensure_unit_parameter()
         udf.jump(udf.totalRecord() - 1)
         logger.info("Data output: Record number = %s", udf.totalRecord() - 1)
 
