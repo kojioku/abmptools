@@ -19,9 +19,19 @@ logger = logging.getLogger(__name__)
 class Exporter:
     """Thin coordinator that wires together adapter and writers."""
 
-    def export(self, udf_path: str, output_prefix: str) -> int:
+    def export(self, udf_path: str, output_prefix: str,
+               unit_parameter=None) -> int:
         """
         Convert *udf_path* and write Gromacs files with *output_prefix*.
+
+        Parameters
+        ----------
+        unit_parameter : tuple | str | None
+            UDF が ``Unit_Parameter`` を宣言していないときに当てるスケール
+            ``(Mass[amu], Energy[kJ/mol], Length[nm])``。全原子 UDF
+            (長さ Å / エネルギー kcal/mol) なら ``"all_atom"``。
+            省略かつ UDF にも無ければエラーになる (単位が換算されないまま
+            書き出されるのを防ぐため)。
 
         Returns 0 on success, 1 on error (mirrors original return convention).
         """
@@ -33,7 +43,7 @@ class Exporter:
 
         udf = UDFManager(udf_path)
         try:
-            model = UdfAdapter(udf).build()
+            model = UdfAdapter(udf, unit_parameter=unit_parameter).build()
         except RuntimeError as exc:
             logger.error("%s", exc)
             return 1
