@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.13.1] - 2026-08-24
+
 ### Fixed — `udf2gro` が `Unit_Parameter` の無い UDF を黙って誤変換していた
 
 `udf2gro` は値を `udf.get(..., "[nm]")` のように**単位を指定して読んでおり、変換
@@ -38,6 +40,19 @@ LJ c3 `σ=0.339967 nm / ε=0.4577296 kJ/mol`、1-4 対 351 組、box 2.29911 nm 
 `LJ-14` の項が出る (= 1-4 相互作用が入っている) ことも確認した。
 
 テスト: `tests/test_udf2gro_unit_parameter.py` (7 件)。
+
+**影響範囲**: J-OCTA の分子モデリング API (lemon 経路) が出す UDF は
+`Unit_Parameter` を必ず持つ (`Length = 0.1` nm / `Energy = 4.184` kJ/mol = σ 1 Å・ε 1 kcal/mol) ため、
+**この経路の挙動は変わらない**。`RuntimeError` で止まるのは手書き UDF や
+`Unit_Parameter` を書かない他ツール由来のものに限られる。J-OCTA 生成 UDF での
+換算は GAFF の既知値と一致することを別途確認済み (結合 c3-hc `kb` = 330.7 vs
+GAFF 330.6 kcal/mol/Å²、角度 hc-c3-hc は UDF が補角 72.42° で保持しているのを
+107.58° に正しく復元、電荷は `ES_Element / 18.224159264` で e 単位に一致)。
+
+さらに、修正前の udf2gro で変換済みのポリマーバルク **105 系** (GAFF 103 種 +
+DREIDING 2 種、元素 H/C/N/O/S/P/F/Cl/Br/I + Si、原子数 4,040〜8,680、結合次数
+1.0/1.5/2.0/3.0 混在) を修正後の udf2gro で再変換し、`.gro` / `.top` / `.mdp` を
+照合した。**105 系すべてで完全一致** (改行コードの正規化のみ)。
 
 
 ### Fixed — `generate_difie` が CLI として一度も動いていなかった
