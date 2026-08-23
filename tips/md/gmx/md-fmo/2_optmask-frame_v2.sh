@@ -18,7 +18,14 @@
 #
 # 前提: 0_parmed.sh で ${grotop%.*}.prmtop が生成済みであること。
 #
+# 実行例:
+#   bash 2_optmask-frame_v2.sh -n index.solute.ndx -p system.top -f traj.xtc
+#   bash 2_optmask-frame_v2.sh -n index.solute.ndx -p system.top -f traj.xtc -t 8
+#
 ##################
+
+set -euo pipefail
+
 tgtindexname="solute"
 minscript=min_aftermd.mdp
 
@@ -26,6 +33,13 @@ minscript=min_aftermd.mdp
 #   anchor : 箱の中心に固定する分子 (通常タンパク片方)
 #   fixed  : anchor の最近接イメージへ寄せる分子 (相手タンパク + リガンド)
 #   mobile : 箱に詰め直す溶媒
+#
+#   ★ 範囲は prmtop の残基数と突き合わせて自動検査する (validate_mask)。
+#     cpptraj は範囲を超えたレンジを無警告で丸めるため、たとえば 324 残基の
+#     溶質しかない系に ":1-840" と書くと anchor に溶媒まで入り、autoimage の
+#     基準が静かに壊れる。実測: 334 残基の系で ":1-840" は全 1055 原子を選択し、
+#     警告は一切出なかった。
+#
 # 例) frag A=res 1-840, frag B=res 841-1184, リガンド=res 1185 の場合:
 anchormask=":1-840"
 fixedmask=":841-1185"
@@ -45,71 +59,178 @@ pdb_snum=0
 pdb_enum=4
 pdb_interval=1
 
-optomp=12
+# minimize のスレッド数。-t か環境変数 OPT_THREADS で上書きできる。
+#   ログインノードで回すことがあるので既定は控えめにする。共有ノードの
+#   コアを埋めると他の利用者の作業を止めるため、大きくするのは計算ノードで
+#   ジョブとして流すときだけにすること。
+optomp=${OPT_THREADS:-4}
+
+# 検証 (check_contact.py) を走らせる python。numpy と scipy が要る。
+#   システムの python3 が古い / scipy が無い環境 (富岳のログインノードは
+#   python3 が 3.6.8 で scipy 無し) では venv の python を渡す:
+#     PYTHON=/path/to/venv/bin/python bash 2_optmask-frame_v2.sh ...
+PYTHON=${PYTHON:-python3}
 
 ##################
 
-if [ $# = 0 ]; then
-    echo error! please input argment -p and -x
+usage() {
+    echo "usage: $0 -n <index.ndx> -p <topol.top> -f <traj> [-t <threads>]" >&2
     exit 1
+}
+
+if [ $# = 0 ]; then
+    echo "error! please input argment -p and -f" >&2
+    usage
 fi
-while getopts n:p:f: OPTION
+
+solindex=""; grotop=""; traj=""
+while getopts n:p:f:t: OPTION
 do
     case $OPTION in
         n) solindex=$OPTARG;;
         p) grotop=$OPTARG;;
         f) traj=$OPTARG;;
-        *) exit 1
+        t) optomp=$OPTARG;;
+        *) usage
     esac
 done
 
-if [ -z "$grotop" ];then
-    echo "option p was NOT given, exit."
-    exit 1
-fi
-if [ -z "$traj" ];then
-    echo "option x was NOT given, exit."
-    exit 1
-fi
-if [ -z "$solindex" ];then
-    echo "option i was NOT given, exit."
-    exit 1
-fi
+for v in grotop traj solindex; do
+    if [ -z "${!v}" ]; then
+        echo "option for ${v} was NOT given, exit." >&2
+        usage
+    fi
+done
 
-echo $grotop
-echo $traj
-echo $solindex
+echo "$grotop"
+echo "$traj"
+echo "$solindex"
 
 headbuf=${traj%.*}
 head=${headbuf##*/}
 prmtop=${grotop%.*}.prmtop
 
+# ---------------------------------------------------------------- helpers
+
+# 出力が出来ているかを段ごとに確認する。set -e だけでは、直前のコマンドが
+# 0 で返りつつ空ファイルを吐いた場合 (例: gmx trjconv に .pdb を渡した場合)
+# を捕まえられない。
+require() {
+    if [ ! -s "$1" ]; then
+        echo "ERROR: $1 が出来ていない (${2:-直前の段が失敗}) ので中断する。" >&2
+        exit 1
+    fi
+}
+
+# Amber prmtop の %FLAG POINTERS 12 番目 = NRES。10I8 固定長で読む。
+nres_of_prmtop() {
+    awk '/^%FLAG POINTERS/{f=1; next}
+         f && /^%FORMAT/{next}
+         f { for (i = 1; i + 7 <= length($0); i += 8) {
+                 n++
+                 if (n == 12) { v = substr($0, i, 8); gsub(/ /, "", v); print v; exit }
+             } }' "$1"
+}
+
+# マスクが参照する最大残基番号が prmtop の残基数を超えていないか調べる。
+# 超えていても cpptraj はエラーにならず、静かに違うものを選ぶ。
+validate_mask() {
+    local name=$1 mask=$2 nres=$3 mx
+    mx=$(printf '%s' "$mask" | grep -oE '[0-9]+' | sort -n | tail -1 || true)
+    [ -z "$mx" ] && return 0
+    if [ "$mx" -gt "$nres" ]; then
+        echo "ERROR: ${name}=\"${mask}\" は残基 ${mx} を指しているが," >&2
+        echo "       ${prmtop} は ${nres} 残基しかない。" >&2
+        echo "       cpptraj は範囲外を無警告で丸めるので、このままだと" >&2
+        echo "       溶媒まで巻き込んだまま静かに間違った結果が出る。" >&2
+        echo "       スクリプト冒頭のマスクを系に合わせて直すこと。" >&2
+        exit 1
+    fi
+}
+
+# ---------------------------------------------------------------- checks
+
+require "$minscript" "minimize 用 mdp が無い"
+require "$grotop"    "top が無い"
+require "$prmtop"    "0_parmed.sh を先に流して prmtop を作ること"
+
+nres=$(nres_of_prmtop "$prmtop")
+if [ -z "$nres" ]; then
+    echo "ERROR: ${prmtop} から残基数を読めなかった。" >&2
+    exit 1
+fi
+echo "prmtop residues = ${nres}"
+
+validate_mask anchormask "$anchormask" "$nres"
+validate_mask fixedmask  "$fixedmask"  "$nres"
+validate_mask maskinfo   "$maskinfo"   "$nres"
+[ "$dofit" = "1" ] && validate_mask fitmask "$fitmask" "$nres"
+
+echo "threads for minimize = ${optomp}"
+
+# ---------------------------------------------------------------- steps
+
 function genref() {
-    gmx grompp -f $minscript -c ${head}_0.gro -r ${head}_0.gro -p ${grotop} -o ${head}_ref.tpr -maxwarn 1
+    if [ -s "${head}_ref.tpr" ]; then
+        echo "[skip] ${head}_ref.tpr は作成済み"
+        return
+    fi
+    require "${head}_0.gro" "1_trajsep.sh の出力が無い"
+    gmx grompp -f "$minscript" -c "${head}_0.gro" -r "${head}_0.gro" \
+        -p "${grotop}" -o "${head}_ref.tpr" -maxwarn 1
+    require "${head}_ref.tpr"
 }
 
 function minimize() {
-for i in `seq $pdb_snum $pdb_interval $pdb_enum`
+for i in $(seq $pdb_snum $pdb_interval $pdb_enum)
 do
-    mkdir ${head}_${i}_fmo
-    gmx grompp -f $minscript -c ${head}_${i}.gro -r ${head}_${i}.gro -p ${grotop} -o ${head}_${i}_fmo.tpr -maxwarn 1
-    gmx mdrun -nt ${optomp} -v -deffnm ${head}_${i}_fmo
-    mv ${head}_${i}.* ${head}_${i}_fmo/
-    mv ${head}_${i}_fmo.* ${head}_${i}_fmo/
+    d=${head}_${i}_fmo
+    mkdir -p "$d"
+
+    # 済んでいるフレームは飛ばす (再実行できるようにする)
+    if [ -s "${d}/${d}.gro" ]; then
+        echo "[skip] ${d} は minimize 済み"
+        continue
+    fi
+
+    # 1 回目は直下、2 回目以降は ${d}/ に入力がある
+    src=${head}_${i}.gro
+    [ -f "$src" ] || src=${d}/${head}_${i}.gro
+    require "$src" "フレーム ${i} の gro が無い"
+
+    gmx grompp -f "$minscript" -c "$src" -r "$src" -p "${grotop}" \
+        -o "${d}.tpr" -maxwarn 1
+    require "${d}.tpr"
+
+    # -ntmpi/-ntomp を明示し、OMP_NUM_THREADS もそろえる。
+    # -nt だけを渡すと、環境に OMP_NUM_THREADS が居るとき
+    #   "The total number of threads requested (12) is not divisible by
+    #    the number of OpenMP threads requested (8)"
+    # で落ちる。HPC のジョブスクリプトはたいてい OMP_NUM_THREADS を撒くので、
+    # 環境任せにしない。
+    OMP_NUM_THREADS=${optomp} gmx mdrun -ntmpi 1 -ntomp "${optomp}" \
+        -v -deffnm "${d}"
+    require "${d}.gro" "gmx mdrun が構造を書けていない"
+
+    mv -f ${head}_${i}.* "$d"/ 2>/dev/null || true
+    mv -f ${d}.* "$d"/
 done
 }
 
 function arrangetraj() {
-for i in `seq $pdb_snum $pdb_interval $pdb_enum`
+for i in $(seq $pdb_snum $pdb_interval $pdb_enum)
 do
-    cd ${head}_${i}_fmo
+    d=${head}_${i}_fmo
+    (
+    cd "$d"
 
     # step1: 結合をたどって各フラグメント内部が周期境界で割れないようにする
     #        (決定論的で安全。フラグメント間の相対位置はここでは直らない)
-    gmx trjconv -f ${head}_${i}_fmo.gro -s ../${head}_ref.tpr \
-        -o ${head}_${i}_fmo_whole.pdb -pbc whole << EOF
+    gmx trjconv -f "${d}.gro" -s "../${head}_ref.tpr" \
+        -o "${d}_whole.pdb" -pbc whole << EOF
 System
 EOF
+    require "${d}_whole.pdb" "gmx trjconv -pbc whole が空を吐いた"
 
     # step2: cpptraj autoimage でフラグメント間の相対位置を決定論的に組み直し、
     #        続けて液滴 (溶質から stripdist 以内の水) を切り出す
@@ -121,18 +242,22 @@ EOF
 
     cat > cpptraj_arrange.in <<EOF
 parm ../${prmtop}
-trajin ${head}_${i}_fmo_whole.pdb
+trajin ${d}_whole.pdb
 autoimage anchor ${anchormask} fixed ${fixedmask} mobile ${mobilemask}
 ${fitline}
-outtraj ${head}_${i}_fmo_arranged.pdb pdb
-mask (:${maskinfo}<:${stripdist})${retainedions} maskpdb ${head}_${i}_fmo_mask.pdb
+outtraj ${d}_arranged.pdb pdb
+mask (:${maskinfo}<:${stripdist})${retainedions} maskpdb ${d}_mask.pdb
 run
 quit
 EOF
     cpptraj -i cpptraj_arrange.in
 
-    mv ${head}_${i}_fmo_mask.pdb.1 ${head}_${i}_fmo_mask.pdb
-    cd ../
+    # maskpdb はフレーム番号を付けて書く
+    if [ -s "${d}_mask.pdb.1" ]; then
+        mv -f "${d}_mask.pdb.1" "${d}_mask.pdb"
+    fi
+    require "${d}_mask.pdb" "cpptraj の autoimage/mask が失敗した"
+    )
 done
 }
 
@@ -140,11 +265,11 @@ genref
 minimize
 arrangetraj
 
-mkdir ${head}-optedpdb
-cp *_fmo/*_fmo_mask.pdb ${head}-optedpdb/
+mkdir -p "${head}-optedpdb"
+cp *_fmo/*_fmo_mask.pdb "${head}-optedpdb"/
 
 # 最後に必ず検証。NG フレームは FMO に使わないこと。
 # (--frag は anchor/fixed の残基レンジに合わせて編集)
 echo "==================== contact check ===================="
-python3 check_contact.py --frag A:1-840 --frag B:841-1184 --frag lig:1185 \
-    ${head}-optedpdb/*_fmo_mask.pdb
+"${PYTHON}" check_contact.py --frag A:1-840 --frag B:841-1184 --frag lig:1185 \
+    "${head}"-optedpdb/*_fmo_mask.pdb

@@ -80,6 +80,44 @@ PBC 再構成もそちらに寄せると一貫する。
   (`anchor` = 中心に固定する分子、`fixed` = それに寄せる分子)
 - `maskinfo` … 液滴に残す溶質の残基レンジ
 - `stripdist` … 溶質から何 Å 以内の水を残すか
+- `check_contact.py` の `--frag` … 末尾の検証行も同じレンジに合わせる
+
+**編集し忘れは自動で止まる。** スクリプトは prmtop の `%FLAG POINTERS` から
+残基数を読み、上のマスクが範囲内かを起動時に検査する。範囲外なら
+`ERROR: anchormask=":1-840" は残基 840 を指しているが, ... は 334 残基しかない`
+で中断する。
+
+> **なぜ検査が要るか。** cpptraj は範囲を超えたレンジを**無警告で丸める**。
+> 334 残基の系に `:1-840` と書くと全 1055 原子 (= 溶媒込み) が選ばれ、警告は
+> 一切出ない。anchor に水が全部入った状態で autoimage が回り、静かに間違った
+> 液滴が出来る。逆に開始側が範囲外の `:841-1185` は警告こそ出るが選択ゼロで
+> 走り続ける。どちらも実行時には気づけない。
+
+## スレッド数とログインノード
+
+`minimize` の `gmx mdrun` は `-ntmpi 1 -ntomp <n>` で回し、`OMP_NUM_THREADS`
+も同じ値にそろえる。既定は 4 で、`-t` か環境変数 `OPT_THREADS` で変えられる。
+
+```bash
+bash 2_optmask-frame_v2.sh -n index.solute.ndx -p system.top -f traj.xtc -t 8
+```
+
+- **`-nt` だけを渡さないこと。** 環境に `OMP_NUM_THREADS` が居ると
+  `The total number of threads requested (12) is not divisible by the number
+  of OpenMP threads requested (8)` で mdrun が即死する。HPC のジョブ
+  スクリプトはたいてい `OMP_NUM_THREADS` を撒くので、環境任せにしない。
+- **共有のログインノードで回すときは既定のまま (4) にしておく。** コアを
+  埋めると他の利用者の作業が止まる。大きくするのは計算ノードにジョブとして
+  流すときだけにする。
+
+## 再実行と中断
+
+- **途中で失敗したらそこで止まる** (`set -euo pipefail` + 段ごとの出力検査)。
+  以前は `gmx mdrun` が落ちても走り続け、真因の数十行下で cpptraj の空実行 →
+  `mv: cannot stat` → `check_contact` の `FileNotFoundError` と別のエラーが
+  4 つ出て、原因が追いにくかった。
+- **同じディレクトリで再実行できる。** `${head}_ref.tpr` と minimize 済みの
+  フレームは `[skip]` で飛ばすので、途中で失敗しても直して流し直せばよい。
 
 ## 検証 (必須)
 
@@ -93,7 +131,9 @@ python3 check_contact.py \
 
 - フラグメント間の実座標最小距離が `--contact` (既定 5 Å) 未満 → 接触 OK
 - 水和殻の最大空隙が `--hole` (既定 8 Å) 未満 → イメージング健全
-- 依存: `numpy`, `scipy`
+- 依存: `numpy`, `scipy`。システムの `python3` に無い環境では
+  `PYTHON=/path/to/venv/bin/python` で差し替える (富岳のログインノードは
+  `python3` が 3.6.8 で scipy 無し)
 - NG が 1 つでもあれば exit 1 を返すのでバッチに組み込める
 
 **接触距離だけを見ないこと。** `-pbc cluster` は「接触は戻すのに水和殻を置き去りにする
