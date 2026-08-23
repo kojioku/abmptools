@@ -2,12 +2,14 @@
 #
 # 既存の *_fmo_center1.pdb から液滴を作り直す (救済用)。
 #
-# 旧 2_optmask-frame.sh を流し終えた後で「複合体が離れている / 水和殻に穴がある」と
-# 判明した場合、最小化 (gmx mdrun) をやり直さずに液滴だけ作り直せる。
+# 旧版の 2_optmask-frame.sh (-pbc cluster を挟む 4 段だった頃) を流し終えた後で
+# 「複合体が離れている / 水和殻に穴がある」と判明した場合、最小化 (gmx mdrun) を
+# やり直さずに液滴だけ作り直せる。
 # center1 (= -pbc whole 済み) から cpptraj autoimage で組み直す。
 # center2 / center3 / center4 は使わない。
 #
-# 通しで作り直す場合は 2_optmask-frame_v2.sh を使うこと。
+# 現行の 2_optmask-frame.sh は最初から autoimage を使うので、これから流す場合に
+# このスクリプトは要らない。既に旧版で作った *_fmo_center1.pdb がある場合の救済用。
 #
 # 必要: cpptraj (AmberTools), python3 + numpy + scipy
 #

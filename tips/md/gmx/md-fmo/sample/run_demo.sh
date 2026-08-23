@@ -4,7 +4,7 @@
 #
 # 単一 moleculetype に同居した 3 フラグメント複合体 (タンパク A + B + リガンド) を
 # 水で溶媒和し、B 等が周期境界を越えた「生構造」を各手法で組み直して
-# check_contact.py で判定する。実系の 2_optmask-frame.sh と同じ 4 段
+# check_contact.py で判定する。旧版が使っていた 4 段
 # (whole -> cluster -> mol/compact) を再現し、cpptraj autoimage と比較する。
 #
 # 期待される結果 (接触距離 [A] と 水和殻の最大空隙 max_gap [A]):

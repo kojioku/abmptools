@@ -10,8 +10,7 @@
 |---|---|
 | `0_parmed.sh` | GROMACS `.top` → Amber `.prmtop` (ParmEd `gromber`)。後段 cpptraj 用 |
 | `1_trajsep.sh` | トラジェクトリから指定区間・間隔でフレームを `.gro` に切り出し |
-| `2_optmask-frame.sh` | 各フレームを最小化 → PBC 再構成 → 液滴を切り出し (**旧版**) |
-| `2_optmask-frame_v2.sh` | 上の PBC 再構成を cpptraj `autoimage` 化した **推奨版** |
+| `2_optmask-frame.sh` | 各フレームを最小化 → PBC 再構成 (cpptraj `autoimage`) → 液滴を切り出し |
 | `2b_recover-from-center1.sh` | 既に旧版を流した後の**救済用**。最小化をやり直さず液滴だけ作り直す |
 | `check_contact.py` | 切り出した液滴が「複合体が接触した状態」かを機械検証 |
 | `3_fmosetup.sh` | 液滴 PDB から ajf (FMO 入力) を生成 |
@@ -21,22 +20,22 @@
 bash 0_parmed.sh <system>.top
 bash 1_trajsep.sh -f <traj>.xtc -s <system>.gro
 cd gmxpdbs-foropt
-bash ../2_optmask-frame_v2.sh -n index.solute.ndx -p <top> -f <traj>
+bash ../2_optmask-frame.sh -n index.solute.ndx -p <top> -f <traj>
 bash ../3_fmosetup.sh
 ```
 
-既に旧 `2_optmask-frame.sh` を流し終えている場合は、`*_fmo_center1.pdb` が残っていれば
+既に旧版 (`-pbc cluster` を使っていた頃の `2_optmask-frame.sh`) を流し終えている場合は、`*_fmo_center1.pdb` が残っていれば
 最小化をやり直さずに液滴だけ作り直せる (数分):
 
 ```bash
 bash 2b_recover-from-center1.sh
 ```
 
-## なぜ v2 (autoimage) を推奨するか
+## なぜ cpptraj `autoimage` を使うか
 
 ### 症状
 複合体 (タンパク A + タンパク B + リガンド等) の系で、
-旧 `2_optmask-frame.sh` の PBC 再構成が、
+旧版の PBC 再構成 (`-pbc cluster` を挟む 4 段) が、
 **もともと正しく接触していた複合体を引き剥がす**ことがある。
 壊れたフレームでは複合体が数十 Å 離れ、水和殻に穴が空く。
 見た目では気づきにくく、そのまま FMO に投入すると物理的に無意味な結果になる。
@@ -74,7 +73,7 @@ PBC 再構成もそちらに寄せると一貫する。
 
 ## 系ごとの編集ポイント
 
-`2_optmask-frame_v2.sh` 冒頭の以下を系に合わせて変更する:
+`2_optmask-frame.sh` 冒頭の以下を系に合わせて変更する:
 
 - `anchormask` / `fixedmask` … 複合体フラグメントの残基レンジ
   (`anchor` = 中心に固定する分子、`fixed` = それに寄せる分子)
@@ -99,7 +98,7 @@ PBC 再構成もそちらに寄せると一貫する。
 も同じ値にそろえる。既定は 4 で、`-t` か環境変数 `OPT_THREADS` で変えられる。
 
 ```bash
-bash 2_optmask-frame_v2.sh -n index.solute.ndx -p system.top -f traj.xtc -t 8
+bash 2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc -t 8
 ```
 
 - **`-nt` だけを渡さないこと。** 環境に `OMP_NUM_THREADS` が居ると

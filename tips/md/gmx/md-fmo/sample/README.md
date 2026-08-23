@@ -10,8 +10,9 @@
 タンパク A + タンパク B + リガンドが **1 つの GROMACS moleculetype に同居し、
 フラグメント間に結合が無い**系 (Amber→acpype→GROMACS で溶質が 1 分子に潰れた
 状況) を、水 (WAT) で溶媒和して模す。箱は複合体に対しやや小さめ (tight box) で、
-複合体が周期境界をまたぐ「生構造」を、実系の `2_optmask-frame.sh` と同じ 4 段
-(`whole → cluster → mol/compact`) と cpptraj `autoimage` で組み直して比較する。
+複合体が周期境界をまたぐ「生構造」を、旧版が使っていた 4 段
+(`whole → cluster → mol/compact`) と、現行 `2_optmask-frame.sh` の cpptraj
+`autoimage` で組み直して比較する。
 
 `run_demo.sh` の出力例:
 
