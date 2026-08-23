@@ -78,20 +78,25 @@ def get_args():
     return args
 
 
-def getcpfobj(intime):
+def getcpfobj(task):
     """指定時刻のCPFファイルを読み込み、CPFManagerオブジェクトを返す。
 
+    引数は tuple で受ける。``Pool.map`` のワーカーは親のローカル変数を
+    見られないため、以前はモジュール直下に無い ``args`` を参照していて
+    NameError になっていた。必要な値は呼び出し側から渡す。
+
     Args:
-        intime: 時刻番号（ファイル名中のxxxを置換する数値）。
+        task: ``(時刻番号, 入力テンプレート, ゼロパディング桁数, 対象fragment)``。
 
     Returns:
         CPFManager: パース済みのCPFオブジェクト。
     """
+    intime, input_tmpl, zero_padding, fragments = task
     cpf = abmptools.CPFManager()
-    padded = str(intime).zfill(args.zero_padding)
-    input_cpf = args.input.replace('xxx', padded)
+    padded = str(intime).zfill(zero_padding)
+    input_cpf = input_tmpl.replace('xxx', padded)
     print(input_cpf)
-    cpf.tgtfrag = cpf.selectfrag(args.fragments)
+    cpf.tgtfrag = cpf.selectfrag(fragments)
     cpf = cpf.parse(input_cpf)
 
     return cpf
@@ -124,13 +129,14 @@ def setoutcpfstatic(tgtnum, args, cpfs):
     return outcpf, staticdistdf, staticatomdf
 
 
-def getavestddf(cpfs, staticdistdf, staticatomdf):
+def getavestddf(cpfs, staticdistdf, staticatomdf, charge_labels):
     """複数CPFから電荷・IFIE/PIEDAの平均値と標準偏差のDataFrameを算出する。
 
     Args:
         cpfs: パース済みCPFオブジェクトのリスト。
         staticdistdf: 代表構造のフラグメント間距離DataFrame。
         staticatomdf: 代表構造の原子情報DataFrame（電荷列を除く）。
+        charge_labels: 電荷カラム名のリスト（出力CPFの ``labels['charge']``）。
 
     Returns:
         tuple: (平均・標準偏差付き原子DataFrame, 平均・標準偏差付きダイマーDataFrame,
@@ -148,7 +154,7 @@ def getavestddf(cpfs, staticdistdf, staticatomdf):
     # print(all_dimdfs)
 
     # select only charge columns
-    all_chgdfs = all_atomdfs[['alabels'] + outcpf.labels['charge']]
+    all_chgdfs = all_atomdfs[['alabels'] + charge_labels]
 
     # calculate average and stdev
     average_atomdf = all_chgdfs.groupby(['alabels']).mean().reset_index()
@@ -231,9 +237,10 @@ def main():
     # --- parse (multiprocessing) ---
     with Pool(processes=args.np) as p:
         cpfs = p.map(getcpfobj,
-                     [i for i in range(args.time[0],
-                                       args.time[1]+1,
-                                       args.time[2])])
+                     [(i, args.input, args.zero_padding, args.fragments)
+                      for i in range(args.time[0],
+                                     args.time[1] + 1,
+                                     args.time[2])])
 
     # --- set output cpf ---
     difiename = os.path.basename(args.input).split('.')[0] + '-DIFIE.cpf'
@@ -245,7 +252,8 @@ def main():
     # get averaged and stdev data for DIFIE cpf
     # average_atomdf, stddev_atomdf, average_dimdf, stddev_dimdf \
     avestd_atomdf, avestd_dimdf, chglabels, dimlabels = \
-        getavestddf(cpfs, staticdistdf, staticatomdf)
+        getavestddf(cpfs, staticdistdf, staticatomdf,
+                    outcpf.labels['charge'])
 
 #         labels = {
 #             'charge': charge_label,

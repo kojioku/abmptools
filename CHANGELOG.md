@@ -1,5 +1,28 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed — `generate_difie` が CLI として一度も動いていなかった
+
+`getcpfobj()` と `getavestddf()` が `args` / `outcpf` を**グローバル参照**して
+いた。これらは `main()` のローカル変数なので、`python -m abmptools.generate_difie`
+は `NameError` で必ず落ちる。`sample/generate_difie/TrpCage/run.sh` も同様。
+
+```
+NameError: name 'args' is not defined
+```
+
+- `getcpfobj()` は `(intime, input_tmpl, zero_padding, fragments)` の
+  タプルを受け取る形に変更 (`Pool.map` に渡すため 1 引数)
+- `getavestddf()` は電荷ラベルを引数で受け取る
+- 出力は従来どおり `<入力 stem>-DIFIE.cpf` (`gly5-xxx.cpf` → `gly5-xxx-DIFIE.cpf`)、
+  対ごとに `M-` (平均) / `S-` (標準偏差) 列を持つ
+
+CPF を 2 つ与えて実際に走らせ、`M-` / `S-` 列と `S-Total ≈ 0` を検査する
+回帰テストを追加。ライブラリ経由では動いていたので、**壊れていたのは CLI 経路
+だけ**で、静かに落ちるのではなく即座に例外になっていた。
+
+
 ## [2.13.0] - 2026-08-20
 
 ### Fixed — 分子に名前を付けると OCTA viewer の元素着色が壊れていた

@@ -2,6 +2,7 @@
 import sys
 import argparse
 
+import os
 import pytest
 
 
@@ -232,6 +233,51 @@ class TestCpf2ifielistArgs:
 # ===================================================================
 # 3. generate_difie
 # ===================================================================
+class TestGenerateDifieRun:
+    """generate_difie.py を実際に走らせる。
+
+    get_args() だけを見ていたので、``getcpfobj`` と ``getavestddf`` が
+    ``main()`` のローカルである ``args`` / ``outcpf`` をグローバルとして
+    参照していたことに気づけなかった。CLI としては NameError で一度も
+    通っていない状態だった。
+    """
+
+    @pytest.fixture(autouse=True)
+    def _needs_pandas(self):
+        pytest.importorskip('pandas')
+
+    def test_writes_a_difie_cpf_with_mean_and_stdev_columns(
+            self, tmp_path, monkeypatch):
+        src = os.path.join(
+            os.path.dirname(__file__), os.pardir,
+            'sample', 'convertcpf', 'gly5', 'gly5-23.cpf')
+        if not os.path.isfile(src):
+            pytest.skip('sample CPF not available')
+
+        import shutil
+        for i in (1, 2):
+            shutil.copy(src, tmp_path / f'in-{i}.cpf')
+
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr('sys.argv', [
+            'prog', '-i', 'in-xxx.cpf', '-t', '1', '2', '1', '-z', '1',
+        ])
+        from abmptools.generate_difie import main
+        main()
+
+        out = tmp_path / 'in-xxx-DIFIE.cpf'
+        assert out.is_file()
+
+        import abmptools
+        parsed = abmptools.CPFManager().parse(str(out))
+        labels = parsed.labels['dimer']
+        assert any(x.startswith('M-') for x in labels)
+        assert any(x.startswith('S-') for x in labels)
+        # Two copies of one structure: every deviation is zero, and the
+        # mean has to be the value itself.
+        assert (parsed.diminfo['S-Total'].abs() < 1e-12).all()
+
+
 class TestGenerateDifieArgs:
     """generate_difie.py の get_args() テスト。"""
 

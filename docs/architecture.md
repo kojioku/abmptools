@@ -123,9 +123,12 @@ Inherits from `pdb_io`. Provides:
 ### `generate_difie.py` — Dynamic IFIE
 
 Creates time-averaged CPF files from MD trajectory snapshots:
-- `getcpfobj()` — Load CPF at specific timestep.
-- `getavestddf()` — Compute mean/std across trajectory.
-- Outputs a single CPF with `M-` (mean) and `S-` (std) prefixed columns.
+- `getcpfobj((time, template, padding, fragments))` — load the CPF at one
+  timestep. Takes a single tuple so it can be handed to `Pool.map`.
+- `getavestddf(cpfs, distdf, atomdf, charge_labels)` — mean/std across the
+  trajectory.
+- Outputs `<input stem>-DIFIE.cpf` with `M-` (mean) and `S-` (std) prefixed
+  columns per pair.
 - Parallel processing via `-np` flag.
 
 ## FMO Setup Pipeline
