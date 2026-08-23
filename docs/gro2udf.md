@@ -63,6 +63,47 @@ Exporter   →  上記の薄い協調役（フィルタ・ループ管理）
 - `atom_id` → 0-based atom インデックス（`atom[a]` の a）
 - `vx/vy/vz` → [nm/ps]（UDFWriter が × 1000 して [m/s] で put）
 
+### ★ 座標が入るのは動的レコードだけ（静的 Structure はテンプレート由来）
+
+UDF は **静的セクション（共通部）** と **動的レコード（フレームごと）** に分かれる。
+`gro2udf` が静的セクションへ書くのは次の 4 つだけである。
+
+| 静的セクションに書くもの | 書かないもの |
+|---|---|
+| `Set_of_Molecules` | **`Structure`**（座標・セル）|
+| `Simulation_Conditions` | **`Initial_Structure`** |
+| `Molecular_Attributes` | |
+| `Interactions` | |
+
+**座標とセルは `newRecord()` した先、つまり動的レコードにしか書かれない。**
+静的 `Structure` と `Initial_Structure` は `--template` に渡した UDF の内容が
+**そのまま残る**。
+
+同梱テンプレート（`default_template.udf` / `default_template_cognac101.udf`）は
+この部分が空なので、何も主張しない。問題になるのは **実在の UDF を
+`--template` に渡したとき**で、J-OCTA や COGNAC の系を往復させるときは自然に
+そうなる。このとき出来上がる UDF は:
+
+- 静的 `Structure` … **変換前**の座標と箱（テンプレートのもの）
+- 動的レコード … **変換後**の座標と箱（GROMACS から読んだもの）
+
+の 2 つを同時に持つ。**どちらも形式としては正しいので、`gmx` も COGNAC も
+OCTA viewer も文句を言わない。** 静的側を初期構造として読む経路に乗せると、
+変換したはずの構造ではなく元の構造で走る。
+
+テンプレートの静的 `Structure` が空でない場合は **変換時に警告を出す**
+（変換自体は止めない）:
+
+```
+template foo.udf already holds positions for 1024 molecule(s) in its static
+Structure block. gro2udf writes coordinates and the cell into dynamic records
+only, so that block is carried over unchanged and keeps the template's
+structure and box. ...
+```
+
+静的側にも変換後の構造を反映したい場合は、後処理で書き込むか、空のテンプレート
+（同梱の `default_template.udf`）を使って `Set_of_Molecules` 以下を作り直す。
+
 ---
 
 ## 使い方

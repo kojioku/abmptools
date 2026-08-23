@@ -61,6 +61,34 @@ def _rewrite_cognac_include(udf_path: str, cognac_version: str) -> None:
     path.write_text(new_text)
 
 
+def _static_structure_mol_count(uobj) -> int:
+    """How many molecules already carry positions in the *static* Structure.
+
+    A COGNAC UDF has a static (common) section and a series of dynamic records.
+    ``gro2udf`` writes coordinates and the cell **only into dynamic records**;
+    the static ``Structure`` and ``Initial_Structure`` blocks are whatever the
+    template carried, and nothing here ever rewrites them. The bundled
+    templates leave them empty, so they claim nothing. A template that is
+    itself a real UDF -- the natural choice when round-tripping a J-OCTA or
+    COGNAC system -- carries that system's coordinates, and those survive the
+    conversion untouched while the records hold the new ones. Both halves are
+    well formed, so nothing downstream objects.
+
+    Asked through UDFManager rather than by reading the file, so binary UDFs
+    answer too. Returns 0 when the block is empty, absent, or unreadable; this
+    check must never be the reason a conversion fails.
+    """
+    try:
+        uobj.jump(-1)
+        n = uobj.size("Structure.Position.mol[]")
+    except Exception:
+        return 0
+    try:
+        return int(n)
+    except (TypeError, ValueError):
+        return 0
+
+
 _OPENFF_TYPE_RE = __import__("re").compile(r"^MOL\d+_(\d+)$")
 
 
@@ -464,6 +492,24 @@ class TopExporter:
 
         with _section("UDFManager-open", template_path, out_path):
             uobj = UDFManager(out_path)
+
+        # The static Structure is copied through from the template and never
+        # rewritten here; say so when it is not empty, because the result then
+        # carries two structures -- the template's in the static section and
+        # the converted one in the records -- and both are well formed.
+        n_static = _static_structure_mol_count(uobj)
+        if n_static:
+            logger.warning(
+                "template %s already holds positions for %d molecule(s) in its "
+                "static Structure block. gro2udf writes coordinates and the cell "
+                "into dynamic records only, so that block is carried over "
+                "unchanged and keeps the template's structure and box. Readers "
+                "that take the static section rather than a record will see the "
+                "template's coordinates, not the converted ones. Use an empty "
+                "template (the bundled default_template.udf) if that is not "
+                "what you want.",
+                template_path, n_static,
+            )
 
         with _section("erase-existing-records", template_path, out_path):
             ntotal = uobj.totalRecord()
