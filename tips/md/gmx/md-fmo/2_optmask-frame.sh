@@ -23,9 +23,21 @@
 #
 # 前提: 0_parmed.sh で ${grotop%.*}.prmtop が生成済みであること。
 #
+# 途中で落ちても、同じコマンドで再実行すれば続きから進む。判断はフレーム
+# ディレクトリの中の完了マーカー (.done.minimize / .done.arrange) だけで行い、
+# **マーカーは中身を検めたあとに最後に書く**。ディレクトリがあることも、
+# ファイルがあることも、済んだ証拠には使わない —— mkdir は作業の前に走るし、
+# 殺されて切り詰められたファイルも「存在する」からである。
+# 何がどこまで済んでいるかは --check で確認できる。
+#
+# 上書きで消すことはしない。作り直しが要る場面では park() で
+# <名前>.<日時> にどけてから進む。
+#
 # 実行例:
 #   bash 2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc
 #   bash 2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc -t 8
+#   bash 2_optmask-frame.sh ... --check              # 進み具合だけ見る
+#   bash 2_optmask-frame.sh ... --redo-from arrange  # arrange からやり直す
 #
 ##################
 
@@ -79,7 +91,17 @@ PYTHON=${PYTHON:-python3}
 ##################
 
 usage() {
-    echo "usage: $0 -n <index.ndx> -p <topol.top> -f <traj> [-t <threads>]" >&2
+    cat >&2 <<'USAGE'
+usage: 2_optmask-frame.sh -n <index.ndx> -p <topol.top> -f <traj> [options]
+
+  -t <threads>        minimize のスレッド数 (既定 4 / $OPT_THREADS)
+  --check             何もせず、フレームごとの進み具合だけを表示する
+  --redo              マーカーを無視して全部やり直す
+  --redo-from <stage> minimize | arrange のどちらかからやり直す
+
+途中で落ちた場合はそのまま同じコマンドで再実行すれば、済んだ段は飛ばして
+続きから進む。何が済んでいるかは --check で確認できる。
+USAGE
     exit 1
 }
 
@@ -89,14 +111,26 @@ if [ $# = 0 ]; then
 fi
 
 solindex=""; grotop=""; traj=""
-while getopts n:p:f:t: OPTION
+mode="run"          # run | check
+redo_from=""        # "" | minimize | arrange
+while [ $# -gt 0 ]
 do
-    case $OPTION in
-        n) solindex=$OPTARG;;
-        p) grotop=$OPTARG;;
-        f) traj=$OPTARG;;
-        t) optomp=$OPTARG;;
-        *) usage
+    case $1 in
+        -n) solindex=${2:-}; shift 2;;
+        -p) grotop=${2:-};   shift 2;;
+        -f) traj=${2:-};     shift 2;;
+        -t) optomp=${2:-};   shift 2;;
+        --check) mode="check"; shift;;
+        --redo)  redo_from="minimize"; shift;;
+        --redo-from)
+            redo_from=${2:-}
+            case "$redo_from" in
+                minimize|arrange) ;;
+                *) echo "--redo-from は minimize か arrange のどちらか。" >&2; usage;;
+            esac
+            shift 2;;
+        -h|--help) usage;;
+        *) echo "unknown option: $1" >&2; usage;;
     esac
 done
 
@@ -193,6 +227,132 @@ residue_labels() {
              } }' "$prmtop"
 }
 
+# ------------------------------------------------- 再開のための完了判定
+#
+# 途中で落ちた実行を再開できるようにする。判定の根拠は 3 つ:
+#
+#   1. 段ごとの完了マーカー (${d}/.done.<stage>) を **最後に** 書く。
+#      ディレクトリの存在も、ファイルの存在も、済んだ証拠にはならない。
+#      mkdir は作業の前に走るし、途中で殺されたファイルも「存在する」。
+#   2. マーカーを書く前に **中身を検証する**。`-s` (空でない) だけでは、
+#      書きかけで切り詰められた .gro や .pdb が完成扱いで素通りする。
+#   3. 確定は **一時名 -> rename**。同一ファイルシステム内の rename は
+#      原子的なので、殺されても半端な最終ファイルが残らない。
+#
+# 既存のものを消す操作はしない。上書きが要る場面では park() でどける。
+
+#: gro が最後まで書けているか。2 行目の原子数と実際の行数 (N+3) を突き合わせ、
+#: 最終行が箱ベクトル (3 or 9 個の数値) であることまで見る。
+gro_is_complete() {
+    local f=$1 natoms
+    [ -s "$f" ] || return 1
+    natoms=$(sed -n '2p' "$f" | tr -d '[:space:]')
+    case "$natoms" in ''|*[!0-9]*) return 1;; esac
+    awk -v want=$((natoms + 3)) '
+        END {
+            if (NR != want) exit 1
+            if (NF != 3 && NF != 9) exit 1
+            for (i = 1; i <= NF; i++)
+                if ($i !~ /^-?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) exit 1
+        }' "$f"
+}
+
+#: pdb が最後まで書けているか。原子行があり、かつ END で終わっているか、
+#: 終端レコードが無い書き手のために「最終行が完全な原子行」でも通す。
+pdb_is_complete() {
+    local f=$1
+    [ -s "$f" ] || return 1
+    grep -qE '^(ATOM|HETATM)' "$f" || return 1
+    awk '
+        NF { last = $0 }
+        END {
+            if (last ~ /^END/) exit 0
+            # 座標欄 (31-54 桁) まで書けている原子行なら、途中で切れていない
+            if (last ~ /^(ATOM|HETATM)/ && length(last) >= 54) exit 0
+            exit 1
+        }' "$f"
+}
+
+#: 段が完了しているか (マーカーの有無だけで判断する)。
+stage_done() { [ -f "$1/.done.$2" ]; }
+
+#: 段の完了を記録する。検証を通ったあとにだけ呼ぶこと。
+mark_done() {
+    printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" > "$1/.done.$2"
+}
+
+#: --redo / --redo-from で、この段をやり直すべきか。
+redo_stage() {
+    case "$redo_from" in
+        minimize) return 0;;
+        arrange)  [ "$1" = "arrange" ] && return 0 || return 1;;
+        *)        return 1;;
+    esac
+}
+
+#: 既存ファイルを消さずにどける。上書きが要る場面では必ずこれを通す。
+park() {
+    local f=$1 stamp
+    [ -e "$f" ] || return 0
+    stamp=$(date '+%Y%m%d-%H%M%S')
+    mv "$f" "${f}.${stamp}"
+    echo "[park] ${f} -> ${f}.${stamp} (上書きせずどけた)"
+}
+
+#: ファイル群を dest へ移す。同名があれば park してから移す (mv -f を使わない)。
+move_into() {
+    local dest=$1 f; shift
+    for f in "$@"; do
+        [ -e "$f" ] || continue
+        park "${dest}/$(basename "$f")"
+        mv "$f" "${dest}/"
+    done
+}
+
+#: 1 フレームの状態を "済 / 途中 / 未" で返す (--check 用)。
+frame_status() {
+    local d=$1 stage=$2 artifact=$3 kind=$4
+    if stage_done "$d" "$stage"; then
+        echo "済"
+    elif [ -e "$d/$artifact" ]; then
+        if "${kind}_is_complete" "$d/$artifact"; then
+            echo "途中(成果物あり・マーカー無し)"
+        else
+            echo "途中(成果物が壊れている)"
+        fi
+    elif [ -d "$d" ]; then
+        echo "未(ディレクトリのみ)"
+    else
+        echo "未"
+    fi
+}
+
+function report() {
+    # 桁を揃えない。printf の %-Ns はバイト数で詰めるので、日本語が混ざると
+    # 表がずれる。文字数で詰めるには locale に依存した細工が要り、HPC の
+    # LANG=C なログインノードで壊れる。区切り記号で読ませる方が確実。
+    for i in $(seq $pdb_snum $pdb_interval $pdb_enum)
+    do
+        d=${head}_${i}_fmo
+        echo "frame ${i} | minimize: $(frame_status "$d" minimize "${d}.gro" gro)" \
+             "| arrange: $(frame_status "$d" arrange "${d}_mask.pdb" pdb)"
+    done
+    cat <<'NOTE'
+
+  済     … 完了マーカーがある
+  途中   … 前回ここで落ちた。そのまま再実行すれば続きから進む
+           (成果物が壊れている場合は park してから作り直す)
+  未     … 未着手。ディレクトリだけあるのは mkdir の直後に落ちた状態で、
+           これも未着手として扱う
+NOTE
+}
+
+if [ "$mode" = "check" ]; then
+    report
+    exit 0
+fi
+
+
 # ---------------------------------------------------------------- checks
 
 require "$minscript" "minimize 用 mdp が無い"
@@ -235,10 +395,23 @@ do
     d=${head}_${i}_fmo
     mkdir -p "$d"
 
-    # 済んでいるフレームは飛ばす (再実行できるようにする)
-    if [ -s "${d}/${d}.gro" ]; then
+    # 済んだフレームは飛ばす。判断はマーカーだけで行う ——
+    # ディレクトリがあることも、.gro があることも、済んだ証拠にはならない。
+    if stage_done "$d" minimize && ! redo_stage minimize; then
         echo "[skip] ${d} は minimize 済み"
         continue
+    fi
+
+    # マーカーが無いのに .gro がある = 前回ここで落ちたか、マーカー導入前の
+    # 実行。中身が完全ならマーカーだけ書いて済ませ、壊れていればどけてやり直す。
+    if [ -e "${d}/${d}.gro" ] && ! redo_stage minimize; then
+        if gro_is_complete "${d}/${d}.gro"; then
+            echo "[adopt] ${d}/${d}.gro は完全なのでマーカーだけ付けて飛ばす"
+            mark_done "$d" minimize
+            continue
+        fi
+        echo "[broken] ${d}/${d}.gro は書きかけなのでやり直す"
+        park "${d}/${d}.gro"
     fi
 
     # 1 回目は直下、2 回目以降は ${d}/ に入力がある
@@ -259,9 +432,17 @@ do
     OMP_NUM_THREADS=${optomp} gmx mdrun -ntmpi 1 -ntomp "${optomp}" \
         -v -deffnm "${d}"
     require "${d}.gro" "gmx mdrun が構造を書けていない"
+    if ! gro_is_complete "${d}.gro"; then
+        echo "ERROR: ${d}.gro が最後まで書けていない (2 行目の原子数と行数が" >&2
+        echo "       合わないか、箱ベクトルが無い)。mdrun が途中で死んでいる。" >&2
+        exit 1
+    fi
 
-    mv -f ${head}_${i}.* "$d"/ 2>/dev/null || true
-    mv -f ${d}.* "$d"/
+    move_into "$d" ${head}_${i}.* 2>/dev/null || true
+    move_into "$d" ${d}.*
+
+    # ここまで通ってから記録する。落ちればマーカーは書かれず、次回やり直す。
+    mark_done "$d" minimize
 done
 }
 
@@ -269,6 +450,23 @@ function arrangetraj() {
 for i in $(seq $pdb_snum $pdb_interval $pdb_enum)
 do
     d=${head}_${i}_fmo
+
+    if stage_done "$d" arrange && ! redo_stage arrange; then
+        echo "[skip] ${d} は arrange 済み"
+        continue
+    fi
+
+    # マーカーが無いのに液滴がある場合。完全なら採用、壊れていればどけて作り直す。
+    if [ -e "${d}/${d}_mask.pdb" ] && ! redo_stage arrange; then
+        if pdb_is_complete "${d}/${d}_mask.pdb"; then
+            echo "[adopt] ${d}/${d}_mask.pdb は完全なのでマーカーだけ付けて飛ばす"
+            mark_done "$d" arrange
+            continue
+        fi
+        echo "[broken] ${d}/${d}_mask.pdb は書きかけなので作り直す"
+        park "${d}/${d}_mask.pdb"
+    fi
+
     (
     cd "$d"
 
@@ -288,24 +486,38 @@ EOF
         fitline=""
     fi
 
+    # 液滴は一時名に書かせ、中身を検めてから rename で確定する。cpptraj に
+    # 最終名を直接書かせると、途中で死んだときに半端な ${d}_mask.pdb が残り、
+    # 次の実行がそれを完成品として拾ってしまう。
+    # (${d}_whole.pdb / ${d}_arranged.pdb は同じ段で作り直す中間物。前者は
+    #  gmx が #file# として自動退避する)
     cat > cpptraj_arrange.in <<EOF
 parm ../${prmtop}
 trajin ${d}_whole.pdb
 autoimage anchor ${anchormask} fixed ${fixedmask} mobile ${mobilemask}
 ${fitline}
 outtraj ${d}_arranged.pdb pdb
-mask (:${maskinfo}<:${stripdist})${retainedions} maskpdb ${d}_mask.pdb
+mask (:${maskinfo}<:${stripdist})${retainedions} maskpdb ${d}_mask.pdb.tmp
 run
 quit
 EOF
     cpptraj -i cpptraj_arrange.in
 
     # maskpdb はフレーム番号を付けて書く
-    if [ -s "${d}_mask.pdb.1" ]; then
-        mv -f "${d}_mask.pdb.1" "${d}_mask.pdb"
+    tmp=${d}_mask.pdb.tmp.1
+    [ -s "$tmp" ] || tmp=${d}_mask.pdb.tmp
+    require "$tmp" "cpptraj の autoimage/mask が失敗した"
+    if ! pdb_is_complete "$tmp"; then
+        echo "ERROR: ${tmp} が最後まで書けていない。cpptraj が途中で死んでいる。" >&2
+        exit 1
     fi
-    require "${d}_mask.pdb" "cpptraj の autoimage/mask が失敗した"
+
+    park "${d}_mask.pdb"        # --redo で既存があるとき用。消さずにどける
+    mv "$tmp" "${d}_mask.pdb"   # 同一 fs 内の rename = 原子的
     )
+
+    # 液滴が出来てから記録する。落ちればマーカーは書かれず、次回やり直す。
+    mark_done "$d" arrange
 done
 }
 
@@ -314,7 +526,14 @@ minimize
 arrangetraj
 
 mkdir -p "${head}-optedpdb"
-cp *_fmo/*_fmo_mask.pdb "${head}-optedpdb"/
+for i in $(seq $pdb_snum $pdb_interval $pdb_enum)
+do
+    d=${head}_${i}_fmo
+    src=${d}/${d}_mask.pdb
+    [ -s "$src" ] || continue
+    park "${head}-optedpdb/${d}_mask.pdb"
+    cp "$src" "${head}-optedpdb"/
+done
 
 # 最後に必ず検証。NG フレームは FMO に使わないこと。
 # (--frag は anchor/fixed の残基レンジに合わせて編集)
