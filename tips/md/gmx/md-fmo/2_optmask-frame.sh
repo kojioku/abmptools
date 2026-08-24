@@ -34,8 +34,11 @@
 # <名前>.<日時> にどけてから進む。
 #
 # 実行例:
-#   bash 2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc
-#   bash 2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc -t 8
+#   bash 2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc \\
+#       --anchor :1-323 --fixed :324 --solute 1-324 --frames 0:4:1 -t 4
+#
+#   系ごとの値はすべてコマンドラインで渡せる。検証 (check_contact.py) に渡す
+#   フラグメントは anchor / fixed から自動で作るので、同じレンジを二度書かない。
 #   bash 2_optmask-frame.sh ... --check              # 進み具合だけ見る
 #   bash 2_optmask-frame.sh ... --redo-from arrange  # arrange からやり直す
 #
@@ -57,6 +60,8 @@ minscript=min_aftermd.mdp
 #     基準が静かに壊れる。実測: 334 残基の系で ":1-840" は全 1055 原子を選択し、
 #     警告は一切出なかった。
 #
+# 既定値。スクリプトを書き換えなくても --anchor / --fixed 等で上書きできるので、
+# 系ごとの指定はコマンドラインで渡すことを勧める (編集箇所が散らばらない)。
 # 例) frag A=res 1-840, frag B=res 841-1184, リガンド=res 1185 の場合:
 anchormask=":1-840"
 fixedmask=":841-1185"
@@ -95,6 +100,16 @@ usage() {
 usage: 2_optmask-frame.sh -n <index.ndx> -p <topol.top> -f <traj> [options]
 
   -t <threads>        minimize のスレッド数 (既定 4 / $OPT_THREADS)
+
+系ごとの指定 (スクリプトを書き換えず、ここで渡せる):
+  --anchor <mask>     箱の中心に固定する分子   例 :1-323
+  --fixed  <mask>     anchor に寄せる分子      例 :324
+  --mobile <mask>     詰め直す溶媒             既定 :WAT
+  --solute <range>    液滴に残す溶質のレンジ   例 1-324
+  --strip  <A>        溶質から何 A の水を残すか 既定 6.0
+  --frames <s:e[:i]>  処理するフレーム番号     例 0:4:1
+  --fit    <mask>     全フレームの向きを揃える 例 :1-323@CA
+  --frag   <name:lo-hi>  検証するフラグメント。既定は anchor / fixed から自動導出
   --check             何もせず、フレームごとの進み具合だけを表示する
   --redo              マーカーを無視して全部やり直す
   --redo-from <stage> minimize | arrange のどちらかからやり直す
@@ -111,6 +126,7 @@ if [ $# = 0 ]; then
 fi
 
 solindex=""; grotop=""; traj=""
+fragspec=""         # 空なら anchor/fixed から導出する (下記 derive_fragspec)
 mode="run"          # run | check
 redo_from=""        # "" | minimize | arrange
 while [ $# -gt 0 ]
@@ -120,6 +136,21 @@ do
         -p) grotop=${2:-};   shift 2;;
         -f) traj=${2:-};     shift 2;;
         -t) optomp=${2:-};   shift 2;;
+        --anchor) anchormask=${2:-}; shift 2;;
+        --fixed)  fixedmask=${2:-};  shift 2;;
+        --mobile) mobilemask=${2:-}; shift 2;;
+        --solute) maskinfo=${2:-};   shift 2;;
+        --strip)  stripdist=${2:-};  shift 2;;
+        --fit)    fitmask=${2:-}; dofit=1; shift 2;;
+        --frames)
+            # s:e:i (i 省略時は 1)
+            IFS=: read -r pdb_snum pdb_enum pdb_interval <<<"${2:-}"
+            pdb_interval=${pdb_interval:-1}
+            case "${pdb_snum}${pdb_enum}${pdb_interval}" in
+                *[!0-9]*|'') echo "--frames は s:e[:i] の形で。" >&2; usage;;
+            esac
+            shift 2;;
+        --frag) fragspec="${fragspec} --frag ${2:-}"; shift 2;;
         --check) mode="check"; shift;;
         --redo)  redo_from="minimize"; shift;;
         --redo-from)
@@ -353,6 +384,32 @@ if [ "$mode" = "check" ]; then
 fi
 
 
+# check_contact.py の --frag を anchor / fixed から作る。
+#
+# 検証したいフラグメントは autoimage で組み直したフラグメントそのものなので、
+# 同じレンジを二度書く必要はない。二度書くと片方だけ直して気づかない、という
+# 事故が起きる (編集箇所が冒頭と末尾で 480 行離れていた)。
+#
+# ":1-323" -> "prot:1-323"、":324" -> "lig:324" のように名前を付ける。
+# カンマ区切りや原子指定を含むマスクは 1 つのレンジに落とせないので、その場合は
+# --frag を明示してもらう。
+derive_fragspec() {
+    local out="" i=0 m name lo hi
+    for m in "$anchormask" "$fixedmask"; do
+        i=$((i + 1))
+        name=$([ $i = 1 ] && echo anchor || echo fixed)
+        # ":1-323" / ":324" だけを受け付ける
+        case "$m" in
+            :[0-9]*-[0-9]*) lo=${m#:}; hi=${lo#*-}; lo=${lo%-*};;
+            :[0-9]*)        lo=${m#:}; hi=$lo;;
+            *) echo "" ; return 0;;
+        esac
+        case "$lo$hi" in *[!0-9]*) echo ""; return 0;; esac
+        out="${out} --frag ${name}:${lo}-${hi}"
+    done
+    echo "$out"
+}
+
 # ---------------------------------------------------------------- checks
 
 require "$minscript" "minimize 用 mdp が無い"
@@ -373,6 +430,27 @@ validate_mask maskinfo   "$maskinfo"   "$nres"
 
 solvent_in_mask anchormask "$anchormask"
 solvent_in_mask fixedmask  "$fixedmask"
+
+if [ -z "$fragspec" ]; then
+    fragspec=$(derive_fragspec)
+    if [ -z "$fragspec" ]; then
+        echo "ERROR: anchormask / fixedmask が単純なレンジ (\":1-323\" 等) では" >&2
+        echo "       ないので、検証用のフラグメントを自動で決められない。" >&2
+        echo "       --frag <名前>:<開始>-<終了> を明示すること。" >&2
+        exit 1
+    fi
+fi
+
+cat <<SETTINGS
+--- 設定 ---
+  anchor : ${anchormask}
+  fixed  : ${fixedmask}
+  mobile : ${mobilemask}
+  solute : ${maskinfo}  (液滴に残す水: 溶質から ${stripdist} A)
+  frames : ${pdb_snum}..${pdb_enum} step ${pdb_interval}
+  verify :${fragspec}
+  threads: ${optomp}
+SETTINGS
 
 echo "threads for minimize = ${optomp}"
 
@@ -536,7 +614,7 @@ do
 done
 
 # 最後に必ず検証。NG フレームは FMO に使わないこと。
-# (--frag は anchor/fixed の残基レンジに合わせて編集)
+# 検証対象は anchor / fixed から導出済み (derive_fragspec)。
 echo "==================== contact check ===================="
-"${PYTHON}" check_contact.py --frag A:1-840 --frag B:841-1184 --frag lig:1185 \
+"${PYTHON}" check_contact.py ${fragspec} \
     "${head}"-optedpdb/*_fmo_mask.pdb
