@@ -88,6 +88,7 @@ bash ../2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc \
 | `--solute` | 液滴に残す溶質の残基レンジ |
 | `--strip` | 溶質から何 Å 以内の水を残すか (既定 6.0) |
 | `--frames` | 処理するフレーム番号 `s:e[:i]` |
+| `--mdp` | minimize の条件ファイル (既定 `min_aftermd.mdp`) |
 | `--fit` | 全フレームの向きを揃える (FMO エネルギーには無影響) |
 
 実行時に解決後の設定を表示するので、渡し間違いはその場で分かる。
@@ -124,6 +125,24 @@ bash ../2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc \
 > 一切出ない。anchor に水が全部入った状態で autoimage が回り、静かに間違った
 > 液滴が出来る。逆に開始側が範囲外の `:841-1185` は警告こそ出るが選択ゼロで
 > 走り続ける。どちらも実行時には気づけない。
+
+## 通し確認を短時間で済ませる
+
+本番の `min_aftermd.mdp` は `emtol=1255` まで落とすので、70950 原子の系だと
+1 フレーム 5-7 分かかる (収束 step は構造次第で 294-711 と 2.4 倍ばらつく)。
+段の繋がり・再開・検証だけを確かめたいときは `min_quick.mdp` を使う。
+
+```bash
+bash ../2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc \
+    --mdp min_quick.mdp --anchor :1-323 --fixed :324 --solute 1-324 \
+    --frames 0:4:1 -t 4
+```
+
+`nsteps=15` で打ち切り、カットオフも 1.2 nm に縮めてある。同じ EGFR 系で
+**5 フレーム 36 秒**。
+
+> **min_quick.mdp で作った液滴を FMO に投入しないこと。** 力が全く落ちて
+> いないので構造として使えない。パイプラインの配線を見るためだけのもの。
 
 ## スレッド数とログインノード
 

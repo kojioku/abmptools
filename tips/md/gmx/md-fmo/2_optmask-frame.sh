@@ -102,6 +102,7 @@ usage: 2_optmask-frame.sh -n <index.ndx> -p <topol.top> -f <traj> [options]
   -t <threads>        minimize のスレッド数 (既定 4 / $OPT_THREADS)
 
 系ごとの指定 (スクリプトを書き換えず、ここで渡せる):
+  --mdp    <file>     minimize の条件ファイル  既定 min_aftermd.mdp
   --anchor <mask>     箱の中心に固定する分子   例 :1-323
   --fixed  <mask>     anchor に寄せる分子      例 :324
   --mobile <mask>     詰め直す溶媒             既定 :WAT
@@ -137,6 +138,7 @@ do
         -p) grotop=${2:-};   shift 2;;
         -f) traj=${2:-};     shift 2;;
         -t) optomp=${2:-};   shift 2;;
+        --mdp)    minscript=${2:-}; shift 2;;
         --anchor) anchormask=${2:-}; shift 2;;
         --fixed)  fixedmask=${2:-};  shift 2;;
         --mobile) mobilemask=${2:-}; shift 2;;
@@ -449,6 +451,7 @@ cat <<SETTINGS
   mobile : ${mobilemask}
   solute : ${maskinfo}  (液滴に残す水: 溶質から ${stripdist} A)
   frames : ${pdb_snum}..${pdb_enum} step ${pdb_interval}
+  mdp    : ${minscript}
   verify :${fragspec}
   threads: ${optomp}
 SETTINGS
@@ -462,8 +465,12 @@ function genref() {
         echo "[skip] ${head}_ref.tpr は作成済み"
         return
     fi
-    require "${head}_0.gro" "1_trajsep.sh の出力が無い"
-    gmx grompp -f "$minscript" -c "${head}_0.gro" -r "${head}_0.gro" \
+    # 基準構造は「処理する最初のフレーム」。0 決め打ちにすると --frames で
+    # 途中から始めたときに存在しないファイルを探して止まる。
+    local ref=${head}_${pdb_snum}.gro
+    [ -f "$ref" ] || ref=${head}_${pdb_snum}_fmo/${head}_${pdb_snum}.gro
+    require "$ref" "1_trajsep.sh の出力 (${head}_${pdb_snum}.gro) が無い"
+    gmx grompp -f "$minscript" -c "$ref" -r "$ref" \
         -p "${grotop}" -o "${head}_ref.tpr" -maxwarn 1
     require "${head}_ref.tpr"
 }
