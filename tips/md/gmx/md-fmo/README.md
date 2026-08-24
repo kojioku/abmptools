@@ -73,25 +73,37 @@ PBC 再構成もそちらに寄せると一貫する。
 
 ## 系ごとの指定
 
-**スクリプトは書き換えない。** 系ごとの値はコマンドラインで渡す。
+系ごとの値は **スクリプト冒頭を編集する**。実行はそのまま:
 
 ```bash
-bash ../2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc \
-    --anchor :1-323 --fixed :324 --solute 1-324 --frames 0:4:1 -t 4
+bash ../2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc
 ```
 
-| オプション | 意味 |
+| 冒頭の変数 | 意味 |
 |---|---|
-| `--anchor` | 箱の中心に固定する分子 (通常タンパク片方) |
-| `--fixed` | anchor の最近接イメージへ寄せる分子 (相手タンパク + リガンド) |
-| `--mobile` | 箱に詰め直す溶媒 (既定 `:WAT`) |
-| `--solute` | 液滴に残す溶質の残基レンジ |
-| `--strip` | 溶質から何 Å 以内の水を残すか (既定 6.0) |
-| `--frames` | 処理するフレーム番号 `s:e[:i]` |
-| `--mdp` | minimize の条件ファイル (既定 `min_aftermd.mdp`) |
-| `--fit` | 全フレームの向きを揃える (FMO エネルギーには無影響) |
+| `anchormask` | 箱の中心に固定する分子 (通常タンパク片方) |
+| `fixedmask` | anchor の最近接イメージへ寄せる分子 (相手タンパク + リガンド) |
+| `mobilemask` | 箱に詰め直す溶媒 (既定 `:WAT`) |
+| `maskinfo` | 液滴に残す溶質の残基レンジ |
+| `stripdist` | 溶質から何 Å 以内の水を残すか (既定 6.0) |
+| `pdb_snum` / `pdb_enum` / `pdb_interval` | 処理するフレーム番号 |
+| `minscript` | minimize の条件ファイル |
 
-実行時に解決後の設定を表示するので、渡し間違いはその場で分かる。
+**編集するのは冒頭のブロックだけ。** 以前は末尾の `--frag` 行も直す必要が
+あり、480 行離れた 2 か所を揃えなければならなかった。今は下記のとおり
+自動導出する。
+
+同じ値を一時的に変えたいときはコマンドラインからも渡せる (冒頭の値より優先):
+
+| オプション | 対応する変数 |
+|---|---|
+| `--anchor` `--fixed` `--mobile` | `anchormask` / `fixedmask` / `mobilemask` |
+| `--solute` `--strip` | `maskinfo` / `stripdist` |
+| `--frames s:e[:i]` | `pdb_snum` / `pdb_enum` / `pdb_interval` |
+| `--mdp` | `minscript` |
+| `--fit` | `fitmask` (指定すると `dofit=1`) |
+
+実行時に解決後の設定を表示するので、編集漏れはその場で分かる。
 
 > **検証用の残基レンジは書かなくてよい。** `check_contact.py` に渡す
 > `--residues` は `--anchor` / `--fixed` から自動で作る
@@ -134,8 +146,7 @@ bash ../2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc \
 
 ```bash
 bash ../2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc \
-    --mdp min_quick.mdp --anchor :1-323 --fixed :324 --solute 1-324 \
-    --frames 0:4:1 -t 4
+    --mdp min_quick.mdp
 ```
 
 `nsteps=15` で打ち切り、カットオフも 1.2 nm に縮めてある。同じ EGFR 系で
@@ -225,9 +236,16 @@ python3 check_contact.py \
 
 - 指定した部分どうしの実座標最小距離が `--contact` (既定 5 Å) 未満 → 接触 OK
 - 水和殻の最大空隙が `--hole` (既定 8 Å) 未満 → イメージング健全
-- 依存: `numpy`, `scipy`。システムの `python3` に無い環境では
-  `PYTHON=/path/to/venv/bin/python` で差し替える (富岳のログインノードは
-  `python3` が 3.6.8 で scipy 無し)
+- 依存: `numpy`, `scipy`。**python は自動で探す** —— 有効な venv、`~/fmoenv`、
+  `python3`、`python` の順に試し、`numpy` と `scipy` を import できたものを使う。
+  明示したいときだけ `PYTHON=/path/to/python` を渡す
+- 見つからない場合は**液滴を残したまま検証だけ保留**し、後から流すコマンドを
+  出して exit 2 で終わる。「検証したつもり」にはしない。富岳のシステム
+  `python3` は 3.6.8 で scipy が無いので、python 環境を作る前に流すとこうなる
+- `amber.sh` が `PYTHONPATH` に入れる Amber の py3.9 site-packages は
+  **スクリプト側で外す**。残したまま venv の python から `parmed` を import すると
+  numpy 2 系で `No module named 'numpy.compat'` になる。利用者が自分で設定した
+  `PYTHONPATH` は残す
 - NG が 1 つでもあれば exit 1 を返すのでバッチに組み込める
 - **測れなかったものは合格にしない。** 指定した残基レンジに該当が無い、
   比較できた組が 1 つも無い、液滴なのに水が 0 — いずれも NG にして理由を出す

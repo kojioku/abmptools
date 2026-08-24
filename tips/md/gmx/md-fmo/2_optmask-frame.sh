@@ -87,11 +87,9 @@ pdb_interval=1
 #   ジョブとして流すときだけにすること。
 optomp=${OPT_THREADS:-4}
 
-# 検証 (check_contact.py) を走らせる python。numpy と scipy が要る。
-#   システムの python3 が古い / scipy が無い環境 (富岳のログインノードは
-#   python3 が 3.6.8 で scipy 無し) では venv の python を渡す:
-#     PYTHON=/path/to/venv/bin/python bash 2_optmask-frame.sh ...
-PYTHON=${PYTHON:-python3}
+# 検証 (check_contact.py) に使う python は自動で探す (下の find_python)。
+# 明示したいときだけ PYTHON=/path/to/python を渡す。
+PYTHON=${PYTHON:-}
 
 ##################
 
@@ -182,6 +180,49 @@ echo "$solindex"
 headbuf=${traj%.*}
 head=${headbuf##*/}
 prmtop=${grotop%.*}.prmtop
+
+# ---------------------------------------------------------------- python
+
+# Amber の site-packages を PYTHONPATH から外した環境変数を組み立てる。
+#
+# amber.sh は PYTHONPATH に $AMBERHOME/lib/python3.9/site-packages を入れる。
+# これは parmed の CLI が動くために必要 (parmed 本体はそこにしか無い) なので
+# 消せないが、別の python から見ると 3.9 用のパッケージが割り込んでくる。
+# numpy 2 系の venv で Amber の parmed を掴むと
+#   ModuleNotFoundError: No module named 'numpy.compat'
+# で落ちる。ここでは Amber 由来の項目だけを落とし、利用者が自分で入れた
+# PYTHONPATH は残す。
+clean_pythonpath() {
+    local out="" e
+    IFS=: read -ra _pp <<<"${PYTHONPATH:-}"
+    for e in "${_pp[@]:-}"; do
+        [ -z "$e" ] && continue
+        case "$e" in
+            ${AMBERHOME:-/nonexistent}/*) continue;;
+            */amber*/lib/python*/site-packages) continue;;
+        esac
+        out="${out:+$out:}$e"
+    done
+    printf '%s' "$out"
+}
+
+#: numpy と scipy が入っている python を探す。
+#  順に: PYTHON 指定 -> 有効な venv -> ~/fmoenv -> python3 -> python
+#  Amber の PYTHONPATH を外した状態で判定する (外さないと 3.9 用が割り込む)。
+find_python() {
+    local c
+    for c in "$PYTHON" "${VIRTUAL_ENV:+$VIRTUAL_ENV/bin/python}" \
+             "$HOME/fmoenv/bin/python" python3 python; do
+        [ -z "$c" ] && continue
+        command -v "$c" >/dev/null 2>&1 || [ -x "$c" ] || continue
+        if PYTHONPATH="$(clean_pythonpath)" "$c" -c 'import numpy, scipy' \
+                >/dev/null 2>&1; then
+            printf '%s' "$c"
+            return 0
+        fi
+    done
+    return 1
+}
 
 # ---------------------------------------------------------------- helpers
 
@@ -625,5 +666,24 @@ done
 # 検証対象は anchor / fixed から導出済み (derive_fragspec)。
 # 渡すのは残基番号であって FMO のフラグメント番号ではない。
 echo "==================== contact check ===================="
-"${PYTHON}" check_contact.py ${fragspec} \
+
+# numpy / scipy の入った python を探す。見つからない場合は液滴を捨てずに
+# 検証だけ保留し、後から流せるコマンドを出す (富岳のシステム python3 は
+# 3.6.8 で scipy が無く、python 環境は次のセクションで作るため)。
+if ! PYTHON=$(find_python); then
+    cat >&2 <<UNVERIFIED
+*** 検証していない ***
+  numpy と scipy の入った python が見つからないので check_contact.py を
+  実行できなかった。液滴は出来ているが、**まだ検証されていない**。
+  python 環境を用意したあと、次を実行して確認すること:
+
+    python check_contact.py${fragspec} ${head}-optedpdb/*_fmo_mask.pdb
+
+  (富岳のシステム python3 は 3.6.8 で scipy が無い。venv を activate するか
+   PYTHON=/path/to/python を渡す)
+UNVERIFIED
+    exit 2
+fi
+
+PYTHONPATH="$(clean_pythonpath)" "${PYTHON}" check_contact.py ${fragspec} \
     "${head}"-optedpdb/*_fmo_mask.pdb

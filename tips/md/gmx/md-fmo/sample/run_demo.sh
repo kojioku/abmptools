@@ -25,6 +25,12 @@
 set -e
 
 PY=${PYTHON:-python3}
+
+# amber.sh が入れる Amber の py3.9 site-packages を外す。残したまま別の
+# python から parmed を import すると numpy 2 系で落ちる。
+export PYTHONPATH="$(printf '%s' "${PYTHONPATH:-}" | tr : '\n' |
+    grep -v "^${AMBERHOME:-/nonexistent}/" | grep -v '/amber.*/site-packages$' |
+    paste -sd: -)"
 CHECK=../check_contact.py
 FR="--residues A:1-1 --residues B:2-2 --residues L:3-3"
 
