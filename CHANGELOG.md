@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.13.2] - 2026-08-24
+
 ### Changed — tips/md-fmo: PBC 復元スクリプトを 1 本にまとめた (配布対象外)
 
 PBC 復元が 2 本のスクリプトに分かれていた。`2_optmask-frame.sh` の 4 段

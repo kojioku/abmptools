@@ -84,7 +84,7 @@ Observations from the codebase (not formal style guide):
 - Comments and variable names are a mix of English and Japanese.
 - **Docstrings** are Japanese Google-style (`Args:`, `Returns:`, `Raises:`)。全公開メソッド/クラス/モジュールに記述済み。
 - **型ヒント** は `from __future__ import annotations` + モダン構文 (`list[str]`, `X | None`) を使用。
-- **テスト** は pytest で 927 件。`tests/` ディレクトリに 46 ファイル。`monkeypatch` でCLI引数をテスト。
+- **テスト** は pytest で 994 件 (`--collect-only` の総数)。`tests/` に 50 ファイル。`monkeypatch` でCLI引数をテスト。
 
 ## Adding a New Module
 

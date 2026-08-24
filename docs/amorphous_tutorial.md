@@ -441,8 +441,8 @@ python build_amorphous.py ... \
   `<system>_<kind>_<yyyymmdd>_<key params>/` 命名で格納
 - **fcews-manybody との連携**: GROMACS ルート (Phase 2c-D) では fcewsmb が
   本 builder を呼び出し、amorphous build → MD → contact 抽出 → χ 計算まで
-  pipeline 化。詳細は fcews-manybody の
-  [integration_test.md](../../fcews-manybody/docs/integration_test.md)
+  pipeline 化。詳細は **fcews-manybody 側の `docs/integration_test.md`**
+  (別リポジトリなので、この配布物からは辿れない)
 - **FAQ**: [faq.md](faq.md)
 
 ---
