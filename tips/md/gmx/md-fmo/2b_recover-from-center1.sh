@@ -33,8 +33,8 @@ retainedions="|:NA+|:NA|:Na+|:CL|:Cl-"
 snum=0
 enum=19
 
-# 検証用のフラグメント指定 (check_contact.py に渡す)
-fragargs="--frag A:1-840 --frag B:841-1184 --frag lig:1185"
+# 検証する溶質の部分 (残基番号。FMO のフラグメント番号ではない)
+fragargs="--residues A:1-840 --residues B:841-1184 --residues lig:1185"
 ########################################################
 
 command -v cpptraj >/dev/null || { echo "cpptraj が見つかりません (amber.sh を source)"; exit 1; }

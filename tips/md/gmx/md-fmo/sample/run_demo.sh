@@ -26,7 +26,7 @@ set -e
 
 PY=${PYTHON:-python3}
 CHECK=../check_contact.py
-FR="--frag A:1-1 --frag B:2-2 --frag L:3-3"
+FR="--residues A:1-1 --residues B:2-2 --residues L:3-3"
 
 command -v gmx     >/dev/null || { echo "gmx が見つかりません"; exit 1; }
 command -v cpptraj >/dev/null || { echo "cpptraj が見つかりません"; exit 1; }

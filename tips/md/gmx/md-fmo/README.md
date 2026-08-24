@@ -92,11 +92,12 @@ bash ../2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc \
 
 実行時に解決後の設定を表示するので、渡し間違いはその場で分かる。
 
-> **検証用の `--frag` は書かなくてよい。** `check_contact.py` に渡すフラグメントは
-> `--anchor` / `--fixed` から自動で作る (`anchor:1-323` / `fixed:324-324`)。
-> 同じレンジを二度書く必要はない。以前は冒頭のマスクと末尾の `--frag` が
-> 480 行離れて別々に置かれており、片方だけ直して気づかない形になっていた。
-> マスクが単純なレンジでない場合だけ `--frag <名前>:<開始>-<終了>` を明示する。
+> **検証用の残基レンジは書かなくてよい。** `check_contact.py` に渡す
+> `--residues` は `--anchor` / `--fixed` から自動で作る
+> (`anchor:1-323` / `fixed:324-324`)。同じレンジを二度書く必要はない。
+> 以前は冒頭のマスクと末尾の `--frag` が 480 行離れて別々に置かれており、
+> 片方だけ直して気づかない形になっていた。マスクが単純なレンジでない場合だけ
+> `--residues <名前>:<開始>-<終了>` を明示する。
 
 上のオプションを省いたときの既定値はスクリプト冒頭にある:
 
@@ -199,16 +200,29 @@ bash 2_optmask-frame.sh ... --redo-from arrange # arrange から
 
 ```bash
 python3 check_contact.py \
-    --frag A:1-840 --frag B:841-1184 --frag lig:1185 \
+    --residues A:1-840 --residues B:841-1184 --residues lig:1185 \
     <head>-optedpdb/*_fmo_mask.pdb
 ```
 
-- フラグメント間の実座標最小距離が `--contact` (既定 5 Å) 未満 → 接触 OK
+- 指定した部分どうしの実座標最小距離が `--contact` (既定 5 Å) 未満 → 接触 OK
 - 水和殻の最大空隙が `--hole` (既定 8 Å) 未満 → イメージング健全
 - 依存: `numpy`, `scipy`。システムの `python3` に無い環境では
   `PYTHON=/path/to/venv/bin/python` で差し替える (富岳のログインノードは
   `python3` が 3.6.8 で scipy 無し)
 - NG が 1 つでもあれば exit 1 を返すのでバッチに組み込める
+- **測れなかったものは合格にしない。** 指定した残基レンジに該当が無い、
+  比較できた組が 1 つも無い、液滴なのに水が 0 — いずれも NG にして理由を出す
+  (以前は素通りしていた。原子 50 個・水 0 に切り詰めた液滴が
+  `water= 0 max_gap= nan OK` と報告された)。液滴化前の構造を検証する等で
+  水が無くて当然の場合は `--allow-dry`
+
+> **`--residues` に渡すのは残基番号であって、FMO のフラグメント番号ではない。**
+> FMO の分割は次の `3_fmosetup.sh` (ajf 生成) で決まるので、この時点では
+> まだ存在しない。溶質の範囲では一致することが多いが保証は無く、実データ
+> (EGFR) の `AUTOMATIC FRAGMENTATION` 表では残基通番 335 が FMO
+> フラグメント 325 に対応する (液滴に残らなかった水の分だけずれる)。
+> cpptraj の `:N-M` と同じ番号を渡すこと。
+> 旧名 `--frag` も当面受け付けるが、この取り違えを招くので `--residues` を使う。
 
 **接触距離だけを見ないこと。** `-pbc cluster` は「接触は戻すのに水和殻を置き去りにする
 (溶質が脱水する)」失敗をする。溶媒つき toy 系でも再現でき (空隙 3.7 Å → 13.9 Å、
@@ -219,7 +233,7 @@ python3 check_contact.py \
 
 1. **抽出直後の生 `.gro` を先に調べる**。
    ```bash
-   python3 check_contact.py --frag ... gmxpdbs-foropt/<head>_<i>.gro
+   python3 check_contact.py --residues ... gmxpdbs-foropt/<head>_<i>.gro
    ```
    ここで既に NG なら **PBC の問題ではなく、実際に解離している**可能性が高い
    (長時間 MD では起こりうる)。生が正常なら壊しているのは後処理側。

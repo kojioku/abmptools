@@ -38,7 +38,7 @@
 #       --anchor :1-323 --fixed :324 --solute 1-324 --frames 0:4:1 -t 4
 #
 #   系ごとの値はすべてコマンドラインで渡せる。検証 (check_contact.py) に渡す
-#   フラグメントは anchor / fixed から自動で作るので、同じレンジを二度書かない。
+#   残基レンジは anchor / fixed から自動で作るので、同じレンジを二度書かない。
 #   bash 2_optmask-frame.sh ... --check              # 進み具合だけ見る
 #   bash 2_optmask-frame.sh ... --redo-from arrange  # arrange からやり直す
 #
@@ -109,7 +109,8 @@ usage: 2_optmask-frame.sh -n <index.ndx> -p <topol.top> -f <traj> [options]
   --strip  <A>        溶質から何 A の水を残すか 既定 6.0
   --frames <s:e[:i]>  処理するフレーム番号     例 0:4:1
   --fit    <mask>     全フレームの向きを揃える 例 :1-323@CA
-  --frag   <name:lo-hi>  検証するフラグメント。既定は anchor / fixed から自動導出
+  --residues <name:lo-hi>  検証する溶質の部分 (残基番号)。
+                      既定は anchor / fixed から自動導出するので通常は不要
   --check             何もせず、フレームごとの進み具合だけを表示する
   --redo              マーカーを無視して全部やり直す
   --redo-from <stage> minimize | arrange のどちらかからやり直す
@@ -150,7 +151,7 @@ do
                 *[!0-9]*|'') echo "--frames は s:e[:i] の形で。" >&2; usage;;
             esac
             shift 2;;
-        --frag) fragspec="${fragspec} --frag ${2:-}"; shift 2;;
+        --residues) fragspec="${fragspec} --residues ${2:-}"; shift 2;;
         --check) mode="check"; shift;;
         --redo)  redo_from="minimize"; shift;;
         --redo-from)
@@ -384,7 +385,7 @@ if [ "$mode" = "check" ]; then
 fi
 
 
-# check_contact.py の --frag を anchor / fixed から作る。
+# check_contact.py の --residues を anchor / fixed から作る。
 #
 # 検証したいフラグメントは autoimage で組み直したフラグメントそのものなので、
 # 同じレンジを二度書く必要はない。二度書くと片方だけ直して気づかない、という
@@ -405,7 +406,7 @@ derive_fragspec() {
             *) echo "" ; return 0;;
         esac
         case "$lo$hi" in *[!0-9]*) echo ""; return 0;; esac
-        out="${out} --frag ${name}:${lo}-${hi}"
+        out="${out} --residues ${name}:${lo}-${hi}"
     done
     echo "$out"
 }
@@ -436,7 +437,7 @@ if [ -z "$fragspec" ]; then
     if [ -z "$fragspec" ]; then
         echo "ERROR: anchormask / fixedmask が単純なレンジ (\":1-323\" 等) では" >&2
         echo "       ないので、検証用のフラグメントを自動で決められない。" >&2
-        echo "       --frag <名前>:<開始>-<終了> を明示すること。" >&2
+        echo "       --residues <名前>:<開始>-<終了> を明示すること。" >&2
         exit 1
     fi
 fi
@@ -615,6 +616,7 @@ done
 
 # 最後に必ず検証。NG フレームは FMO に使わないこと。
 # 検証対象は anchor / fixed から導出済み (derive_fragspec)。
+# 渡すのは残基番号であって FMO のフラグメント番号ではない。
 echo "==================== contact check ===================="
 "${PYTHON}" check_contact.py ${fragspec} \
     "${head}"-optedpdb/*_fmo_mask.pdb
