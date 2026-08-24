@@ -422,10 +422,7 @@ function report() {
 NOTE
 }
 
-if [ "$mode" = "check" ]; then
-    report
-    exit 0
-fi
+
 
 
 # check_contact.py の --residues を anchor / fixed から作る。
@@ -496,6 +493,14 @@ cat <<SETTINGS
   verify :${fragspec}
   threads: ${optomp}
 SETTINGS
+
+# --check は「何もしないで状態だけ見る」。ここまでの検査 (マスクの範囲・
+# 溶媒混入・--residues の導出) は通しておく。設定の取り違えは進み具合より
+# 先に知りたい。
+if [ "$mode" = "check" ]; then
+    report
+    exit 0
+fi
 
 echo "threads for minimize = ${optomp}"
 
