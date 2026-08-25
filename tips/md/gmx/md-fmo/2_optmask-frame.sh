@@ -459,6 +459,18 @@ if [ -z "$fragspec" ]; then
     fragspec=$(derive_fragspec)
 fi
 
+# 向き揃えの状態を 1 行で出す。基準を使い回すので、バッチをまたいだときに
+# 「どのフレームに揃えているのか」がその場で見えないと取り違えに気づけない。
+if [ "$dofit" != "1" ]; then
+    _fitnote="なし (dofit=0)"
+elif [ -s "${head}_fitref.pdb" ]; then
+    _fitframe=$(sed -n 's/^REMARK   made from \(frame [0-9]*\).*/\1/p' \
+                "${head}_fitref.pdb" | head -1)
+    _fitnote="${fitmask} -> ${_fitframe:-(由来不明)} (${head}_fitref.pdb)"
+else
+    _fitnote="${fitmask} -> 最初に処理するフレームを基準にする (新規作成)"
+fi
+
 cat <<SETTINGS
 --- 設定 ---
   anchor : ${anchormask}
@@ -467,6 +479,7 @@ cat <<SETTINGS
   solute : ${maskinfo}  (液滴に残す水: 溶質から ${stripdist} A)
   frames : ${pdb_snum}..${pdb_enum} step ${pdb_interval}
   mdp    : ${minscript}
+  fit    : ${_fitnote}
   verify :${fragspec:- (anchor/fixed から決められないので --residues が要る)}
   threads: ${optomp}
 SETTINGS
@@ -678,7 +691,15 @@ EOF
     # (基準そのものは向きを変えていない。全部が同じ 1 つに合うことが要点で、
     #  どれを基準に選ぶかは揃うかどうかには効かない)
     if [ "$dofit" = "1" ] && [ ! -s "$_fitref" ]; then
-        cp "${d}_arranged.pdb" "$_fitref"
+        # 由来を PDB 自身に書いておく。あとから基準ファイルだけを見ても
+        # 「どのフレームの、いつの結果に揃えたのか」が分かるようにする。
+        # (REMARK は cpptraj も無視して読む)
+        {
+            printf 'REMARK   fit reference for %s\n' "${head}"
+            printf 'REMARK   made from frame %s (%s_arranged.pdb) on %s\n' \
+                   "${i}" "${d}" "$(date '+%Y-%m-%d %H:%M:%S')"
+            cat "${d}_arranged.pdb"
+        } > "$_fitref"
         echo "[fitref] $(basename "$_fitref") を作成 (frame ${i} を基準にする)"
     fi
     )

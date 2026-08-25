@@ -171,9 +171,23 @@ reference ../<head>_fitref.pdb name fitref
 rms ref fitref :1-323@CA
 ```
 
+**基準は最初に処理したフレーム。** 0 から始めれば frame 0 になる。
+どのフレームから作ったかは基準ファイル自身に書いてある。
+
+```
+REMARK   fit reference for egfr-HYZ_pr
+REMARK   made from frame 0 (egfr-HYZ_pr_0_fmo_arranged.pdb) on 2026-08-25 16:31:05
+```
+
 **フレームを分けて流しても向きが揃う。** 0-4 のあとに 5-9 を別実行しても、
-既にある `<head>_fitref.pdb` を使うので同じ向きになる。基準を作り直したい
-場合は、このファイルを park (改名) してから流す。
+既にある `<head>_fitref.pdb` を使うので同じ向きになる。実行時の設定表示に
+どのフレームが基準かが出る。
+
+```
+fit    : :1-323@CA -> frame 0 (egfr-HYZ_pr_fitref.pdb)
+```
+
+基準を作り直したい場合は、このファイルを park (改名) してから流す。
 
 > **どのファイルが基準なのかを外から見える所に置くのが要点。** 別フレームの
 > ディレクトリの中間ファイル (`_arranged.pdb`) を直接指していると、何を基準に
