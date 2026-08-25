@@ -69,4 +69,43 @@ done
 
 echo
 echo "==================== contact check ===================="
-python3 "${base}/check_contact.py" $fragargs "${base}/${outdir}"/*_fmo_mask.pdb
+
+# 検証用の python は 2_optmask-frame.sh と同じ探し方をする。
+# システムの python3 に scipy が無い環境がある (富岳のログインノードは
+# 3.6.8 で scipy 無し)。また amber.sh が PYTHONPATH に入れる Amber の
+# py3.9 site-packages は、別の python から見ると割り込みになるので外す。
+_clean_pp() {
+    local out="" e
+    IFS=: read -ra _pp <<<"${PYTHONPATH:-}"
+    for e in "${_pp[@]:-}"; do
+        [ -z "$e" ] && continue
+        case "$e" in
+            ${AMBERHOME:-/nonexistent}/*) continue;;
+            */amber*/lib/python*/site-packages) continue;;
+        esac
+        out="${out:+$out:}$e"
+    done
+    printf '%s' "$out"
+}
+
+_py=""
+for c in "${PYTHON:-}" "${VIRTUAL_ENV:+$VIRTUAL_ENV/bin/python}" \
+         "$HOME/fmoenv/bin/python" python3 python; do
+    [ -z "$c" ] && continue
+    command -v "$c" >/dev/null 2>&1 || [ -x "$c" ] || continue
+    if PYTHONPATH="$(_clean_pp)" "$c" -c 'import numpy, scipy' \
+            >/dev/null 2>&1; then
+        _py=$c; break
+    fi
+done
+
+if [ -z "$_py" ]; then
+    echo "*** 検証していない ***" >&2
+    echo "  numpy と scipy の入った python が無いので check_contact.py を" >&2
+    echo "  実行できなかった。液滴は出来ているが未検証。後で流すこと:" >&2
+    echo "    python ${base}/check_contact.py $fragargs ${base}/${outdir}/*_fmo_mask.pdb" >&2
+    exit 2
+fi
+
+PYTHONPATH="$(_clean_pp)" "$_py" "${base}/check_contact.py" $fragargs \
+    "${base}/${outdir}"/*_fmo_mask.pdb
