@@ -156,12 +156,28 @@ bash ../2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc
 ## 向き揃え (dofit)
 
 `dofit=1` にすると、全フレームを共通の向きに揃える (FMO エネルギーには無影響、
-図を並べるとき用)。基準は **最初に処理するフレームの `_arranged.pdb`**。
+図を並べるとき用)。
+
+基準は **`<head>_fitref.pdb`** —— `genref` の作る `<head>_ref.tpr` と並ぶ
+トップレベルの成果物。最初に arrange したフレームの結果を一度だけ複製し、
+以後の実行はそれを使い回す。
 
 ```
-reference ../<head>_<snum>_fmo/<head>_<snum>_fmo_arranged.pdb name fitref
+[fitref] egfr-HYZ_pr_fitref.pdb を作成 (frame 50 を基準にする)
+```
+
+```
+reference ../<head>_fitref.pdb name fitref
 rms ref fitref :1-323@CA
 ```
+
+**フレームを分けて流しても向きが揃う。** 0-4 のあとに 5-9 を別実行しても、
+既にある `<head>_fitref.pdb` を使うので同じ向きになる。基準を作り直したい
+場合は、このファイルを park (改名) してから流す。
+
+> **どのファイルが基準なのかを外から見える所に置くのが要点。** 別フレームの
+> ディレクトリの中間ファイル (`_arranged.pdb`) を直接指していると、何を基準に
+> 揃えたのかが追えず、バッチごとに基準が変わっていても気づけない。
 
 > **cpptraj の `reference` は 2 か所で間違えやすい。**
 >
