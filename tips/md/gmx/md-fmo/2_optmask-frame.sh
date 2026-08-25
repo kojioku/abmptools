@@ -453,6 +453,39 @@ derive_fragspec() {
 
 # ---------------------------------------------------------------- checks
 
+# --residues はマスクから作る。prmtop を読まないので、まだ何も無い段階でも
+# 決まる (--check をそこで使えるようにするため、ファイル検査より前に置く)。
+if [ -z "$fragspec" ]; then
+    fragspec=$(derive_fragspec)
+fi
+
+cat <<SETTINGS
+--- 設定 ---
+  anchor : ${anchormask}
+  fixed  : ${fixedmask}
+  mobile : ${mobilemask}
+  solute : ${maskinfo}  (液滴に残す水: 溶質から ${stripdist} A)
+  frames : ${pdb_snum}..${pdb_enum} step ${pdb_interval}
+  mdp    : ${minscript}
+  verify :${fragspec:- (anchor/fixed から決められないので --residues が要る)}
+  threads: ${optomp}
+SETTINGS
+
+# --check は何も実行しない。**prmtop も mdp も無い段階で状態を見たい**ので、
+# 下のファイル検査より前で返す。設定は上で出しているので、どの値で見ている
+# のかは分かる。
+if [ "$mode" = "check" ]; then
+    report
+    exit 0
+fi
+
+if [ -z "$fragspec" ]; then
+    echo "ERROR: anchormask / fixedmask が単純なレンジ (\":1-323\" 等) では" >&2
+    echo "       ないので、検証用の残基レンジを自動で決められない。" >&2
+    echo "       --residues <名前>:<開始>-<終了> を明示すること。" >&2
+    exit 1
+fi
+
 require "$minscript" "minimize 用 mdp が無い"
 require "$grotop"    "top が無い"
 require "$prmtop"    "0_parmed.sh を先に流して prmtop を作ること"
@@ -471,36 +504,6 @@ validate_mask maskinfo   "$maskinfo"   "$nres"
 
 solvent_in_mask anchormask "$anchormask"
 solvent_in_mask fixedmask  "$fixedmask"
-
-if [ -z "$fragspec" ]; then
-    fragspec=$(derive_fragspec)
-    if [ -z "$fragspec" ]; then
-        echo "ERROR: anchormask / fixedmask が単純なレンジ (\":1-323\" 等) では" >&2
-        echo "       ないので、検証用のフラグメントを自動で決められない。" >&2
-        echo "       --residues <名前>:<開始>-<終了> を明示すること。" >&2
-        exit 1
-    fi
-fi
-
-cat <<SETTINGS
---- 設定 ---
-  anchor : ${anchormask}
-  fixed  : ${fixedmask}
-  mobile : ${mobilemask}
-  solute : ${maskinfo}  (液滴に残す水: 溶質から ${stripdist} A)
-  frames : ${pdb_snum}..${pdb_enum} step ${pdb_interval}
-  mdp    : ${minscript}
-  verify :${fragspec}
-  threads: ${optomp}
-SETTINGS
-
-# --check は「何もしないで状態だけ見る」。ここまでの検査 (マスクの範囲・
-# 溶媒混入・--residues の導出) は通しておく。設定の取り違えは進み具合より
-# 先に知りたい。
-if [ "$mode" = "check" ]; then
-    report
-    exit 0
-fi
 
 echo "threads for minimize = ${optomp}"
 
