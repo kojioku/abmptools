@@ -615,10 +615,44 @@ EOF
 
     # step2: cpptraj autoimage でフラグメント間の相対位置を決定論的に組み直し、
     #        続けて液滴 (溶質から stripdist 以内の水) を切り出す
+    # 向き揃え。cpptraj の `rms reference` は **reference を先に読み込んで
+    # おかないと使えない**。以前は rms の行だけ出していたので dofit=1 は必ず
+    #   Error: Reference index 0 not found.
+    #   Error: Could not initialize action [rms]
+    # で落ちていた。
+    #
+    # 基準は最初に処理するフレームの whole.pdb にする。全フレームが同じ 1 つの
+    # 構造に合わせられて初めて「共通の向き」になるので、フレームごとに違う基準
+    # (自分自身など) を使っては意味がない。最初のフレーム自身は自分に合わせる
+    # ことになり、動かない。
+    fitline=""
     if [ "$dofit" = "1" ]; then
-        fitline="rms reference ${fitmask}"
-    else
-        fitline=""
+        # 基準は最初のフレームの **arranged**。whole を基準にすると合わない。
+        # whole は autoimage 前で、溶質が周期境界をまたいだままのことがある
+        # (実測: frame 42 の whole は基準から 144 A 離れていた)。そこへ
+        # autoimage 済みのフレームを合わせると、cpptraj は「割れた形」に
+        # 最小二乗で寄せようとして中途半端な向きで止まる。実測で fit 後の
+        # CA RMSD が 14 A、最適重ね合わせなら 1.5 A で済むところだった。
+        _refdir=${head}_${pdb_snum}_fmo
+        _ref=../${_refdir}/${_refdir}_arranged.pdb
+        if [ "$i" = "$pdb_snum" ]; then
+            # 最初のフレームには基準がまだ無い。自分が基準になるので、
+            # ここでは向きを変えない (変えるものが無い)。
+            _ref=""
+        elif [ ! -s "$_ref" ]; then
+            echo "ERROR: 向き揃えの基準 ${_ref} が無い。" >&2
+            echo "       最初のフレーム (${pdb_snum}) の arrange が済んでいない。" >&2
+            echo "       --redo-from arrange で最初から流し直すこと。" >&2
+            exit 1
+        fi
+        if [ -n "$_ref" ]; then
+            # 名前を付けて渡す。`reference <file> [tag]` の角括弧はタグで、
+            # `rms [tag] ...` では参照できない (cpptraj は黙って「最初の
+            # フレーム」に落ち、自分自身に合わせて RMSD 0 のまま何も動かない)。
+            # `name <名前>` を付けて `rms ref <名前>` で指す。
+            fitline="reference ${_ref} name fitref
+rms ref fitref ${fitmask}"
+        fi
     fi
 
     # 液滴は一時名に書かせ、中身を検めてから rename で確定する。cpptraj に

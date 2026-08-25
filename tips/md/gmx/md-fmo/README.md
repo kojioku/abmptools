@@ -153,6 +153,32 @@ bash ../2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc
 > 液滴が出来る。逆に開始側が範囲外の `:841-1185` は警告こそ出るが選択ゼロで
 > 走り続ける。どちらも実行時には気づけない。
 
+## 向き揃え (dofit)
+
+`dofit=1` にすると、全フレームを共通の向きに揃える (FMO エネルギーには無影響、
+図を並べるとき用)。基準は **最初に処理するフレームの `_arranged.pdb`**。
+
+```
+reference ../<head>_<snum>_fmo/<head>_<snum>_fmo_arranged.pdb name fitref
+rms ref fitref :1-323@CA
+```
+
+> **cpptraj の `reference` は 2 か所で間違えやすい。**
+>
+> 1. `rms reference <mask>` と書いても、`reference` 行で構造を読み込んで
+>    いなければ `Error: Reference index 0 not found.` で落ちる
+> 2. 読み込んでも **`reference <file> [tag]` の角括弧はタグで、
+>    `rms [tag] ...` からは参照できない**。cpptraj はエラーを出さず
+>    「最初のフレーム」に落ちる —— つまり自分自身に合わせるので RMSD 0 で
+>    何も動かない。`name <名前>` を付けて `rms ref <名前>` と指すこと
+>
+> 実測 (EGFR 3 フレーム): 誤った指定では fit 後の CA RMSD が 2.8 / 14.0 Å、
+> 正しく指すと 1.303 / 1.502 Å となり、最適重ね合わせ (Kabsch) の値と一致した。
+
+基準に `_whole.pdb` (autoimage 前) を使ってはいけない。溶質が周期境界を
+またいだままのことがあり (実測で基準から 144 Å 離れていた)、そこへ合わせようと
+すると中途半端な向きで止まる。
+
 ## ジョブ投入スクリプト (3_fmosetup.sh)
 
 `3_fmosetup.sh` は最後に投入スクリプト (`setupv1dd2024-bulk.sh` 等) を使う。
