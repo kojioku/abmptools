@@ -10,7 +10,7 @@ memory=7000
 np=1
 
 fgkflag=true
-runsh='setupbindsv1-l39-bulk.sh' #runabfmogw.sh
+runsh='setupv1dd2024-bulk.sh' # fmogw なら runabfmogw.sh
 
 starttime=0
 endtime=4
@@ -48,13 +48,12 @@ if [ ! -f "${runsh}" ]; then
 fi
 
 # 名前が違うだけのことがある (setupv1dd2024-bulk.sh / setupbindsv1-*.sh 等)。
-# 候補が 1 つに決まるなら、それを使って先へ進む。
+# 富岳は *bulk.sh、fmogw は runabfmogw.sh を使うので、fgkflag で候補を絞る。
 if [ ! -f "${runsh}" ]; then
   _here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-  _cand=$(ls -1 *bulk.sh runabfmogw.sh "${_here}"/*bulk.sh \
-                "${_here}"/runabfmogw.sh ../*bulk.sh ../runabfmogw.sh \
-          2>/dev/null | sort -u)
-  if [ "$(printf '%s\n' "${_cand}" | grep -c .)" = 1 ] && [ -n "${_cand}" ]; then
+  if "${fgkflag}"; then _pat='*bulk.sh'; else _pat='runabfmogw.sh'; fi
+  _cand=$(ls -1 ${_pat} "${_here}"/${_pat} ../${_pat} ../../${_pat} 2>/dev/null | head -1)
+  if [ -n "${_cand}" ]; then
     cp "${_cand}" .
     runsh=$(basename "${_cand}")
     echo "[copy] ${_cand} を使う (runsh を ${runsh} に読み替えた)"
@@ -63,7 +62,7 @@ fi
 
 if [ ! -f "${runsh}" ]; then
   echo "Error: ${runsh} が見つからない。" >&2
-  echo "       カレント・スクリプトと同じ場所・上位 3 階層を探した。" >&2
+  echo "       カレント・スクリプトと同じ場所・上位 3 階層を ${_pat} で探した。" >&2
   echo "       投入スクリプトを置くか、冒頭の runsh= を実名に直すこと。" >&2
   exit 1
 fi
