@@ -34,8 +34,11 @@
 # <名前>.<日時> にどけてから進む。
 #
 # 実行例:
-#   bash 2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc
-#   bash 2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc -t 8
+#   bash 2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc \\
+#       --anchor :1-323 --fixed :324 --solute 1-324 --frames 0:4:1 -t 4
+#
+#   系ごとの値はすべてコマンドラインで渡せる。検証 (check_contact.py) に渡す
+#   残基レンジは anchor / fixed から自動で作るので、同じレンジを二度書かない。
 #   bash 2_optmask-frame.sh ... --check              # 進み具合だけ見る
 #   bash 2_optmask-frame.sh ... --redo-from arrange  # arrange からやり直す
 #
@@ -57,6 +60,8 @@ minscript=min_aftermd.mdp
 #     基準が静かに壊れる。実測: 334 残基の系で ":1-840" は全 1055 原子を選択し、
 #     警告は一切出なかった。
 #
+# 既定値。スクリプトを書き換えなくても --anchor / --fixed 等で上書きできるので、
+# 系ごとの指定はコマンドラインで渡すことを勧める (編集箇所が散らばらない)。
 # 例) frag A=res 1-840, frag B=res 841-1184, リガンド=res 1185 の場合:
 anchormask=":1-840"
 fixedmask=":841-1185"
@@ -82,11 +87,9 @@ pdb_interval=1
 #   ジョブとして流すときだけにすること。
 optomp=${OPT_THREADS:-4}
 
-# 検証 (check_contact.py) を走らせる python。numpy と scipy が要る。
-#   システムの python3 が古い / scipy が無い環境 (富岳のログインノードは
-#   python3 が 3.6.8 で scipy 無し) では venv の python を渡す:
-#     PYTHON=/path/to/venv/bin/python bash 2_optmask-frame.sh ...
-PYTHON=${PYTHON:-python3}
+# 検証 (check_contact.py) に使う python は自動で探す (下の find_python)。
+# 明示したいときだけ PYTHON=/path/to/python を渡す。
+PYTHON=${PYTHON:-}
 
 ##################
 
@@ -95,6 +98,18 @@ usage() {
 usage: 2_optmask-frame.sh -n <index.ndx> -p <topol.top> -f <traj> [options]
 
   -t <threads>        minimize のスレッド数 (既定 4 / $OPT_THREADS)
+
+系ごとの指定 (スクリプトを書き換えず、ここで渡せる):
+  --mdp    <file>     minimize の条件ファイル  既定 min_aftermd.mdp
+  --anchor <mask>     箱の中心に固定する分子   例 :1-323
+  --fixed  <mask>     anchor に寄せる分子      例 :324
+  --mobile <mask>     詰め直す溶媒             既定 :WAT
+  --solute <range>    液滴に残す溶質のレンジ   例 1-324
+  --strip  <A>        溶質から何 A の水を残すか 既定 6.0
+  --frames <s:e[:i]>  処理するフレーム番号     例 0:4:1
+  --fit    <mask>     全フレームの向きを揃える 例 :1-323@CA
+  --residues <name:lo-hi>  検証する溶質の部分 (残基番号)。
+                      既定は anchor / fixed から自動導出するので通常は不要
   --check             何もせず、フレームごとの進み具合だけを表示する
   --redo              マーカーを無視して全部やり直す
   --redo-from <stage> minimize | arrange のどちらかからやり直す
@@ -111,6 +126,7 @@ if [ $# = 0 ]; then
 fi
 
 solindex=""; grotop=""; traj=""
+fragspec=""         # 空なら anchor/fixed から導出する (下記 derive_fragspec)
 mode="run"          # run | check
 redo_from=""        # "" | minimize | arrange
 while [ $# -gt 0 ]
@@ -120,6 +136,22 @@ do
         -p) grotop=${2:-};   shift 2;;
         -f) traj=${2:-};     shift 2;;
         -t) optomp=${2:-};   shift 2;;
+        --mdp)    minscript=${2:-}; shift 2;;
+        --anchor) anchormask=${2:-}; shift 2;;
+        --fixed)  fixedmask=${2:-};  shift 2;;
+        --mobile) mobilemask=${2:-}; shift 2;;
+        --solute) maskinfo=${2:-};   shift 2;;
+        --strip)  stripdist=${2:-};  shift 2;;
+        --fit)    fitmask=${2:-}; dofit=1; shift 2;;
+        --frames)
+            # s:e:i (i 省略時は 1)
+            IFS=: read -r pdb_snum pdb_enum pdb_interval <<<"${2:-}"
+            pdb_interval=${pdb_interval:-1}
+            case "${pdb_snum}${pdb_enum}${pdb_interval}" in
+                *[!0-9]*|'') echo "--frames は s:e[:i] の形で。" >&2; usage;;
+            esac
+            shift 2;;
+        --residues) fragspec="${fragspec} --residues ${2:-}"; shift 2;;
         --check) mode="check"; shift;;
         --redo)  redo_from="minimize"; shift;;
         --redo-from)
@@ -148,6 +180,49 @@ echo "$solindex"
 headbuf=${traj%.*}
 head=${headbuf##*/}
 prmtop=${grotop%.*}.prmtop
+
+# ---------------------------------------------------------------- python
+
+# Amber の site-packages を PYTHONPATH から外した環境変数を組み立てる。
+#
+# amber.sh は PYTHONPATH に $AMBERHOME/lib/python3.9/site-packages を入れる。
+# これは parmed の CLI が動くために必要 (parmed 本体はそこにしか無い) なので
+# 消せないが、別の python から見ると 3.9 用のパッケージが割り込んでくる。
+# numpy 2 系の venv で Amber の parmed を掴むと
+#   ModuleNotFoundError: No module named 'numpy.compat'
+# で落ちる。ここでは Amber 由来の項目だけを落とし、利用者が自分で入れた
+# PYTHONPATH は残す。
+clean_pythonpath() {
+    local out="" e
+    IFS=: read -ra _pp <<<"${PYTHONPATH:-}"
+    for e in "${_pp[@]:-}"; do
+        [ -z "$e" ] && continue
+        case "$e" in
+            ${AMBERHOME:-/nonexistent}/*) continue;;
+            */amber*/lib/python*/site-packages) continue;;
+        esac
+        out="${out:+$out:}$e"
+    done
+    printf '%s' "$out"
+}
+
+#: numpy と scipy が入っている python を探す。
+#  順に: PYTHON 指定 -> 有効な venv -> ~/fmoenv -> python3 -> python
+#  Amber の PYTHONPATH を外した状態で判定する (外さないと 3.9 用が割り込む)。
+find_python() {
+    local c
+    for c in "$PYTHON" "${VIRTUAL_ENV:+$VIRTUAL_ENV/bin/python}" \
+             "$HOME/fmoenv/bin/python" python3 python; do
+        [ -z "$c" ] && continue
+        command -v "$c" >/dev/null 2>&1 || [ -x "$c" ] || continue
+        if PYTHONPATH="$(clean_pythonpath)" "$c" -c 'import numpy, scipy' \
+                >/dev/null 2>&1; then
+            printf '%s' "$c"
+            return 0
+        fi
+    done
+    return 1
+}
 
 # ---------------------------------------------------------------- helpers
 
@@ -347,13 +422,82 @@ function report() {
 NOTE
 }
 
+
+
+
+# check_contact.py の --residues を anchor / fixed から作る。
+#
+# 検証したいフラグメントは autoimage で組み直したフラグメントそのものなので、
+# 同じレンジを二度書く必要はない。二度書くと片方だけ直して気づかない、という
+# 事故が起きる (編集箇所が冒頭と末尾で 480 行離れていた)。
+#
+# ":1-323" -> "prot:1-323"、":324" -> "lig:324" のように名前を付ける。
+# カンマ区切りや原子指定を含むマスクは 1 つのレンジに落とせないので、その場合は
+# --frag を明示してもらう。
+derive_fragspec() {
+    local out="" i=0 m name lo hi
+    for m in "$anchormask" "$fixedmask"; do
+        i=$((i + 1))
+        name=$([ $i = 1 ] && echo anchor || echo fixed)
+        # ":1-323" / ":324" だけを受け付ける
+        case "$m" in
+            :[0-9]*-[0-9]*) lo=${m#:}; hi=${lo#*-}; lo=${lo%-*};;
+            :[0-9]*)        lo=${m#:}; hi=$lo;;
+            *) echo "" ; return 0;;
+        esac
+        case "$lo$hi" in *[!0-9]*) echo ""; return 0;; esac
+        out="${out} --residues ${name}:${lo}-${hi}"
+    done
+    echo "$out"
+}
+
+# ---------------------------------------------------------------- checks
+
+# --residues はマスクから作る。prmtop を読まないので、まだ何も無い段階でも
+# 決まる (--check をそこで使えるようにするため、ファイル検査より前に置く)。
+if [ -z "$fragspec" ]; then
+    fragspec=$(derive_fragspec)
+fi
+
+# 向き揃えの状態を 1 行で出す。基準を使い回すので、バッチをまたいだときに
+# 「どのフレームに揃えているのか」がその場で見えないと取り違えに気づけない。
+if [ "$dofit" != "1" ]; then
+    _fitnote="なし (dofit=0)"
+elif [ -s "${head}_fitref.pdb" ]; then
+    _fitframe=$(sed -n 's/^REMARK   made from \(frame [0-9]*\).*/\1/p' \
+                "${head}_fitref.pdb" | head -1)
+    _fitnote="${fitmask} -> ${_fitframe:-(由来不明)} (${head}_fitref.pdb)"
+else
+    _fitnote="${fitmask} -> 最初に処理するフレームを基準にする (新規作成)"
+fi
+
+cat <<SETTINGS
+--- 設定 ---
+  anchor : ${anchormask}
+  fixed  : ${fixedmask}
+  mobile : ${mobilemask}
+  solute : ${maskinfo}  (液滴に残す水: 溶質から ${stripdist} A)
+  frames : ${pdb_snum}..${pdb_enum} step ${pdb_interval}
+  mdp    : ${minscript}
+  fit    : ${_fitnote}
+  verify :${fragspec:- (anchor/fixed から決められないので --residues が要る)}
+  threads: ${optomp}
+SETTINGS
+
+# --check は何も実行しない。**prmtop も mdp も無い段階で状態を見たい**ので、
+# 下のファイル検査より前で返す。設定は上で出しているので、どの値で見ている
+# のかは分かる。
 if [ "$mode" = "check" ]; then
     report
     exit 0
 fi
 
-
-# ---------------------------------------------------------------- checks
+if [ -z "$fragspec" ]; then
+    echo "ERROR: anchormask / fixedmask が単純なレンジ (\":1-323\" 等) では" >&2
+    echo "       ないので、検証用の残基レンジを自動で決められない。" >&2
+    echo "       --residues <名前>:<開始>-<終了> を明示すること。" >&2
+    exit 1
+fi
 
 require "$minscript" "minimize 用 mdp が無い"
 require "$grotop"    "top が無い"
@@ -383,8 +527,12 @@ function genref() {
         echo "[skip] ${head}_ref.tpr は作成済み"
         return
     fi
-    require "${head}_0.gro" "1_trajsep.sh の出力が無い"
-    gmx grompp -f "$minscript" -c "${head}_0.gro" -r "${head}_0.gro" \
+    # 基準構造は「処理する最初のフレーム」。0 決め打ちにすると --frames で
+    # 途中から始めたときに存在しないファイルを探して止まる。
+    local ref=${head}_${pdb_snum}.gro
+    [ -f "$ref" ] || ref=${head}_${pdb_snum}_fmo/${head}_${pdb_snum}.gro
+    require "$ref" "1_trajsep.sh の出力 (${head}_${pdb_snum}.gro) が無い"
+    gmx grompp -f "$minscript" -c "$ref" -r "$ref" \
         -p "${grotop}" -o "${head}_ref.tpr" -maxwarn 1
     require "${head}_ref.tpr"
 }
@@ -480,10 +628,33 @@ EOF
 
     # step2: cpptraj autoimage でフラグメント間の相対位置を決定論的に組み直し、
     #        続けて液滴 (溶質から stripdist 以内の水) を切り出す
-    if [ "$dofit" = "1" ]; then
-        fitline="rms reference ${fitmask}"
-    else
-        fitline=""
+    # 向き揃え。cpptraj の `rms reference` は **reference を先に読み込んで
+    # おかないと使えない**。以前は rms の行だけ出していたので dofit=1 は必ず
+    #   Error: Reference index 0 not found.
+    #   Error: Could not initialize action [rms]
+    # で落ちていた。
+    #
+    # 基準は最初に処理するフレームの whole.pdb にする。全フレームが同じ 1 つの
+    # 構造に合わせられて初めて「共通の向き」になるので、フレームごとに違う基準
+    # (自分自身など) を使っては意味がない。最初のフレーム自身は自分に合わせる
+    # ことになり、動かない。
+    # 向き揃えの基準は ${head}_fitref.pdb。genref の作る ${head}_ref.tpr と
+    # 並ぶトップレベルの成果物にしてある。以前は「最初のフレームの
+    # ディレクトリの中の中間ファイル」を直接覗いていたが、
+    #   - どれが基準なのか外から見えない
+    #   - フレームを分けて流すと (0-4 のあと 5-9 など) 基準が別々になり、
+    #     揃えたはずの向きがバッチ間で揃わない
+    # ので、最初に arrange したフレームの結果を一度だけ複製して使い回す。
+    # 作り直したいときは park してから流す。
+    fitline=""
+    _fitref=../${head}_fitref.pdb
+    if [ "$dofit" = "1" ] && [ -s "$_fitref" ]; then
+        # 名前を付けて渡す。`reference <file> [tag]` の角括弧はタグで、
+        # `rms [tag] ...` では参照できない (cpptraj は黙って「最初の
+        # フレーム」に落ち、自分自身に合わせて RMSD 0 のまま何も動かない)。
+        # `name <名前>` を付けて `rms ref <名前>` で指す。
+        fitline="reference ${_fitref} name fitref
+rms ref fitref ${fitmask}"
     fi
 
     # 液滴は一時名に書かせ、中身を検めてから rename で確定する。cpptraj に
@@ -514,6 +685,23 @@ EOF
 
     park "${d}_mask.pdb"        # --redo で既存があるとき用。消さずにどける
     mv "$tmp" "${d}_mask.pdb"   # 同一 fs 内の rename = 原子的
+
+    # 基準がまだ無ければ、このフレームの結果を基準にする。autoimage 済みの
+    # 座標なので、以後のフレームはこれに合わせれば同じ向きに揃う。
+    # (基準そのものは向きを変えていない。全部が同じ 1 つに合うことが要点で、
+    #  どれを基準に選ぶかは揃うかどうかには効かない)
+    if [ "$dofit" = "1" ] && [ ! -s "$_fitref" ]; then
+        # 由来を PDB 自身に書いておく。あとから基準ファイルだけを見ても
+        # 「どのフレームの、いつの結果に揃えたのか」が分かるようにする。
+        # (REMARK は cpptraj も無視して読む)
+        {
+            printf 'REMARK   fit reference for %s\n' "${head}"
+            printf 'REMARK   made from frame %s (%s_arranged.pdb) on %s\n' \
+                   "${i}" "${d}" "$(date '+%Y-%m-%d %H:%M:%S')"
+            cat "${d}_arranged.pdb"
+        } > "$_fitref"
+        echo "[fitref] $(basename "$_fitref") を作成 (frame ${i} を基準にする)"
+    fi
     )
 
     # 液滴が出来てから記録する。落ちればマーカーは書かれず、次回やり直す。
@@ -536,7 +724,27 @@ do
 done
 
 # 最後に必ず検証。NG フレームは FMO に使わないこと。
-# (--frag は anchor/fixed の残基レンジに合わせて編集)
+# 検証対象は anchor / fixed から導出済み (derive_fragspec)。
+# 渡すのは残基番号であって FMO のフラグメント番号ではない。
 echo "==================== contact check ===================="
-"${PYTHON}" check_contact.py --frag A:1-840 --frag B:841-1184 --frag lig:1185 \
+
+# numpy / scipy の入った python を探す。見つからない場合は液滴を捨てずに
+# 検証だけ保留し、後から流せるコマンドを出す (富岳のシステム python3 は
+# 3.6.8 で scipy が無く、python 環境は次のセクションで作るため)。
+if ! PYTHON=$(find_python); then
+    cat >&2 <<UNVERIFIED
+*** 検証していない ***
+  numpy と scipy の入った python が見つからないので check_contact.py を
+  実行できなかった。液滴は出来ているが、**まだ検証されていない**。
+  python 環境を用意したあと、次を実行して確認すること:
+
+    python check_contact.py${fragspec} ${head}-optedpdb/*_fmo_mask.pdb
+
+  (富岳のシステム python3 は 3.6.8 で scipy が無い。venv を activate するか
+   PYTHON=/path/to/python を渡す)
+UNVERIFIED
+    exit 2
+fi
+
+PYTHONPATH="$(clean_pythonpath)" "${PYTHON}" check_contact.py ${fragspec} \
     "${head}"-optedpdb/*_fmo_mask.pdb

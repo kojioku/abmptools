@@ -71,15 +71,68 @@ PBC 再構成もそちらに寄せると一貫する。
 # 新: -pbc whole -> cpptraj autoimage anchor :A fixed :B+lig mobile :WAT -> mask
 ```
 
-## 系ごとの編集ポイント
+## 系ごとの指定
 
-`2_optmask-frame.sh` 冒頭の以下を系に合わせて変更する:
+系ごとの値は **スクリプト冒頭を編集する**。実行はそのまま:
+
+```bash
+bash ../2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc
+```
+
+| 冒頭の変数 | 意味 |
+|---|---|
+| `anchormask` | 箱の中心に固定する分子 (通常タンパク片方) |
+| `fixedmask` | anchor の最近接イメージへ寄せる分子 (相手タンパク + リガンド) |
+| `mobilemask` | 箱に詰め直す溶媒 (既定 `:WAT`) |
+| `maskinfo` | 液滴に残す溶質の残基レンジ |
+| `stripdist` | 溶質から何 Å 以内の水を残すか (既定 6.0) |
+| `pdb_snum` / `pdb_enum` / `pdb_interval` | 処理するフレーム番号 |
+| `minscript` | minimize の条件ファイル |
+
+**編集するのは冒頭のブロックだけ。** 以前は末尾の `--frag` 行も直す必要が
+あり、480 行離れた 2 か所を揃えなければならなかった。今は下記のとおり
+自動導出する。
+
+**コマンドラインで渡した値は、冒頭の値より必ず優先される。** 引数の解釈は
+冒頭のブロックより後で行われるので、一時的に別の系・別のフレームで流したい
+ときはスクリプトを書き換えずに済む。解決後の値は実行時に表示される:
+
+```
+--- 設定 ---
+  anchor : :2            <- --anchor :2 が冒頭の :1 を上書きした
+  fixed  : :3
+  solute : 1-2  (液滴に残す水: 溶質から 9.9 A)
+  frames : 1..3 step 2
+  mdp    : min_quick.mdp
+  verify : --residues anchor:2-2 --residues fixed:3-3
+  threads: 4
+```
+
+対応は以下のとおり:
+
+| オプション | 対応する変数 |
+|---|---|
+| `--anchor` `--fixed` `--mobile` | `anchormask` / `fixedmask` / `mobilemask` |
+| `--solute` `--strip` | `maskinfo` / `stripdist` |
+| `--frames s:e[:i]` | `pdb_snum` / `pdb_enum` / `pdb_interval` |
+| `--mdp` | `minscript` |
+| `--fit` | `fitmask` (指定すると `dofit=1`) |
+
+実行時に解決後の設定を表示するので、編集漏れはその場で分かる。
+
+> **検証用の残基レンジは書かなくてよい。** `check_contact.py` に渡す
+> `--residues` は `--anchor` / `--fixed` から自動で作る
+> (`anchor:1-323` / `fixed:324-324`)。同じレンジを二度書く必要はない。
+> 以前は冒頭のマスクと末尾の `--frag` が 480 行離れて別々に置かれており、
+> 片方だけ直して気づかない形になっていた。マスクが単純なレンジでない場合だけ
+> `--residues <名前>:<開始>-<終了>` を明示する。
+
+上のオプションを省いたときの既定値はスクリプト冒頭にある:
 
 - `anchormask` / `fixedmask` … 複合体フラグメントの残基レンジ
   (`anchor` = 中心に固定する分子、`fixed` = それに寄せる分子)
 - `maskinfo` … 液滴に残す溶質の残基レンジ
 - `stripdist` … 溶質から何 Å 以内の水を残すか
-- `check_contact.py` の `--frag` … 末尾の検証行も同じレンジに合わせる
 
 **編集し忘れは自動で止まる。** 起動時に 2 段の検査をする。
 
@@ -99,6 +152,102 @@ PBC 再構成もそちらに寄せると一貫する。
 > 一切出ない。anchor に水が全部入った状態で autoimage が回り、静かに間違った
 > 液滴が出来る。逆に開始側が範囲外の `:841-1185` は警告こそ出るが選択ゼロで
 > 走り続ける。どちらも実行時には気づけない。
+
+## 向き揃え (dofit)
+
+`dofit=1` にすると、全フレームを共通の向きに揃える (FMO エネルギーには無影響、
+図を並べるとき用)。
+
+基準は **`<head>_fitref.pdb`** —— `genref` の作る `<head>_ref.tpr` と並ぶ
+トップレベルの成果物。最初に arrange したフレームの結果を一度だけ複製し、
+以後の実行はそれを使い回す。
+
+```
+[fitref] egfr-HYZ_pr_fitref.pdb を作成 (frame 50 を基準にする)
+```
+
+```
+reference ../<head>_fitref.pdb name fitref
+rms ref fitref :1-323@CA
+```
+
+**基準は最初に処理したフレーム。** 0 から始めれば frame 0 になる。
+どのフレームから作ったかは基準ファイル自身に書いてある。
+
+```
+REMARK   fit reference for egfr-HYZ_pr
+REMARK   made from frame 0 (egfr-HYZ_pr_0_fmo_arranged.pdb) on 2026-08-25 16:31:05
+```
+
+**フレームを分けて流しても向きが揃う。** 0-4 のあとに 5-9 を別実行しても、
+既にある `<head>_fitref.pdb` を使うので同じ向きになる。実行時の設定表示に
+どのフレームが基準かが出る。
+
+```
+fit    : :1-323@CA -> frame 0 (egfr-HYZ_pr_fitref.pdb)
+```
+
+基準を作り直したい場合は、このファイルを park (改名) してから流す。
+
+> **どのファイルが基準なのかを外から見える所に置くのが要点。** 別フレームの
+> ディレクトリの中間ファイル (`_arranged.pdb`) を直接指していると、何を基準に
+> 揃えたのかが追えず、バッチごとに基準が変わっていても気づけない。
+
+> **cpptraj の `reference` は 2 か所で間違えやすい。**
+>
+> 1. `rms reference <mask>` と書いても、`reference` 行で構造を読み込んで
+>    いなければ `Error: Reference index 0 not found.` で落ちる
+> 2. 読み込んでも **`reference <file> [tag]` の角括弧はタグで、
+>    `rms [tag] ...` からは参照できない**。cpptraj はエラーを出さず
+>    「最初のフレーム」に落ちる —— つまり自分自身に合わせるので RMSD 0 で
+>    何も動かない。`name <名前>` を付けて `rms ref <名前>` と指すこと
+>
+> 実測 (EGFR 3 フレーム): 誤った指定では fit 後の CA RMSD が 2.8 / 14.0 Å、
+> 正しく指すと 1.303 / 1.502 Å となり、最適重ね合わせ (Kabsch) の値と一致した。
+
+基準に `_whole.pdb` (autoimage 前) を使ってはいけない。溶質が周期境界を
+またいだままのことがあり (実測で基準から 144 Å 離れていた)、そこへ合わせようと
+すると中途半端な向きで止まる。
+
+## ジョブ投入スクリプト (3_fmosetup.sh)
+
+`3_fmosetup.sh` は最後に投入スクリプト (`setupv1dd2024-bulk.sh` 等) を使う。
+**手でコピーする必要はない。** 見つからなければ
+
+1. カレント
+2. `3_fmosetup.sh` と同じ場所
+3. 上へ 3 階層
+
+の順に探し、見つけたらカレントへ複製する。名前が冒頭の `runsh=` と違っていても、
+候補が 1 つに決まるならそれを使い、読み替えたことを表示する。
+
+```
+[copy] ../setupv1dd2024-bulk.sh を使う (runsh を setupv1dd2024-bulk.sh に読み替えた)
+runsh = setupv1dd2024-bulk.sh
+```
+
+どこにも無い場合は、探した場所を示して止まる。
+
+> **以前は「カレントに無ければ即終了」だった。** 実際に `3_fmosetup.sh` を流すのは
+> `-optedpdb` の中で、投入スクリプトは配布物と一緒に上の階層にある。手で `cp` する
+> 手順が 1 つ増えるだけで、忘れると理由の分かりにくいエラーになっていた。
+
+## 通し確認を短時間で済ませる
+
+本番の `min_aftermd.mdp` は `emtol=1255` まで落とすので、70950 原子の系だと
+1 フレーム 5-7 分かかる (収束 step は構造次第で 294-711 と 2.4 倍ばらつく)。
+段の繋がり・再開・検証だけを確かめたいときは `min_quick.mdp` を使う。
+
+```bash
+bash ../2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc \
+    --mdp min_quick.mdp
+```
+
+`nsteps=15` で打ち切り、カットオフも 1.2 nm に縮めてある。同じ EGFR 系で
+**5 フレーム 36 秒**。
+
+> **min_quick.mdp で作った液滴を FMO に投入しないこと。** 力が全く落ちて
+> いないので構造として使えない。パイプラインの配線を見るためだけのもの。
 
 ## スレッド数とログインノード
 
@@ -175,16 +324,36 @@ bash 2_optmask-frame.sh ... --redo-from arrange # arrange から
 
 ```bash
 python3 check_contact.py \
-    --frag A:1-840 --frag B:841-1184 --frag lig:1185 \
+    --residues A:1-840 --residues B:841-1184 --residues lig:1185 \
     <head>-optedpdb/*_fmo_mask.pdb
 ```
 
-- フラグメント間の実座標最小距離が `--contact` (既定 5 Å) 未満 → 接触 OK
+- 指定した部分どうしの実座標最小距離が `--contact` (既定 5 Å) 未満 → 接触 OK
 - 水和殻の最大空隙が `--hole` (既定 8 Å) 未満 → イメージング健全
-- 依存: `numpy`, `scipy`。システムの `python3` に無い環境では
-  `PYTHON=/path/to/venv/bin/python` で差し替える (富岳のログインノードは
-  `python3` が 3.6.8 で scipy 無し)
+- 依存: `numpy`, `scipy`。**python は自動で探す** —— 有効な venv、`~/fmoenv`、
+  `python3`、`python` の順に試し、`numpy` と `scipy` を import できたものを使う。
+  明示したいときだけ `PYTHON=/path/to/python` を渡す
+- 見つからない場合は**液滴を残したまま検証だけ保留**し、後から流すコマンドを
+  出して exit 2 で終わる。「検証したつもり」にはしない。富岳のシステム
+  `python3` は 3.6.8 で scipy が無いので、python 環境を作る前に流すとこうなる
+- `amber.sh` が `PYTHONPATH` に入れる Amber の py3.9 site-packages は
+  **スクリプト側で外す**。残したまま venv の python から `parmed` を import すると
+  numpy 2 系で `No module named 'numpy.compat'` になる。利用者が自分で設定した
+  `PYTHONPATH` は残す
 - NG が 1 つでもあれば exit 1 を返すのでバッチに組み込める
+- **測れなかったものは合格にしない。** 指定した残基レンジに該当が無い、
+  比較できた組が 1 つも無い、液滴なのに水が 0 — いずれも NG にして理由を出す
+  (以前は素通りしていた。原子 50 個・水 0 に切り詰めた液滴が
+  `water= 0 max_gap= nan OK` と報告された)。液滴化前の構造を検証する等で
+  水が無くて当然の場合は `--allow-dry`
+
+> **`--residues` に渡すのは残基番号であって、FMO のフラグメント番号ではない。**
+> FMO の分割は次の `3_fmosetup.sh` (ajf 生成) で決まるので、この時点では
+> まだ存在しない。溶質の範囲では一致することが多いが保証は無く、実データ
+> (EGFR) の `AUTOMATIC FRAGMENTATION` 表では残基通番 335 が FMO
+> フラグメント 325 に対応する (液滴に残らなかった水の分だけずれる)。
+> cpptraj の `:N-M` と同じ番号を渡すこと。
+> 旧名 `--frag` も当面受け付けるが、この取り違えを招くので `--residues` を使う。
 
 **接触距離だけを見ないこと。** `-pbc cluster` は「接触は戻すのに水和殻を置き去りにする
 (溶質が脱水する)」失敗をする。溶媒つき toy 系でも再現でき (空隙 3.7 Å → 13.9 Å、
@@ -195,7 +364,7 @@ python3 check_contact.py \
 
 1. **抽出直後の生 `.gro` を先に調べる**。
    ```bash
-   python3 check_contact.py --frag ... gmxpdbs-foropt/<head>_<i>.gro
+   python3 check_contact.py --residues ... gmxpdbs-foropt/<head>_<i>.gro
    ```
    ここで既に NG なら **PBC の問題ではなく、実際に解離している**可能性が高い
    (長時間 MD では起こりうる)。生が正常なら壊しているのは後処理側。

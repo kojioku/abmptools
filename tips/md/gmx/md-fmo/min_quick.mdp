@@ -1,0 +1,15 @@
+; パイプラインの通し確認用。**FMO に使う構造は作れない。**
+; 本番は min_aftermd.mdp を使うこと (emtol=1255 まで落とす)。
+; ここでは段の繋がり・再開・検証だけを見たいので、力の収束は求めず
+; 歩数で打ち切る。70950 原子・4 スレッドで 1 フレーム 10 秒ほど。
+define       = -DPOSRES_HEAVY -DPOSRES_FC=1255
+integrator   = steep
+emtol        = 1000000      ; 事実上「収束判定しない」
+emstep       = 0.01
+nsteps       = 15           ; ここで打ち切る
+nstlist      = 10
+ns_type      = grid
+coulombtype  = cut-off
+rcoulomb     = 1.2          ; 本番は 3.6。テストなので短くして軽くする
+rvdw         = 1.2
+pbc          = xyz
