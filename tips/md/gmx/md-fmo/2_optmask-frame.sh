@@ -8,41 +8,16 @@
 #     -> cpptraj mask                (溶質から stripdist 以内の水を残す)
 #     -> check_contact.py            (接触と水和殻を検証)
 #
-# PBC 再構成に cpptraj autoimage を使う理由 (詳細は README.md):
-#   複合体 (タンパク A + タンパク B + リガンド等) が「1 つの GROMACS
-#   moleculetype」になっている系では、gmx trjconv -pbc cluster が
-#   反復アルゴリズムの初期配置依存で、正しく組み上がった複合体を
-#   壊すことがある (200 ns 系の 20 フレーム中 11 で破綻を確認)。
-#   壊れたフレームは複合体が数十 A 離れ、水和殻に穴が空く。
-#   cpptraj autoimage は prmtop の分子情報から各フラグメントを別分子と
-#   認識し「anchor に対する最近接イメージ」を決定論的に選ぶため破綻しない。
-#
-#   2026-08 まではこの手順を 2_optmask-frame_v2.sh として別に持ち、本体は
-#   -pbc whole -> cluster -> mol/compact -> fit の 4 段だった。破綻する方を
-#   残しておく理由が無いので本体をこちらへ統合し、_v2 はリポジトリ外へ退避した。
-#
-# 前提: 0_parmed.sh で ${grotop%.*}.prmtop が生成済みであること。
-#
-# 途中で落ちても、同じコマンドで再実行すれば続きから進む。判断はフレーム
-# ディレクトリの中の完了マーカー (.done.minimize / .done.arrange) だけで行い、
-# **マーカーは中身を検めたあとに最後に書く**。ディレクトリがあることも、
-# ファイルがあることも、済んだ証拠には使わない —— mkdir は作業の前に走るし、
-# 殺されて切り詰められたファイルも「存在する」からである。
-# 何がどこまで済んでいるかは --check で確認できる。
-#
-# 上書きで消すことはしない。作り直しが要る場面では park() で
-# <名前>.<日時> にどけてから進む。
+# 前提: 0_parmed.sh で <top の名前>.prmtop が生成済みであること。
+# 途中で落ちても同じコマンドで再実行すれば続きから進む。
 #
 # 実行例:
-#   bash 2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc \\
-#       --anchor :1-323 --fixed :324 --solute 1-324 --frames 0:4:1 -t 4
+#   bash 2_optmask-frame.sh -f traj.xtc -p system.top -n index.solute.ndx
+#   bash 2_optmask-frame.sh ... --status              # 進み具合だけ見る
+#   bash 2_optmask-frame.sh ... --redo-from arrange   # arrange からやり直す
 #
-#   系ごとの値はすべてコマンドラインで渡せる。検証 (check_contact.py) に渡す
-#   残基レンジは anchor / fixed から自動で作るので、同じレンジを二度書かない。
-#   bash 2_optmask-frame.sh ... --check              # 進み具合だけ見る
-#   bash 2_optmask-frame.sh ... --redo-from arrange  # arrange からやり直す
-#
-##################
+# 使える引数は -h で出る。autoimage を使う根拠、再実行の判断、park の方針は
+# README.md に書いてある。
 
 set -euo pipefail
 
@@ -53,50 +28,55 @@ set -euo pipefail
 selfdir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 checker="${selfdir}/check_contact.py"
 
-tgtindexname="solute"
-minscript=min_aftermd.mdp
+########################################################################
+#  ここだけ編集すれば動く (すべて引数でも上書きできる)
+#
+#  残基番号は prmtop のもの。GROMACS の残基番号とも FMO のフラグメント番号
+#  とも一致するとは限らない。0_parmed.sh が作った prmtop で数えること。
+########################################################################
 
-# --- autoimage の分子指定 (prmtop の残基番号; 系ごとに要編集) ---
-#   anchor : 箱の中心に固定する分子 (通常タンパク片方)
-#   fixed  : anchor の最近接イメージへ寄せる分子 (相手タンパク + リガンド)
-#   mobile : 箱に詰め直す溶媒
-#
-#   ★ 範囲は prmtop の残基数と突き合わせて自動検査する (validate_mask)。
-#     cpptraj は範囲を超えたレンジを無警告で丸めるため、たとえば 324 残基の
-#     溶質しかない系に ":1-840" と書くと anchor に溶媒まで入り、autoimage の
-#     基準が静かに壊れる。実測: 334 残基の系で ":1-840" は全 1055 原子を選択し、
-#     警告は一切出なかった。
-#
-# 既定値。スクリプトを書き換えなくても --anchor / --fixed 等で上書きできるので、
-# 系ごとの指定はコマンドラインで渡すことを勧める (編集箇所が散らばらない)。
-# 例) frag A=res 1-840, frag B=res 841-1184, リガンド=res 1185 の場合:
-anchormask=":1-840"
-fixedmask=":841-1185"
+# --- autoimage の分子指定 --------------------------------------------
+#   anchor : 箱の中心に固定する分子 (通常タンパク片方)        --anchor
+#   fixed  : anchor の最近接イメージへ寄せる分子              --fixed
+#            (相手タンパク + リガンド)
+#   mobile : 箱に詰め直す溶媒                                 --mobile
+anchormask=":1-323"       # EGFR: タンパク
+fixedmask=":324"          # EGFR: リガンド HYZ
 mobilemask=":WAT"
 
-retainedions="|:NA+|:NA|:Na+|:CL|:Cl-"
-maskinfo="1-324"          # 液滴に残す溶質の残基レンジ (系ごとに要編集)
-stripdist="6.0"           # 溶質からこの距離 [A] 以内の水を残す
+# --- 液滴の切り出し ---------------------------------------------------
+maskinfo="1-324"          # 液滴に残す溶質の残基レンジ         --solute
+stripdist="6.0"           # 溶質からこの距離 [A] 以内の水を残す --strip
+retainedions="|:NA+|:NA|:Na+|:CL|:Cl-"    # 液滴に残すイオン
 
-# 全フレームを共通の向きに揃えたい場合は 1 (FMO エネルギーには無影響)
-dofit=0
-fitmask=":1-840@CA"
+# --- 処理するフレーム -------------------------------------------------
+pdb_snum=0                # 開始              --frames 0:4:1 でまとめて指定可
+pdb_enum=4                # 終了
+pdb_interval=1            # 刻み
 
-##################
+# --- 向き揃え (FMO エネルギーには無影響) ------------------------------
+dofit=0                   # 共通の向きに揃えるなら 1               --fit
+fitmask=":1-323@CA"
 
-pdb_snum=0
-pdb_enum=4
-pdb_interval=1
+# --- その他 -----------------------------------------------------------
+tgtindexname="solute"     # -n の index ファイル内のグループ名
+minscript=min_aftermd.mdp # minimize の mdp                        --mdp
+optomp=${OPT_THREADS:-4}  # minimize のスレッド数 (共有ノードでは控えめに) -t
+PYTHON=${PYTHON:-}        # 検証に使う python (空なら自動で探す)
 
-# minimize のスレッド数。-t か環境変数 OPT_THREADS で上書きできる。
-#   ログインノードで回すことがあるので既定は控えめにする。共有ノードの
-#   コアを埋めると他の利用者の作業を止めるため、大きくするのは計算ノードで
-#   ジョブとして流すときだけにすること。
-optomp=${OPT_THREADS:-4}
+########################################################################
+#  ここから下は通常編集しない
+########################################################################
 
-# 検証 (check_contact.py) に使う python は自動で探す (下の find_python)。
-# 明示したいときだけ PYTHON=/path/to/python を渡す。
-PYTHON=${PYTHON:-}
+# 別の系に移すときの例:
+#   frag A=res 1-840, frag B=res 841-1184, リガンド=res 1185 なら
+#     anchormask=":1-840" ; fixedmask=":841-1185" ; fitmask=":1-840@CA"
+#     maskinfo="1-1185"
+#
+# レンジは prmtop の残基数と突き合わせて検査する (validate_mask)。cpptraj は
+# 範囲を超えたレンジを無警告で丸めるので、324 残基の系に ":1-840" と書くと
+# anchor に溶媒が入り、autoimage の基準が静かに壊れる (334 残基の系で
+# ":1-840" が全 1055 原子を選び、警告は一切出なかった)。
 
 ##################
 
@@ -117,12 +97,13 @@ usage: 2_optmask-frame.sh -n <index.ndx> -p <topol.top> -f <traj> [options]
   --fit    <mask>     全フレームの向きを揃える 例 :1-323@CA
   --residues <name:lo-hi>  検証する溶質の部分 (残基番号)。
                       既定は anchor / fixed から自動導出するので通常は不要
-  --check             何もせず、フレームごとの進み具合だけを表示する
+  --status            何もせず、フレームごとの進み具合だけを表示する
+                      (どこから再開するかが分かる。--check は旧名)
   --redo              マーカーを無視して全部やり直す
   --redo-from <stage> minimize | arrange のどちらかからやり直す
 
 途中で落ちた場合はそのまま同じコマンドで再実行すれば、済んだ段は飛ばして
-続きから進む。何が済んでいるかは --check で確認できる。
+続きから進む。何が済んでいるかは --status で確認できる。
 USAGE
     exit 1
 }
@@ -159,7 +140,7 @@ do
             esac
             shift 2;;
         --residues) fragspec="${fragspec} --residues ${2:-}"; shift 2;;
-        --check) mode="check"; shift;;
+        --status|--check) mode="check"; shift;;   # --check は旧名
         --redo)  redo_from="minimize"; shift;;
         --redo-from)
             redo_from=${2:-}
@@ -391,7 +372,7 @@ move_into() {
     done
 }
 
-#: 1 フレームの状態を "済 / 途中 / 未" で返す (--check 用)。
+#: 1 フレームの状態を "済 / 途中 / 未" で返す (--status 用)。
 frame_status() {
     local d=$1 stage=$2 artifact=$3 kind=$4
     if stage_done "$d" "$stage"; then
@@ -461,7 +442,7 @@ derive_fragspec() {
 # ---------------------------------------------------------------- checks
 
 # --residues はマスクから作る。prmtop を読まないので、まだ何も無い段階でも
-# 決まる (--check をそこで使えるようにするため、ファイル検査より前に置く)。
+# 決まる (--status をそこで使えるようにするため、ファイル検査より前に置く)。
 if [ -z "$fragspec" ]; then
     fragspec=$(derive_fragspec)
 fi
@@ -491,7 +472,7 @@ cat <<SETTINGS
   threads: ${optomp}
 SETTINGS
 
-# --check は何も実行しない。**prmtop も mdp も無い段階で状態を見たい**ので、
+# --status は何も実行しない。**prmtop も mdp も無い段階で状態を見たい**ので、
 # 下のファイル検査より前で返す。設定は上で出しているので、どの値で見ている
 # のかは分かる。
 if [ "$mode" = "check" ]; then
