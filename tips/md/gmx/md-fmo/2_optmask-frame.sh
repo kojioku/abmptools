@@ -46,6 +46,13 @@
 
 set -euo pipefail
 
+# 検証スクリプトは自分の隣にある。cwd は gmxpdbs-foropt/ など作業用の
+# ディレクトリなので、`check_contact.py` と裸で書くと見つからない ——
+# 液滴は出来ているのに検証だけ落ちる。3_fmosetup.sh が投入スクリプトを
+# 探すのと同じ考え方で、スクリプト自身の場所を基準にする。
+selfdir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+checker="${selfdir}/check_contact.py"
+
 tgtindexname="solute"
 minscript=min_aftermd.mdp
 
@@ -728,6 +735,19 @@ done
 # 渡すのは残基番号であって FMO のフラグメント番号ではない。
 echo "==================== contact check ===================="
 
+# 検証スクリプトが隣に無い配布物がある (2025 年版には同梱されていなかった)。
+# 液滴は出来ているので捨てず、何が足りないかを言って止める。
+if [ ! -f "${checker}" ]; then
+    cat >&2 <<NOCHECKER
+*** 検証していない ***
+  ${checker} が無い。液滴は出来ているが、**まだ検証されていない**。
+  check_contact.py を ${selfdir}/ に置いてから、次を実行して確認すること:
+
+    python ${checker}${fragspec} ${head}-optedpdb/*_fmo_mask.pdb
+NOCHECKER
+    exit 2
+fi
+
 # numpy / scipy の入った python を探す。見つからない場合は液滴を捨てずに
 # 検証だけ保留し、後から流せるコマンドを出す (富岳のシステム python3 は
 # 3.6.8 で scipy が無く、python 環境は次のセクションで作るため)。
@@ -738,7 +758,7 @@ if ! PYTHON=$(find_python); then
   実行できなかった。液滴は出来ているが、**まだ検証されていない**。
   python 環境を用意したあと、次を実行して確認すること:
 
-    python check_contact.py${fragspec} ${head}-optedpdb/*_fmo_mask.pdb
+    python ${checker}${fragspec} ${head}-optedpdb/*_fmo_mask.pdb
 
   (富岳のシステム python3 は 3.6.8 で scipy が無い。venv を activate するか
    PYTHON=/path/to/python を渡す)
@@ -746,5 +766,5 @@ UNVERIFIED
     exit 2
 fi
 
-PYTHONPATH="$(clean_pythonpath)" "${PYTHON}" check_contact.py ${fragspec} \
+PYTHONPATH="$(clean_pythonpath)" "${PYTHON}" "${checker}" ${fragspec} \
     "${head}"-optedpdb/*_fmo_mask.pdb
