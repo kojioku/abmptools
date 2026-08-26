@@ -33,6 +33,10 @@ bash 2b_recover-from-center1.sh
 
 ## なぜ cpptraj `autoimage` を使うか
 
+> 2026-08 まではこの手順を `2_optmask-frame_v2.sh` として別に持ち、本体は
+> `-pbc whole` → `cluster` → `mol/compact` → `fit` の 4 段だった。破綻する方を
+> 残しておく理由が無いので本体をこちらへ統合し、`_v2` はリポジトリ外へ退避した。
+
 ### 症状
 複合体 (タンパク A + タンパク B + リガンド等) の系で、
 旧版の PBC 再構成 (`-pbc cluster` を挟む 4 段) が、
@@ -274,6 +278,26 @@ bash 2_optmask-frame.sh -n index.solute.ndx -p system.top -f traj.xtc -t 8
   4 つ出て、原因が追いにくかった。
 - **同じディレクトリで再実行できる。** 済んだ段は `[skip]` で飛ばすので、
   途中で失敗しても直して流し直せばよい。
+
+### `--status` — どこから再開するか
+
+`--dry-run` ではない。「これから何をするか」ではなく、**いま何が済んでいるか**
+を出す。再実行すると続きから進む作りなので、その続きがどこかを答える。
+
+```
+$ bash 2_optmask-frame.sh -f traj.xtc -p system.top -n index.solute.ndx --status
+--- 設定 ---
+  anchor : :1-323
+  fixed  : :324
+  ...
+frame 0 | minimize: 済 | arrange: 途中
+frame 1 | minimize: 済 | arrange: 未
+```
+
+- **prmtop も mdp も無い段階で使える。** ファイル検査より前に返すので、
+  0_parmed.sh を流す前でも「どの値で動くつもりか」を確かめられる
+- 解決後の設定を先に出すので、**書き換えたつもりの値が効いているか**も分かる
+- 旧名は `--check`。入力の検証と紛らわしいので改名した (旧名も通る)
 
 ### 「済んだ」の判断は完了マーカーだけで行う
 
