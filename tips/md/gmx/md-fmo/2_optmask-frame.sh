@@ -55,7 +55,7 @@ pdb_enum=4                # 終了
 pdb_interval=1            # 刻み
 
 # --- 向き揃え (FMO エネルギーには無影響) ------------------------------
-dofit=0                   # 共通の向きに揃えるなら 1               --fit
+dofit=1                   # 全フレームを共通の向きに揃える。0 で切る  --fit
 fitmask=":1-323@CA"
 
 # --- その他 -----------------------------------------------------------
@@ -94,7 +94,8 @@ usage: 2_optmask-frame.sh -n <index.ndx> -p <topol.top> -f <traj> [options]
   --solute <range>    液滴に残す溶質のレンジ   例 1-324
   --strip  <A>        溶質から何 A の水を残すか 既定 6.0
   --frames <s:e[:i]>  処理するフレーム番号     例 0:4:1
-  --fit    <mask>     全フレームの向きを揃える 例 :1-323@CA
+  --fit    <mask>     向きを揃える基準 (既定 :1-323@CA)
+  --nofit             向きを揃えない (dofit=0)
   --residues <name:lo-hi>  検証する溶質の部分 (残基番号)。
                       既定は anchor / fixed から自動導出するので通常は不要
   --status            何もせず、フレームごとの進み具合だけを表示する
@@ -131,6 +132,7 @@ do
         --solute) maskinfo=${2:-};   shift 2;;
         --strip)  stripdist=${2:-};  shift 2;;
         --fit)    fitmask=${2:-}; dofit=1; shift 2;;
+        --nofit)  dofit=0; shift;;
         --frames)
             # s:e:i (i 省略時は 1)
             IFS=: read -r pdb_snum pdb_enum pdb_interval <<<"${2:-}"
@@ -164,6 +166,13 @@ done
 echo "$grotop"
 echo "$traj"
 echo "$solindex"
+
+# mdp は配布物ではスクリプトと並んでいるが、このスクリプトを流すのは
+# gmxpdbs-foropt/ の中なので、既定値のままだとカレントに無くて落ちる。
+# checker と同じくスクリプトの隣も見る。
+if [ ! -s "$minscript" ] && [ -s "${selfdir}/${minscript}" ]; then
+    minscript="${selfdir}/${minscript}"
+fi
 
 headbuf=${traj%.*}
 head=${headbuf##*/}
