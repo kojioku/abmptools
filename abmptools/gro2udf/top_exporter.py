@@ -798,6 +798,9 @@ class TopExporter:
         uobj.put(1, flags + "Non_Bonding_1_4")
         uobj.put(1, flags + "Electrostatic")
 
+        # --- no cell deformation ---
+        TopExporter._normalize_deformation_method(uobj)
+
         # --- Nose-Hoover Q ---
         n = model.n_atoms_total
         if n > 0:
@@ -833,6 +836,33 @@ class TopExporter:
             uobj.put(out_interval, time_loc + ".Output_Interval_Steps")
 
         uobj.write()
+
+    #: Location of the cell-deformation selector.
+    _DEFORM_METHOD = ("Simulation_Conditions.Dynamics_Conditions"
+                      ".Deformation.Method")
+
+    @classmethod
+    def _normalize_deformation_method(cls, uobj):
+        """Write "no deformation" as "" rather than the string "None".
+
+        The COGNAC schema offers "None" for this select and COGNAC itself
+        writes it, but the GROMACS exporters downstream test the field with
+        ``len(method) > 0`` and then match it against the deformations they
+        support, so "None" reads as an unrecognised deformation and aborts::
+
+            Export_GROMACS.GROMACS_ConvertError:
+                Error!! deformation type 'None' is not supported.
+
+        (J-OCTA 11.1 ``python/Export_GROMACS.py`` lines 1722-1737;
+        ``abmptools.udf2gro`` carried the same guard until 2.13.4.)  J-OCTA
+        writes "" in its own UDFs, so "" is what both COGNAC and those
+        converters accept.
+
+        Only "None" is rewritten -- a template that deliberately asks for
+        ``Cell_Deformation`` or ``Lees_Edwards`` keeps its setting.
+        """
+        if uobj.get(cls._DEFORM_METHOD) == "None":
+            uobj.put("", cls._DEFORM_METHOD)
 
     @staticmethod
     def _write_molecular_attributes(uobj, model: TopModel) -> None:

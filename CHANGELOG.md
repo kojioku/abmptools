@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+## [2.13.5] - 2026-08-30
+
+### Fixed — gro2udf: 書き出した UDF が J-OCTA の GROMACS コンバータで弾かれる
+
+```
+Export_GROMACS.GROMACS_ConvertError:
+    Error!! deformation type 'None' is not supported.
+```
+
+`Simulation_Conditions.Dynamics_Conditions.Deformation.Method` に `"None"` を
+書いていた。COGNAC のスキーマはこの select に `"None"` を認めており
+(`cognac101.udf`)、**COGNAC 自身も自社サンプル UDF にそう書く**。しかし
+下流の GROMACS コンバータは
+
+```python
+deform = _udf_.get("...Deformation.Method")
+list_supported_deform = ["Cell_Deformation"]
+if len(deform) > 0:                      # ← "None" は 4 文字なので入る
+    if deform in list_supported_deform:
+        ...
+    else:
+        raise GROMACS_ConvertError(...)  # ← ここで落ちる
+```
+
+と `len(...) > 0` で空判定するため、**4 文字の `"None"` が「知らない変形」として
+弾かれる** (J-OCTA 11.1 `python/Export_GROMACS.py` 1722-1737 行)。
+J-OCTA は自分の出力には `""` を書くので、`""` が COGNAC と両コンバータの
+どちらも受ける値になる。
+
+- 同梱テンプレートのうち **cognac10.1 版だけが `"None"`** を持っていた
+  (cognac11.2 版は元から `""`)。`--cognac-version 101` は OCTA8.4 / J-OCTA 向けの
+  経路なので、**まさに J-OCTA に渡す UDF だけが落ちる**組合せだった
+- テンプレートを修正し、書き出し時にも `"None"` → `""` の正規化を入れた。
+  `Cell_Deformation` / `Lees_Edwards` を意図的に設定したテンプレートはそのまま残す
+- 既存 UDF の修正用に `work/gro2udf_fix_20260830/fix_deformation_none.py` を用意
+  (元ファイルは書き換えず別名出力)
+
+`abmptools.udf2gro` 側の同じガードは 2.13.4 で修正済み。
+
 ## [2.13.4] - 2026-08-30
 
 ### Fixed — gro2udf: 二面角のパラメータが別の二面角のものに黙って置き換わっていた
