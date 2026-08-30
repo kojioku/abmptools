@@ -1135,7 +1135,9 @@ class UdfAdapter:
         deform_npt = False
         deform_vel = None
 
-        if len(deform) == 0:
+        # COGNAC writes "None" (not an empty string) when no cell deformation
+        # is applied; treat both as "no deformation".
+        if len(deform) == 0 or deform == "None":
             return deform, deform_npt, deform_vel
 
         cellsize = udf.get("Structure.Unit_Cell.Cell_Size")

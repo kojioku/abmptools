@@ -118,6 +118,12 @@ class TorsionTypeSpec:
     funct: int          # 1, 3, 4, or 9
     improper: bool
     params: List[float] # raw flat list from TOP
+    # Index into the *unexpanded* TopRawData.torsion_types_from_mol that this
+    # spec came from.  An Amber multi-term torsion is expanded into several
+    # TorsionTypeSpec entries that all share the same src_index, so the two
+    # lists are no longer index-aligned; molecule torsion records reference the
+    # unexpanded index and must be mapped through this field.
+    src_index: int = -1
 
 
 # ---------------------------------------------------------------------------

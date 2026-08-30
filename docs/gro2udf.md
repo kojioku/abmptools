@@ -243,7 +243,17 @@ k_B [amu·Å²/(ps²·K)]
 | `Interactions.Electrostatic_Interaction[0].Ewald.R_cutoff` | 下記フォーミュラで計算 **[Å]** | COGNAC 内部単位 |
 | `Interactions.Electrostatic_Interaction[0].Ewald.Ewald_Parameters` | `"Auto"` | 固定 |
 
-> `Simulation_Conditions.Calc_Potential_Flags.Electrostatic` は `1` に設定されます。
+`Simulation_Conditions.Calc_Potential_Flags` は AMBER/GAFF の慣例に合わせて明示的に設定されます
+（テンプレートの既定値は `Angle` / `Torsion` / `Non_Bonding_1_4` が `0` なので、そのままだと
+結合角・二面角が書き出されているのに無効、1-4 対も `Scale_1_4_Pair` を設定しているのに落ちる）:
+
+| フラグ | 値 |
+|---|---|
+| `Bond` / `Angle` / `Torsion` | `1` |
+| `Non_Bonding_Interchain` / `Non_Bonding_Intrachain` | `1` |
+| `Non_Bonding_1_3` | `0`（除外） |
+| `Non_Bonding_1_4` | `1`（`Scale_1_4_Pair` で縮小） |
+| `Electrostatic` | `1` |
 
 #### Ewald R_cutoff の計算式
 

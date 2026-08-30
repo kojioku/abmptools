@@ -782,8 +782,21 @@ class TopExporter:
         """
         uobj.jump(-1)
 
-        # --- electrostatic flag ---
-        uobj.put(1, "Simulation_Conditions.Calc_Potential_Flags.Electrostatic")
+        # --- potential flags ---
+        # The COGNAC template ships with Angle / Torsion / Non_Bonding_1_4 set
+        # to 0.  Leaving them there produces a UDF whose bonded terms are
+        # written out in full but switched off, and whose 1-4 pairs are dropped
+        # even though Scale_1_4_Pair is set below.  Declare the full AMBER/GAFF
+        # convention explicitly: bonded terms on, 1-3 excluded, 1-4 scaled.
+        flags = "Simulation_Conditions.Calc_Potential_Flags."
+        uobj.put(1, flags + "Bond")
+        uobj.put(1, flags + "Angle")
+        uobj.put(1, flags + "Torsion")
+        uobj.put(1, flags + "Non_Bonding_Interchain")
+        uobj.put(1, flags + "Non_Bonding_Intrachain")
+        uobj.put(0, flags + "Non_Bonding_1_3")
+        uobj.put(1, flags + "Non_Bonding_1_4")
+        uobj.put(1, flags + "Electrostatic")
 
         # --- Nose-Hoover Q ---
         n = model.n_atoms_total

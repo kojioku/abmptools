@@ -213,6 +213,7 @@ class TopAdapter:
                         funct=funct,
                         improper=improper,
                         params=params[k * 3:(k + 1) * 3],  # one [phase, PK, PN] slice
+                        src_index=jj,
                     ))
             else:
                 specs.append(TorsionTypeSpec(
@@ -221,6 +222,7 @@ class TopAdapter:
                     funct=funct,
                     improper=improper,
                     params=params,
+                    src_index=jj,
                 ))
         return specs
 
@@ -280,8 +282,18 @@ class TopAdapter:
                 ))
 
             # torsions → expand multi-term Amber
+            #
+            # torsion_type_specs is the *expanded* list (one entry per Fourier
+            # term), while td[4] indexes the *unexpanded* torsion_types_from_mol.
+            # Map through src_index: using td[4] directly drifts by one position
+            # per multi-term torsion already seen and silently attaches the wrong
+            # parameters to every later dihedral.
+            tspec_start = {}
+            for pos, ts in enumerate(torsion_type_specs):
+                if ts.src_index >= 0 and ts.src_index not in tspec_start:
+                    tspec_start[ts.src_index] = pos
+
             torsions: List[MolTorsionSpec] = []
-            j_tors = 0  # index into torsion_type_specs
             for td in torsionlist_mol:
                 if len(td) < 6:
                     # type-reference only (no inline params)
@@ -295,35 +307,28 @@ class TopAdapter:
                     continue
 
                 a1, a2, a3, a4, tidx, tfunc, timp, nparams = td
-                base_name = (torsion_type_specs[tidx].name
-                             if tidx < len(torsion_type_specs)
-                             else "torsion-{}".format(tidx))
+                start = tspec_start.get(tidx)
+
+                def _spec_name(offset):
+                    """Name of the offset-th term of torsion type tidx."""
+                    if start is None or start + offset >= len(torsion_type_specs):
+                        return "torsion-{}".format(tidx)
+                    return torsion_type_specs[start + offset].name
 
                 if tfunc in (1, 9, 4):
                     nmulti = nparams // 3
                     for k in range(nmulti):
-                        if nmulti == 1:
-                            pot_name = base_name
-                        else:
-                            # strip any existing ":n" suffix and re-add
-                            if ":" in base_name:
-                                base_name_clean = base_name.rsplit(":", 1)[0]
-                            else:
-                                base_name_clean = base_name
-                            pot_name = base_name_clean + ":" + str(k)
                         torsions.append(MolTorsionSpec(
                             atom1=a1, atom2=a2, atom3=a3, atom4=a4,
                             funct=tfunc, improper=timp, n_params=nparams,
-                            potential_name=pot_name,
+                            potential_name=_spec_name(k),
                         ))
-                        j_tors += 1
                 else:
                     torsions.append(MolTorsionSpec(
                         atom1=a1, atom2=a2, atom3=a3, atom4=a4,
                         funct=tfunc, improper=timp, n_params=nparams,
-                        potential_name=base_name,
+                        potential_name=_spec_name(0),
                     ))
-                    j_tors += 1
 
             specs.append(MolSpec(
                 name=mol_name,

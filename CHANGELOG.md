@@ -2,6 +2,54 @@
 
 ## [Unreleased]
 
+## [2.13.4] - 2026-08-30
+
+### Fixed — gro2udf: 二面角のパラメータが別の二面角のものに黙って置き換わっていた
+
+`Molecular_Attributes.Torsion_Potential[]` は正しく書けているのに、
+`Set_of_Molecules.molecule[].torsion[].Potential_Name` が**別の二面角を指していた**。
+
+`TopAdapter._build_torsion_type_specs()` は Amber の多重度項を
+**1 項 1 エントリに展開**して返す。一方 `torsionlist_mol` の要素が持つ型番号
+`tidx` は**展開前**の `torsion_types_from_mol` の添字である。この `tidx` で
+展開後のリストを引いていたため、**多重度項を 1 つ通過するたびに参照が 1 つずつ
+ずれていく**。
+
+```python
+base_name = torsion_type_specs[tidx].name   # 展開後のリストを展開前の添字で引く
+```
+
+- **静かに壊れる**。名前は書式として正しいので UDF は問題なく開ける。ズレの
+  前半は「存在する別の二面角の名前」に当たるので**参照は解決してしまい、
+  パラメータだけが入れ替わる**。末尾に来てはじめて未定義参照になる
+- 実測: アリピプラゾール (57 原子 / 二面角 206 組 = 238 項) で
+  **パラメータが一致したのは 206 組中 40 組**、うち 31 項は未定義参照。
+  乳酸 (23 組 = 30 項) では **23 組すべて不一致**、13 項が未定義参照。
+  多重度項を持つ力場 (GAFF / AMBER / OPLS) なら分子の大小によらず発生する
+- 影響範囲は**この UDF から作った計算入力**。UDF の座標・軌跡、および
+  変換元の GROMACS 計算そのものには及ばない
+
+`TorsionTypeSpec` に展開元の添字 `src_index` を持たせ、展開前→展開後の
+対応表を通して引くようにした。`":n"` サフィックスの再構成も不要になったので削除。
+
+### Fixed — gro2udf: 結合角・二面角・1-4 対が無効のまま書き出されていた
+
+`Simulation_Conditions.Calc_Potential_Flags` をテンプレート既定値のまま残しており、
+`Angle` / `Torsion` / `Non_Bonding_1_4` が `0` だった。明示的に立てているのは
+`Electrostatic` だけ。**結合角と二面角は全部書き出されているのに計算されず**、
+1-4 対も `Scale_1_4_Pair` を設定しているのに落ちる状態だった。
+AMBER/GAFF の慣例 (結合項 on / 1-3 除外 / 1-4 縮小) を明示するようにした。
+
+`abmptools.udf2gro` はこのフラグを見て `fudgeLJ` / `fudgeQQ` を決めるので、
+従来の UDF から変換した `.top` は 1-4 相互作用が 0 になっていた。
+
+### Fixed — udf2gro: 無変形の UDF を読めなかった
+
+`Deformation.Method` が空文字のときしか無変形と見なしておらず、COGNAC の正規の
+select 値である `"None"` (`cognac101.udf`) で `RuntimeError` になっていた。
+**gro2udf が書く UDF は必ず `"None"` を持つ**ので、gro2udf の出力を udf2gro で
+読み戻すことが一切できなかった。
+
 ## [2.13.3] - 2026-08-24
 
 ### Fixed — tips/md-fmo: 途中で落ちた実行の再開が、未完成を完成と取り違えていた (配布対象外)
