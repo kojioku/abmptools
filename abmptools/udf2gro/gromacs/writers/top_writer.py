@@ -8,6 +8,7 @@ All Gromacs-specific string formatting (column widths, section headers)
 is contained here.
 """
 from __future__ import annotations
+from dataclasses import replace
 from ....core.system_model import SystemModel, MoleculeTopology, DihedralRecord
 from ._validator import raise_if_cognac_only
 
@@ -60,27 +61,59 @@ def _dedup_angles(angles):
     return out
 
 
+#: GROMACS dihedral functions whose entries may legitimately repeat on the
+#: same quadruple.  9 is "proper dihedral (multiple)" and 4 is the periodic
+#: improper; both are summed term by term.  Function 1 has the same functional
+#: form as 9 but GROMACS accepts only one entry per quadruple.
+_MULTI_TERM_FUNCTS = frozenset({"4", "9"})
+
+
 def _dedup_dihedrals(dihedrals):
-    """Remove self-dihedrals and duplicate dihedral tuples.
+    """Drop self-dihedrals and genuinely duplicated entries.
 
     A dihedral i-j-k-l is invariant under reversal (l-k-j-i defines the
-    same torsion). We dedup by the canonical form
-    ``min((i,j,k,l), (l,k,j,i))``. Any tuple with a repeated atom is a
-    structural impossibility and is dropped.
+    same torsion), so entries are keyed on the canonical form
+    ``min((i,j,k,l), (l,k,j,i))``.  Any tuple with a repeated atom is a
+    structural impossibility and is dropped, the same rationale as
+    :func:`_dedup_angles`: some COGNAC UDFs carry such entries and
+    ``gmx grompp`` rejects them.
 
-    Same rationale as :func:`_dedup_angles` — keeps the .top
-    grompp-clean even if the UDF source has spurious entries.
+    Two entries are duplicates only when the function type and the
+    parameters match as well.  **A quadruple carrying several entries
+    that differ in their parameters is an AMBER/GAFF multi-term torsion,
+    not a duplicate** -- one Fourier term per entry, summed by GROMACS.
+    Keying on the atoms alone silently deleted every term after the
+    first, flattening a multi-term torsion into whichever term happened
+    to come first (measured on aripiprazole: 39 of 268 terms lost).
+
+    Entries that survive with function 1 but share a quadruple are
+    promoted to function 9.  The two have the same functional form, but
+    GROMACS accepts only one function-1 entry per quadruple, so the
+    promotion is what lets the remaining terms all be written.
     """
     seen = set()
-    out = []
+    kept = []
     for dih in dihedrals:
         atoms = (dih.atom1, dih.atom2, dih.atom3, dih.atom4)
         if len(set(atoms)) < 4:
             continue
-        key = min(atoms, atoms[::-1])
+        canonical = min(atoms, atoms[::-1])
+        key = (canonical, dih.funct, tuple(dih.params))
         if key in seen:
             continue
         seen.add(key)
+        kept.append((canonical, dih))
+
+    # A quadruple left with more than one proper term needs function 9.
+    n_proper = {}
+    for canonical, dih in kept:
+        if dih.funct not in _MULTI_TERM_FUNCTS:
+            n_proper[canonical] = n_proper.get(canonical, 0) + 1
+
+    out = []
+    for canonical, dih in kept:
+        if dih.funct == "1" and n_proper.get(canonical, 0) > 1:
+            dih = replace(dih, funct="9")
         out.append(dih)
     return out
 
