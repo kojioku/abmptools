@@ -243,6 +243,105 @@ def _aggregate_statistics_per_frame(frames, energy_times, energy_series):
     return per_frame
 
 
+def build_display_type_map(model: TopModel) -> dict:
+    """Map every atom type in the topology to a unique display name.
+
+    :func:`_display_type_name` rewrites an interchange per-atom type to
+    ``<element><N>``, where ``N`` is the atom's index **within its
+    molecule**. That index restarts at zero for every moleculetype, so in
+    a multi-component system two different types collide as soon as they
+    share an element and a position: aripiprazole's ``APZ_2`` and lactic
+    acid's ``LAC_2`` are both oxygens at index 2 and both wanted ``O2``.
+
+    The UDF then carried two ``Atom_Type`` entries under one name with
+    different Lennard-Jones parameters, and everything downstream that
+    resolves a type by name -- ``interaction_Site``, ``Pair_Interaction``,
+    every converter reading the file back -- picked the first. **The
+    second component silently inherited the first's parameters.** Measured
+    on APZ + lactic acid: 69 atom types, 68 unique names, and LJ-14 off by
+    0.9 % after a round trip.
+
+    So names are assigned once, for the whole topology, here:
+
+    1. Every type takes its preferred ``<element><N>`` if that name is
+       still free. First appearance in ``mol_specs`` order wins, which
+       leaves a single-component system byte-identical to before.
+    2. A type whose preferred name is taken gets the next index above the
+       highest already used for its element.
+
+    Conventional force-field types (GAFF ``c3``, OPLS ``opls_267``) pass
+    through unchanged and are reserved first, so a generated name can
+    never land on one.
+
+    Returns ``{raw type name: display name}``; callers must use the same
+    map everywhere or the UDF's cross-references stop resolving.
+    """
+    mol_names = {s.name for s in model.mol_specs}
+
+    # First appearance order, and the element each type carries.
+    order: List[str] = []
+    element_of: dict = {}
+    for spec in model.mol_specs:
+        for atom in spec.atoms:
+            if atom.type_name not in element_of:
+                element_of[atom.type_name] = atom.element
+                order.append(atom.type_name)
+
+    preferred = {
+        raw: _display_type_name(raw, element_of[raw], mol_names)
+        for raw in order
+    }
+
+    display: dict = {}
+    taken: set = set()
+
+    # Pass 1: pass-through names first -- they are the force field's own
+    # and must not be displaced -- then preferred names, first come first
+    # served. Reserving before resolving stops an early collision from
+    # stealing a name a later type would have taken cleanly.
+    for raw in order:
+        if preferred[raw] == raw:
+            display[raw] = raw
+            taken.add(raw)
+    for raw in order:
+        if raw in display:
+            continue
+        want = preferred[raw]
+        if want not in taken:
+            display[raw] = want
+            taken.add(want)
+
+    # Pass 2: whatever is left collided. Continue numbering above the
+    # highest index already in use for that element.
+    for raw in order:
+        if raw in display:
+            continue
+        element = element_of[raw]
+        # Start above the highest index already used for this element
+        # rather than filling the first gap. The index no longer means the
+        # interchange one either way, but a number outside the first
+        # component's range reads as "this was renamed", where a low gap
+        # filler looks exactly like a legitimate atom index.
+        n = 0
+        for name_taken in taken:
+            if name_taken.startswith(element):
+                tail = name_taken[len(element):]
+                if tail.isdigit():
+                    n = max(n, int(tail) + 1)
+        while f"{element}{n}" in taken:
+            n += 1
+        name = f"{element}{n}"
+        display[raw] = name
+        taken.add(name)
+        logger.warning(
+            "atom type %r wanted the display name %r, which is already "
+            "taken by another moleculetype; using %r instead. The index in "
+            "an interchange type name is per molecule, so it repeats across "
+            "components.", raw, preferred[raw], name)
+
+    return display
+
+
 def _display_type_name(
     type_name: str,
     element: str,
@@ -545,8 +644,8 @@ class TopExporter:
 
     @staticmethod
     def _write_set_of_molecules(uobj, model: TopModel) -> None:
-        mol_names = {s.name for s in model.mol_specs}
         """Port of add_set_of_molecules_byTop."""
+        display_map = build_display_type_map(model)
         uobj.jump(-1)
 
         e2Q = 18.224159264
@@ -591,8 +690,7 @@ class TopExporter:
                 # - これにより `Atom_Type_Name` / `interaction_Site[].Type_Name`
                 #   / `Molecular_Attributes.Atom_Type[].Name` が完全に同一値
                 #   となり、UDF 内の atom type 参照整合性が自然に取れる。
-                display_type = _display_type_name(
-                    atom.type_name, atom.element, mol_names)
+                display_type = display_map[atom.type_name]
                 uobj.put(atom.element,
                          "Set_of_Molecules.molecule[].atom[].Atom_Name",
                          [imol, iatom])
@@ -867,7 +965,7 @@ class TopExporter:
     @staticmethod
     def _write_molecular_attributes(uobj, model: TopModel) -> None:
         """Port of add_molecular_attributes_byTop."""
-        mol_names = {s.name for s in model.mol_specs}
+        display_map = build_display_type_map(model)
         uobj.jump(-1)
 
         # --- Atom_Type (unique types in order of first appearance) ---
@@ -881,8 +979,7 @@ class TopExporter:
             for atom in spec.atoms:
                 if atom.type_name not in seen_keys:
                     seen_keys.add(atom.type_name)
-                    display = _display_type_name(
-                        atom.type_name, atom.element, mol_names)
+                    display = display_map[atom.type_name]
                     seen_types.append((display, atom.type_name))
 
         for ndata, (display, raw_type) in enumerate(seen_types):
@@ -974,19 +1071,16 @@ class TopExporter:
 
     @staticmethod
     def _write_interactions(uobj, model: TopModel) -> None:
-        mol_names = {s.name for s in model.mol_specs}
         """Port of add_interactions."""
         uobj.jump(-1)
 
         # Collect atom types actually referenced in Set_of_Molecules
         # and build raw_type -> display_name lookup (e.g. MOL0_4 -> C4).
         used_types: set = set()
-        display_map: dict = {}
+        display_map = build_display_type_map(model)
         for spec in model.mol_specs:
             for atom in spec.atoms:
                 used_types.add(atom.type_name)
-                display_map[atom.type_name] = _display_type_name(
-                    atom.type_name, atom.element, mol_names)
 
         # Molecular_Attributes.Interaction_Site_Type
         ncount = 0

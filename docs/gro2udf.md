@@ -453,6 +453,38 @@ python gen_for_udf.py
 
 ## トラブルシューティング
 
+### 多成分系で `Atom_Type_Name` が衝突する (2.13.7 で修正)
+
+OpenFF / interchange の型名 `<moleculetype>_<index>` の index は**分子内**の
+通し番号で、分子種ごとに 0 から振り直される。`<元素><index>` に書き換えると
+その分子種を区別する情報が落ちるので、**元素と位置が一致する型どうしが衝突する**。
+
+実例 (アリピプラゾール + 乳酸): `APZ_2` と `LAC_2` はどちらも index 2 の O で、
+両方 `O2` になっていた。UDF は同名の `Atom_Type` を 2 つ持ち、名前で型を引く経路
+(`interaction_Site` / `Pair_Interaction` / 読み戻す全コンバータ) は先頭を拾うので、
+**2 成分目が 1 成分目のパラメータで静かに走る**。型 69 個に対し名前 68 種、
+往復後の LJ-14 が 0.9 % ずれた。
+
+**単一成分では起きない**ので長く気付かれなかった。
+
+2.13.7 からは topology 全体で一度に名前を割り当てる:
+
+1. 先に現れた型が `<元素><index>` をそのまま取る (**単一成分の出力は従来とバイト一致**)
+2. 衝突した型は、その元素で既に使われている最大 index の次を取る
+3. 力場固有の型名 (GAFF `c3` 等) は素通しで、先に予約される
+
+衝突を解消したときは警告が出る:
+
+```
+atom type 'LAC_2' wanted the display name 'O2', which is already taken by
+another moleculetype; using 'O4' instead. The index in an interchange type
+name is per molecule, so it repeats across components.
+```
+
+**2.13.6 以前が書いた多成分 UDF は作り直すこと。** 名前が潰れている以上、
+後から復元することはできない (どちらの型のパラメータが残っているか、
+UDF だけからは判別できない)。
+
 ### `UDFExportError: failed while writing section ...`
 
 `top_exporter.py` は UDFManager 経由で UDF を書き出す各 stage を
