@@ -275,7 +275,14 @@ def build_display_type_map(model: TopModel) -> dict:
 
     Returns ``{raw type name: display name}``; callers must use the same
     map everywhere or the UDF's cross-references stop resolving.
+
+    The result is cached on the model. Three sections need it and the
+    collision warning should be read once, not once per section.
     """
+    cached = getattr(model, "_display_type_map", None)
+    if cached is not None:
+        return cached
+
     mol_names = {s.name for s in model.mol_specs}
 
     # First appearance order, and the element each type carries.
@@ -339,6 +346,10 @@ def build_display_type_map(model: TopModel) -> dict:
             "an interchange type name is per molecule, so it repeats across "
             "components.", raw, preferred[raw], name)
 
+    try:
+        model._display_type_map = display
+    except AttributeError:          # a slotted or frozen model still works
+        pass
     return display
 
 

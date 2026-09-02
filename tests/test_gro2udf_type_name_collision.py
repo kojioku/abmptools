@@ -165,3 +165,22 @@ class TestDisplayTypeNameItself:
 
     def test_falls_back_to_the_MOL_literal_without_mol_names(self):
         assert _display_type_name("MOL0_4", "C") == "C4"
+
+
+class TestCaching:
+
+    def test_the_map_is_computed_once_per_model(self, caplog):
+        """Three sections ask for the map; the collision warning is for the
+        reader, and repeating it three times just trains them to skip it."""
+        m = model(
+            ("APZ", [("O", "APZ_2")]),
+            ("LAC", [("O", "LAC_2")]),
+        )
+        with caplog.at_level("WARNING"):
+            first = build_display_type_map(m)
+            second = build_display_type_map(m)
+            third = build_display_type_map(m)
+        assert first is second is third
+        collisions = [r for r in caplog.records
+                      if "already taken" in r.getMessage()]
+        assert len(collisions) == 1

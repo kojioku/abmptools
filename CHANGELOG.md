@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [2.13.8] - 2026-09-02
+
+### Changed — gro2udf: 型名の衝突警告が 3 回出ていた
+
+`build_display_type_map()` を `Set_of_Molecules` / `Molecular_Attributes` /
+`Interactions` の 3 箇所が呼ぶので、衝突の警告も 3 回出ていた。
+**同じ警告を 3 回見せるのは読み飛ばす訓練にしかならない**ので、
+マップを model にキャッシュして 1 回にした。出力する UDF は 2.13.7 と
+バイト一致 (実データで確認)。
+
 ## [2.13.7] - 2026-09-02
 
 ### Fixed — gro2udf: 多成分系で 2 成分目が 1 成分目の LJ パラメータで走っていた
