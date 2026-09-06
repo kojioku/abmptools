@@ -9,9 +9,62 @@ COGNAC-UDF の Structure レコードに書き戻すパッケージです。
 
 ---
 
+## 2 つの使い方 — どちらを選ぶか
+
+**「UDF が既にあるか」で決まります。**
+
+| | **udf-and-gro モード** | **`--from-top` モード** |
+|---|---|---|
+| 何をするか | **既にある UDF の座標だけを差し替える** | **UDF を新しく作る** |
+| 入力 | `.udf` ＋ `.gro` | `.top` ＋ `.gro` |
+| UDF の分子構造・力場 | **元の UDF のものをそのまま使う** | `.top` から組み立てる |
+| 使う場面 | J-OCTA で系を組んだ後、GROMACS で MD を回して**構造を戻したい** | GROMACS で組んだ系を**初めて J-OCTA に持ち込む** |
+| コマンド | `python -m abmptools.gro2udf in.udf out.gro` | `python -m abmptools.gro2udf --from-top system.top out.gro` |
+
+### udf-and-gro モード — 座標の差し替え
+
+もとの UDF が持っている **Set_of_Molecules（分子構造）と Interactions（力場）は
+一切触らず**、Structure レコードの座標・速度・セルだけを `.gro` の値で上書きします。
+
+```
+既存 UDF  ─┬─ 分子構造・力場  ──────────────→  そのまま
+           └─ 座標・速度・セル  ←── .gro から差し替え
+```
+
+**J-OCTA で系を組み、GROMACS で MD を回し、結果を J-OCTA に戻す**、という
+往復のうち「戻り」にあたります。UDF 側に何も足せないので、GROMACS 側で
+分子を増減させた場合は使えません。
+
+> **実測 (2026-09-07)**: IMC + PVP の 30 分子系で確認。`Set_of_Molecules` の
+> ブロックは 726,489 文字が**バイト単位で一致**し、先頭原子の座標だけが
+> `[9.67, 24.80, 1.15]` → `[9.66, 24.82, 1.00]` に置き換わった。
+
+### `--from-top` モード — UDF を新規作成
+
+GROMACS の topology（`.top` / `.itp`）を読んで、**分子構造・結合・力場・電荷を
+すべて UDF に書き起こします**。`.gro` からは座標とセルを取ります。
+
+```
+.top  ──→ 分子構造・結合・角度・二面角・LJ・電荷
+.gro  ──→ 座標・セル                              ─→ 新しい UDF
+.mdp  ──→ 温度・カットオフ（任意、下記）
+```
+
+元になる UDF が要らないので、**GROMACS だけで組んだ系を J-OCTA に持ち込める**
+のが利点です。UDF のスキーマ（どの項目を持つか）はテンプレートから取るので、
+`--template` を省略すると同梱の `default_template.udf` が使われます。
+
+`--mdp` を渡すと、温度・`tau_t`・`rcoulomb` から **Nose-Hoover の Q と Ewald の
+カットオフを自動計算**します。省略した場合はテンプレートの値のままです。
+
+> **どちらを使うか迷ったら**
+> 手元に「元になる UDF」があるなら udf-and-gro、無いなら `--from-top`。
+
+---
+
 ## モジュール構成
 
-### udf-and-gro モード（既存）
+### udf-and-gro モードの実装
 
 ```
 abmptools/abmptools/gro2udf/
@@ -24,7 +77,7 @@ abmptools/abmptools/gro2udf/
 └── udf_writer.py      # AtomPosition / CellGeometry → UDF レコード（Writer 層）
 ```
 
-### --from-top モード（追加）
+### `--from-top` モードの実装
 
 ```
 abmptools/abmptools/gro2udf/
