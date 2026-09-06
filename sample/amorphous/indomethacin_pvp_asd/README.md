@@ -11,7 +11,7 @@
 |---|---|
 | 成分 | indomethacin (41 atoms) × 24 + PVP 5-mer (90 atoms) × 6 |
 | 力場 / 電荷 | OpenFF Sage 2.1.0 + AM1-BCC (両成分) |
-| 規模 | 30 分子 / 1704 atoms、box ~2.49 nm、density 1.3 g/cm³ |
+| 規模 | 30 分子 / 1524 atoms、box ~2.49 nm、density 1.3 g/cm³ |
 | MD | 5-stage (EM → NVT/NPT 500 K → anneal → NPT 300 K prod 500 ps)、101 frames @ 5 ps |
 
 PVP オリゴマーは `input/build_pvp_oligomer.py` が RDKit で組む。
