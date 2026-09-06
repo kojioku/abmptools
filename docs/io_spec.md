@@ -124,7 +124,7 @@ Standard columns in single-point and multi-sample CSV files:
 | `DIST` | Minimum inter-fragment distance | Å |
 | `DIMER-ES` | Dimer-ES approximation flag (0 = full, 1 = approximate) | — |
 | `HF-IFIE` | Hartree-Fock IFIE | kcal/mol |
-| `MP2-IFIE` | MP2 IFIE (HF + MP2 correlation) | kcal/mol |
+| `MP2-IFIE` | MP2 **correlation correction only** — the total is `HF-IFIE` + `MP2-IFIE` | kcal/mol |
 | `PR-TYPE1` | PR-MP2 corrected IFIE | kcal/mol |
 | `GRIMME` | SCS-MP2 (Grimme) | kcal/mol |
 | `JUNG` | SCS-MP2 (Jung) | kcal/mol |
@@ -133,8 +133,47 @@ Standard columns in single-point and multi-sample CSV files:
 | `EX` | Exchange repulsion component | kcal/mol |
 | `CT-mix` | Charge transfer + mix component | kcal/mol |
 | `DI(MP2)` | Dispersion-like (MP2 correlation) component | kcal/mol |
+| `ES(RESP)` | Electrostatics from RESP charges — enhanced PIEDA only | kcal/mol |
+| `DI(LRD)` | Dispersion from Local Response Dispersion — enhanced PIEDA only | kcal/mol |
+| `Erest` | Correlation that is not dispersion — enhanced PIEDA only | kcal/mol |
 | `q(I=>J)` | Charge transfer amount | e |
 | `TIMES` | Timestep (multi-sample only) | — |
+
+The components add back up, which is the quickest check that a log was read
+with the right column layout:
+
+```
+ES + EX + CT-mix            = HF-IFIE
+DI(MP2)                     = MP2-IFIE        (Ver.1, and Ver.2 without LRD)
+DI(LRD) + Erest             = MP2-IFIE        (enhanced PIEDA)
+```
+
+#### Enhanced PIEDA (ABINIT-MP Ver.2 Rev.8)
+
+Adding
+
+```
+&LRD
+  DISP='ON'
+/
+&ANALYSIS
+  PIEDA='YES'
+  ES_RESP='YES'
+/
+```
+
+splits the dispersion term into `DI(LRD)`, the dispersion proper, and `Erest`,
+the rest of the MP2 correlation, and adds a classical `ES(RESP)` computed from
+RESP charges. The PIEDA table then carries two more columns:
+
+```
+IJ-PAIR  ES        EX  CT+mix  DI(MP2)          q(I=>J)      Ver.1 / Ver.2
+IJ-PAIR  ES(RESP)  ES  EX  CT+mix  DI(LRD)  Erest  q(I=>J)   enhanced
+```
+
+abmptools reads the layout from the log's own header, so both are handled and
+an unrecognised header raises rather than shifting every value one column.
+`&LRD` is not available in V1DD2024.
 
 ### ffmatrix Output Files
 

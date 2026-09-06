@@ -84,6 +84,68 @@ try:
 except ImportError:
     pass
 
+
+#: PIEDA テーブルのヘッダ語 → 内部で使う列名。
+#:
+#: ABINIT-MP Ver.2 Rev.8 の enhanced PIEDA (``&LRD DISP='ON'`` +
+#: ``&ANALYSIS ES_RESP='YES'``) は列が 2 本増える::
+#:
+#:   IJ-PAIR  ES              EX  CT+mix  DI(MP2)             q(I=>J)   従来
+#:   IJ-PAIR  ES(RESP)  ES    EX  CT+mix  DI(LRD)   Erest     q(I=>J)   enhanced
+#:
+#: 列位置を決め打ちすると enhanced のログを**例外なしで 1 列ずつずらして**
+#: 読んでしまうので、ヘッダ行から対応づける。
+PIEDA_HEADER_TO_COLUMN = {
+    "IJ-PAIR": ("I", "J"),
+    "ES(RESP)": ("ES(RESP)",),
+    "ES": ("ES",),
+    "EX": ("EX",),
+    "CT+mix": ("CT-mix",),
+    "Solv(ES)": ("Solv(ES)",),
+    # HF 計算のログはただの ``DI``。従来の固定レイアウトではこれも
+    # ``DI(MP2)`` として扱われていたので、列名を変えない。
+    "DI": ("DI(MP2)",),
+    "DI(MP2)": ("DI(MP2)",),
+    "DI(LRD)": ("DI(LRD)",),
+    "Erest": ("Erest",),
+    "q(I=>J)": ("q(I=>J)",),
+}
+
+#: ``DI(LRD) + Erest`` が従来の ``DI(MP2)`` にあたる。DI(LRD) が分散力、
+#: Erest がそれ以外の相関。
+PIEDA_DI_TERMS = ("DI(MP2)", "DI(LRD)", "Erest")
+
+
+def pieda_columns_from_header(header: str) -> list[str]:
+    """PIEDA テーブルのヘッダ行から列名リストを作る。
+
+    Args:
+        header: ``IJ-PAIR ES EX CT+mix DI(MP2) q(I=>J)`` のような行。
+
+    Returns:
+        ``['I', 'J', 'ES', ...]``
+
+    Raises:
+        ValueError: 知らないヘッダ語があるとき。黙って読み違えるより落とす。
+    """
+    cols: list[str] = []
+    unknown = []
+    for token in header.split():
+        if token in PIEDA_HEADER_TO_COLUMN:
+            cols.extend(PIEDA_HEADER_TO_COLUMN[token])
+        else:
+            unknown.append(token)
+    if unknown:
+        raise ValueError(
+            f"unknown PIEDA header field(s) {unknown} in: {header.strip()!r}. "
+            "Add them to PIEDA_HEADER_TO_COLUMN rather than guessing column "
+            "positions."
+        )
+    if cols[:2] != ["I", "J"]:
+        raise ValueError(f"PIEDA header does not start with IJ-PAIR: {header!r}")
+    return cols
+
+
 class anlfmo(pdio):
     """FMO解析クラス。
 
@@ -242,9 +304,25 @@ class anlfmo(pdio):
                 break
             if flag:
                 count += 1
+            # Blank lines and the ``-----`` rule split to fewer than 2 fields
+            # and are skipped above, so count 1 is the header and count 2 the
+            # units line. Take the column layout from the header instead of
+            # assuming it: Ver.2 Rev.8's enhanced PIEDA has two extra columns,
+            # and the old fixed layout read every value one slot out.
+            if flag and count == 1:
+                self.pcolumn = pieda_columns_from_header(text[i])
+                continue
             if flag and count > 2:
                 ifie.append(itemList)
 
+        if ifie:
+            width = len(self.pcolumn)
+            bad = [row for row in ifie if len(row) != width]
+            if bad:
+                raise ValueError(
+                    f"{fname}: PIEDA row has {len(bad[0])} fields but the "
+                    f"header declares {width} ({self.pcolumn}): {bad[0]}"
+                )
         return ifie
 
     def getconnect(self, idxs: list[int], molfrags: list[int], df: pd.DataFrame, tgtid: int) -> tuple[list[int], list[int]]:
@@ -894,17 +972,15 @@ class anlfmo(pdio):
         Returns:
             pandas.DataFrame: PIEDA成分(ES, EX, CT-mix, DI(MP2), q(I=>J))を含むデータフレーム
         """
-        # print('l669', pieda[1])
+        # The layout comes from the log's own header (see read_pieda), so the
+        # columns present depend on the ABINIT-MP version and on whether LRD
+        # and ES_RESP were switched on. Cast by name, not by position.
         pidf = pd.DataFrame(pieda, columns=self.pcolumn)
         pidf['I'] = pidf['I'].astype(int)
         pidf['J'] = pidf['J'].astype(int)
-        pidf['ES'] = pidf['ES'].astype(float)
-        pidf['EX'] = pidf['EX'].astype(float)
-        pidf['CT-mix'] = pidf['CT-mix'].astype(float)
-        if self.abinit_ver == 'rev16' or self.abinit_ver == 'rev17':
-            pidf['Solv(ES)'] = pidf['Solv(ES)'].astype(float)
-        pidf['DI(MP2)'] = pidf['DI(MP2)'].astype(float)
-        pidf['q(I=>J)'] = pidf['q(I=>J)'].astype(float)
+        for col in self.pcolumn:
+            if col not in ('I', 'J'):
+                pidf[col] = pidf[col].astype(float)
         return pidf
 
     def getmomenedf(self, momene: list[list[str]]) -> pd.DataFrame:
@@ -967,12 +1043,9 @@ class anlfmo(pdio):
         pidf = pd.DataFrame(pieda, columns=self.pcolumnpb)
         pidf['I'] = pidf['I'].astype(int)
         pidf['J'] = pidf['J'].astype(int)
-        pidf['ES'] = pidf['ES'].astype(float)
-        pidf['EX'] = pidf['EX'].astype(float)
-        pidf['CT-mix'] = pidf['CT-mix'].astype(float)
-        pidf['Solv(ES)'] = pidf['Solv(ES)'].astype(float)
-        pidf['DI(MP2)'] = pidf['DI(MP2)'].astype(float)
-        pidf['q(I=>J)'] = pidf['q(I=>J)'].astype(float)
+        for col in self.pcolumnpb:
+            if col not in ('I', 'J'):
+                pidf[col] = pidf[col].astype(float)
         pidf.drop(columns=['Solv(ES)'], inplace=True)
 
         return pidf
@@ -1519,7 +1592,7 @@ class anlfmo(pdio):
         esbuf = tgtdf_filter['ES'].values.tolist()
         exbuf = tgtdf_filter['EX'].values.tolist()
         ctbuf = tgtdf_filter['CT-mix'].values.tolist()
-        dibuf = tgtdf_filter['DI(MP2)'].values.tolist()
+        dibuf = tgtdf_filter[self.di_column(tgtdf_filter)].values.tolist()
 
 
         # complement values from ifdf
@@ -1669,92 +1742,62 @@ class anlfmo(pdio):
         logger.debug('%s', ifdf_frag_mols[0])
 
 
-        count = 0
-        if self.abinit_ver == 'rev17' or self.abinit_ver == 'rev16':
-            self.ifdfsumcolumn = [['HF-IFIE', 'MP2-IFIE', 'ES', 'EX', 'Solv(ES)', 'CT-mix', 'DI(MP2)', 'q(I=>J)']]
+        # Which terms to sum is decided by the data, not by a fixed list: the
+        # PIEDA columns depend on the ABINIT-MP version and on whether LRD /
+        # ES_RESP were on, and the IFIE columns on HF vs MP2.
+        self.ifdfsumcolumn = self.sum_terms(ifdf_frag_mols[0]) \
+            if ifdf_frag_mols else list(self.ifdfsumcolumn)
 
-        HF_IFIE_sums = []
-        MP2_IFIE_sums = []
-        PR_TYPE1_sums = []
-        GRIMME_sums = []
-        JUNG_sums = []
-        HILL_sums = []
-        ES_sums = []
-        EX_sums = []
-        CT_sums = []
-        DI_sums = []
-        q_sums = []
-
-        for datadf in ifdf_frag_mols:
-            HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum = self.getsumdf(datadf)
-            HF_IFIE_sums.append(HF_IFIE_sum)
-            MP2_IFIE_sums.append(MP2_IFIE_sum)
-            PR_TYPE1_sums.append(PR_TYPE1_sum)
-            GRIMME_sums.append(GRIMME_sum)
-            JUNG_sums.append(JUNG_sum)
-            HILL_sums.append(HILL_sum)
-            ES_sums.append(ES_sum)
-            EX_sums.append(EX_sum)
-            CT_sums.append(CT_sum)
-            DI_sums.append(DI_sum)
-            q_sums.append(q_sum)
+        sums = [self.getsumdf(datadf) for datadf in ifdf_frag_mols]
 
         ifdf_mol_mol = pd.DataFrame(columns=self.ifdfsumcolumn).astype(float)
-        # self.ifdfsumcolumn = ['HF-IFIE', 'MP2-IFIE', 'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL', 'ES', 'EX', 'CT-mix', 'DI(MP2)', 'q(I=>J)']
-
         ifdf_mol_mol['I'] = contactmolfrags
-        ifdf_mol_mol['J'] = [molfrags for i in range(len(HF_IFIE_sums))]
-        ifdf_mol_mol['HF-IFIE'] = HF_IFIE_sums
-        ifdf_mol_mol['MP2-IFIE'] = MP2_IFIE_sums
-        ifdf_mol_mol['PR-TYPE1'] = PR_TYPE1_sums
-        ifdf_mol_mol['GRIMME'] = GRIMME_sums
-        ifdf_mol_mol['JUNG'] = JUNG_sums
-        ifdf_mol_mol['HILL'] = HILL_sums
-        ifdf_mol_mol['ES'] = ES_sums
-        ifdf_mol_mol['EX'] = EX_sums
-        ifdf_mol_mol['CT-mix'] = CT_sums
-        ifdf_mol_mol['DI(MP2)'] = DI_sums
-        ifdf_mol_mol['q(I=>J)'] = q_sums
+        ifdf_mol_mol['J'] = [molfrags for _ in range(len(sums))]
+        for term in self.ifdfsumcolumn:
+            ifdf_mol_mol[term] = [row[term] for row in sums]
 
-        HF_IFIE_molsum = sum(HF_IFIE_sums)
-        MP2_IFIE_molsum = sum(MP2_IFIE_sums)
-        PR_TYPE1_molsum = sum(PR_TYPE1_sums)
-        GRIMME_molsum = sum(GRIMME_sums)
-        JUNG_molsum = sum(JUNG_sums)
-        HILL_molsum = sum(HILL_sums)
-        ES_molsum = sum(ES_sums)
-        EX_molsum = sum(EX_sums)
-        CT_molsum = sum(CT_sums)
-        DI_molsum = sum(DI_sums)
-        q_molsum = sum(q_sums)
-
-        ifdf_molsum = pd.Series([HF_IFIE_molsum, MP2_IFIE_molsum, PR_TYPE1_molsum, GRIMME_molsum, JUNG_molsum, HILL_molsum, ES_molsum, EX_molsum, CT_molsum, DI_molsum, q_molsum], index=self.ifdfsumcolumn, name='mol'+str(molid))
+        ifdf_molsum = pd.Series(
+            [sum(row[term] for row in sums) for term in self.ifdfsumcolumn],
+            index=self.ifdfsumcolumn, name='mol' + str(molid))
 
         return contactmolfrags, ifdf_frag_mols, ifdf_mol_mol, ifdf_molsum
 
-    def getsumdf(self, df: pd.DataFrame) -> tuple[float, float, float, float, float, float, float, float, float, float, float]:
+    def getsumdf(self, df: pd.DataFrame) -> dict[str, float]:
         """DataFrameの各IFIE/PIEDA成分の合計値を算出する。
+
+        どの成分があるかは ABINIT-MP のバージョンと ``&LRD`` / ``ES_RESP`` の
+        有無で変わるので、固定の並びではなく**実際にある列**を合計する。
 
         Args:
             df (pandas.DataFrame): IFIE/PIEDAデータフレーム
 
         Returns:
-            tuple: (HF-IFIE, MP2-IFIE, PR-TYPE1, GRIMME, JUNG, HILL, ES, EX, CT-mix, DI(MP2), q(I=>J))の各合計値
+            dict: 列名 -> 合計値
         """
-        HF_IFIE_sum = df['HF-IFIE'].sum()
-        MP2_IFIE_sum = df['MP2-IFIE'].sum()
-        PR_TYPE1_sum = df['PR-TYPE1'].sum()
-        GRIMME_sum = df['GRIMME'].sum()
-        JUNG_sum = df['JUNG'].sum()
-        HILL_sum = df['HILL'].sum()
+        return {term: df[term].sum() for term in self.sum_terms(df)}
 
-        ES_sum = df['ES'].sum()
-        EX_sum = df['EX'].sum()
-        CT_sum = df['CT-mix'].sum()
-        DI_sum = df['DI(MP2)'].sum()
-        q_sum = df['q(I=>J)'].sum()
+    #: 合計してよい列。フラグメント番号や距離は入れない。
+    SUMMABLE = ('HF-IFIE', 'MP2-IFIE', 'PR-TYPE1', 'GRIMME', 'JUNG', 'HILL',
+                'ES(RESP)', 'ES', 'EX', 'Solv(ES)', 'CT-mix',
+                'DI(MP2)', 'DI(LRD)', 'Erest', 'q(I=>J)')
 
-        return HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum
+    def sum_terms(self, df: pd.DataFrame) -> list[str]:
+        """このデータフレームで合計すべき列を、実際にある列から決める。"""
+        return [term for term in self.SUMMABLE if term in df.columns]
+
+    def di_column(self, df: pd.DataFrame) -> str:
+        """このログの分散項の列名。
+
+        enhanced PIEDA では ``DI(MP2)`` が ``DI(LRD)`` (分散力) と ``Erest``
+        (それ以外の相関) に割れる。両者の和が従来の ``DI(MP2)`` にあたる。
+        """
+        for name in ('DI(MP2)', 'DI(LRD)'):
+            if name in df.columns:
+                return name
+        raise KeyError(
+            f"no dispersion column in {list(df.columns)}; expected one of "
+            f"{PIEDA_DI_TERMS}"
+        )
 
 
     def getpitgtdf(self, pidf: pd.DataFrame, ifdf_filter: pd.DataFrame) -> pd.DataFrame:
@@ -2213,22 +2256,13 @@ class anlfmo(pdio):
             if self.dist != 1000.0:
                 ifdf_filter = ifdf_filter[ifdf_filter['DIST'] < self.dist]
 
-            HF_IFIE_sum = ifdf_filter['HF-IFIE'].sum()
-            MP2_IFIE_sum = ifdf_filter['MP2-IFIE'].sum()
-            PR_TYPE1_sum = ifdf_filter['PR-TYPE1'].sum()
-            GRIMME_sum = ifdf_filter['GRIMME'].sum()
-            JUNG_sum = ifdf_filter['JUNG'].sum()
-            HILL_sum = ifdf_filter['HILL'].sum()
-
-            ES_sum = ifdf_filter['ES'].sum()
-            EX_sum = ifdf_filter['EX'].sum()
-            CT_sum = ifdf_filter['CT-mix'].sum()
-            DI_sum = ifdf_filter['DI(MP2)'].sum()
-            q_sum = ifdf_filter['q(I=>J)'].sum()
+            sums = self.getsumdf(ifdf_filter)
+            self.ifdfsumcolumn = list(sums)
 
             ifdf_filter['TIMES'] = self.tgttimes[i]
 
-            ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, q_sum], index=self.ifdfsumcolumn, name=self.tgttimes[i])
+            ifdfsum = pd.Series(list(sums.values()), index=self.ifdfsumcolumn,
+                                name=self.tgttimes[i])
             logger.debug('ifdfsum\n%s', ifdfsum)
             ifdf_filters.append(ifdf_filter)
             ifdfsums.append(ifdfsum)
@@ -2288,7 +2322,7 @@ class anlfmo(pdio):
         ES_sum = ifdf_filter['ES'].sum()
         EX_sum = ifdf_filter['EX'].sum()
         CT_sum = ifdf_filter['CT-mix'].sum()
-        DI_sum = ifdf_filter['DI(MP2)'].sum()
+        DI_sum = ifdf_filter[self.di_column(ifdf_filter)].sum()
         q_sum = ifdf_filter['q(I=>J)'].sum()
 
         try:
