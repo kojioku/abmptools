@@ -436,6 +436,55 @@ python build_amorphous.py ... \
 
 ## 9. 次のステップ
 
+### OCTA / J-OCTA で見る — UDF への変換
+
+ここまでで出来た `build/system.top` と `md/05_npt_final.gro` を
+**そのまま OCTA の UDF に変換できます**。J-OCTA で構造を眺めたり、
+DPD や解析ツールに渡したりする入口になります。
+
+最小構成なら、MD が終わった時点のファイルだけで変換できます。
+
+```bash
+cd run1     # build/ と md/ がある場所
+
+python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
+    --mdp md/05_npt_final.mdp \
+    --out 05_final.udf
+```
+
+`--from-top` は **top から分子構造・結合・力場・電荷を組み立てて UDF を新規に
+作る**モードです (元になる UDF は要りません)。`--mdp` を渡すと温度やカットオフも
+引き継がれます。
+
+**軌跡とエネルギーも入れたい場合**は、先に `md/gen_for_udf.py` を実行して
+OCTA viewer 用のファイルを作ります (**MD を回しただけでは生成されません**)。
+
+```bash
+cd md && python gen_for_udf.py && cd ..
+# → md/05_npt_final_nojump.gro (PBC を跨いで連続な軌跡)
+#   md/05_npt_final_energy.xvg (全エネルギー term)
+
+python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
+    --mdp md/05_npt_final.mdp \
+    --trajectory md/05_npt_final_nojump.gro \
+    --energy md/05_npt_final_energy.xvg \
+    --out 05_full.udf
+```
+
+こうすると topology + 全フレーム + エネルギープロットが 1 ファイルに入るので、
+**OCTA viewer (GOURMET) だけで再生**できます。
+
+> **実測 (2026-09-07)**: IMC + PVP 30 分子 / 101 frame で、最小構成が 5.0 MB
+> (1 record)、全部入りが 12.7 MB (101 record) になった。`-pbc nojump` を使うのは、
+`wrap_pbc.py` の `-pbc mol` と違って**分子を box に畳まず連続に追跡する**ためで、
+軌跡の再生にはこちらが適しています。
+
+**UDFManager (OCTA 同梱) が必要**です。手順とオプションの全体は
+[gro2udf.md](gro2udf.md)、amorphous からの標準フローは
+[amorphous.md の「OCTA UDF/BDF への変換」](amorphous.md) を参照。
+
+### そのほか
+
 - **CLI 詳細**: [amorphous.md](amorphous.md) (オプション全一覧、JSON schema、Python API)
 - **結果の永続化**: プライベート [md-archive](https://github.com/kojioku/md-archive) に
   `<system>_<kind>_<yyyymmdd>_<key params>/` 命名で格納

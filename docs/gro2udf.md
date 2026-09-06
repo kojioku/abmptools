@@ -60,6 +60,24 @@ GROMACS の topology（`.top` / `.itp`）を読んで、**分子構造・結合�
 > **どちらを使うか迷ったら**
 > 手元に「元になる UDF」があるなら udf-and-gro、無いなら `--from-top`。
 
+### 入力はどこから来るか
+
+`--from-top` に渡す `.top` / `.gro` は、多くの場合 **`abmptools.amorphous` で
+組んだ非晶質セルを GROMACS で回した結果**です。
+
+```
+abmptools.amorphous  ─→  build/system.top    ─┐
+                         build/system.gro     │
+GROMACS (5 段階 MD)  ─→  md/05_npt_final.gro ─┼─→  gro2udf --from-top  ─→  UDF
+                         md/05_npt_final.mdp  │
+                         md/..._energy.xvg   ─┘
+```
+
+構築から MD までの手順は
+[amorphous_tutorial.md](amorphous_tutorial.md)、amorphous からの標準的な変換
+フロー (trajectory と energy を一緒に入れる例) は
+[amorphous.md の「OCTA UDF/BDF への変換」](amorphous.md) にあります。
+
 ---
 
 ## モジュール構成
