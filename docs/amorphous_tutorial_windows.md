@@ -1,7 +1,12 @@
-# amorphous builder — Windows インストール & 実行
+# amorphous builder — Windows で実行する
+
+> **インストールは [INSTALL.md](INSTALL.md) に統一した。** Linux / WSL2 / Windows /
+> macOS が 1 本にまとまっており、Windows native の 2 つの違い
+> (`openff-toolkit-base` と `openff-nagl`) も §3.2 にある。
+> **このドキュメントは、環境が出来た後の実行方法** (電荷バックエンドの選択、
+> PowerShell からの叩き方、`activate` が使えない場合) を扱う。
 
 メインの [amorphous_tutorial.md](amorphous_tutorial.md) は Linux/macOS を想定。
-本ドキュメントは **Windows ユーザーが実行する場合の追加手順** をまとめたもの。
 
 ## 要約
 

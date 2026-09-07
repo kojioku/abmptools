@@ -10,22 +10,18 @@ OpenFF でパラメータ化 → Packmol で初期配置 → GROMACS アニー�
 >
 ## インストール
 
+導入手順は **[INSTALL.md](INSTALL.md) §3** にまとめてある (Linux / WSL2 / Windows / macOS
+を 1 本に統一)。Linux / WSL2 なら次の 1 本で終わる:
+
 ```bash
-# 基本依存 (conda推奨)
-conda install -c conda-forge openff-toolkit openff-interchange openmm numpy
-
-# 電荷計算 (どちらか一方)
-conda install -c conda-forge ambertools    # AM1-BCC (推奨)
-# or
-pip install openff-nagl                     # ML ベース (AmberTools 不要)
-
-# Packmol
-conda install -c conda-forge packmol
-# or ソースから: http://m3g.iqm.unicamp.br/packmol/
-
-# pip extras
-pip install abmptools[amorphous]
+micromamba create -n abmptoolsenv -c conda-forge -y python=3.10 \
+    openff-toolkit openff-interchange openmm rdkit packmol ambertools
+micromamba activate abmptoolsenv
+pip install abmptools "setuptools<81"
 ```
+
+Windows native は AmberTools が無いので `openff-toolkit-base` + `openff-nagl` に
+変える (INSTALL.md §3.2)。
 
 ## クイックスタート
 

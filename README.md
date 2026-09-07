@@ -86,8 +86,15 @@ python -c "import abmptools; print(abmptools.__file__)"
 
 If `Location` and `__file__` disagree, another copy is winning.
 
-Optional extras pull in the plotting and chemistry dependencies a given
-subpackage needs, e.g. `pip install 'abmptools[amorphous]'`.
+Optional extras declare the dependencies a given subpackage needs, e.g.
+`pip install 'abmptools[amorphous]'`. Extras are declarations only — OpenMM and
+AmberTools are not practical to install through pip, so the OpenFF stack used by
+`abmptools.amorphous` goes in through conda-forge.
+
+**[docs/INSTALL.md](docs/INSTALL.md) is the single source for setup**, covering
+Linux / WSL2 / Windows / macOS in one document: which extra dependency each
+feature needs, the one-line conda command per platform, and the two things that
+differ on native Windows.
 
 ### From source (development)
 

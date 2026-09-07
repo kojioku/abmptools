@@ -32,6 +32,8 @@ pip install mace-torch          # pulls in torch automatically
 
 ### OpenFF + OpenMM minimizer
 
+> Install steps for every platform are in [INSTALL.md](INSTALL.md) §4.
+
 ```bash
 # Core (required)
 conda install -c conda-forge openmm openff-toolkit

@@ -36,6 +36,8 @@
 
 ### 1-1. micromamba 環境 `abmptoolsenv` に依存を入れる
 
+> OS ごとの手順は [INSTALL.md](INSTALL.md) §3 が正 (Windows native は 2 箇所違う)。ここは Linux / WSL2 の場合。
+
 ```bash
 micromamba install -n abmptoolsenv -c conda-forge -y \
     openff-toolkit openff-interchange openmm rdkit packmol ambertools

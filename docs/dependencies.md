@@ -84,6 +84,9 @@ follows the log's `Method` keyword.
 
 ## Optional Dependencies — abmptools.amorphous
 
+> **入れ方は [INSTALL.md](INSTALL.md) §3 を見ること。**
+> ここは「何がなぜ要るか」の一覧で、OS ごとの手順は INSTALL.md が正。
+
 `abmptools.amorphous` もすべての重い依存を実行時まで遅延インポートするため、
 未インストールでも `import abmptools` は成功します。amorphous ビルダーを動かすには以下が必要です。
 
@@ -131,6 +134,8 @@ Python 追加依存は **なし** (`urllib` 標準ライブラリのみ) です�
 環境では事前に SDF をダウンロードしておくか `--mol` で指定してください。
 
 ## Optional Dependencies — abmptools.geomopt
+
+> **入れ方は [INSTALL.md](INSTALL.md) §4 を見ること。**
 
 `abmptools.geomopt` はすべての重い依存を実行時まで遅延インポートするため、
 未インストールでも `import abmptools` 自体は成功します。

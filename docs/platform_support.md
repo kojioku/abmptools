@@ -32,6 +32,9 @@ Windows ネイティブ運用したい組織への参照資料を兼ねる。
 
 ## 推奨 setup 別シナリオ
 
+> **具体的な導入コマンドは [INSTALL.md](INSTALL.md) が正。**
+> ここは「どの OS で何が動くか」の判断材料。
+
 ### A. Linux / macOS / WSL2 ユーザー — 全機能 OK
 
 ```bash
