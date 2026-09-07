@@ -98,6 +98,10 @@ differ on native Windows.
 
 ### From source (development)
 
+[docs/overview.md](docs/overview.md) is the tour of what the package does;
+[docs/dev_quickstart.md](docs/dev_quickstart.md) covers the conventions to
+follow when adding to it.
+
 Editable install is recommended for day-to-day use and development:
 
 ```bash

@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+## [2.13.10] - 2026-09-07
+
+### Docs — セットアップを `docs/INSTALL.md` 1 本にまとめた
+
+手順が README・`dependencies.md`・`platform_support.md`・
+`amorphous_tutorial_windows.md` に散っており、**どれが正なのか読み手に決めさせて
+いた**。プラットフォームごとに置き場所が違うので、自分に関係する記述を探すところ
+から始まる。1 本にまとめ、README から「setup の単一の出所」と明示した。
+
+- 機能ごとに何が要るか → プラットフォーム別の 1 行 → native Windows で変わる 2 箇所、
+  という順に並べ直した
+- **UDFManager の調達を 3 経路として整理** —— WSL でプリビルドの `.so` を使う (推奨) /
+  WSL から Windows の J-OCTA python を呼ぶ / Windows の J-OCTA Python を使う
+- プリビルド `.so` は **GOURMET のビルド不要**。足りないのは `libjpeg.so.62` と
+  `libGLU.so.1` の 2 本だけで、root が無くても `dpkg-deb -x` + `LD_LIBRARY_PATH`
+  で通る。**`libjpeg.so.8` を `.62` に symlink してはいけない** (ABI が違う)
+- **J-OCTA コンソールは venv + constraints を推奨に変更**した。同梱を継承する venv を
+  作り、同梱の版を pin してから入れる。従来の `--user --no-deps` は依存を解決しない
+  ため、フォールバックとして残した。あわせて **先に `--user` で入れたものを消す手順を
+  追加** —— user site は J-OCTA 同梱より優先されるので、残っていると venv を作っても
+  そちらが混ざる
+
+### Docs — amorphous: IMC + PVP の原子数を訂正
+
+### Fixed — `CITATION.cff` が release に追従していなかった
+
+版が `pyproject.toml` と 2 か所に分かれ、手で直す運用だった。v2.13.0 の時点で
+2.12.0 のまま放置されていたのを直したあと、**今度は 2.13.9 を出したのに 2.13.8 の
+まま残っていた**。引用されるのは論文の中なので下流の検査がどこにも無く、読者が
+古い版を引く形で表に出る。ずれたら落ちるテストを追加した
+(`tests/test_citation_version.py`)。
+
+### Docs — 辿れなくなっていた doc を README から繋いだ
+
+`docs/overview.md` と `docs/dev_quickstart.md` が README からも他の doc からも
+参照されておらず、リポジトリを開いた人には見つけられなかった。あわせて
+`dev_quickstart.md` のテスト数を実測に合わせた (1002 → 1038 件 / 51 → 55 ファイル)。
+
+
 ## [2.13.9] - 2026-09-07
 
 ### Docs — gro2udf: モードが何なのかを先に書く
