@@ -104,8 +104,68 @@ abmptools/abmptools/gro2udf/
 ├── top_model.py           # 中間表現 dataclass 群
 ├── top_exporter.py        # TopModel → COGNAC UDF（Writer 層）
 ├── mdp_parser.py          # MDP → MdpParams（シミュレーション条件）
+├── guard.py               # 変換できない .top を検出して止める
 └── default_template.udf   # テンプレート未指定時のデフォルト UDF
 ```
+
+### ★ 変換できない `.top` は通さない（`guard.py`）
+
+`--from-top` が読むセクションと、書ける COGNAC ポテンシャル型は固定である。
+それ以外は**メッセージ無しで捨てられていた**ので、変換は成功したように見えて
+中身が静かに間違った UDF が出ていた。
+
+きっかけは Martini 2 の topology である。非結合パラメータが全部
+`[ nonbond_params ]` にあり `[ atomtypes ]` は `c6 = c12 = 0` なので、
+**`Pair_Interaction` が 0 本の UDF が無警告で生成されていた**
+（`Interaction_Site_Type[].Range` は `sigma * 1.5` なのでこれも 0 になる）。
+
+重大度は 2 つに分かれる。**復旧可能性が違うため**である。
+
+| 重大度 | 何が起きるか | 既定の挙動 |
+|---|---|---|
+| **fatal** | 項が**誤った関数形・誤った数値で書かれる**。UDF は完成品に見えるので下流で気づけない | **エラーで停止** |
+| warning | 項が**落ちる**。不在として見えるうえ、全原子 topology はずっとこの挙動だった | 警告のみ。変換は続行 |
+
+**fatal**
+
+| 検出 | 失われるもの |
+|---|---|
+| `[ defaults ]` comb-rule 1 | `[ atomtypes ]` 末尾 2 列は `c6`/`c12` だが σ/ε として読まれる。全 LJ が誤り |
+| `[ nonbond_params ]` に行がある | 明示された非結合ペア全部。Martini はここに全 LJ を置く |
+| `[ constraints ]` に行がある | 拘束結合。力の定数を持たないので、原子が何にも繋がらなくなる |
+| bond funct ≠ 1 | funct に関わらず COGNAC `Harmonic` として書かれる |
+| angle funct ≠ 1 | funct に関わらず COGNAC `Theta` として書かれる。Martini の G96 角度 (funct 2) は**力の定数の単位すら違う** (kJ/mol vs kJ/mol/rad²) |
+
+**warning**
+
+`[ pairtypes ]` / `[ settles ]` / `[ exclusions ]` / `[ virtual_sites* ]` /
+`[ dummies* ]` / `[ cmaptypes ]` / `[ cmap ]`、および dihedral の funct が
+1 / 3 / 4 / 9 以外の場合。
+
+`--allow-unsupported` を付けると fatal も警告に落として変換する。
+
+```bash
+python -m abmptools.gro2udf --from-top martini.top conf.gro --out out.udf
+# UnsupportedTopFeatureError: this .top uses features gro2udf writes incorrectly:
+#   - [ defaults ] declares comb-rule 1, ...
+#   - [ nonbond_params ] has 10 entries but is not read; ...
+#   - angle funct 2 is written as COGNAC Theta regardless ...
+```
+
+#### 検出しないもの・その理由
+
+- **`[ pairs ]`** は損失ではない。COGNAC は `Scale_1_4_Pair`（`fudgeLJ` から設定
+  済み）で 1-4 を再現する。`[ pairtypes ]` による型ごとの上書きだけが、この
+  単一のスケール係数では表せないので警告する
+- **`[ position_restraints ]` 等の restraints 系**は挙げていない。`#ifdef` は
+  gro2udf のどこでも評価されないため、`#ifdef POSRES` の中にある拘束を「有効」
+  として警告すると、当たるより外れる方が多くなる。
+  `[ settles ]` は `#else` 側＝実際に有効な枝なので残してある
+- **dihedral の funct は生の行から数えている**。非対応 funct の行は parser の
+  「型参照のみ」分岐に落ち、**funct が torsion 型の番号として保存される**ため、
+  パース後には funct が残らない（しかも存在しない型を指す）
+
+**guard は検出しかしない。** これらを実際に変換できるようにするのは別の作業である。
 
 ### 設計方針
 

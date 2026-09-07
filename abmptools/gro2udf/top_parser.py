@@ -17,6 +17,8 @@ import os
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
+from .guard import scan_dihedral_functs, scan_sections
+
 logger = logging.getLogger(__name__)
 
 
@@ -88,6 +90,14 @@ class TopRawData:
     angle_types_from_mol: List = field(default_factory=list)
     torsion_types_from_mol: List = field(default_factory=list)
 
+    # section name (lower-case) -> number of data lines, after #include
+    # resolution. Used by :mod:`.guard` to spot content that is not read.
+    sections: Dict[str, int] = field(default_factory=dict)
+
+    # every ``funct`` seen in [ dihedrals ] / [ dihedraltypes ], read from the
+    # raw text because an unsupported funct is lost during parsing.
+    dihedral_functs: List[int] = field(default_factory=list)
+
 
 # ---------------------------------------------------------------------------
 # Pure helper functions (module level, same logic as convert_gromacs_udf.py)
@@ -157,6 +167,8 @@ class TopParser:
         """Parse *top_path* and return a :class:`TopRawData`."""
         lines = self._resolve_includes(top_path)
         raw = TopRawData()
+        raw.sections = scan_sections(lines)
+        raw.dihedral_functs = scan_dihedral_functs(lines)
 
         # Defaults
         raw.comb_rule, raw.fudge_lj, raw.fudge_qq = self._parse_defaults(lines)
