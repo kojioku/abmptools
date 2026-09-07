@@ -22,6 +22,7 @@ from typing import Iterable, List, Optional
 
 from .top_model import KB_AMU_A2_PS2_K, GROFrameData, TopModel
 from .top_parser import TopParser
+from .guard import raise_if_unsupported
 from .top_adapter import TopAdapter
 
 logger = logging.getLogger(__name__)
@@ -479,6 +480,7 @@ class TopExporter:
         initial_gro_path: Optional[str] = None,
         trajectory_path: Optional[str] = None,
         energy_path: Optional[str] = None,
+        allow_unsupported: bool = False,
     ) -> None:
         """
         Parse *top_path* + *gro_path*, build :class:`TopModel`, write to *out_path*.
@@ -495,6 +497,10 @@ class TopExporter:
                         directive in the template (e.g. ``"110"`` to fall back
                         from the bundled cognac112 default to the cognac110 schema
                         shipped with OCTA84 / OCTA viewer 9.1).
+        allow_unsupported : convert even when the .top contains terms that
+                        gro2udf writes incorrectly (see :mod:`.guard`).
+                        Off by default: such a conversion reports success and
+                        produces a UDF that is quietly wrong.
         topology_only : when True, the resulting UDF contains the topology
                         (Set_of_Molecules / Molecular_Attributes / Interactions)
                         but **no** Structure record. Useful when the user
@@ -502,6 +508,9 @@ class TopExporter:
                         from a .xvg directly in OCTA viewer (GOURMET).
         """
         raw = TopParser().parse(top_path)
+        raise_if_unsupported(raw, raw.sections,
+                             allow_unsupported=allow_unsupported,
+                             dihedral_functs=raw.dihedral_functs)
         model = TopAdapter().build(raw, gro_path, mdp_path=mdp_path)
 
         # Resolve frames:

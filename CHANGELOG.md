@@ -2,6 +2,51 @@
 
 ## [Unreleased]
 
+### Fixed — gro2udf: 変換できない `.top` を成功したことにしていた
+
+`--from-top` は決まったセクションしか読まず、決まった COGNAC ポテンシャル型しか
+書かない。それ以外は**メッセージ無しで捨てられていた**ので、変換は成功したように
+見えて中身が静かに間違った UDF が出ていた。
+
+Martini 2 の topology で実測。非結合が全部 `[ nonbond_params ]` にあり
+`[ atomtypes ]` は `c6 = c12 = 0` なので:
+
+```
+$ python -m abmptools.gro2udf --from-top p407mini.top p407mini.gro --out out.udf
+Written: out.udf                       ← エラーも警告も出ない
+→ Pair_Interaction: 0 本                ← 非結合が 1 つも無い UDF
+```
+
+同じコマンドを通常の top (comb-rule 2) に当てると 3 本出るので、Martini 固有の
+破綻。`Interaction_Site_Type[].Range` は `sigma * 1.5` なのでこれも 0 になる。
+
+`guard.py` を追加し、重大度を 2 つに分けた。**復旧可能性が違う**ため:
+
+| | 何が起きるか | 挙動 |
+|---|---|---|
+| **fatal** | 項が**誤った関数形・誤った数値で書かれる**。UDF は完成品に見える | **停止** |
+| warning | 項が**落ちる**。不在として見えるうえ、全原子 topology はずっとこの挙動 | 続行 |
+
+- **fatal**: comb-rule 1 / `[ nonbond_params ]` / `[ constraints ]` /
+  bond・angle の funct ≠ 1 (funct に関わらず `Harmonic` / `Theta` として書かれる。
+  Martini の G96 角度 funct 2 は**力の定数の単位すら違う**)
+- **warning**: `[ pairtypes ]` `[ settles ]` `[ exclusions ]` `[ virtual_sites* ]`
+  `[ dummies* ]` `[ cmap* ]`、dihedral funct が 1/3/4/9 以外
+- `--allow-unsupported` で fatal も警告に落とせる
+
+**既存の全原子 top は 1 件も止まらない** (退行テストで固定)。書いていて 2 件見つかった:
+
+- **`[ pairs ]` は損失ではなかった。** COGNAC は `Scale_1_4_Pair` (`fudgeLJ` から
+  設定済み) で 1-4 を再現する。最初リストに入れていて全 AA top に誤警告が出た
+- **dihedral の funct はパース後には残らない。** 非対応 funct の行は parser の
+  「型参照のみ」分岐に落ち、**funct が torsion 型の番号として保存される**
+  (存在しない型を指す)。生の行から数える経路を別に作った
+
+`#ifdef` は gro2udf のどこでも評価されないため、restraints 系は検出対象から外して
+ある (`#ifdef POSRES` の中を「有効」と警告すると外れる方が多い)。`[ settles ]` は
+`#else` 側＝実際に有効な枝なので残した。
+
+guard は**検出しかしない**。これらを変換できるようにするのは別の作業。テスト +14。
 ## [2.13.10] - 2026-09-07
 
 ### Docs — セットアップを `docs/INSTALL.md` 1 本にまとめた

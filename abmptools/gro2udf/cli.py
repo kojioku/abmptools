@@ -97,6 +97,16 @@ def _run_from_top(argv: list) -> None:
                              "Electrostatic terms mapped from xvg legend "
                              "names). Times in the .xvg are matched to "
                              "frame times via nearest-neighbour interpolation.")
+    parser.add_argument("--allow-unsupported", dest="allow_unsupported",
+                        action="store_true",
+                        help="Convert even when the .top contains terms "
+                             "gro2udf writes incorrectly (comb-rule 1, "
+                             "[ nonbond_params ], [ constraints ], non-"
+                             "harmonic bond/angle functs). Without this the "
+                             "conversion stops instead of reporting success "
+                             "and writing a UDF that is quietly wrong. Terms "
+                             "that are merely dropped always warn and never "
+                             "block.")
 
     # Strip the --from-top flag from argv before parsing
     filtered = [a for a in argv[1:] if a != "--from-top"]
@@ -145,7 +155,8 @@ def _run_from_top(argv: list) -> None:
                          topology_only=args.topology_only,
                          initial_gro_path=args.initial_gro_path,
                          trajectory_path=args.trajectory_path,
-                         energy_path=args.energy_path)
+                         energy_path=args.energy_path,
+                         allow_unsupported=args.allow_unsupported)
     print("Written: {}".format(out_path))
     if args.topology_only:
         if args.initial_gro_path:
