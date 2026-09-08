@@ -284,24 +284,62 @@ J-OCTA 同梱の Python (`C:\J-OCTA-11.1\bin\win64\Python310\python.exe`、3.10.
 
 > **環境は J-OCTA 起動時に組み立てられ、そこから開いたコンソールが引き継ぐ。**
 > 素の cmd には `PYTHONPATH` も `UDF_DEF_PATH` も入っていない (レジストリにも無い)。
-> 素の cmd / PowerShell から使うなら先に `jocta_env.bat` を読ませる (B-1 の手順 3)。
+> 素の cmd / PowerShell から使うなら先に `jocta_env.bat` を読ませる (§6.3.2 の手順 3)。
 > `where python` が J-OCTA の Python310 を先頭に返せば正しい場所にいる。
 
-入れ方は 2 通り。**基本は B-1**、依存が要らないと分かっていて最短で済ませたいときだけ B-2。
+入れ方は 2 通り。**既定は `--user --no-deps`** —— 有効化が要らず、J-OCTA から
+コンソールを開けばそのまま使える。依存を pip に解決させたい場合だけ venv 経路に移る。
 
-| | **B-1 venv + constraints (推奨)** | B-2 `--user --no-deps` |
+| | **`--user --no-deps` (既定)** | venv + constraints (サブルート) |
 |---|---|---|
-| 依存の解決 | **される** (pin したものだけ守る) | されない。足りなければ手で足す |
+| 使うまでの手間 | **入れて終わり。有効化は要らない** | 毎回 `jocta_env.bat` の取り込み + activate の 2 手 |
+| 依存の解決 | されない。足りなければ手で足す | **される** (pin したものだけ守る) |
 | 同梱への影響 | 無し | 無し |
-| 壊しかけたとき | `ResolutionImpossible` で**止まる** | そもそも解決しない |
-| PowerShell | `Activate.ps1` が使える | 環境変数の取り込みのみ |
-| 後片付け | venv のフォルダを消すだけ | `pip uninstall` が要る |
+| 壊しかけたとき | そもそも解決しない | `ResolutionImpossible` で**止まる** |
+| 後片付け | `pip uninstall` | venv のフォルダを消すだけ |
 
-#### B-0. 先に `--user` で入れたものを消す (両方に共通)
+> **venv 経路は順序が決まっている。** `jocta_env.bat` は `PATH` を組み立て直すので、
+> activate を先にすると venv が押し出され、`python` が同梱のインタプリタに戻る。
+> 必ず bat → activate の順。
+
+#### 6.3.1 入れる — `--user --no-deps` (既定)
+
+```cmd
+python -m pip install --user --no-deps "abmptools>=2.9.0"
+```
+
+**これで終わり。有効化は要らない。** J-OCTA からコンソールを開けばそのまま使える
+(`--user` で入れたものは user site に入り、同梱の Python はそこを自分の
+site-packages より先に読む)。
+
+> **moldeck も使うなら、その配布 zip に同じことをする `.bat` が入っている**
+> (`install_minimum.bat` が moldeck と abmptools を、`install_for_hbond.bat` が
+> MDAnalysis を足す)。abmptools は PyPI 配布なのでスクリプトを同梱していない。
+
+- **`--no-deps` を外すと壊れる。** pip が numpy 2.x を引き、user site は J-OCTA の
+  site-packages より**優先される**ので、同梱の scipy 1.10.0 が
+  `requires numpy<1.27.0,>=1.19.5 ... incompatible` になる。同梱の numpy 1.23.5 /
+  pandas 1.5.3 のままで abmptools は動く
+- **`--user` を使ってよい数少ない場面。** J-OCTA のインストール先に書き込まず、
+  管理者権限も要らない (§1 の「`--user` は不要」は通常環境の話)
+- **依存は解決されない。** 足りないものが出たら、その都度 `--no-deps` 付きで
+  手で足すことになる。そうなったら §6.3.2 の venv 経路に移る
+- **同梱の abmptools が古いことがある。** J-OCTA 11.1 には 2.6.0 が入っていた。
+  確認は `importlib.metadata.version('abmptools')` と `abmptools.__file__` の両方
+
+---
+
+#### 6.3.2 別環境に作る場合 — venv + constraints (サブルート)
+
+**通常は 6.3.1 で足りる。** こちらは、依存を pip に解決させたい場合や、
+同梱の Python を触らずに別の環境を作りたい場合の経路。**使うたびに有効化が
+要る**。
+
+##### 先に `--user` で入れたものを消す
 
 user site (`%APPDATA%\Roaming\Python\Python310\site-packages`) は **J-OCTA 同梱より
 優先される**ので、古い `--user` の abmptools が残っていると venv を作っても
-そちらが混ざる。B-1 に移るなら必ず先に消す。
+そちらが混ざる。venv 経路に移るなら必ず先に消す。
 
 ```powershell
 & 'C:\J-OCTA-11.1\bin\win64\Python310\python.exe' -m pip uninstall -y abmptools
@@ -310,7 +348,7 @@ Get-ChildItem "$env:APPDATA\Python\Python310\site-packages" -ErrorAction Silentl
     Select-Object -ExpandProperty Name
 ```
 
-#### B-1. venv + constraints (推奨)
+##### 手順
 
 **同梱を継承する venv** を作り、同梱の版を constraints で固定してから入れる。
 J-OCTA のインストール先には一切書き込まない。
@@ -354,31 +392,10 @@ python -c "from UDFManager import UDFManager; import numpy; print('UDFManager OK
 |---|---|
 | `--system-site-packages` | 同梱の numpy / pandas / scipy を venv から見せる。二重に入れない |
 | constraints | 巻き上げが起きたとき、黙って上書きせず `ResolutionImpossible` で止める |
-| `PYTHONNOUSERSITE=1` | `--system-site-packages` を付けると **user site も有効になる** (探索順は venv → user site → J-OCTA)。B-0 で消していれば不要だが、付けておくと確実 |
+| `PYTHONNOUSERSITE=1` | `--system-site-packages` を付けると **user site も有効になる** (探索順は venv → user site → J-OCTA)。上の「先に `--user` で入れたものを消す」を済ませていれば不要だが、付けておくと確実 |
 
 > **制約に書く版は実機で確認すること。** 上は J-OCTA 11.1 の実測値。版が変われば
 > 変わるので、`pip list` を見てから書く。
-
-#### B-2. `--user --no-deps` (最短)
-
-依存が足りていると分かっている場合の最短経路。
-
-```cmd
-python -m pip install --user --no-deps "abmptools>=2.9.0"
-```
-
-- **`--no-deps` を外すと壊れる。** pip が numpy 2.x を引き、user site は J-OCTA の
-  site-packages より**優先される**ので、同梱の scipy 1.10.0 が
-  `requires numpy<1.27.0,>=1.19.5 ... incompatible` になる。同梱の numpy 1.23.5 /
-  pandas 1.5.3 のままで abmptools は動く
-- **`--user` を使ってよい数少ない場面。** J-OCTA のインストール先に書き込まず、
-  管理者権限も要らない (§1 の「`--user` は不要」は通常環境の話)
-- **依存は解決されない。** 足りないものが出たら、その都度 `--no-deps` 付きで
-  手で足すことになる。そうなったら B-1 に移る
-- **同梱の abmptools が古いことがある。** J-OCTA 11.1 には 2.6.0 が入っていた。
-  確認は `importlib.metadata.version('abmptools')` と `abmptools.__file__` の両方
-
----
 
 ## 7. 詰まったときの 3 点
 
