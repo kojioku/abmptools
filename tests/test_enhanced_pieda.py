@@ -105,3 +105,30 @@ class TestReadEnhancedLog:
         terms = obj.sum_terms(df)
         assert "DI(LRD)" in terms and "Erest" in terms and "ES(RESP)" in terms
         assert "I" not in terms and "J" not in terms
+
+
+class TestEnhancedPiedaAjf:
+    """The ajf side: &LRD DISP='ON' and &ANALYSIS ES_RESP='YES'."""
+
+    def _obj(self, **kw):
+        from abmptools.abinit_io import abinit_io
+        obj = abinit_io()
+        obj.abinit_ver = kw.pop("ver", "v2rev8")
+        for k, v in kw.items():
+            setattr(obj, k, v)
+        return obj
+
+    def test_lrd_is_off_by_default(self):
+        assert self._obj().disp is False
+        assert self._obj().es_resp is False
+
+    def test_es_resp_needs_a_version_that_has_it(self):
+        """V1DD2024 has no ES_RESP; asking for it must not write it."""
+        from abmptools.abinit_io import abinit_io
+        assert abinit_io().es_resp is False
+
+    @pytest.mark.parametrize("ver,expected", [("v2rev8", True),
+                                              ("rev23", False)])
+    def test_es_resp_version_gate(self, ver, expected):
+        obj = self._obj(ver=ver, es_resp=True)
+        assert (obj.es_resp and obj.abinit_ver in ("v2rev4", "v2rev8")) is expected

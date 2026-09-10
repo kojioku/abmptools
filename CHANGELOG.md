@@ -22,6 +22,9 @@ IJ-PAIR  ES(RESP)  ES  EX  CT+mix  DI(LRD)  Erest  q(I=>J)   enhanced
 - `abmptools/logmanager.py`: 同様にヘッダ駆動化。`ES-RESP` / `DI` / `EREST` を
   dimer ラベルに追加する
 - `docs/io_spec.md`: 拡張列と、成分の和が `HF-IFIE` / `MP2-IFIE` に戻ることを記載
+- `generateajf`: `-esresp` を追加 (`&ANALYSIS ES_RESP='YES'`)。既存の `-disp`
+  (`&LRD DISP='ON'`) と `-rp` (`&POP ESPTYP='RESP'`) と合わせて enhanced PIEDA の
+  ajf が組める。`-ajfv v2rev8` 以外では `ES_RESP` を書かない
 
 ### Fixed — 列位置の決め打ちで enhanced PIEDA を 1 列ずれて読む
 
