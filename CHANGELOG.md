@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+### Added — enhanced PIEDA (ABINIT-MP Ver.2 Rev.8) の読み込み
+
+`&LRD DISP='ON'` + `&ANALYSIS ES_RESP='YES'` を付けると PIEDA の列が 2 本増える。
+
+```
+IJ-PAIR  ES        EX  CT+mix  DI(MP2)          q(I=>J)      従来
+IJ-PAIR  ES(RESP)  ES  EX  CT+mix  DI(LRD)  Erest  q(I=>J)   enhanced
+```
+
+`DI(LRD)` が**分散力**、`Erest` が**それ以外の相関**で、和が従来の `DI` にあたる。
+`ES(RESP)` は RESP 電荷から求めた古典静電。V1DD2024 では使えない。
+
+- `abmptools/anlfmo.py`: `pieda_columns_from_header()` を追加し、
+  **PIEDA テーブルのヘッダ行から列名を決める**ようにした。知らないヘッダ語が
+  あれば例外を投げる
+- 合計対象の列も、固定リストではなく**実際にある列**から決める
+  (`sum_terms()` / `di_column()`)。`getsumdf()` は dict を返すようになった
+- `abmptools/logmanager.py`: 同様にヘッダ駆動化。`ES-RESP` / `DI` / `EREST` を
+  dimer ラベルに追加する
+- `docs/io_spec.md`: 拡張列と、成分の和が `HF-IFIE` / `MP2-IFIE` に戻ることを記載
+- `generateajf`: `-esresp` を追加 (`&ANALYSIS ES_RESP='YES'`)。既存の `-disp`
+  (`&LRD DISP='ON'`) と `-rp` (`&POP ESPTYP='RESP'`) と合わせて enhanced PIEDA の
+  ajf が組める。`-ajfv v2rev8` 以外では `ES_RESP` を書かない
+
+### Fixed — 列位置の決め打ちで enhanced PIEDA を 1 列ずれて読む
+
+`read_pieda` / `readifiepieda` は PIEDA の値を `Items[2..6]` と位置で取っていた。
+enhanced PIEDA のログでは `ES(RESP)` を `ES` として、`ES` を `EX` として…と
+**全部 1 つずつずれた値を例外なしで返していた**。ヘッダから対応づけるように
+修正し、行の列数がヘッダと合わなければ例外を投げる。
+
+### Fixed — `MP2-IFIE` 列の説明が誤り
+
+`docs/io_spec.md` は「MP2 IFIE (HF + MP2 correlation)」としていたが、
+ログの `MP2-IFIE` 列は**相関補正のみ**で、全 IFIE は `HF-IFIE + MP2-IFIE`。
+実際 `ES + EX + CT-mix = HF-IFIE`、`DI + Erest = MP2-IFIE` になる。
+
+
+
 ### Changed — Windows: `--user --no-deps` を既定にし、`B-0` / `B-1` / `B-2` をやめた
 
 venv + constraints を推奨にしていたが、**使うたびに 2 手の有効化が要る**。

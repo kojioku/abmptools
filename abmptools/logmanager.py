@@ -17,6 +17,8 @@ try:
 except ImportError:
     pass
 
+from .anlfmo import pieda_columns_from_header
+
 
 class LOGManager():
     """ABINIT-MPログファイルの解析・データ変換を行うクラス。
@@ -235,11 +237,11 @@ class LOGManager():
 
         if Method == 'MP2':
             ifrags, jfrags, dists, hfs, mp2s, prs, grimmes, \
-                pifrags, pjfrags, ess, exs, cts, dis, dqs \
+                pifrags, pjfrags, ess, exs, cts, dis, dqs, esresps, erests \
                 = self.readifiepieda(file, Method)
         elif Method == 'HF':
             ifrags, jfrags, dists, hfs, \
-                pifrags, pjfrags, ess, exs, cts, dis, dqs \
+                pifrags, pjfrags, ess, exs, cts, dis, dqs, esresps, erests \
                 = self.readifiepieda(file, Method)
         else:
             logger.error("Methods other than MP2 or HF are not supported.")
@@ -312,6 +314,15 @@ class LOGManager():
             "CT": [x / hartree for x in cts],
             "DQ": dqs,
         }
+        # enhanced PIEDA (Ver.2 Rev.8, &LRD DISP='ON' + ES_RESP='YES')
+        if any(esresps):
+            piedainfo["ES-RESP"] = [x / hartree for x in esresps]
+            dimer_label = dimer_label + ["ES-RESP"]
+        if any(erests):
+            piedainfo["DI"] = [x / hartree for x in dis]
+            piedainfo["EREST"] = [x / hartree for x in erests]
+            dimer_label = dimer_label + ["DI", "EREST"]
+            self.labels["dimer"] = dimer_label
 
         # for dim in dimer_label:
         #     diminfo[dim] = []
@@ -707,6 +718,9 @@ class LOGManager():
         cts = []
         dis = []
         dqs = []
+        esresps = []
+        erests = []
+        pcols: list[str] = []
 
         # print text
         logger.info('--- get IFIE and PIEDA from log ---')
@@ -741,22 +755,38 @@ class LOGManager():
             # for pieda
             if pflag:
                 pcount += 1
+            # pcount 1 is the header (blank lines and the rule are skipped
+            # above). Read the column layout from it: Ver.2 Rev.8's enhanced
+            # PIEDA inserts ES(RESP) and Erest, and a fixed layout would read
+            # every value one slot out without raising anything.
+            if pflag and pcount == 1:
+                pcols = pieda_columns_from_header(' '.join(Items))
+                continue
             if pflag and pcount >= 3:
-                # pieda.append(Items)
-                pifrags.append(int(Items[0]))
-                pjfrags.append(int(Items[1]))
-                ess.append(float(Items[2]))
-                exs.append(float(Items[3]))
-                cts.append(float(Items[4]))
-                dis.append(float(Items[5]))
-                dqs.append(float(Items[6]))
+                if len(Items) != len(pcols):
+                    raise ValueError(
+                        f"PIEDA row has {len(Items)} fields but the header "
+                        f"declares {len(pcols)} ({pcols}): {Items}"
+                    )
+                row = dict(zip(pcols, Items))
+                pifrags.append(int(row['I']))
+                pjfrags.append(int(row['J']))
+                ess.append(float(row['ES']))
+                exs.append(float(row['EX']))
+                cts.append(float(row['CT-mix']))
+                dis.append(float(row[next(c for c in ('DI(MP2)', 'DI(LRD)')
+                                          if c in row)]))
+                dqs.append(float(row['q(I=>J)']))
+                esresps.append(float(row['ES(RESP)']) if 'ES(RESP)' in row
+                               else 0.0)
+                erests.append(float(row['Erest']) if 'Erest' in row else 0.0)
 
         if Method == 'MP2':
             return ifrags, jfrags, dists, hfs, mp2s, prs, grimmes, \
-                pifrags, pjfrags, ess, exs, cts, dis, dqs
+                pifrags, pjfrags, ess, exs, cts, dis, dqs, esresps, erests
         elif Method == 'HF':
             return ifrags, jfrags, dists, hfs, \
-                pifrags, pjfrags, ess, exs, cts, dis, dqs
+                pifrags, pjfrags, ess, exs, cts, dis, dqs, esresps, erests
 
             # for BSSE
             # if pflag and Items[:5] == ['##', 'BSSE', 'for','non-bonding','MP2-IFIE']:

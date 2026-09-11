@@ -79,6 +79,7 @@ class abinit_io(mi):
         self.mldatname = None
         self.mllimit = None
         self.disp = False
+        self.es_resp = False
         self.is_xyz = False
         self.natom = 0
         self.xyzstr = ''
@@ -438,6 +439,12 @@ PIEDA='YES'"""
             else:
                 new_section += """
 PIEDA='NO'"""
+
+            # enhanced PIEDA: an extra ES column computed from RESP charges.
+            # Ver.2 Rev.8 and later; pointless without ESPTYP='RESP' in &POP.
+            if self.es_resp and self.abinit_ver in ('v2rev4', 'v2rev8'):
+                new_section += """
+ES_RESP='YES'"""
 
             new_section += """
 /

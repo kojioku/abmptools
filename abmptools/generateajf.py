@@ -92,7 +92,13 @@ def get_args():
                         )
 
     parser.add_argument('-disp', '--disp',
-                        help='flag disp',
+                        help="enable Local Response Dispersion (&LRD DISP='ON'); "
+                             "splits DI into DI(LRD) and Erest in the PIEDA table",
+                        action='store_true')
+
+    parser.add_argument('-esresp', '--es_resp',
+                        help="add the RESP-charge electrostatic column to PIEDA "
+                             "(&ANALYSIS ES_RESP='YES'); needs -rp and Ver.2 Rev.8",
                         action='store_true')
 
     # WriteMLdata='wstr-1E08_HIS_ES.new2.cmm5.mldat'
@@ -178,6 +184,7 @@ def main():
     print('bsse', args.bsse)
     print('mldat', args.mldat)
     print('disp', args.disp)
+    print('es_resp', args.es_resp)
 
     aobj = ampt.setfmo()
 
@@ -203,6 +210,7 @@ def main():
     aobj.rsolv = args.rsolv
     aobj.bsseflag = args.bsse
     aobj.disp = args.disp
+    aobj.es_resp = args.es_resp
 
     if args.mldat:
         aobj.mldatfrag = args.mldat
