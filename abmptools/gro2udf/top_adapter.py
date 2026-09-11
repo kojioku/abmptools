@@ -37,6 +37,21 @@ from .top_model import (
 from .top_parser import TopRawData, get_bond_name, get_angle_name, get_torsion_name
 
 
+def _unique(base: str, used: dict) -> str:
+    """``base`` を返す。 既に使われていれば ``base-<n>`` で重複を避ける。
+
+    以前は index を無条件に付けて ``c3-hc-0`` のようにしていた。 UDF の中では
+    表と参照が揃うので解決はできるが、 **J-OCTA は正規形の ``c3-hc`` を期待する**
+    (「力場を取得しなおす」と、 名前がこの形に書き直される)。 型の組み合わせが
+    同じポテンシャルが複数あるときだけ、 従来どおり連番で区別する。
+    """
+    if base not in used:
+        used[base] = 0
+        return base
+    used[base] += 1
+    return "%s-%d" % (base, used[base])
+
+
 class TopAdapter:
     """Build a :class:`TopModel` from a :class:`TopRawData` and a GRO path."""
 
@@ -158,10 +173,10 @@ class TopAdapter:
 
     @staticmethod
     def _build_bond_type_specs(bond_types_from_mol: list) -> List[BondTypeSpec]:
-        specs = []
+        specs, used = [], {}
         for j, bt in enumerate(bond_types_from_mol):
             a1, a2, funct, params = bt
-            name = get_bond_name(a1, a2) + "-" + str(j)
+            name = _unique(get_bond_name(a1, a2), used)
             specs.append(BondTypeSpec(
                 name=name,
                 name1=a1,
@@ -174,10 +189,10 @@ class TopAdapter:
 
     @staticmethod
     def _build_angle_type_specs(angle_types_from_mol: list) -> List[AngleTypeSpec]:
-        specs = []
+        specs, used = [], {}
         for j, at in enumerate(angle_types_from_mol):
             a1, a2, a3, funct, params = at
-            name = get_angle_name(a1, a2, a3) + "-" + str(j)
+            name = _unique(get_angle_name(a1, a2, a3), used)
             specs.append(AngleTypeSpec(
                 name=name,
                 name1=a1,
@@ -191,10 +206,10 @@ class TopAdapter:
 
     @staticmethod
     def _build_torsion_type_specs(torsion_types_from_mol: list) -> List[TorsionTypeSpec]:
-        specs = []
+        specs, used = [], {}
         for jj, tt in enumerate(torsion_types_from_mol):
             a1, a2, a3, a4, funct, improper, params = tt
-            basename = get_torsion_name(a1, a2, a3, a4) + "-" + str(jj)
+            basename = _unique(get_torsion_name(a1, a2, a3, a4), used)
             if funct in (2, 4):
                 improper = True
                 basename += "-oopa"

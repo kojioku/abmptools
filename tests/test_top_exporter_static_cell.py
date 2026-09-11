@@ -19,10 +19,13 @@ from __future__ import annotations
 
 import logging
 
+import pytest
+
 from abmptools.gro2udf.top_exporter import (
     TopExporter,
     _warn_if_template_box_differs,
 )
+from abmptools.gro2udf.udf_writer import ff_comment, set_force_field_comment
 from abmptools.gro2udf.top_model import GROFrameData
 
 
@@ -32,6 +35,7 @@ class _RecordingUDF:
     def __init__(self, static_cell=None):
         self.puts = {}
         self._static_cell = static_cell
+        self._comment = None
 
     def jump(self, _rec):
         pass
@@ -42,6 +46,8 @@ class _RecordingUDF:
     def get(self, path, *_a, **_kw):
         if path == "Structure.Unit_Cell.Cell_Size":
             return self._static_cell
+        if path == "Unit_Parameter.Comment":
+            return self._comment
         return None
 
 
@@ -128,3 +134,53 @@ def test_a_template_without_a_cell_is_not_an_error(caplog):
         _warn_if_template_box_differs(u, "t.udf", _frame(1.0, 1.0, 1.0))
 
     assert caplog.text == ""
+
+
+# ---------------------------------------------------------------------------
+# 力場 ID (Unit_Parameter.Comment)
+# ---------------------------------------------------------------------------
+
+def test_gaff_is_ff_2():
+    """J-OCTA が力場を取り直すと FF=2 が入る。 実測 3 件で対応を確認済み。"""
+    assert ff_comment("gaff") == "FF=2"
+    assert ff_comment("GAFF2") == "FF=3"
+    assert ff_comment("dreiding") == "FF=4"
+
+
+def test_a_number_or_a_ready_made_string_passes_through():
+    assert ff_comment(2) == "FF=2"
+    assert ff_comment("FF=7") == "FF=7"
+
+
+def test_an_unknown_force_field_is_refused():
+    with pytest.raises(ValueError):
+        ff_comment("charmm36")
+
+
+def test_empty_means_leave_it_alone():
+    u = _RecordingUDF()
+    set_force_field_comment(u, "")
+    assert "Unit_Parameter.Comment" not in u.puts
+
+
+def test_the_id_is_written_when_the_field_is_empty():
+    """空のままだと J-OCTA が「力場が分からない」扱いにして書き出しが通らない。"""
+    u = _RecordingUDF()
+    u._comment = ""
+    set_force_field_comment(u, "gaff")
+    assert u.puts["Unit_Parameter.Comment"] == "FF=2"
+
+
+def test_a_template_that_already_names_one_is_kept():
+    """テンプレート由来の FF=n を既定で潰さない。"""
+    u = _RecordingUDF()
+    u._comment = "FF=4"
+    set_force_field_comment(u, "gaff")
+    assert "Unit_Parameter.Comment" not in u.puts
+
+
+def test_overwrite_is_available_when_asked_for():
+    u = _RecordingUDF()
+    u._comment = "FF=4"
+    set_force_field_comment(u, "gaff", overwrite=True)
+    assert u.puts["Unit_Parameter.Comment"] == "FF=2"

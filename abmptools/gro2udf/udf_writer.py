@@ -37,6 +37,62 @@ _VELOCITY_UNIT = 1000   # nm/ps → m/s  (1 nm/ps = 1000 m/s)
 _SHEAR_STRAIN  = 0.0    # constant, same as original
 
 
+#: J-OCTA が `Unit_Parameter.Comment` に書く力場 ID。 番号は
+#: `J-OCTA/conf/modeo.conf` の力場の並び (0 始まり) に対応する。 実データ 3 件で
+#: 検算済み: GAFF 型の UDF が FF=2、 DREIDING 型 (C_3 / C_33) の J-OCTA 同梱
+#: サンプルが FF=4。
+FF_IDS = {
+    "amber": 0, "amber20": 1, "gaff": 2, "gaff2": 3, "dreiding": 4,
+    "uff": 5, "oplsaa": 6, "loplsaa": 7, "loplsaa2023": 8, "pcff": 9,
+}
+
+
+def ff_comment(ff) -> str:
+    """力場の名前か番号を ``FF=n`` にする。"""
+    if ff is None:
+        return ""
+    s = str(ff).strip()
+    if not s:                       # "" = 名乗らない (既存の値をそのまま使う)
+        return ""
+    if s.upper().startswith("FF="):
+        return s
+    if s.isdigit():
+        return "FF=%s" % s
+    key = s.lower().replace("-", "").replace("_", "")
+    if key not in FF_IDS:
+        raise ValueError(
+            "unknown force field %r; use one of %s, or a number"
+            % (ff, ", ".join(sorted(FF_IDS))))
+    return "FF=%d" % FF_IDS[key]
+
+
+def set_force_field_comment(udf, ff, overwrite: bool = False) -> None:
+    """``Unit_Parameter.Comment`` に力場 ID を書く。
+
+    J-OCTA はここを見て力場を決める。 **空だと「力場が分からない」扱いになり、
+    GROMACS への書き出しが通らない** (2026-09-12 に実機で確認。 J-OCTA 側で
+    「力場を取得しなおす」と ``FF=2`` が入り、 それで通るようになった)。
+    ``.top`` には力場の種類が書かれていないので、 こちらで名乗るしかない。
+
+    既存の値は既定では残す。 テンプレート由来の ``FF=n`` を上書きしないため。
+    """
+    comment = ff_comment(ff)
+    if not comment:
+        return
+    try:
+        udf.jump(-1)
+        current = udf.get("Unit_Parameter.Comment")
+    except Exception:                                    # noqa: BLE001
+        current = None
+    if current and not overwrite:
+        if str(current).strip() != comment:
+            logger.info("Unit_Parameter.Comment: keeping %r (not %r)",
+                        current, comment)
+        return
+    udf.put(comment, "Unit_Parameter.Comment")
+    logger.info("Unit_Parameter.Comment = %r (force field for J-OCTA)", comment)
+
+
 def write_static_cell_abc(udf, a_nm: float, b_nm: float, c_nm: float) -> None:
     """Put a box into the static cell and Initial_Unit_Cell (both in nm).
 

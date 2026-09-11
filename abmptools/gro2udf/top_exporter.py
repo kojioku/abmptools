@@ -488,6 +488,7 @@ class TopExporter:
         trajectory_path: Optional[str] = None,
         energy_path: Optional[str] = None,
         allow_unsupported: bool = False,
+        force_field: Optional[str] = "gaff",
     ) -> None:
         """
         Parse *top_path* + *gro_path*, build :class:`TopModel`, write to *out_path*.
@@ -556,6 +557,7 @@ class TopExporter:
         self.export_model(model, template_path, out_path,
                           frames=frames,
                           cognac_version=cognac_version,
+                          force_field=force_field,
                           energy_times=energy_times,
                           energy_series=energy_series)
 
@@ -568,6 +570,7 @@ class TopExporter:
         cognac_version: Optional[str] = None,
         energy_times: Optional[List[float]] = None,
         energy_series: Optional[dict] = None,
+        force_field: Optional[str] = "gaff",
     ) -> None:
         """
         Write *model* into a new UDF at *out_path* using *template_path* as schema.
@@ -664,6 +667,10 @@ class TopExporter:
                 _warn_if_template_box_differs(uobj, template_path,
                                               frames_to_write[0])
                 self._write_static_cell(uobj, frames_to_write[0])
+
+        with _section("force-field-id", template_path, out_path):
+            from .udf_writer import set_force_field_comment
+            set_force_field_comment(uobj, force_field)
 
         with _section("default_condition", template_path, out_path):
             self._set_default_condition(uobj, model)

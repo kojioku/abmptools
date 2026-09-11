@@ -54,6 +54,15 @@ def _run_from_top(argv: list) -> None:
     parser.add_argument("gro_path", help="GROMACS .gro file")
     parser.add_argument("--mdp", dest="mdp_path", default=None,
                         help="GROMACS .mdp file (ref_t, tau_t, rcoulomb are read)")
+    parser.add_argument("--ff", dest="force_field", default="gaff",
+                        help="Force field to declare in Unit_Parameter.Comment "
+                             "as FF=n, which is where J-OCTA reads it. A .top "
+                             "does not say which force field it came from, so "
+                             "it has to be named here. Accepts gaff (default), "
+                             "gaff2, amber, amber20, dreiding, uff, oplsaa, "
+                             "loplsaa, loplsaa2023, pcff, a bare number, or "
+                             "'' to leave it unset. An existing value in the "
+                             "template is kept.")
     parser.add_argument("--template", dest="template_path", default=None,
                         help="Existing COGNAC UDF file (schema template). "
                              "Defaults to the built-in template; a .udf next to the "
@@ -162,7 +171,8 @@ def _run_from_top(argv: list) -> None:
                          initial_gro_path=args.initial_gro_path,
                          trajectory_path=args.trajectory_path,
                          energy_path=args.energy_path,
-                         allow_unsupported=args.allow_unsupported)
+                         allow_unsupported=args.allow_unsupported,
+                         force_field=args.force_field)
     print("Written: {}".format(out_path))
     if args.topology_only:
         if args.initial_gro_path:

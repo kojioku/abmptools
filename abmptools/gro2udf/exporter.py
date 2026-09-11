@@ -52,7 +52,8 @@ class Exporter:
         from UDFManager import UDFManager
         from .gro_parser import GROParser
         from .gro_adapter import GROAdapter
-        from .udf_writer import (UDFWriter, warn_if_template_box_differs,
+        from .udf_writer import (UDFWriter, set_force_field_comment,
+                                 warn_if_template_box_differs,
                                  write_static_cell_abc)
 
         logger.info("## gro2udf")
@@ -115,6 +116,10 @@ class Exporter:
                                          first_frame_cell.b, first_frame_cell.c)
             write_static_cell_abc(udf, first_frame_cell.a,
                                   first_frame_cell.b, first_frame_cell.c)
+
+        # J-OCTA は Unit_Parameter.Comment の FF=n で力場を決める。 テンプレート
+        # 由来の値があればそれを残す ([[gro2udf]] の既定は GAFF)。
+        set_force_field_comment(udf, "gaff")
 
         # Output file: {udf_basename}_groout.udf in current directory
         output_file = (
