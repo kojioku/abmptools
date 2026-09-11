@@ -62,6 +62,17 @@ def _rewrite_cognac_include(udf_path: str, cognac_version: str) -> None:
     path.write_text(new_text)
 
 
+def _is_multiplicity_continuation(name: str) -> bool:
+    """``...:1`` / ``...:2`` のような多重度の 2 つめ以降か。"""
+    head, sep, tail = str(name).rpartition(":")
+    return bool(sep) and tail.isdigit() and tail != "0"
+
+
+def _fudge_str(value) -> str:
+    """0.5 -> '0.5'、 0.8333333 -> '0.8333333'。 末尾の 0 を残さない。"""
+    return ("%.7f" % float(value)).rstrip("0").rstrip(".") or "0"
+
+
 def _warn_if_template_box_differs(uobj, template_path, frame) -> None:
     """フレームの箱で :func:`udf_writer.warn_if_template_box_differs` を呼ぶ。"""
     from .udf_writer import warn_if_template_box_differs
@@ -1095,6 +1106,22 @@ class TopExporter:
                 uobj.put(1,
                          "Molecular_Attributes.Torsion_Potential[].Amber.trans_is_0",
                          [j])
+                # ★ 1-4 のスケーリングを User_Torsion に添える。 これが無いと
+                # J-OCTA は 1-4 の扱いを決められず、 NPT が流せない (2026-09-12
+                # に実機で確認。 J-OCTA 側で「力場を取得しなおす」と SCNB/SCEE
+                # が入り、 それで通るようになった)。 名前は AMBER の慣用だが、
+                # 値は GROMACS の fudge をそのまま入れる (実測で一致)。
+                # 多重度の 2 つめ以降には付けない —— 取り直し後のファイルも
+                # 先頭の項にだけ持っていた。
+                if not _is_multiplicity_continuation(tt.name):
+                    for kk, (nm, val) in enumerate(
+                            (("SCNB", model.fudge_lj), ("SCEE", model.fudge_qq))):
+                        uobj.put(nm,
+                                 "Molecular_Attributes.Torsion_Potential[]"
+                                 ".User_Torsion.Parameters[].Name", [j, kk])
+                        uobj.put(_fudge_str(val),
+                                 "Molecular_Attributes.Torsion_Potential[]"
+                                 ".User_Torsion.Parameters[].Value", [j, kk])
 
             elif funct == 3:
                 # Ryckaert-Bellemans / Cosine_Polynomial
