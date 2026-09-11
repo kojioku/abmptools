@@ -3041,7 +3041,16 @@ class anlfmo(pdio):
 
             # IFIE and pieda
             ifdf_frag_mols = pd.DataFrame()
+            # 数値列だけ float にしておく。columns= だけで作った空フレームは
+            # **全列が object** で、そこへ concat すると pandas 3 は空フレームの
+            # object を尊重して結果も object になる (pandas 2 は空を dtype 決定
+            # から除外していた。その FutureWarning がそのまま実装された)。
+            # object 列には to_csv の float_format='%.6f' が効かないので、
+            # 出力の桁が pandas の版で変わってしまう。
+            # I / J はフラグメント番号のリストを持つので float にはできない。
             ifdfmol_mols = pd.DataFrame(columns=['I', 'J'] + self.ifdfsumcolumn)
+            ifdfmol_mols[self.ifdfsumcolumn] = \
+                ifdfmol_mols[self.ifdfsumcolumn].astype(float)
             ifdfmolsums = pd.DataFrame(columns=self.ifdfsumcolumn).astype(float)
 
             for i in range(len(self.tgtmolfrags)):
@@ -3148,14 +3157,12 @@ class anlfmo(pdio):
 
 
                 # print(ifdf_filter)
-                HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum, GRIMME_sum, \
-                    JUNG_sum, HILL_sum, ES_sum, EX_sum, CT_sum, DI_sum, \
-                    q_sum = self.getsumdf(ifdf_filter)
-
-                ifdfsum = pd.Series([HF_IFIE_sum, MP2_IFIE_sum, PR_TYPE1_sum,
-                                     GRIMME_sum, JUNG_sum, HILL_sum, ES_sum,
-                                     EX_sum, CT_sum, DI_sum, q_sum],
-                                    index=self.ifdfsumcolumn, name='mol' + str(tgtmol+1))
+                # getsumdf は dict を返す。11 要素のタプルとして展開すると
+                # **キーが値として入り**、合計の代わりに列名が書かれた csv が
+                # 何のエラーも出さずに出来る (実際に出た)。
+                sums = self.getsumdf(ifdf_filter)
+                ifdfsum = pd.Series(list(sums.values()), index=list(sums),
+                                    name='mol' + str(tgtmol+1))
                 # ifdfsums = ifdfsums.append(ifdfsum)
                 ifdfsums = pd.concat([ifdfsums, ifdfsum])
 

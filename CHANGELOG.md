@@ -2,6 +2,43 @@
 
 ## [Unreleased]
 
+### Fixed — `--fraginmol` の合計 csv に、合計の代わりに列名が書かれていた
+
+`getsumdf()` が dict を返すようになったのに、`anlfmo.py:3162` が **11 要素の
+タプルとして展開していた**。dict を展開すると**キー**が返るので、
+
+```
+,HF-IFIE,MP2-IFIE,...,mol1        期待              実際
+HF-IFIE,,,,,,,,,,,,-23.921917  ←  合計値      →  HF-IFIE   ← 列名
+MP2-IFIE,,,,,,,,,,,,-21.974128                    MP2-IFIE
+```
+
+という csv が**エラーも警告も無く**出ていた。`--mol` 側 (3044) は正しく dict を
+使っていたので、`--fraginmol` だけが壊れていた。
+
+### Fixed — pandas 3 で csv の桁が変わる
+
+`columns=` だけで作った空フレームは全列 object で、そこへ concat すると
+**pandas 3 は空フレームの object を尊重して結果も object** になる (pandas 2 は
+空を dtype 決定から除外していた。その `FutureWarning` がそのまま実装された)。
+object 列には `to_csv(float_format='%.6f')` が効かないので、
+
+```
+pandas 2   -262.205472
+pandas 3   -262.2054720845
+```
+
+と桁が変わっていた。`anlfmo.py:3044` の空フレームの数値列を float にして揃えた
+(`I` / `J` はフラグメント番号のリストなので対象外)。**pandas 2 の出力は変わらない。**
+
+### Fixed — 回帰テストが作業ツリーではなく install 済みの abmptools を回していた
+
+`tests/test_regression.py` の `_run()` は子プロセスを `cwd=tmp_path` で起動する。
+カレント優先の解決が効かないので、**editable install が指す先 (共有 checkout =
+main) が読まれていた**。feature ブランチで何を壊しても回帰テストは緑のままで、
+上の `--fraginmol` の不具合が両者のテストを通過して develop に入った。
+`PYTHONPATH` にリポジトリを足して、作業ツリーを回すようにした。
+
 ### Added — enhanced PIEDA (ABINIT-MP Ver.2 Rev.8) の読み込み
 
 `&LRD DISP='ON'` + `&ANALYSIS ES_RESP='YES'` を付けると PIEDA の列が 2 本増える。
