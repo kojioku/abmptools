@@ -52,7 +52,8 @@ class Exporter:
         from UDFManager import UDFManager
         from .gro_parser import GROParser
         from .gro_adapter import GROAdapter
-        from .udf_writer import UDFWriter
+        from .udf_writer import (UDFWriter, warn_if_template_box_differs,
+                                 write_static_cell_abc)
 
         logger.info("## gro2udf")
 
@@ -78,6 +79,8 @@ class Exporter:
         writer  = UDFWriter()
 
         written = 0
+        #: 最初に書いたフレーム。 静的セルの元にする (下記)
+        first_frame_cell = None
         for frame in parser.parse_frames(gro_path):
             # Guard: stop if we already wrote more than max_record records
             # (replicates the "while j <= maxRecord" condition)
@@ -96,10 +99,22 @@ class Exporter:
 
             positions, cell = adapter.to_positions_and_cell(frame)
             writer.write_frame(udf, positions, cell, steps, frame.time)
+            if first_frame_cell is None:
+                first_frame_cell = cell
 
             written += 1
 
         logger.info("Total number of records: %s", udf.totalRecord())
+
+        # 静的 Structure.Unit_Cell と Initial_Unit_Cell はテンプレートの値の
+        # ままなので、 .gro の箱で揃える。 揃えないと「座標は新しい箱・セルは
+        # 古い箱」の UDF になり、 静的側を読む下流 (J-OCTA の GROMACS
+        # コンバータ等) が壊れる。 NVT では箱が変わらないので露見しない。
+        if first_frame_cell is not None:
+            warn_if_template_box_differs(udf, udf_path, first_frame_cell.a,
+                                         first_frame_cell.b, first_frame_cell.c)
+            write_static_cell_abc(udf, first_frame_cell.a,
+                                  first_frame_cell.b, first_frame_cell.c)
 
         # Output file: {udf_basename}_groout.udf in current directory
         output_file = (

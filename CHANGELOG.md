@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+### Fixed — `gro2udf` が静的セルを書かず、J-OCTA 側で箱が inf になっていた
+
+`gro2udf` はセルを**動的レコードにしか書いていなかった**。静的
+`Structure.Unit_Cell` と `Initial_Structure.Initial_Unit_Cell` はテンプレートの
+値が残り、同梱テンプレートを使った場合は **20 Å 立方**と **100 Å 立方**という、
+系と何の関係も無い既定値のままだった。
+
+```
+修正前 (--from-top / 既定テンプレート / NPT 2 フレーム)
+  rec -1  Unit_Cell 20.0 x 20.0 x 20.0     Initial 100.0 x 100.0 x 100.0
+  rec  0  Unit_Cell 22.99 x 22.99 x 52.02  Initial 100.0 ...
+  rec  1  Unit_Cell 25.29 x 25.29 x 57.23  Initial 100.0 ...
+```
+
+レコード側は正しいので、変換も下流のスキーマ検証も何も言わない。静的側を読む
+実装に渡したときだけ、**座標は新しい箱・セルは古い箱**という組み合わせになる。
+**J-OCTA の GROMACS コンバータがそれで、変換は通り、実行時にセルが inf になった**
+(2026-09-11 に実機で報告)。
+
+**NVT では箱が変わらないので露見しない。NPT を通した軌跡でだけ壊れる。**
+
+- 静的 `Structure.Unit_Cell` と `Initial_Structure.Initial_Unit_Cell` に
+  **最初のフレームの箱**を書くようにした。`Initial_Unit_Cell` が名前どおりで
+  あるために最初のフレームを使う。各レコードの箱は従来どおりフレームごと
+- **テンプレートの箱とデータの箱が食い違ったら警告する**。従来は「テンプレートに
+  座標がある」ときだけ警告しており、**既定テンプレートを使う経路 (外で作った系の
+  通常の使い方) では無警告**だった
+- 修正は `--from-top` と旧経路 (`udffile grofile`) の**両方**に入れた。旧経路は
+  警告も一切出していなかった
+
+**あわせて: `--template` を省くと、カレントディレクトリの `.udf` を自動でテンプレート
+として拾う。** 作業フォルダに無関係な UDF があると、その古い箱を引き継ぐ。上の警告文
+にこの点も書いた。
+
+実装は `udf_writer.write_static_cell_abc()` / `warn_if_template_box_differs()` に
+まとめ、`top_exporter` と `exporter` の双方から呼ぶ。テスト 8 件追加
+(`tests/test_top_exporter_static_cell.py`)。
+
+
 ### Changed — Windows: `--user --no-deps` を既定にし、`B-0` / `B-1` / `B-2` をやめた
 
 venv + constraints を推奨にしていたが、**使うたびに 2 手の有効化が要る**。

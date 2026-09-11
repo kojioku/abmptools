@@ -24,6 +24,10 @@ back to the no-unit form.  This replicates the try/except pattern from the
 original gro2udf.py.
 """
 from __future__ import annotations
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 from typing import List
 
@@ -31,6 +35,66 @@ from ..core.system_model import AtomPosition, CellGeometry
 
 _VELOCITY_UNIT = 1000   # nm/ps → m/s  (1 nm/ps = 1000 m/s)
 _SHEAR_STRAIN  = 0.0    # constant, same as original
+
+
+def write_static_cell_abc(udf, a_nm: float, b_nm: float, c_nm: float) -> None:
+    """Put a box into the static cell and Initial_Unit_Cell (both in nm).
+
+    ``write_frame`` only writes the cell of the record it is filling, so
+    without this the two static fields keep whatever the template had. For
+    the bundled default that is a 20 A cube and a 100 A cube, neither of
+    which has anything to do with the system. Everything downstream that
+    reads a record is fine, which is why it went unnoticed: a reader that
+    takes the static section instead gets coordinates from one box and a
+    cell from another. J-OCTA's GROMACS converter accepted such a file and
+    produced an infinite cell at run time.
+
+    NVT hides it, because then every box is the same one.
+    """
+    a, b, c = float(a_nm), float(b_nm), float(c_nm)
+    udf.jump(-1)
+    for field, value in zip("abc", (a, b, c)):
+        for root in ("Structure.Unit_Cell",
+                     "Initial_Structure.Initial_Unit_Cell"):
+            try:
+                udf.put(value, "%s.Cell_Size.%s" % (root, field), "[nm]")
+            except TypeError:
+                udf.put(value, "%s.Cell_Size.%s" % (root, field))
+    for field in ("alpha", "beta", "gamma"):
+        for root in ("Structure.Unit_Cell",
+                     "Initial_Structure.Initial_Unit_Cell"):
+            udf.put(90.0, "%s.Cell_Size.%s" % (root, field))
+
+
+def warn_if_template_box_differs(udf, template_path,
+                                 a_nm: float, b_nm: float, c_nm: float) -> None:
+    """Say so when the template's static box is not the box of the data.
+
+    The per-record cells are always right, so a mismatch is invisible until
+    a reader takes the static section. Worth a line either way, because it
+    also catches a template picked up by accident from the working
+    directory.
+    """
+    try:
+        udf.jump(-1)
+        old = udf.get("Structure.Unit_Cell.Cell_Size")
+    except Exception:                                    # noqa: BLE001
+        return
+    if not old:
+        return
+    new = [float(a_nm) * 10.0, float(b_nm) * 10.0, float(c_nm) * 10.0]
+    if all(abs(float(o) - n) <= 1e-6 * max(1.0, n)
+           for o, n in zip(old[:3], new)):
+        return
+    logger.warning(
+        "template %s declares a static cell of %.4f x %.4f x %.4f A, but the "
+        "data is %.4f x %.4f x %.4f A. The static cell and Initial_Unit_Cell "
+        "are being set from the first frame so the two agree. Check that this "
+        "template is the one you meant -- without --template, a .udf sitting "
+        "in the working directory is picked up automatically.",
+        template_path, float(old[0]), float(old[1]), float(old[2]),
+        new[0], new[1], new[2],
+    )
 
 
 class UDFWriter:

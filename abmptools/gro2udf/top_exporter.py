@@ -62,6 +62,13 @@ def _rewrite_cognac_include(udf_path: str, cognac_version: str) -> None:
     path.write_text(new_text)
 
 
+def _warn_if_template_box_differs(uobj, template_path, frame) -> None:
+    """フレームの箱で :func:`udf_writer.warn_if_template_box_differs` を呼ぶ。"""
+    from .udf_writer import warn_if_template_box_differs
+    warn_if_template_box_differs(uobj, template_path,
+                                 frame.cell[0], frame.cell[1], frame.cell[2])
+
+
 def _static_structure_mol_count(uobj) -> int:
     """How many molecules already carry positions in the *static* Structure.
 
@@ -651,6 +658,13 @@ class TopExporter:
                     energy_values=per_frame_stats[i] if per_frame_stats else None,
                 )
 
+        if frames_to_write:
+            with _section("static-cell", template_path, out_path):
+                # 読んでから書く。 _write_static_cell が上書きしてしまうため
+                _warn_if_template_box_differs(uobj, template_path,
+                                              frames_to_write[0])
+                self._write_static_cell(uobj, frames_to_write[0])
+
         with _section("default_condition", template_path, out_path):
             self._set_default_condition(uobj, model)
         with _section("Molecular_Attributes", template_path, out_path):
@@ -793,6 +807,17 @@ class TopExporter:
                          [imol, idat])
 
         uobj.write()
+
+    @staticmethod
+    def _write_static_cell(uobj, frame: GROFrameData) -> None:
+        """最初のフレームの箱を静的セルと Initial_Unit_Cell に書く。
+
+        書かないとテンプレートの既定値 (同梱テンプレートなら 20 A 立方と
+        100 A 立方) が残り、 座標と箱が別の系の UDF が黙って出る。
+        実装は :func:`udf_writer.write_static_cell_abc`。
+        """
+        from .udf_writer import write_static_cell_abc
+        write_static_cell_abc(uobj, frame.cell[0], frame.cell[1], frame.cell[2])
 
     @staticmethod
     def _append_structure(uobj, model: TopModel, frame: GROFrameData,
