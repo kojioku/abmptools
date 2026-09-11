@@ -32,9 +32,22 @@
 - 修正は `--from-top` と旧経路 (`udffile grofile`) の**両方**に入れた。旧経路は
   警告も一切出していなかった
 
-**あわせて: `--template` を省くと、カレントディレクトリの `.udf` を自動でテンプレート
-として拾う。** 作業フォルダに無関係な UDF があると、その古い箱を引き継ぐ。上の警告文
-にこの点も書いた。
+### Changed — `<top と同名>.udf` の自動テンプレート採用をやめた
+
+`--template` を省くと **`<top_stem>.udf` を黙ってテンプレートに使っていた**。
+`system.top` の隣にあるのは**たいてい MD 前の `system.udf`** で、テンプレートは
+静的構造と箱を供給するから、**MD 前の箱をそのまま引き継いでいた**。上の不具合と
+同じ経路である。
+
+以後は `--template` を指定したときだけ使う。同名の `.udf` が在れば、その旨と
+打つべきコマンドを表示するので、黙って結果が変わることはない。
+
+```
+Note: sys_S10.udf exists but is NOT used. Templates are only used when
+      asked for: pass --template sys_S10.udf if that is what you want.
+```
+
+**挙動の変更。** 従来この自動採用に依存していた手順は `--template` の明示が要る。
 
 実装は `udf_writer.write_static_cell_abc()` / `warn_if_template_box_differs()` に
 まとめ、`top_exporter` と `exporter` の双方から呼ぶ。テスト 8 件追加

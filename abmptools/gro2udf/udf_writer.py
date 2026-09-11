@@ -90,8 +90,9 @@ def warn_if_template_box_differs(udf, template_path,
         "template %s declares a static cell of %.4f x %.4f x %.4f A, but the "
         "data is %.4f x %.4f x %.4f A. The static cell and Initial_Unit_Cell "
         "are being set from the first frame so the two agree. Check that this "
-        "template is the one you meant -- without --template, a .udf sitting "
-        "in the working directory is picked up automatically.",
+        "template is the one you meant: a template supplies the static "
+        "structure, so a pre-MD UDF brings the box the system had before it "
+        "ran.",
         template_path, float(old[0]), float(old[1]), float(old[2]),
         new[0], new[1], new[2],
     )

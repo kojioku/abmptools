@@ -103,13 +103,13 @@ def test_warns_when_the_template_box_is_not_the_data_box(caplog):
     assert "20.0000" in caplog.text and "52.0238" in caplog.text
 
 
-def test_the_warning_points_at_template_auto_detection(caplog):
-    """--template 省略時に作業フォルダの .udf を拾う事故も、ここで気付ける。"""
+def test_the_warning_names_the_template(caplog):
+    """MD 前の UDF をテンプレートに渡した事故も、ここで気付ける。"""
     u = _RecordingUDF(static_cell=[20.0, 20.0, 20.0, 90.0, 90.0, 90.0])
     with caplog.at_level(logging.WARNING):
-        _warn_if_template_box_differs(u, "stray.udf", _frame(1.0, 1.0, 1.0))
+        _warn_if_template_box_differs(u, "pre_md.udf", _frame(1.0, 1.0, 1.0))
 
-    assert "--template" in caplog.text
+    assert "pre_md.udf" in caplog.text and "pre-MD" in caplog.text
 
 
 def test_silent_when_the_boxes_agree(caplog):

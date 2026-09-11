@@ -56,7 +56,8 @@ def _run_from_top(argv: list) -> None:
                         help="GROMACS .mdp file (ref_t, tau_t, rcoulomb are read)")
     parser.add_argument("--template", dest="template_path", default=None,
                         help="Existing COGNAC UDF file (schema template). "
-                             "Defaults to <top_stem>.udf → built-in template.")
+                             "Defaults to the built-in template; a .udf next to the "
+                             ".top is never picked up on its own.")
     parser.add_argument("--out", dest="out_path", default=None,
                         help="Output UDF file path")
     parser.add_argument("--cognac-version", dest="cognac_version", default=None,
@@ -118,29 +119,34 @@ def _run_from_top(argv: list) -> None:
     # --- Resolve template path ---
     template_path = args.template_path
     if template_path is None:
-        # 1st priority: <top_stem>.udf in the same directory
+        # <top_stem>.udf used to be picked up here without being asked for.
+        # That is almost always the *pre-MD* input sitting next to the .top,
+        # and a template supplies the static structure and box -- so the
+        # conversion silently inherited the box the system had before it ran.
+        # Say it is there, and let the user ask for it.
         top_stem = os.path.splitext(top_path)[0]
         candidate = top_stem + ".udf"
         if os.path.isfile(candidate):
-            template_path = candidate
-            print("Template: {} (auto-detected)".format(template_path))
+            print("Note: {} exists but is NOT used. Templates are only used "
+                  "when asked for: pass --template {} if that is what you "
+                  "want.".format(candidate, candidate))
+
+        # When the user explicitly asked for a cognac10.x schema
+        # (OCTA8.4 / OCTA8.4), pick the cognac101-compatible
+        # bundled template so its data section parses on that install.
+        # NOTE: enumerate cognac10.x explicitly — `str.startswith("10")`
+        # would erroneously match `"110"`/`"112"` (those are cognac 11.x,
+        # not cognac 10.x).
+        cv = args.cognac_version
+        cognac10x = {"100", "101", "102"}
+        if cv is not None and str(cv) in cognac10x:
+            template_path = _BUILTIN_TEMPLATE_COGNAC101
+            print("Template: {} (built-in cognac10.x default)".format(
+                template_path))
         else:
-            # When the user explicitly asked for a cognac10.x schema
-            # (OCTA8.4 / OCTA8.4), pick the cognac101-compatible
-            # bundled template so its data section parses on that install.
-            # NOTE: enumerate cognac10.x explicitly — `str.startswith("10")`
-            # would erroneously match `"110"`/`"112"` (those are cognac 11.x,
-            # not cognac 10.x).
-            cv = args.cognac_version
-            cognac10x = {"100", "101", "102"}
-            if cv is not None and str(cv) in cognac10x:
-                template_path = _BUILTIN_TEMPLATE_COGNAC101
-                print("Template: {} (built-in cognac10.x default)".format(
-                    template_path))
-            else:
-                # Default: cognac11.2 (OCTA85)
-                template_path = _BUILTIN_TEMPLATE
-                print("Template: {} (built-in default)".format(template_path))
+            # Default: cognac11.2 (OCTA85)
+            template_path = _BUILTIN_TEMPLATE
+            print("Template: {} (built-in default)".format(template_path))
 
     # --- Resolve output path ---
     out_path = args.out_path
