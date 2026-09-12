@@ -21,7 +21,7 @@ class Exporter:
 
     def export(self, udf_path: str, output_prefix: str,
                unit_parameter=None, tau_t=None, tau_p=None,
-               barostat=None) -> int:
+               tau_p_max=None, barostat=None) -> int:
         """
         Convert *udf_path* and write Gromacs files with *output_prefix*.
 
@@ -46,6 +46,7 @@ class Exporter:
         try:
             model = UdfAdapter(udf, unit_parameter=unit_parameter,
                                tau_t=tau_t, tau_p=tau_p,
+                               tau_p_max=tau_p_max,
                                barostat=barostat).build()
         except RuntimeError as exc:
             logger.error("%s", exc)

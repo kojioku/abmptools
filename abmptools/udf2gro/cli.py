@@ -30,6 +30,7 @@ def main(argv=None):
     tau_t = None
     tau_p = None
     barostat = None
+    tau_p_max = None
     positional = []
     i = 0
     while i < len(rest):
@@ -53,7 +54,8 @@ def main(argv=None):
                     raise RuntimeError("")
                 barostat, i = rest[i + 1], i + 2
             continue
-        elif tok in ("--tau-t", "--tau-p") or tok.startswith(("--tau-t=", "--tau-p=")):
+        elif tok in ("--tau-t", "--tau-p", "--tau-p-max") \
+                or tok.startswith(("--tau-t=", "--tau-p=", "--tau-p-max=")):
             name, _, inline = tok.partition("=")
             if inline:
                 raw, i = inline, i + 1
@@ -69,6 +71,8 @@ def main(argv=None):
                 raise RuntimeError("")
             if name == "--tau-t":
                 tau_t = v
+            elif name == "--tau-p-max":
+                tau_p_max = v
             else:
                 tau_p = v
             continue
@@ -93,7 +97,11 @@ def main(argv=None):
         print("  --barostat  圧力浴を指定する (C-rescale / Parrinello-Rahman / Berendsen / no)")
         print("              C-rescale は GROMACS 2021+。安定かつ正しい NPT で拘束とも併用可")
         print("  --tau-t  熱浴の tau_t [ps] を直接指定する (既定は Q から算出)")
-        print("  --tau-p  圧力浴の tau_p [ps] を直接指定する (既定 2.0)")
+        print("  --tau-p  圧力浴の tau_p [ps] を直接指定する")
+        print("  --tau-p-max  換算した tau_p の上限 [ps]。 既定は上限なし。")
+        print("           Cell_Mass = 全質量 の慣用のため tau_p は箱の一辺に")
+        print("           比例して伸びる。 GROMACS の実用域 (2-5 ps) に収めたい")
+        print("           ときに --tau-p-max 5 とする。 丸めたら警告に出す")
         print("  --unit  UDF が Unit_Parameter を持たないときのスケール。")
         print("          all_atom = 長さ Å / エネルギー kcal/mol (GAFF 系)")
         print("          M,E,L    = Mass[amu], Energy[kJ/mol], Length[nm]")
@@ -115,7 +123,7 @@ def main(argv=None):
     return Exporter().export(in_udf_name, output_file_base,
                              unit_parameter=unit_parameter,
                              tau_t=tau_t, tau_p=tau_p,
-                             barostat=barostat)
+                             tau_p_max=tau_p_max, barostat=barostat)
 
 
 if __name__ == "__main__":

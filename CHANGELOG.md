@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Added — `udf2gro --tau-p-max` (換算した `tau_p` の上限)
+
+```bash
+python -m abmptools.udf2gro in.udf out --tau-p-max 5
+```
+
+`Cell_Mass` = 系の全質量という COGNAC の慣用のため、換算した `tau_p` は
+**箱の一辺に比例して伸びる**（密度 0.85 g/cm³ の立方セルで 5 nm なら PR 11 ps、
+20 nm なら 45 ps）。GROMACS の実務は 2〜5 ps なので、走らせるのが目的なら
+上限で打ち切りたい。
+
+**既定は上限なし。** 変換器が黙って値を変えないため。指定したときだけ丸め、
+**元の値と一緒に警告に出す**。
+
+```
+tau_p 8.95 ps -> 5.00 ps (--tau-p-max). Cell_Mass asks for 8.95 ps;
+this is a deliberate cap, not the value the UDF describes.
+```
+
+`--tau-p 5` との違いは**小さい系を引き延ばさない**こと。`--tau-p` を同時に
+指定した場合はそちらが勝つ。テスト 5 件追加。
+
+> `udf2gro` は**既にある UDF を変換する**ので既定では忠実に写し、`amorphous` は
+> **プロトコルを組み立てる**ので実用値を選ぶ。線はそこで引いている。
+
 ## [2.14.0] - 2026-09-13
 
 ### Docs — `Q` ↔ `tau_t` の根拠を、両者のマニュアルの式に差し替えた
