@@ -2,6 +2,54 @@
 
 ## [Unreleased]
 
+### Fixed — NPT 系の Nose-Hoover `Q` と `Cell_Mass` が空で、NPT が流せなかった
+
+`Export_GROMACS.py` は**アルゴリズムごとに別のフィールド**から `Q` を読み、
+`tau_t = 2π·√(Q·Mass·Length²/T)` を作る。`gro2udf` は `NVT_Nose_Hoover.Q` しか
+書いていなかったので、**J-OCTA で NPT に切り替えた瞬間に `Q = 0` が読まれ
+`tau_t = 0` になり、Nose-Hoover が 0 除算して箱が `nan` に飛んでいた**。
+NVT で露見しなかったのはこのため。
+
+`Cell_Mass` (バロスタット質量) も未記入で、`tau_p` の式が 0 になり下限 2.0 に
+丸められていた。J-OCTA は `CognacSystemUtil.setCellMass` で**系の全質量**を
+入れるので、それに合わせた。
+
+```
+修正前  NVT.Q = 22815.7   NPT.Q = 0.0        Cell_Mass = 0.0     → tau_t = 0.0
+修正後  NVT.Q = 22823.2   NPT.Q = 22823.2    Cell_Mass = 14076.4 → tau_t = 5.48
+J-OCTA  NVT.Q = 22823.2   NPT.Q = 22823.2    Cell_Mass = 14076.4
+```
+
+### Added — `--nh-dof` (自由度の数え方)
+
+`Q = g·k_B·T·τ²` の `g`。**既定は `3N`** で、J-OCTA が書く値と一致する。
+
+| | いつ |
+|---|---|
+| `3N` (既定) | **J-OCTA の mdp は `comm-mode = None`** で重心運動を除かない |
+| `3N-3` | **`comm-mode = Linear` (GROMACS の既定) で流す**とき |
+
+根拠は実測。J-OCTA が書いた UDF **4 系 (原子数 23 / 80 / 110 / 3050)** の `Q` が
+いずれも `3N·k_B·T·(0.1 ps)²` に乗る (逆算した τ が 4 系とも 0.099999972 ps)。
+**`3N-3` では乗らない** —— 80 原子で 0.1006 とずれる。GROMACS 自身も J-OCTA の
+mdp に対し `degrees of freedom ... is 9150.00` (= 3×3050) と報告した。
+
+原子数が同じ 110 で全質量だけ違う 2 系 (sys1 655.87 / sys3 440.94) の `Q` が
+同一だったことから、**`Q` は原子数のみ、`Cell_Mass` は質量**と切り分けられた。
+
+差は 3050 原子で 0.03%、80 原子で 0.6%。`Q` は熱浴の応答の速さを決めるだけで
+アンサンブルは変えないので、大きい系では実害はない。
+
+> **`tau_t` は系のサイズとともに大きくなる。** 規約に完全準拠しても 3050 原子で
+> 5.48 ps。J-OCTA が書く `Q` の意味 (自由度と `k_B` を含む物理的な熱浴質量) と
+> 読み戻す式 (`2π√(Q/T)`) が噛み合っていないためで、**J-OCTA が自分で作った
+> UDF でも同じ**。`.mdp` は雛形と考え、本番では上書きすること。
+
+テスト 11 件追加 (`tests/test_gro2udf_nose_hoover.py`、4 系の実測値を回帰値に)。
+`docs/gro2udf.md` に「★ J-OCTA へ渡すときに要るもの」節を新設し、今回の 5 件を
+まとめた。
+
+
 ### Fixed — Amber 二面角に 1-4 のスケーリングが無く、J-OCTA で NPT が流せなかった
 
 `User_Torsion.Parameters[]` を**空のまま**にしていた。UDF は形式として正しく、

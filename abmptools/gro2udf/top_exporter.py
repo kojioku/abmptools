@@ -500,6 +500,7 @@ class TopExporter:
         energy_path: Optional[str] = None,
         allow_unsupported: bool = False,
         force_field: Optional[str] = "gaff",
+        nh_dof: str = "3N",
     ) -> None:
         """
         Parse *top_path* + *gro_path*, build :class:`TopModel`, write to *out_path*.
@@ -569,6 +570,7 @@ class TopExporter:
                           frames=frames,
                           cognac_version=cognac_version,
                           force_field=force_field,
+                          nh_dof=nh_dof,
                           energy_times=energy_times,
                           energy_series=energy_series)
 
@@ -582,6 +584,7 @@ class TopExporter:
         energy_times: Optional[List[float]] = None,
         energy_series: Optional[dict] = None,
         force_field: Optional[str] = "gaff",
+        nh_dof: str = "3N",
     ) -> None:
         """
         Write *model* into a new UDF at *out_path* using *template_path* as schema.
@@ -684,7 +687,7 @@ class TopExporter:
             set_force_field_comment(uobj, force_field)
 
         with _section("default_condition", template_path, out_path):
-            self._set_default_condition(uobj, model)
+            self._set_default_condition(uobj, model, nh_dof=nh_dof)
         with _section("Molecular_Attributes", template_path, out_path):
             self._write_molecular_attributes(uobj, model)
         with _section("Interactions", template_path, out_path):
@@ -916,7 +919,8 @@ class TopExporter:
         uobj.write()
 
     @staticmethod
-    def _set_default_condition(uobj, model: TopModel) -> None:
+    def _set_default_condition(uobj, model: TopModel,
+                               nh_dof: str = "3N") -> None:
         """
         Set electrostatic flags, Nose-Hoover Q, and Ewald parameters.
 
@@ -965,10 +969,53 @@ class TopExporter:
         # --- Nose-Hoover Q ---
         n = model.n_atoms_total
         if n > 0:
-            g = max(1, 3 * n - 3)           # degrees of freedom
+            # 熱浴に結合している自由度。 **J-OCTA が書く mdp は
+            # `comm-mode = None`** なので重心運動が除かれず、 J-OCTA 自身も
+            # 3N を使う (実測: sys1/sys2/sys3 と testallatom の 4 系、 原子数
+            # 23〜3050 で Q = 3N*kB*T*(0.1 ps)^2 にぴったり乗る。 GROMACS も
+            # "degrees of freedom ... is 9150" = 3N と報告した)。
+            # `comm-mode = Linear` (GROMACS の既定) で流すなら 3 を引く方が
+            # 正しいので、 --nh-dof 3N-3 で選べるようにしてある。
+            # 差は 3050 原子で 0.03%、 80 原子で 0.6% 程度。
+            g = max(1, 3 * n - 3) if nh_dof == "3N-3" else max(1, 3 * n)
             Q = g * KB_AMU_A2_PS2_K * model.ref_t * (model.tau_t ** 2)
-            uobj.put(Q,
-                     "Simulation_Conditions.Solver.Dynamics.NVT_Nose_Hoover.Q")
+            # ★ NVT だけでなく NPT 系にも同じ Q を入れる。
+            # Export_GROMACS.py は **アルゴリズムごとに別のフィールドから Q を
+            # 読み**、tau_t = sqrt(Q/T * 4pi^2) を作る。 NVT の分しか書かないと、
+            # J-OCTA 側で NPT に切り替えた瞬間に Q=0 が読まれて **tau_t = 0** に
+            # なり、 Nose-Hoover が 0 除算して箱が nan に飛ぶ (2026-09-12 実機)。
+            # NVT では露見しないのはこのため。
+            for _alg in ("NVT_Nose_Hoover",
+                         "NPT_Parrinello_Rahman_Nose_Hoover",
+                         "NPT_Andersen_Nose_Hoover"):
+                uobj.put(Q, "Simulation_Conditions.Solver.Dynamics.%s.Q" % _alg)
+
+            # Cell_Mass は系の全質量。 J-OCTA 自身がそうしている
+            # (`CognacSystemUtil.setCellMass`。 実測 4 系で一致)。
+            # 未記入 (0) だと tau_p の式が 0 になり、 下限 2.0 に丸められる。
+            total_mass = sum(
+                model.mass_dict.get(a.type_name, 0.0)
+                for mol_name in model.mol_instance_list
+                for a in model.mol_specs[
+                    model.mol_type_names.index(mol_name)].atoms)
+            for _alg in ("NPH_Andersen", "NPH_Parrinello_Rahman",
+                         "NPT_Andersen_Nose_Hoover",
+                         "NPT_Parrinello_Rahman_Nose_Hoover"):
+                try:
+                    uobj.put(float(total_mass),
+                             "Simulation_Conditions.Solver.Dynamics.%s.Cell_Mass"
+                             % _alg)
+                except Exception:                        # noqa: BLE001
+                    pass
+            # Berendsen 系は Q ではなく tau_T [ps] を直に読む
+            for _alg in ("NVT_Berendsen", "NPT_Berendsen"):
+                try:
+                    _put_with_unit_fallback(
+                        uobj, float(model.tau_t),
+                        "Simulation_Conditions.Solver.Dynamics.%s.tau_T" % _alg,
+                        None, "[ps]")
+                except Exception:                        # noqa: BLE001
+                    pass
 
         # --- Ewald electrostatic interaction defaults ---
         loc = "Interactions.Electrostatic_Interaction[0]"

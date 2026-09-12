@@ -237,6 +237,80 @@ structure and box. ...
 
 ---
 
+## ★ J-OCTA へ渡すときに要るもの
+
+`gro2udf` の UDF を J-OCTA の GROMACS コンバータ (`Export_GROMACS.py`) に通す
+場合、**UDF が形式として正しいだけでは足りない**。J-OCTA は UDF スキーマが
+「空でも妥当」としている場所を規約として読んでいる。**変換は成功し、下流の
+検証も通り、NVT では何も起きず、NPT でだけ落ちる**という形になるので、
+気付きにくい (2026-09 に実機で 5 件見つかった)。
+
+### Nose-Hoover の `Q` と `Cell_Mass`
+
+`Export_GROMACS.py` は **アルゴリズムごとに別のフィールド**から `Q` を読み、
+
+```
+tau_t = 2 * pi * sqrt(Q * Unit_Parameter.Mass * Unit_Parameter.Length^2 / T)
+```
+
+で GROMACS の `tau_t` を作る。`NVT_Nose_Hoover.Q` だけ書いて NPT 側を空に
+すると、**J-OCTA で NPT に切り替えた瞬間に `Q = 0` が読まれ `tau_t = 0` に
+なり、Nose-Hoover が 0 除算して箱が `nan` に飛ぶ**。`gro2udf` は NVT / NPT の
+両系統に同じ `Q` を書く。
+
+`Cell_Mass` (バロスタット質量) も同様で、未記入だと `tau_p` の式が 0 になり
+下限の 2.0 に丸められる。J-OCTA は `CognacSystemUtil.setCellMass` で
+**系の全質量**を入れるので、`gro2udf` もそれに合わせる。
+
+### ★ `--nh-dof` — 自由度の数え方
+
+`Q = g * k_B * T * tau^2` の `g` をどう数えるか。**既定は `3N`**。
+
+| | いつ使うか |
+|---|---|
+| **`3N`** (既定) | **J-OCTA が書き出す mdp は `comm-mode = None`** なので重心運動が除かれない。J-OCTA 自身もこの数え方をする |
+| `3N-3` | **`comm-mode = Linear` (GROMACS の既定) で流す**とき。重心運動が除かれるぶん 3 を引く |
+
+```bash
+python -m abmptools.gro2udf --from-top system.top md.gro --nh-dof 3N-3 --out out.udf
+```
+
+根拠は実測。J-OCTA が書いた UDF 4 系 (原子数 23 / 80 / 110 / 3050) の `Q` は
+いずれも `3N * k_B * T * (0.1 ps)^2` にぴったり乗る (逆算した tau が 4 系とも
+0.099999972 ps)。**`3N-3` では乗らない** —— 80 原子で 0.1006 とずれる。
+GROMACS 自身も J-OCTA の mdp に対し `degrees of freedom ... is 9150.00`
+(= 3 x 3050) と報告した。
+
+差は **3050 原子で 0.03%、80 原子で 0.6%** 程度。`Q` は熱浴の応答の速さを
+決めるだけでサンプリングされるアンサンブルは変えないので、**大きい系では
+どちらでも実害はない**。小さい系ほど効く。
+
+> **`tau_t` は系のサイズとともに大きくなる。** 上の規約に完全準拠しても
+> 3050 原子で `tau_t = 5.48 ps` になる。J-OCTA が書く `Q` の意味 (自由度と
+> `k_B` を含む物理的な熱浴質量) と、読み戻す式 (`2*pi*sqrt(Q/T)`) が噛み合って
+> いないためで、**J-OCTA が自分で作った UDF でも同じことが起きる**。
+> `.mdp` は雛形と考え、本番では `tau_t` / `tau_p` を実験条件に合わせて
+> 上書きすること。`tau_p` は J-OCTA 側で 2.0 が下限なので、
+> `tau_p >= 2 * tau_t` を満たすには `tau_t <= 1.0 ps` が要る。
+
+### 力場 ID と 1-4 スケーリング
+
+- **`Unit_Parameter.Comment` の `FF=n`** — J-OCTA はここで力場を判定する。
+  空だと「力場が分からない」扱いになり書き出しが通らない。`--ff` で指定
+  (既定 `gaff` = `FF=2`)。番号は J-OCTA の `conf/modeo.conf` の力場の並び
+- **`User_Torsion.Parameters[]` の `SCNB` / `SCEE`** — 1-4 のスケーリング。
+  空だと J-OCTA が 1-4 の扱いを決められず NPT が流せない。`.top` の
+  `fudgeLJ` / `fudgeQQ` をそのまま入れる
+
+### 静的セルとテンプレート
+
+- 静的 `Structure.Unit_Cell` と `Initial_Structure.Initial_Unit_Cell` には
+  **最初のフレームの箱**を書く。書かないとテンプレートの値 (同梱テンプレート
+  なら 20 A 立方と 100 A 立方) が残り、座標と箱が別の系の UDF になる
+- **`<top と同名>.udf` を自動でテンプレートに採用しない。** 隣にあるのは
+  たいてい MD 前の UDF で、その箱を引き継いでしまう。使うなら `--template` で
+  明示する
+
 ## 使い方
 
 ### udf-and-gro モード（後方互換）
