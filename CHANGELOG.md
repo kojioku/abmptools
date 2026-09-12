@@ -56,6 +56,13 @@ HOOMD の `tau` は緩和時間なので `2π` は付かない)。
 `NPT_Berendsen` は従来どおり単位換算のみ (COGNAC が `tau_P` を時間で持つ)。
 `Cell_Mass` が無い UDF では 2.0 ps に落とし、その旨を警告する。
 
+**出てくる値は GROMACS の実務 (2〜5 ps) より遅い。** `Cell_Mass` = 全質量と
+いう慣用値のため `tau_p ∝ 箱の一辺` で、5 nm 立方なら PR 11 ps / Andersen
+19 ps。UDF に忠実な値ではあるが (音波がセルを横断する時間の 1.6〜2.8 倍に
+相当する)、密度の緩和に数 × `tau_p` かかるので、**2〜5 ps を超えたら警告を
+出す**。生産計算で GROMACS の慣行に合わせるなら `--tau-p 2`。
+`tau_p ≥ 2·tau_t` も書き出し時に確認する (`grompp` より先に言える)。
+
 ### Added — `udf2gro --tau-t` / `--tau-p` / `--barostat`
 
 ```bash

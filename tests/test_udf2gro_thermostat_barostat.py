@@ -378,3 +378,60 @@ def test_a_misspelled_barostat_is_refused_not_passed_through():
 def test_every_name_maps_to_something_gromacs_accepts():
     accepted = {"C-rescale", "Parrinello-Rahman", "Berendsen", "MTTK", "no"}
     assert set(BAROSTAT_NAMES.values()) <= accepted
+
+
+# ---------------------------------------------------------------------------
+# tau_t と tau_p の組合せ
+#
+# UDF から出した値は「その UDF が記述している計算」であって、 GROMACS で
+# 普通に選ぶ値とは限らない。 grompp が言うことは grompp が言うが、 実務の
+# 範囲から外れていることは誰も言わないので、 ここで言う。
+# ---------------------------------------------------------------------------
+
+from abmptools.udf2gro.udf_adapter import (          # noqa: E402
+    PRACTICAL_TAU_P_PS,
+    _check_tau_pair,
+)
+
+
+def test_a_slow_barostat_is_flagged(caplog):
+    """Cell_Mass = 全質量 だと tau_p は箱の一辺に比例して伸びる。
+
+    5 nm 立方で PR 11 ps / Andersen 19 ps。 値としては UDF に忠実だが、
+    密度の緩和には数 x tau_p かかるので、 短い NPT では効かない。
+    """
+    with caplog.at_level(logging.WARNING,
+                         logger="abmptools.udf2gro.udf_adapter"):
+        _check_tau_pair("nose-hoover", 0.628, "Parrinello-Rahman", 8.93)
+
+    assert "--tau-p" in caplog.text
+    assert "2-5 ps" in caplog.text
+
+
+def test_a_barostat_in_the_usual_range_is_quiet(caplog):
+    with caplog.at_level(logging.WARNING,
+                         logger="abmptools.udf2gro.udf_adapter"):
+        _check_tau_pair("nose-hoover", 0.628, "Parrinello-Rahman", 3.0)
+
+    assert caplog.text == ""
+
+
+def test_the_resonance_condition_is_checked_before_grompp(caplog):
+    """``tau_p < 2*tau_t`` は grompp も言うが、 こちらは両方の値を持っている。"""
+    with caplog.at_level(logging.WARNING,
+                         logger="abmptools.udf2gro.udf_adapter"):
+        _check_tau_pair("nose-hoover", 2.0, "Parrinello-Rahman", 3.0)
+
+    assert "twice" in caplog.text
+
+
+def test_nothing_is_said_when_there_is_no_barostat(caplog):
+    with caplog.at_level(logging.WARNING,
+                         logger="abmptools.udf2gro.udf_adapter"):
+        _check_tau_pair("nose-hoover", 5.0, "no", 2.0)
+
+    assert caplog.text == ""
+
+
+def test_the_practical_range_matches_what_the_docs_say():
+    assert PRACTICAL_TAU_P_PS == (2.0, 5.0)

@@ -172,6 +172,40 @@ BAROSTAT_NAMES = {
 }
 
 
+#: GROMACS で実際に使われる tau_p の範囲 [ps]。 目安であって制約ではない。
+PRACTICAL_TAU_P_PS = (2.0, 5.0)
+
+
+def _check_tau_pair(t_coupl, tau_t, p_coupl, tau_p) -> None:
+    """``tau_t`` と ``tau_p`` の組合せを見て、 実行前に言えることを言う。
+
+    UDF から出した値は「その UDF が記述している計算」であって、 GROMACS で
+    普通に選ぶ値とは限らない。 ここで気付けないと、 短い NPT で箱がまだ緩和
+    していないのに平衡とみなす、 といった形で静かに効く。
+    """
+    if str(p_coupl).lower() in ("", "no"):
+        return
+
+    lo, hi = PRACTICAL_TAU_P_PS
+    if tau_p > hi:
+        # Cell_Mass = 系の全質量 という COGNAC の慣用値のせいで、 tau_p は
+        # 箱の一辺に比例して伸びる (5 nm 立方で PR 11 ps / Andersen 19 ps)。
+        # 値としては UDF に忠実だが、 密度の緩和には数 x tau_p かかる。
+        logger.warning(
+            "tau_p = %.2f ps is longer than the %g-%g ps usually used in "
+            "GROMACS. It is what the UDF's Cell_Mass asks for (COGNAC sets "
+            "it to the system's total mass, so tau_p grows with the box). "
+            "The box will relax slowly -- allow several times tau_p, or "
+            "pass --tau-p %g.", tau_p, lo, hi, hi)
+
+    # grompp が出すのと同じ条件。 こちらは両方の値を持っているので先に言える。
+    if str(t_coupl).lower() == "nose-hoover" and tau_p < 2.0 * tau_t:
+        logger.warning(
+            "tau_p = %.3f ps is less than twice tau_t = %.3f ps; with "
+            "nose-hoover this can resonate and grompp will say so. Raise "
+            "tau_p with --tau-p, or lower tau_t with --tau-t.", tau_p, tau_t)
+
+
 def canonical_barostat(name: str) -> str:
     """``--barostat`` の値を GROMACS の綴りに直す。 未知なら ValueError。"""
     try:
@@ -1098,6 +1132,8 @@ class UdfAdapter:
         # --- pressure coupling ---
         p_coupl_str, pcoupltype, tau_p, ref_p, ref_p_tensor, comp, comp_tensor = \
             self._extract_pressure(algorithm, fix_cell, fix_angle, deform_npt, deform_vel, cell)
+
+        _check_tau_pair(t_coupl_str, tau_t, p_coupl_str, tau_p)
 
         # --- pbc ---
         if pbc_a == "NONE" and pbc_b == "NONE" and pbc_c == "NONE":
