@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-09-13
+
 ### Docs — `Q` ↔ `tau_t` の根拠を、両者のマニュアルの式に差し替えた
 
 `docs/udf2gro.md` の換算式は導出ではなく、**GROMACS と COGNAC のマニュアルに
