@@ -157,3 +157,46 @@ class TestBuildConfig:
             "openff_unconstrained-2.1.0.offxml",
             "tip3p.offxml",
         ]
+
+
+# ---------------------------------------------------------------------------
+# 熱浴・圧力浴が BuildConfig から .mdp まで届くか
+#
+# ここが繋がっていないと、 --thermostat / --barostat を指定しても既定の
+# .mdp が黙って出る。 型も名前も合っているので気付けない類の抜け。
+# ---------------------------------------------------------------------------
+
+class TestThermostatBarostatPassthrough:
+
+    def test_defaults_match_the_protocol_defaults(self):
+        from abmptools.core.system_model import AnnealProtocol
+
+        cfg = BuildConfig()
+        proto = AnnealProtocol()
+        assert cfg.thermostat == proto.thermostat == "V-rescale"
+        assert cfg.barostat == proto.barostat == "C-rescale"
+
+    def test_the_builder_hands_them_to_the_protocol(self):
+        from abmptools.amorphous.builder import AmorphousBuilder
+
+        cfg = BuildConfig(thermostat="Nose-Hoover",
+                          barostat="Parrinello-Rahman")
+        builder = AmorphousBuilder.__new__(AmorphousBuilder)
+        builder.config = cfg
+        proto = builder._make_protocol()
+
+        assert proto.thermostat == "Nose-Hoover"
+        assert proto.barostat == "Parrinello-Rahman"
+
+    def test_the_choice_reaches_the_mdp_text(self):
+        from abmptools.amorphous.builder import AmorphousBuilder
+        from abmptools.amorphous.mdp_protocol import generate_npt_high_mdp
+
+        builder = AmorphousBuilder.__new__(AmorphousBuilder)
+        builder.config = BuildConfig(thermostat="Nose-Hoover",
+                                     barostat="Parrinello-Rahman")
+        text = generate_npt_high_mdp(builder._make_protocol())
+
+        assert "Nose-Hoover" in text
+        assert "Parrinello-Rahman" in text
+        assert "V-rescale" not in text and "C-rescale" not in text

@@ -443,6 +443,8 @@ class AmorphousBuilder:
             dt=cfg.dt,
             tau_t=cfg.tau_t,
             tau_p=cfg.tau_p,
+            thermostat=cfg.thermostat,
+            barostat=cfg.barostat,
             nstxout_compressed=cfg.nstxout_compressed,
             nstenergy=cfg.nstenergy,
             gen_seed=cfg.seed,

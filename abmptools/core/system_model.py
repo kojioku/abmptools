@@ -328,6 +328,29 @@ class AnnealProtocol:
     dt: float = 0.001                  # [ps]
     tau_t: float = 0.1                 # [ps]
     tau_p: float = 2.0                 # [ps]
+    #: 圧力浴。 "C-rescale" (既定) / "Parrinello-Rahman" / "Berendsen" / "no"。
+    #:
+    #: **C-rescale を既定にしている理由。** GROMACS 2021 で入った確率的セル
+    #: スケーリングで、 Berendsen と同じ安定性を持ちながら**正しい NPT
+    #: アンサンブル**を与える。 Parrinello-Rahman は初期応力が大きいと箱が
+    #: 振動するため平衡化に向かず、 MTTK は拘束 (LINCS / SETTLE) と併用でき
+    #: ない。 非晶質の作成は初期構造が悪い状態から詰める工程なので C-rescale
+    #: が素直。 厳密な PR が要る生産計算や GROMACS 2020 以前では
+    #: "Parrinello-Rahman" を指定する。
+    barostat: str = "C-rescale"
+    #: 熱浴。 "V-rescale" (既定) / "Nose-Hoover" / "Berendsen" / "no"。
+    #:
+    #: **V-rescale を既定にしている理由。** 速度スケーリングにノイズ項を
+    #: 足したもので、 Berendsen と同じ安定性を持ちながら**正しい正準分布**を
+    #: 与える。 Nose-Hoover は正しいが振動的で、 初期構造が悪いと温度が
+    #: 行き過ぎる。 昇温・急冷を含む anneal の全工程を 1 つで通せるのが
+    #: V-rescale なので、 ここでは既定にしている。
+    #:
+    #: なお **``tau_t`` の意味は熱浴で変わる**。 V-rescale / Berendsen では
+    #: 緩和時間だが、 **Nose-Hoover では振動の周期** (= 2*pi * 緩和時間) に
+    #: なる。 Nose-Hoover に替えるときは ``tau_t`` も見直すこと。
+    #: 詳細は ``docs/udf2gro.md``。
+    thermostat: str = "V-rescale"
     nstxout_compressed: int = 5000
     nstenergy: int = 1000
     gen_seed: Optional[int] = None

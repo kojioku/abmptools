@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import math
 import os
+from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 from ..core.system_model import (
@@ -33,7 +34,7 @@ _CHARGE_UNIT = 18.224159264
 # Helpers (ported from udf2gro.py, but now pure functions / instance methods)
 # ---------------------------------------------------------------------------
 
-def _sanitize_gromacs_molname(ss: str) -> str:
+def _sanitize_gromacs_molname(name: str) -> str:
     """Sanitize a UDF Mol_Name into a string usable as GROMACS
     ``[ moleculetype ] Name``.
 
@@ -43,9 +44,9 @@ def _sanitize_gromacs_molname(ss: str) -> str:
     leading-digit names by prepending ``M_`` if needed. Empty or all-
     underscore inputs fall back to ``MOL``.
     """
-    if not ss:
+    if not name:
         return "MOL"
-    out = "".join(c if (c.isalnum() or c == "_") else "_" for c in ss)
+    out = "".join(c if (c.isalnum() or c == "_") else "_" for c in name)
     if out and out[0].isdigit():
         out = "M_" + out
     if not out.replace("_", ""):
@@ -53,10 +54,11 @@ def _sanitize_gromacs_molname(ss: str) -> str:
     return out
 
 
-def _shorten_molname(ss: str) -> str:
-    if len(ss) > 5:
-        ss = ss[0] + ss[1] + ss[len(ss)-3] + ss[len(ss)-2] + ss[len(ss)-1]
-    return ss
+def _shorten_molname(name: str) -> str:
+    """.gro の残基名欄は 5 文字。 溢れる分は真ん中を落として端を残す。"""
+    if len(name) > 5:
+        return name[0] + name[1] + name[-3] + name[-2] + name[-1]
+    return name
 
 
 def _float2str(value: float, ndigit: int) -> str:
@@ -70,8 +72,26 @@ def _is_rectangular(cell_raw, thres: float = 1e-5) -> bool:
     return True
 
 
-def _get_proper_dihedral_params(udf, j: int, n: int, kk: float):
-    """Port of get_proper_dihedral_params() from udf2gro.py."""
+def _cosine_polynomial_to_proper_dihedral(udf, torsion_index: int,
+                                          n_terms: int, energy_scale: float):
+    """COGNAC の余弦多項式を GROMACS の proper dihedral (funct 9) に直す。
+
+    COGNAC は ``Cosine_Polynomial.p[]`` の係数 ``A_0..A_{n-1}`` で
+    ``sum A_i cos^i(phi)`` と書く。 GROMACS は ``k(1 + cos(n*phi - phi_s))``
+    なので、 次数ごとに ``(phi_s, k, n)`` へ読み替える。 位相は係数の符号で
+    0 度か 180 度のどちらかになり、 係数の分母は倍角公式から出る。
+
+    Parameters
+    ----------
+    torsion_index : ``Torsion_Potential[]`` の何番目か
+    n_terms       : 係数の数。 多重度は ``n_terms - 1``
+    energy_scale  : UDF のエネルギー単位 -> kJ/mol の換算係数
+
+    Returns
+    -------
+    ``(phi_s [deg], k [kJ/mol], multiplicity)``
+    """
+    j, n, kk = torsion_index, n_terms, energy_scale
     loc = "Molecular_Attributes.Torsion_Potential[].Cosine_Polynomial.p[]"
     gro_k = 0.0
     gro_phi = 0.0
@@ -139,15 +159,124 @@ def _get_proper_dihedral_params(udf, j: int, n: int, kk: float):
 # Main adapter class
 # ---------------------------------------------------------------------------
 
+#: Q を持つ Nose-Hoover 系のアルゴリズム。 いずれも同じ式で tau_t を出す。
+_NOSE_HOOVER_ALGORITHMS = (
+    "NVT_Nose_Hoover",
+    "NPT_Parrinello_Rahman_Nose_Hoover",
+    "NPT_Andersen_Nose_Hoover",
+)
+
+#: Boltzmann 定数 [amu nm^2 / (ps^2 K)]。 amu/nm/ps 系では energy = kJ/mol。
+_KB_AMU_NM2_PS2_K = 0.0083144626
+
+#: 水の等温圧縮率 [bar^-1]。 GROMACS の compressibility の慣用既定値。
+_COMPRESSIBILITY_BAR = 4.5e-5
+
+#: 1 bar を kJ/mol/nm^3 に直す係数。
+_BAR_TO_KJ_MOL_NM3 = 0.06022140762
+
+#: tau_p の既定 [ps]。 Parrinello-Rahman の実用域 (2-5 ps) の下端。
+DEFAULT_TAU_P_PS = 2.0
+
+#: ``--barostat`` で受ける名前 -> GROMACS の ``pcoupl`` に書く綴り。
+#: 綴りを間違えると grompp が落ちるだけなので、 ここで正規化して弾く。
+#: C-rescale は GROMACS 2021+。 COGNAC 側に対応概念が無いので指定でしか選べない。
+BAROSTAT_NAMES = {
+    "c-rescale":          "C-rescale",
+    "crescale":           "C-rescale",
+    "parrinello-rahman":  "Parrinello-Rahman",
+    "parrinello_rahman":  "Parrinello-Rahman",
+    "berendsen":          "Berendsen",
+    "mttk":               "MTTK",
+    "no":                 "no",
+}
+
+
+#: GROMACS で実際に使われる tau_p の範囲 [ps]。 目安であって制約ではない。
+PRACTICAL_TAU_P_PS = (2.0, 5.0)
+
+
+def _check_tau_pair(t_coupl, tau_t, p_coupl, tau_p) -> None:
+    """``tau_t`` と ``tau_p`` の組合せを見て、 実行前に言えることを言う。
+
+    UDF から出した値は「その UDF が記述している計算」であって、 GROMACS で
+    普通に選ぶ値とは限らない。 ここで気付けないと、 短い NPT で箱がまだ緩和
+    していないのに平衡とみなす、 といった形で静かに効く。
+    """
+    if str(p_coupl).lower() in ("", "no"):
+        return
+
+    lo, hi = PRACTICAL_TAU_P_PS
+    if tau_p > hi:
+        # Cell_Mass = 系の全質量 という COGNAC の慣用値のせいで、 tau_p は
+        # 箱の一辺に比例して伸びる (5 nm 立方で PR 11 ps / Andersen 19 ps)。
+        # 値としては UDF に忠実だが、 密度の緩和には数 x tau_p かかる。
+        logger.warning(
+            "tau_p = %.2f ps is longer than the %g-%g ps usually used in "
+            "GROMACS. It is what the UDF's Cell_Mass asks for (COGNAC sets "
+            "it to the system's total mass, so tau_p grows with the box). "
+            "The box will relax slowly -- allow several times tau_p, or "
+            "pass --tau-p %g.", tau_p, lo, hi, hi)
+
+    # grompp が出すのと同じ条件。 こちらは両方の値を持っているので先に言える。
+    if str(t_coupl).lower() == "nose-hoover" and tau_p < 2.0 * tau_t:
+        logger.warning(
+            "tau_p = %.3f ps is less than twice tau_t = %.3f ps; with "
+            "nose-hoover this can resonate and grompp will say so. Raise "
+            "tau_p with --tau-p, or lower tau_t with --tau-t.", tau_p, tau_t)
+
+
+@dataclass
+class ThermostatSettings:
+    """``.mdp`` の熱浴まわり。 ``_build_thermostat`` が返す。"""
+    t_coupl: str                      #: GROMACS の ``tcoupl``
+    tau_t: float                      #: [ps]。 nose-hoover では振動の周期
+    ref_t: float                      #: [K]
+
+
+@dataclass
+class BarostatSettings:
+    """``.mdp`` の圧力浴まわり。 ``_build_barostat`` が返す。
+
+    以前は 7 要素のタプルで返していたので、 呼び出し側が位置で数えていた。
+    要素はどれも float か str なので、 順序を取り違えても型エラーにならず、
+    ``.mdp`` に違う値が書かれるだけになる。
+    """
+    p_coupl: str                      #: GROMACS の ``pcoupl``
+    pcoupltype: str                   #: isotropic / anisotropic
+    tau_p: float                      #: [ps]
+    ref_p: float                      #: [bar]
+    ref_p_tensor: Optional[list]      #: anisotropic のときの 6 成分
+    compressibility: float            #: [bar^-1]
+    compressibility_tensor: Optional[list]
+
+    @classmethod
+    def none(cls, compressibility: float) -> "BarostatSettings":
+        """圧力浴なし (NVE / NVT)。"""
+        return cls("no", "isotropic", DEFAULT_TAU_P_PS, 1.0, None,
+                   compressibility, None)
+
+
+def canonical_barostat(name: str) -> str:
+    """``--barostat`` の値を GROMACS の綴りに直す。 未知なら ValueError。"""
+    try:
+        return BAROSTAT_NAMES[str(name).strip().lower()]
+    except KeyError:
+        raise ValueError(
+            "unknown barostat %r; choose one of %s"
+            % (name, ", ".join(sorted(set(BAROSTAT_NAMES.values())))))
+
+
 class UdfAdapter:
     """Reads a UDFManager object and produces a SystemModel."""
 
     #: Unit_Parameter が無い UDF に当てる既定のスケール。
-    #: 全原子 UDF (J-OCTA / AMBER / GAFF 系) の慣用単位 = 長さ Å, エネルギー kcal/mol。
+    #: 全原子 UDF (AMBER / GAFF 系) の慣用単位 = 長さ Å, エネルギー kcal/mol。
     #: (Mass [amu], Energy [kJ/mol], Length [nm])
     ALL_ATOM_UNIT = (1.0, 4.184, 0.1)
 
-    def __init__(self, udf, unit_parameter=None):
+    def __init__(self, udf, unit_parameter=None, tau_t=None, tau_p=None,
+                 barostat=None):
         """
         Parameters
         ----------
@@ -158,7 +287,17 @@ class UdfAdapter:
             ``"all_atom"`` で :data:`ALL_ATOM_UNIT` (Å / kcal/mol)。
             ``None`` かつ UDF にも無ければ **エラーにする** (黙って
             無次元値を GROMACS 単位として書き出さないため)。
+        tau_t, tau_p : float | None
+            熱浴 / 圧力浴の時定数 [ps] を直接指定する。 ``None`` なら
+            ``tau_t`` は ``Q`` から算出し、 ``tau_p`` は既定値を使う。
         """
+        #: --tau-t / --tau-p による上書き
+        self._tau_t_override = tau_t
+        self._tau_p_override = tau_p
+        #: 圧力浴の上書き。 UDF に対応する概念が無いので指定でのみ効く。
+        #: C-rescale (GROMACS 2021+) は Berendsen 並に安定で、
+        #: かつ正しい NPT アンサンブルを与える。 拘束とも併用できる。
+        self._barostat_override = barostat
         self._udf = udf
         if isinstance(unit_parameter, str):
             if unit_parameter != "all_atom":
@@ -215,7 +354,7 @@ class UdfAdapter:
                 "Å の値が nm、kcal/mol の値が kJ/mol として書き出されます\n"
                 "(grompp は通ってしまい、箱が 10 倍 = 密度 1/1000 の系が走ります)。\n"
                 "\n"
-                "全原子 UDF (J-OCTA / GAFF 系、長さ Å・エネルギー kcal/mol) なら:\n"
+                "全原子 UDF (GAFF 系、長さ Å・エネルギー kcal/mol) なら:\n"
                 "    Exporter().export(udf, prefix, unit_parameter='all_atom')\n"
                 "    python -m abmptools.udf2gro in.udf out --unit all_atom\n"
                 "別のスケールなら (Mass[amu], Energy[kJ/mol], Length[nm]) を渡すか、\n"
@@ -384,7 +523,7 @@ class UdfAdapter:
                 if atypelist == map_molname_atypes[molname]:
                     pass
                 else:
-                    molname_new = self._search_molname_same_topol(
+                    molname_new = self._molname_with_same_topology(
                         atypelist, map_molname_atypes
                     )
                     if molname_new is None:
@@ -421,7 +560,7 @@ class UdfAdapter:
         return mol_name_list, molname_map, mol_name
 
     @staticmethod
-    def _search_molname_same_topol(atypes, map_name_atypes):
+    def _molname_with_same_topology(atypes, map_name_atypes):
         for name, atypes_check in map_name_atypes.items():
             if atypes == atypes_check:
                 return name
@@ -739,7 +878,7 @@ class UdfAdapter:
                     )
                     if "oopa" in name:
                         funct = "4"
-                        gro_phi, gro_k, gro_mult = _get_proper_dihedral_params(udf, j, n, kk)
+                        gro_phi, gro_k, gro_mult = _cosine_polynomial_to_proper_dihedral(udf, j, n, kk)
                         params = [gro_phi, gro_k, gro_mult]
                     elif n <= 6:
                         funct = "3"
@@ -754,7 +893,7 @@ class UdfAdapter:
                                 params.append(0.0)
                     else:
                         funct = "1"
-                        gro_phi, gro_k, gro_mult = _get_proper_dihedral_params(udf, j, n, kk)
+                        gro_phi, gro_k, gro_mult = _cosine_polynomial_to_proper_dihedral(udf, j, n, kk)
                         params = [gro_phi, gro_k, gro_mult]
                     break
 
@@ -986,7 +1125,7 @@ class UdfAdapter:
         fix_cell  = udf.get("Simulation_Conditions.Solver.Dynamics.NPT_Parrinello_Rahman_Nose_Hoover.Fix_Cell_Length")
         fix_angle = udf.get("Simulation_Conditions.Solver.Dynamics.NPT_Parrinello_Rahman_Nose_Hoover.Fix_Angle")
 
-        deform, deform_npt, deform_vel = self._extract_deform(algorithm, UDFVer, cell)
+        deform, deform_npt, deform_vel = self._build_deformation(algorithm, UDFVer, cell)
 
         # --- vel_gen override from restart ---
         gen_method = udf.get("Initial_Structure.Generate_Method.Method")
@@ -997,7 +1136,7 @@ class UdfAdapter:
             vel_gen = (restore_vel == 0)
 
         # --- integrator ---
-        integrator, ld_seed = self._determine_integrator(algorithm, deform_npt)
+        integrator, ld_seed = self._build_integrator(algorithm, deform_npt)
 
         # --- output intervals ---
         outputinterval = udf.get(
@@ -1038,12 +1177,12 @@ class UdfAdapter:
         else:
             cutoff_cl = cutoff_l
 
-        # --- temperature coupling ---
-        t_coupl_str, tau_t, ref_t = self._extract_temperature(algorithm, all_atm_num)
-
-        # --- pressure coupling ---
-        p_coupl_str, pcoupltype, tau_p, ref_p, ref_p_tensor, comp, comp_tensor = \
-            self._extract_pressure(algorithm, fix_cell, fix_angle, deform_npt, deform_vel, cell)
+        # --- 熱浴・圧力浴 ---
+        thermostat = self._build_thermostat(algorithm, all_atm_num)
+        barostat = self._build_barostat(algorithm, fix_cell, fix_angle,
+                                        deform_npt, deform_vel, cell)
+        _check_tau_pair(thermostat.t_coupl, thermostat.tau_t,
+                        barostat.p_coupl, barostat.tau_p)
 
         # --- pbc ---
         if pbc_a == "NONE" and pbc_b == "NONE" and pbc_c == "NONE":
@@ -1093,16 +1232,16 @@ class UdfAdapter:
             qq_algorithm=qq_algorithm,
             lj_cutoff=cutoff_cl,
             coulomb_cutoff=cutoff_cl,
-            t_coupl=t_coupl_str,
-            tau_t=tau_t,
-            ref_t=ref_t,
-            p_coupl=p_coupl_str,
-            pcoupltype=pcoupltype,
-            tau_p=tau_p,
-            ref_p=ref_p,
-            ref_p_tensor=ref_p_tensor,
-            compressibility=comp,
-            compressibility_tensor=comp_tensor,
+            t_coupl=thermostat.t_coupl,
+            tau_t=thermostat.tau_t,
+            ref_t=thermostat.ref_t,
+            p_coupl=barostat.p_coupl,
+            pcoupltype=barostat.pcoupltype,
+            tau_p=barostat.tau_p,
+            ref_p=barostat.ref_p,
+            ref_p_tensor=barostat.ref_p_tensor,
+            compressibility=barostat.compressibility,
+            compressibility_tensor=barostat.compressibility_tensor,
             tail_correction=tail_correction,
             pbc=pbc,
             periodic_mol=periodic_mol,
@@ -1111,7 +1250,7 @@ class UdfAdapter:
             freeze_dim=freeze_dim,
         )
 
-    def _determine_integrator(self, algorithm: str, deform_npt: bool):
+    def _build_integrator(self, algorithm: str, deform_npt: bool):
         ld_seed = None
         if "NPT" in algorithm:
             if deform_npt:
@@ -1127,7 +1266,7 @@ class UdfAdapter:
             integrator = "md-vv"
         return integrator, ld_seed
 
-    def _extract_deform(self, algorithm, UDFVer, cell):
+    def _build_deformation(self, algorithm, UDFVer, cell):
         udf = self._udf
         deform = udf.get("Simulation_Conditions.Dynamics_Conditions.Deformation.Method")
         list_supported_deform = ["Cell_Deformation"]
@@ -1226,7 +1365,49 @@ class UdfAdapter:
 
         return deform, deform_npt, deform_vel
 
-    def _extract_temperature(self, algorithm, all_atm_num):
+    def _nose_hoover_tau_t(self, Q, T_d, unit_Mass, unit_L, n_atoms):
+        """COGNAC の熱浴質量 Q から GROMACS の ``tau_t`` [ps] を出す。
+
+        **式**::
+
+            tau_t = 2*pi * sqrt( Q_d / (g * k_B * T) )
+
+            Q_d = Q * Unit_Parameter.Mass * Unit_Parameter.Length^2   [amu nm^2]
+            g   = 3N   (comm-mode = None)  /  3N-3  (comm-mode = Linear)
+            k_B = 0.0083144626 amu nm^2 / (ps^2 K)
+
+        **根拠**。 COGNAC の Q は Nose-Hoover の熱浴質量 ``Q = g k_B T tau^2``
+        で、 ``tau`` が応答時間。 GROMACS の ``tau_t`` は Nose-Hoover では
+        緩和時間ではなく**運動エネルギー振動の周期**なので、 ``2*pi*tau`` に
+        なる。 したがって ``tau_t = 2*pi*sqrt(Q_d/(g k_B T))``。
+
+        **``g * k_B`` を落とすと ``tau_t`` が ``sqrt(3N)`` に比例して増大する**
+        (3050 原子で 5.48 ps、 本式なら 0.63 ps)。 系を大きくするほど熱浴が
+        鈍くなるので、 変換の検算はサイズを変えた 2 系で行うとよい。
+        詳細は ``docs/udf2gro.md``。
+
+        ``g`` は UDF の ``Dynamics_Conditions.Moment`` から決める。 重心運動を
+        止める設定なら GROMACS 側も ``comm-mode = Linear`` になるので 3 を引く。
+        """
+        udf = self._udf
+        Q_d = float(Q) * float(unit_Mass) * float(unit_L) ** 2
+        g = max(1, 3 * int(n_atoms) - (3 if self._removes_com_motion() else 0))
+        denom = g * _KB_AMU_NM2_PS2_K * float(T_d)
+        if denom <= 0.0 or Q_d <= 0.0:
+            return 0.1
+        return 2.0 * math.pi * math.sqrt(Q_d / denom)
+
+    def _removes_com_motion(self) -> bool:
+        """GROMACS 側が ``comm-mode = Linear`` になる設定か。"""
+        udf = self._udf
+        base = "Simulation_Conditions.Dynamics_Conditions.Moment."
+        try:
+            return bool(udf.get(base + "Calc_Moment")) and \
+                bool(udf.get(base + "Stop_Translation"))
+        except Exception:                                # noqa: BLE001
+            return False
+
+    def _build_thermostat(self, algorithm, all_atm_num) -> ThermostatSettings:
         udf = self._udf
         t_coupl_map = {
             "NVE":                              "no",
@@ -1242,61 +1423,149 @@ class UdfAdapter:
             logger.error("algorithm %s is not supported !!", algorithm)
 
         if t_coupl_str == "no":
-            return t_coupl_str, 0.1, 300.0
+            return ThermostatSettings(t_coupl_str, 0.1, 300.0)
 
         T_d = udf.get("Simulation_Conditions.Dynamics_Conditions.Temperature.Temperature", "[K]")
         unit_L    = udf.get("Unit_Parameter.Length", "[nm]")
         unit_Mass = udf.get("Unit_Parameter.Mass",   "[amu]")
 
         tau_t = 0.1
-        if algorithm == "NVT_Nose_Hoover":
-            Q   = udf.get("Simulation_Conditions.Solver.Dynamics.NVT_Nose_Hoover.Q")
-            Q_d = Q * unit_Mass * unit_L * unit_L
-            tau_t = math.sqrt((Q_d / T_d) * 4.0 * math.pi * math.pi)
-        elif algorithm == "NPT_Parrinello_Rahman_Nose_Hoover":
-            Q   = udf.get("Simulation_Conditions.Solver.Dynamics.NPT_Parrinello_Rahman_Nose_Hoover.Q")
-            Q_d = Q * unit_Mass * unit_L * unit_L
-            tau_t = math.sqrt((Q_d / T_d) * 4.0 * math.pi * math.pi)
-        elif algorithm == "NPT_Andersen_Nose_Hoover":
-            Q   = udf.get("Simulation_Conditions.Solver.Dynamics.NPT_Andersen_Nose_Hoover.Q")
-            Q_d = Q * unit_Mass * unit_L * unit_L
-            tau_t = math.sqrt((Q_d / T_d) * 4.0 * math.pi * math.pi)
+        if algorithm in _NOSE_HOOVER_ALGORITHMS:
+            Q = udf.get("Simulation_Conditions.Solver.Dynamics.%s.Q" % algorithm)
+            tau_t = self._nose_hoover_tau_t(Q, T_d, unit_Mass, unit_L,
+                                            all_atm_num)
         elif algorithm == "NVT_Berendsen":
             tau_t = udf.get("Simulation_Conditions.Solver.Dynamics.NVT_Berendsen.tau_T", "[ps]")
         elif algorithm == "NPT_Berendsen":
             tau_t = udf.get("Simulation_Conditions.Solver.Dynamics.NPT_Berendsen.tau_T", "[ps]")
 
-        ref_t = T_d
-        return t_coupl_str, tau_t, ref_t
+        if self._tau_t_override is not None:
+            logger.info("tau_t = %.4f ps (--tau-t で指定。 算出値 "
+                        "%.4f ps を上書き)", self._tau_t_override, tau_t)
+            tau_t = self._tau_t_override
+        return ThermostatSettings(t_coupl_str, tau_t, T_d)
 
-    def _extract_pressure(self, algorithm, fix_cell, fix_angle, deform_npt, deform_vel, cell):
+    #: COGNAC のアルゴリズム -> GROMACS の ``pcoupl``。
+    _PCOUPL_BY_ALGORITHM = {
+        "NVE":                               "no",
+        "NVT_Nose_Hoover":                   "no",
+        "NVT_Berendsen":                     "no",
+        "NVT_Kremer_Grest":                  "no",
+        "NPT_Parrinello_Rahman_Nose_Hoover": "Parrinello-Rahman",
+        # Andersen は体積だけを動かすので、 セル行列全体を動かす PR ではなく
+        # MTTK (isotropic) に対応する。 ただし MTTK は LINCS / SETTLE と
+        # 併用できないので、 拘束のある系では --barostat で替える。
+        "NPT_Andersen_Nose_Hoover":          "MTTK",
+        "NPT_Berendsen":                     "berendsen",
+    }
+
+    def _barostat_name(self, algorithm) -> str:
+        """``pcoupl`` に書く名前を決める。 ``--barostat`` があればそれが勝つ。"""
+        name = self._PCOUPL_BY_ALGORITHM.get(algorithm, "no")
+
+        if not self._barostat_override:
+            return name
+
+        # UDF (COGNAC) には C-rescale に対応する概念が無いので、 指定でしか
+        # 選べない。 NVE/NVT の UDF に付けるとアンサンブルが変わる。
+        chosen = canonical_barostat(self._barostat_override)
+        if chosen != "no" and name == "no":
+            logger.warning(
+                "the UDF asks for no pressure coupling, but --barostat %s "
+                "was given: the run will be NPT, not %s.",
+                chosen, algorithm or "NVE")
+        logger.info("pcoupl = %s (--barostat で指定)", chosen)
+        return chosen
+
+    def _barostat_tau_p(self, algorithm, unit_Mass, cell, beta_mdp):
+        """COGNAC の ``Cell_Mass`` から GROMACS の ``tau_p`` [ps] を出す。
+
+        **式**::
+
+            PR       : tau_p = 2*pi * sqrt( C * beta / (3 * L) )
+            Andersen : tau_p = 2*pi * sqrt( C * beta / L )        = sqrt(3) * PR
+
+            C    = Cell_Mass * Unit_Parameter.Mass    [amu]
+            L    = max(a, b, c)                       [nm]
+            beta = .mdp に書く compressibility         [nm^3 mol / kJ]
+
+        ``Cell_Mass`` はスキーマ上 ``[mass]`` (``def_udf/cognac*.udf``)。
+        ``Q`` と違って ``sigma^2`` は掛けない。
+
+        **根拠**。 どちらの側も ``tau_p`` は箱の振動の周期なので、 周期どうしを
+        等置すれば出る。
+
+        *GROMACS Parrinello-Rahman*::
+
+            W^-1 = 4 pi^2 beta / (3 tau_p^2 L)      L = 最長のセル辺
+            b_ddot = V W^-1 b'^-1 (P - P_ref)
+
+        直方体 ``b = diag(a,b,c)`` で ``dP = -dV/(V beta)`` と線形化すると
+        ``a_ddot = -4 pi^2 da / tau_p^2``、 つまり **``tau_p`` そのものが周期**。
+        ``L`` が最長辺なのは GROMACS の定義どおりなので、 立方体でなくてよい。
+
+        *COGNAC Parrinello-Rahman* (``COGNAC1124/src/PRsystem.cpp``)::
+
+            cellMass = cellMassFactor;                                   (l.7)
+            h2 = ((-currentStress - press0Tensor)*hinv*volume)/cellMass; (l.58)
+
+        同じ線形化で係数を突き合わせると ``4 pi^2 beta/(3 tau_p^2 L) = 1/C``。
+
+        *COGNAC Andersen* (``COGNAC1124/src/Anphsystem.cpp``)::
+
+            cellMass = cellMassFactor * pow(volume, -4./3.);   (l.17)
+            aVolume  = (currentPress - pressSum)/cellMass;     (l.122)
+
+        体積を座標にした ``W V_ddot = dP``。 ``V = L^3`` として ``dL`` で
+        書き直すと ``omega^2 = L/(C beta)`` で、 **PR より sqrt(3) 倍遅い**。
+        言い換えると、 同じ周期を PR で出すには ``Cell_Mass`` を **3 倍**する。
+
+        > 旧実装はここを ``1/3`` 倍にしていた (向きが逆)。 ``unit_L^2`` の
+        > 取り違えと重なって下限 2.0 に丸められるため、 値としては表面化して
+        > いなかった。 ``docs/udf2gro.md`` 参照。
+
+        **実際の圧縮率は式から消える。** GROMACS 側の周期は
+        ``tau_p * sqrt(beta_true/beta_mdp)`` なので、 等置すると ``beta_true``
+        が両辺で相殺し、 ``.mdp`` に書く ``beta_mdp`` だけが残る。 系の本当の
+        圧縮率を知らなくてよい。
+
+        **近似**。 ``pcoupl = MTTK`` (Andersen の既定の行き先) はバロスタット
+        質量の定義が違うので目安にとどまる。 ``Cell_Mass`` が無い / 0 の UDF
+        では ``None`` を返す。
+        """
+        try:
+            W = self._udf.get(
+                "Simulation_Conditions.Solver.Dynamics.%s.Cell_Mass" % algorithm)
+        except Exception:                                # noqa: BLE001
+            return None
+        if not W:
+            return None
+
+        C = float(W) * float(unit_Mass)                       # amu
+        beta = float(beta_mdp) / _BAR_TO_KJ_MOL_NM3           # nm^3 mol / kJ
+        max_L = max(float(cell.a), float(cell.b), float(cell.c))
+        if C <= 0.0 or beta <= 0.0 or max_L <= 0.0:
+            return None
+
+        tau_p = 2.0 * math.pi * math.sqrt(C * beta / (3.0 * max_L))
+        if algorithm == "NPT_Andersen_Nose_Hoover":
+            tau_p *= math.sqrt(3.0)
+        return tau_p
+
+    def _build_barostat(self, algorithm, fix_cell, fix_angle,
+                        deform_npt, deform_vel, cell) -> BarostatSettings:
         udf = self._udf
         commp = 0.000045  # bar^-1
 
-        p_coupl_map = {
-            "NVE":                              "no",
-            "NPT_Parrinello_Rahman_Nose_Hoover": None,  # handled below
-            "NPT_Andersen_Nose_Hoover":          "MTTK",
-            "NPT_Berendsen":                    "berendsen",
-        }
-
-        if algorithm == "NPT_Parrinello_Rahman_Nose_Hoover":
-            if deform_npt:
-                p_coupl_str = "Parrinello-Rahman"
-            elif "NPT_Andersen" in algorithm:
-                p_coupl_str = "MTTK"
-            else:
-                p_coupl_str = "Parrinello-Rahman"
-        elif algorithm in p_coupl_map:
-            p_coupl_str = p_coupl_map[algorithm] or "no"
-        else:
-            p_coupl_str = "no"
+        p_coupl_str = self._barostat_name(algorithm)
 
         if p_coupl_str == "no":
-            return "no", "isotropic", 2.0, 1.0, None, commp, None
+            return BarostatSettings.none(commp)
 
         # pcoupltype
-        if algorithm == "NPT_Parrinello_Rahman_Nose_Hoover":
+        if self._barostat_override:
+            pcoupltype = "isotropic"
+        elif algorithm == "NPT_Parrinello_Rahman_Nose_Hoover":
             if fix_cell in ("", "xy", "yz", "zx", "x", "y", "z") or deform_npt:
                 pcoupltype = "anisotropic"
             else:
@@ -1314,21 +1583,47 @@ class UdfAdapter:
         cell_z = cell.c
         max_L = max(cell_x, cell_y, cell_z)
 
-        tau_p = 2.0
-        if algorithm == "NPT_Parrinello_Rahman_Nose_Hoover":
-            W   = udf.get("Simulation_Conditions.Solver.Dynamics.NPT_Parrinello_Rahman_Nose_Hoover.Cell_Mass")
-            W_d = W * unit_Mass * unit_L * unit_L
-            tau_p = math.sqrt((W_d * 4.0 * math.pi * math.pi * commp) / (3.0 * max_L))
-            if tau_p < 2.0:
-                tau_p = 2.0
-        elif algorithm == "NPT_Andersen_Nose_Hoover":
-            W   = udf.get("Simulation_Conditions.Solver.Dynamics.NPT_Andersen_Nose_Hoover.Cell_Mass")
-            W   = W / 3.0  # Andersen -> Parrinello-Rahman
-            W_d = W * unit_Mass * unit_L * unit_L
-            tau_p = math.sqrt((W_d * 4.0 * math.pi * math.pi * commp) / (3.0 * max_L))
-            if tau_p < 2.0:
-                tau_p = 2.0
+        # tau_p は **どのバロスタットでも UDF から変換する**。 経路は 2 つ:
+        #
+        #   NPT_Berendsen  : UDF が tau_P を時間で持つ -> 単位換算だけ
+        #   Andersen / PR  : UDF が Cell_Mass を質量で持つ -> 運動方程式経由
+        #                    (_barostat_tau_p。 導出はそちらの docstring)
+        #
+        # 旧実装は後者を「Cell_Mass に Q 用の [mass*sigma^2] の換算係数を
+        # 掛ける」という取り違えで出していた。 Cell_Mass はスキーマ上 [mass]
+        # なので unit_L^2 (all-atom で 0.01) が余計で、 現実的な系では下限
+        # 2.0 に丸められて値が表面化していなかった。 運動方程式を経由する
+        # 形に直したので、 実機 (3050 原子) で Andersen 11.74 ps /
+        # PR 6.78 ps が出る。
+        #
+        # 変換できないとき (Cell_Mass が無い) だけ既定 2.0 ps に落とす。
+        # --tau-p はこのブロックの後で一度だけ適用する。
+        tau_p = DEFAULT_TAU_P_PS
+
+        if algorithm in ("NPT_Parrinello_Rahman_Nose_Hoover",
+                         "NPT_Andersen_Nose_Hoover"):
+            _converted = self._barostat_tau_p(algorithm, unit_Mass, cell, commp)
+            if _converted is None:
+                logger.warning(
+                    "%s has no Cell_Mass; tau_p falls back to %.1f ps. "
+                    "Pass --tau-p if the run needs a particular value.",
+                    algorithm, DEFAULT_TAU_P_PS)
+            else:
+                tau_p = _converted
+                logger.info("tau_p = %.2f ps (Cell_Mass から換算)", tau_p)
+                if not 0.5 <= tau_p <= 20.0:
+                    # 箱の応答が遅すぎる / 速すぎる。 Cell_Mass が既定
+                    # (系の全質量) のままだと大きな系で数十 ps に伸びる。
+                    logger.warning(
+                        "tau_p = %.2f ps is outside the usual 0.5-20 ps. "
+                        "This is what Cell_Mass = %s asks for; override with "
+                        "--tau-p if it is not what you want.",
+                        tau_p,
+                        self._udf.get(
+                            "Simulation_Conditions.Solver.Dynamics.%s.Cell_Mass"
+                            % algorithm))
         elif algorithm == "NPT_Berendsen":
+            # COGNAC が時間で持っているので、 単位換算だけして採用する。
             unit_P = udf.get(
                 "Simulation_Conditions.Dynamics_Conditions.Pressure_Stress.Pressure", "[bar]"
             ) / udf.get(
@@ -1339,67 +1634,74 @@ class UdfAdapter:
             )
             tau_p = tau_p_raw * unit_P * commp
 
-        # ref_p
-        pressure = udf.get(
-            "Simulation_Conditions.Dynamics_Conditions.Pressure_Stress.Pressure", "[bar]"
-        )
-        strtensor = []
-        for elem in ["xx", "yy", "zz", "yz", "zx", "xy"]:
-            s = udf.get(
-                "Simulation_Conditions.Dynamics_Conditions.Pressure_Stress.Stress." + elem,
-                "[bar]"
-            )
-            strtensor.append(s)
+        if self._tau_p_override is not None:
+            logger.info("tau_p = %.4f ps (--tau-p で指定。 算出値 "
+                        "%.4f ps を上書き)", self._tau_p_override, tau_p)
+            tau_p = self._tau_p_override
 
-        ref_p_tensor = None
-        if algorithm == "NPT_Parrinello_Rahman_Nose_Hoover":
-            offdiag_idx_map = [0, 1, 2, 5, 4, 3]
-            ref_p_tensor = []
-            for i in offdiag_idx_map:
-                if i < 3:
-                    ref_p_tensor.append(pressure - strtensor[i])
-                else:
-                    ref_p_tensor.append(-strtensor[i])
-            ref_p = pressure
+        ref_p, ref_p_tensor = self._reference_pressure(algorithm)
+        comp_tensor = self._compressibility_tensor(
+            algorithm, fix_cell, fix_angle, deform_npt, deform_vel, commp)
+
+        return BarostatSettings(p_coupl_str, pcoupltype, tau_p, ref_p,
+                                ref_p_tensor, commp, comp_tensor)
+
+    def _reference_pressure(self, algorithm):
+        """``ref_p`` と、 anisotropic 用の 6 成分を返す。
+
+        UDF は目標圧力と応力を別に持つ。 GROMACS の ``ref-p`` は
+        anisotropic では 6 成分 (xx, yy, zz, xy, zx, yz) で、 対角は
+        ``P - sigma_ii``、 非対角は ``-sigma_ij``。
+        """
+        base = "Simulation_Conditions.Dynamics_Conditions.Pressure_Stress."
+        pressure = self._udf.get(base + "Pressure", "[bar]")
+        if algorithm != "NPT_Parrinello_Rahman_Nose_Hoover":
+            return pressure, None
+
+        stress = [self._udf.get(base + "Stress." + e, "[bar]")
+                  for e in ("xx", "yy", "zz", "yz", "zx", "xy")]
+        # UDF は yz, zx, xy の順、 GROMACS は xy, zx, yz の順
+        order = [0, 1, 2, 5, 4, 3]
+        tensor = [pressure - stress[i] if i < 3 else -stress[i] for i in order]
+        return pressure, tensor
+
+    @staticmethod
+    def _compressibility_tensor(algorithm, fix_cell, fix_angle,
+                                deform_npt, deform_vel, commp):
+        """anisotropic 用の圧縮率 6 成分。 固定した辺は 0 にする。
+
+        0 を入れた方向は箱が動かない。 ``Fix_Cell_Length`` / ``Fix_Angle``
+        をここに写す。 isotropic では ``None`` (スカラーだけ使う)。
+        """
+        if algorithm != "NPT_Parrinello_Rahman_Nose_Hoover":
+            return None
+
+        if fix_angle == 0:
+            offdiag = [commp, commp, commp]
+        elif fix_angle == 1:
+            offdiag = [0.0, 0.0, 0.0]
         else:
-            ref_p = pressure
+            raise RuntimeError("Error: Please Check Your Fix_Cell_Angle")
 
-        # compressibility
-        comp_tensor = None
-        if algorithm == "NPT_Parrinello_Rahman_Nose_Hoover":
-            if fix_angle == 0:
-                comp_offdiag = [commp, commp, commp]
-            elif fix_angle == 1:
-                comp_offdiag = [0.0, 0.0, 0.0]
-            else:
+        #: Fix_Cell_Length -> 動かせる方向 (1 = 動く)
+        free_by_fix = {
+            "":   (1, 1, 1),
+            "xy": (0, 0, 1),
+            "yz": (1, 0, 0),
+            "zx": (0, 1, 0),
+            "x":  (0, 1, 1),
+            "y":  (1, 0, 1),
+            "z":  (1, 1, 0),
+        }
+        if fix_cell in free_by_fix:
+            diag = [commp if f else 0.0 for f in free_by_fix[fix_cell]]
+            return diag + offdiag
+
+        if deform_npt and deform_vel is not None:
+            if fix_angle != 1:
                 raise RuntimeError("Error: Please Check Your Fix_Cell_Angle")
+            # 変形させる方向は圧力浴に触らせない
+            diag = [0.0 if dv != 0.0 else commp for dv in deform_vel[:3]]
+            return diag + [0.0, 0.0, 0.0]
 
-            if fix_cell == "":
-                comp_tensor = [commp, commp, commp] + comp_offdiag
-            elif fix_cell == "xy":
-                comp_tensor = [0.0, 0.0, commp] + comp_offdiag
-            elif fix_cell == "yz":
-                comp_tensor = [commp, 0.0, 0.0] + comp_offdiag
-            elif fix_cell == "zx":
-                comp_tensor = [0.0, commp, 0.0] + comp_offdiag
-            elif fix_cell == "x":
-                comp_tensor = [0.0, commp, commp] + comp_offdiag
-            elif fix_cell == "y":
-                comp_tensor = [commp, 0.0, commp] + comp_offdiag
-            elif fix_cell == "z":
-                comp_tensor = [commp, commp, 0.0] + comp_offdiag
-            elif deform_npt and deform_vel is not None:
-                if fix_angle == 1:
-                    diag = []
-                    for dv in deform_vel[:3]:
-                        diag.append(0.0 if dv != 0.0 else commp)
-                    comp_tensor = diag + [0.0, 0.0, 0.0]
-                else:
-                    raise RuntimeError("Error: Please Check Your Fix_Cell_Angle")
-            else:
-                raise RuntimeError("Error: Please Check Your Fix_Cell_Length")
-            comp = commp
-        else:
-            comp = commp
-
-        return p_coupl_str, pcoupltype, tau_p, ref_p, ref_p_tensor, comp, comp_tensor
+        raise RuntimeError("Error: Please Check Your Fix_Cell_Length")

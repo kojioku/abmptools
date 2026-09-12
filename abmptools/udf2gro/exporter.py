@@ -20,7 +20,8 @@ class Exporter:
     """Thin coordinator that wires together adapter and writers."""
 
     def export(self, udf_path: str, output_prefix: str,
-               unit_parameter=None) -> int:
+               unit_parameter=None, tau_t=None, tau_p=None,
+               barostat=None) -> int:
         """
         Convert *udf_path* and write Gromacs files with *output_prefix*.
 
@@ -43,7 +44,9 @@ class Exporter:
 
         udf = UDFManager(udf_path)
         try:
-            model = UdfAdapter(udf, unit_parameter=unit_parameter).build()
+            model = UdfAdapter(udf, unit_parameter=unit_parameter,
+                               tau_t=tau_t, tau_p=tau_p,
+                               barostat=barostat).build()
         except RuntimeError as exc:
             logger.error("%s", exc)
             return 1

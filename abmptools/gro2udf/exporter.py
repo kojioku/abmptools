@@ -2,7 +2,12 @@
 """
 exporter.py
 -----------
-Orchestrator: GROParser → GROAdapter → UDFWriter → output UDF.
+既にある UDF の**座標とセルだけ**を .gro で差し替える経路。
+
+GROParser -> GROAdapter -> UDFWriter -> UDF。力場・トポロジ・計算条件は
+テンプレートの UDF から丸ごと引き継ぐので、**COGNAC で組んだ系を GROMACS で
+流して戻す往復**に使う。.top からトポロジごと組み立てたいときは
+:class:`~abmptools.gro2udf.top_exporter.TopExporter`。
 
 Usage::
 
@@ -10,8 +15,7 @@ Usage::
     Exporter().export("test.udf", "output.gro")
     # writes: test_groout.udf  in the current directory
 
-The output filename is always ``{udf_basename}_groout.udf`` placed in the
-current working directory, matching the original gro2udf.py behaviour.
+出力名は常に ``{udf_basename}_groout.udf`` で、カレントディレクトリに置く。
 
 Step-filter logic (replicates importStructure / ConvertStructure):
   - read Output_Interval_Steps from the UDF's static section
@@ -52,7 +56,9 @@ class Exporter:
         from UDFManager import UDFManager
         from .gro_parser import GROParser
         from .gro_adapter import GROAdapter
-        from .udf_writer import UDFWriter
+        from .udf_writer import (UDFWriter, set_force_field_comment,
+                                 warn_if_template_box_differs,
+                                 write_static_cell_abc)
 
         logger.info("## gro2udf")
 
@@ -78,6 +84,8 @@ class Exporter:
         writer  = UDFWriter()
 
         written = 0
+        #: 最初に書いたフレーム。 静的セルの元にする (下記)
+        first_frame_cell = None
         for frame in parser.parse_frames(gro_path):
             # Guard: stop if we already wrote more than max_record records
             # (replicates the "while j <= maxRecord" condition)
@@ -96,10 +104,26 @@ class Exporter:
 
             positions, cell = adapter.to_positions_and_cell(frame)
             writer.write_frame(udf, positions, cell, steps, frame.time)
+            if first_frame_cell is None:
+                first_frame_cell = cell
 
             written += 1
 
         logger.info("Total number of records: %s", udf.totalRecord())
+
+        # 静的 Structure.Unit_Cell と Initial_Unit_Cell はテンプレートの値の
+        # ままなので、 .gro の箱で揃える。 揃えないと「座標は新しい箱・セルは
+        # 古い箱」の UDF になり、 静的側を読む下流 (OCTA の GROMACS
+        # コンバータ等) が壊れる。 NVT では箱が変わらないので露見しない。
+        if first_frame_cell is not None:
+            warn_if_template_box_differs(udf, udf_path, first_frame_cell.a,
+                                         first_frame_cell.b, first_frame_cell.c)
+            write_static_cell_abc(udf, first_frame_cell.a,
+                                  first_frame_cell.b, first_frame_cell.c)
+
+        # 下流は Unit_Parameter.Comment の FF=n で力場を決める。 テンプレート
+        # 由来の値があればそれを残す ([[gro2udf]] の既定は GAFF)。
+        set_force_field_comment(udf, "gaff")
 
         # Output file: {udf_basename}_groout.udf in current directory
         output_file = (

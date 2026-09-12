@@ -6,11 +6,11 @@ GROMACS reports the virial ``Pressure`` WITHOUT the long-range dispersion
 correction; the barostat-controlled (true) pressure is ``Pressure + Pres. DC``.
 Both xvg legends fold to ``Statistics_Data.Pressure`` and are summed by
 ``_aggregate_statistics_per_frame`` (the same folding used for
-Proper+Improper Dih. -> Torsion), matching J-OCTA's converter.
+Proper+Improper Dih. -> Torsion), matching 下流の変換器's converter.
 
 Reference check (DRO10-PVP10 NPT, ref_p = 1 bar, 100k steps):
   avg Pressure alone      = 44.1 MPa   (wrong; virial only)
-  avg(Pressure + Pres.DC) = 0.22 MPa   (~ 0.1 MPa barostat target; matches J-OCTA)
+  avg(Pressure + Pres.DC) = 0.22 MPa   (~ 0.1 MPa barostat target; matches 下流の変換器)
 """
 from types import SimpleNamespace
 

@@ -242,6 +242,8 @@ cells` を回避するため。override したい場合は
 | `--density` | 目標密度 [g/cm^3] | 0.8 |
 | `--temperature` | 最終温度 [K] | 300 |
 | `--T_high` | 高温 [K] | 600 |
+| `--thermostat` | 熱浴 (下記) | V-rescale |
+| `--barostat` | 圧力浴 (下記) | C-rescale |
 | `--seed` | 乱数シード | None |
 | `--forcefield` | OpenFF力場 | openff_unconstrained-2.1.0.offxml |
 | `--packmol_tolerance` | Packmol 重なり距離 [A] | 2.0 |
@@ -303,10 +305,57 @@ md/
 | Stage | ファイル | アンサンブル | T | P | Steps | 目的 |
 |-------|---------|-----------|---|---|-------|------|
 | 1 | 01_em.mdp | - | - | - | 50000 | 急降下法 EM |
-| 2 | 02_nvt_highT.mdp | NVT | 600K | - | 100000 | 高温 NVT (V-rescale) |
-| 3 | 03_npt_highT.mdp | NPT | 600K | 1bar | 200000 | 高温 NPT (P-R) |
+| 2 | 02_nvt_highT.mdp | NVT | 600K | - | 100000 | 高温 NVT |
+| 3 | 03_npt_highT.mdp | NPT | 600K | 1bar | 200000 | 高温 NPT |
 | 4 | 04_anneal.mdp | NPT | 600→300K | 1bar | 500000 | SA: annealing=single |
 | 5 | 05_npt_final.mdp | NPT | 300K | 1bar | 500000 | 最終平衡化 |
+
+### 熱浴・圧力浴 — `--thermostat` / `--barostat`
+
+既定は **V-rescale + C-rescale**。どちらも「Berendsen 並みに安定で、かつ
+**分布が正しい**」ものを選んでいる。非晶質の作成は初期構造が悪い状態から詰める
+工程なので、昇温・急冷を含む 5 段階を**設定を変えずに 1 本で通せる**ことを
+優先している。
+
+| `--thermostat` | 中身 |
+|---|---|
+| **`V-rescale`** (既定) | 速度スケーリング + ノイズ項。正準分布が正しい |
+| `Nose-Hoover` | 正準分布は正しいが振動的。初期構造が悪いと温度が行き過ぎる。平衡化済みの生産計算向け |
+| `Berendsen` | 温度は合うが分布が正準でない (GROMACS 2021 で非推奨) |
+| `no` | 熱浴なし |
+
+| `--barostat` | 中身 |
+|---|---|
+| **`C-rescale`** (既定) | 確率的セルスケーリング (GROMACS 2021+)。正しい NPT かつ拘束と併用可 |
+| `Parrinello-Rahman` | 厳密だが初期応力が大きいと箱が振動する。**GROMACS 2020 以前ではこちら** |
+| `Berendsen` | 体積のゆらぎが正しくない (非推奨) |
+| `no` | NVT にする |
+
+> **`Nose-Hoover` にするときは `tau_t` も見直す。** GROMACS の `tau_t` は
+> Nose-Hoover のときだけ**緩和時間ではなく振動の周期**で、他の熱浴と同じ値を
+> 入れると応答が 2π 倍遅くなる。詳細は [udf2gro.md](udf2gro.md) の
+> 「COGNAC と GROMACS の対応」。
+
+> **MTTK は選べない。** LINCS / SETTLE と併用できず、非晶質の系ではまず拘束を
+> 使うため。
+
+> ### ★ C-rescale は GROMACS 2021 以降
+>
+> **2020 系に既定のまま `.mdp` を渡すと `grompp` が止まる。**
+>
+> ```
+> Invalid enum 'C-rescale' for variable pcoupl
+> ```
+>
+> 2020 系で使える `pcoupl` は **No / Berendsen / Parrinello-Rahman /
+> Isotropic / MTTK** のみ。`--barostat Parrinello-Rahman`（平衡化済みなら）か
+> `--barostat Berendsen`（詰め込み直後で安定性が要るなら）を指定する。
+>
+> **古い GROMACS が同梱された環境で走らせる場合は注意。** MD パッケージに
+> 付属する GROMACS は本体より数年古いことがある。
+
+綴りは生成時に照合する。間違っていれば `.mdp` を書く前に `ValueError` になる
+(そのまま書くと `grompp` で初めて落ちるため)。
 
 ## ビルド後のワークフロー
 
@@ -394,9 +443,9 @@ python -m abmptools.gro2udf --from-top build/system.top build/system.gro \
     --out 05_topology_with_initial.udf
 ```
 
-### OCTA8.4 / J-OCTA-9.1-Student 環境向け
+### 古い OCTA (cognac10.1 まで) 環境向け
 
-OCTA8.4 / J-OCTA-9.1-Student は cognac10.1 までしか同梱していないため、
+OCTA 8.4 系は cognac10.1 までしか同梱していないため、
 default 出力 (cognac11.2 schema 要求) は読めません。`--cognac-version 101` を
 付けて bundled の cognac10.1 互換 template を auto-select させます:
 

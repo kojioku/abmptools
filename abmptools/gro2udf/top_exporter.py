@@ -4,15 +4,18 @@ top_exporter.py
 ---------------
 Writes a :class:`TopModel` to a COGNAC UDF file using UDFManager.
 
-This module ports the following functions from convert_gromacs_udf.py:
-- add_set_of_molecules_byTop  → _write_set_of_molecules
-- add_molecular_attributes_byTop → _write_molecular_attributes
-- add_interactions            → _write_interactions
-- append_structure            → _append_structure
-- set_default_condition       → _set_default_condition
+Writing is split into five steps, in the order the UDF sections must
+appear:
+
+- ``_write_set_of_molecules``     — Set_of_Molecules (topology)
+- ``_write_molecular_attributes`` — Molecular_Attributes (bonded terms)
+- ``_write_interactions``         — Interactions (nonbonded, pair styles)
+- ``_append_structure``           — one GRO frame → one dynamic record
+- ``_set_default_condition``      — Simulation_Conditions defaults
 """
 from __future__ import annotations
 
+import math
 import logging
 import os
 import shutil
@@ -62,6 +65,24 @@ def _rewrite_cognac_include(udf_path: str, cognac_version: str) -> None:
     path.write_text(new_text)
 
 
+def _is_multiplicity_continuation(name: str) -> bool:
+    """``...:1`` / ``...:2`` のような多重度の 2 つめ以降か。"""
+    head, sep, tail = str(name).rpartition(":")
+    return bool(sep) and tail.isdigit() and tail != "0"
+
+
+def _fudge_str(value) -> str:
+    """0.5 -> '0.5'、 0.8333333 -> '0.8333333'。 末尾の 0 を残さない。"""
+    return ("%.7f" % float(value)).rstrip("0").rstrip(".") or "0"
+
+
+def _warn_if_template_box_differs(uobj, template_path, frame) -> None:
+    """フレームの箱で :func:`udf_writer.warn_if_template_box_differs` を呼ぶ。"""
+    from .udf_writer import warn_if_template_box_differs
+    warn_if_template_box_differs(uobj, template_path,
+                                 frame.cell[0], frame.cell[1], frame.cell[2])
+
+
 def _static_structure_mol_count(uobj) -> int:
     """How many molecules already carry positions in the *static* Structure.
 
@@ -70,7 +91,7 @@ def _static_structure_mol_count(uobj) -> int:
     the static ``Structure`` and ``Initial_Structure`` blocks are whatever the
     template carried, and nothing here ever rewrites them. The bundled
     templates leave them empty, so they claim nothing. A template that is
-    itself a real UDF -- the natural choice when round-tripping a J-OCTA or
+    itself a real UDF -- the natural choice when round-tripping an OCTA or
     COGNAC system -- carries that system's coordinates, and those survive the
     conversion untouched while the records hold the new ones. Both halves are
     well formed, so nothing downstream objects.
@@ -155,10 +176,10 @@ _XVG_TO_UDF_STATS = {
     # correction; the barostat-controlled (true) pressure = Pressure + Pres. DC.
     # Both legends fold to Statistics_Data.Pressure and are summed by
     # _aggregate_statistics_per_frame (same folding as Proper+Improper Dih. ->
-    # Torsion), matching J-OCTA's converter. Verified on a J-OCTA reference
+    # Torsion). Verified on a reference
     # (DRO10-PVP10 NPT, ref_p = 1 bar, 100k steps): avg Pressure alone = 44 MPa,
     # but avg(Pressure + Pres. DC) = 0.22 MPa ~= the 0.1 MPa barostat target
-    # (and bit-matches the J-OCTA-exported BDF's Statistics_Data.Pressure).
+    # (and bit-matches the reference BDF's Statistics_Data.Pressure).
     "Pres. DC":      ("Pressure",    "",         "[bar]"),
     "Density":       ("Density",     "",         "[kg/m^3]"),
     "Volume":        ("Volume",      "",         "[nm^3]"),
@@ -481,6 +502,8 @@ class TopExporter:
         trajectory_path: Optional[str] = None,
         energy_path: Optional[str] = None,
         allow_unsupported: bool = False,
+        force_field: Optional[str] = "gaff",
+        nh_dof: str = "3N-3",
     ) -> None:
         """
         Parse *top_path* + *gro_path*, build :class:`TopModel`, write to *out_path*.
@@ -549,6 +572,8 @@ class TopExporter:
         self.export_model(model, template_path, out_path,
                           frames=frames,
                           cognac_version=cognac_version,
+                          force_field=force_field,
+                          nh_dof=nh_dof,
                           energy_times=energy_times,
                           energy_series=energy_series)
 
@@ -561,11 +586,13 @@ class TopExporter:
         cognac_version: Optional[str] = None,
         energy_times: Optional[List[float]] = None,
         energy_series: Optional[dict] = None,
+        force_field: Optional[str] = "gaff",
+        nh_dof: str = "3N-3",
     ) -> None:
         """
         Write *model* into a new UDF at *out_path* using *template_path* as schema.
 
-        Steps (mirrors convert_gromacs_udf.py ordering):
+        Steps (UDF sections must be written in this order):
         1. copy template → out_path
         2. erase existing dynamic records
         3. write Set_of_Molecules (common record)
@@ -651,20 +678,31 @@ class TopExporter:
                     energy_values=per_frame_stats[i] if per_frame_stats else None,
                 )
 
+        if frames_to_write:
+            with _section("static-cell", template_path, out_path):
+                # 読んでから書く。 _write_static_cell が上書きしてしまうため
+                _warn_if_template_box_differs(uobj, template_path,
+                                              frames_to_write[0])
+                self._write_static_cell(uobj, frames_to_write[0])
+
+        with _section("force-field-id", template_path, out_path):
+            from .udf_writer import set_force_field_comment
+            set_force_field_comment(uobj, force_field)
+
         with _section("default_condition", template_path, out_path):
-            self._set_default_condition(uobj, model)
+            self._set_default_condition(uobj, model, nh_dof=nh_dof)
         with _section("Molecular_Attributes", template_path, out_path):
             self._write_molecular_attributes(uobj, model)
         with _section("Interactions", template_path, out_path):
             self._write_interactions(uobj, model)
 
     # -------------------------------------------------------------------------
-    # Writing helpers – all mirror convert_gromacs_udf.py functions
+    # Writing helpers – one per UDF section
     # -------------------------------------------------------------------------
 
     @staticmethod
     def _write_set_of_molecules(uobj, model: TopModel) -> None:
-        """Port of add_set_of_molecules_byTop."""
+        """Set_of_Molecules — atoms, bonds and molecule counts."""
         display_map = build_display_type_map(model)
         uobj.jump(-1)
 
@@ -795,9 +833,20 @@ class TopExporter:
         uobj.write()
 
     @staticmethod
+    def _write_static_cell(uobj, frame: GROFrameData) -> None:
+        """最初のフレームの箱を静的セルと Initial_Unit_Cell に書く。
+
+        書かないとテンプレートの既定値 (同梱テンプレートなら 20 A 立方と
+        100 A 立方) が残り、 座標と箱が別の系の UDF が黙って出る。
+        実装は :func:`udf_writer.write_static_cell_abc`。
+        """
+        from .udf_writer import write_static_cell_abc
+        write_static_cell_abc(uobj, frame.cell[0], frame.cell[1], frame.cell[2])
+
+    @staticmethod
     def _append_structure(uobj, model: TopModel, frame: GROFrameData,
                           energy_values: Optional[dict] = None) -> None:
-        """Port of append_structure (one GRO frame → one UDF dynamic record).
+        """One GRO frame → one UDF dynamic record.
 
         When *energy_values* is given (mapping UDF field name -> float, e.g.
         ``{"Bond": 1596.5, "Angle": 2220.1, ...}``), those values land in
@@ -873,33 +922,33 @@ class TopExporter:
         uobj.write()
 
     @staticmethod
-    def _set_default_condition(uobj, model: TopModel) -> None:
-        """
-        Set electrostatic flags, Nose-Hoover Q, and Ewald parameters.
+    def _set_default_condition(uobj, model: TopModel,
+                               nh_dof: str = "3N-3") -> None:
+        """UDF の Simulation_Conditions と Interactions に既定値を書く。
 
-        Nose-Hoover Q
-        -------------
-        Q [amu·Å²] = g · k_B · T · τ²
+        書く先ごとに分けてある。
 
-        where:
-          g   = 3·N_atoms − 3   (degrees of freedom; COM motion removed)
-          k_B = 0.83144626      amu·Å² / (ps²·K)  (Boltzmann constant in
-                                COGNAC internal units: amu, Å, ps)
-          T   = model.ref_t     [K]   (from MDP ref_t, default 300.0)
-          τ   = model.tau_t     [ps]  (from MDP tau_t, default 0.1)
+        - :meth:`_write_potential_flags`  — どの相互作用を計算するか
+        - :meth:`_normalize_deformation_method` — セル変形なし
+        - :meth:`_write_coupling_masses` — 熱浴の ``Q`` と圧力浴の ``Cell_Mass``
+        - :meth:`_write_ewald_defaults`  — 静電の既定
+        - :meth:`_write_time_conditions` — ``.mdp`` 由来の時間刻みとステップ数
 
-        Ewald defaults
-        --------------
-        Name                = "POINT_CHARGE"
-        Algorithm           = "Ewald"
-        Scale_1_4_Pair      = 0.83333333333333   (5/6, AMBER convention)
-        Ewald.Dielectric_Constant = 0.0
-        Ewald.R_cutoff      = model.ewald_r_cutoff [Å]  (Deserno & Holm
-                              formula from GRO box; fallback 10.0 Å)
-        Ewald.Ewald_Parameters = "Auto"
+        Parameters
+        ----------
+        nh_dof : "3N" か "3N-3"。 熱浴に結合する自由度の数え方。
         """
         uobj.jump(-1)
+        TopExporter._write_potential_flags(uobj)
+        TopExporter._normalize_deformation_method(uobj)
+        TopExporter._write_coupling_masses(uobj, model, nh_dof)
+        TopExporter._write_ewald_defaults(uobj, model)
+        TopExporter._write_time_conditions(uobj, model)
+        uobj.write()
 
+    @staticmethod
+    def _write_potential_flags(uobj) -> None:
+        """どの相互作用を計算するか。 AMBER / GAFF の規約で明示する。"""
         # --- potential flags ---
         # The COGNAC template ships with Angle / Torsion / Non_Bonding_1_4 set
         # to 0.  Leaving them there produces a UDF whose bonded terms are
@@ -916,17 +965,107 @@ class TopExporter:
         uobj.put(1, flags + "Non_Bonding_1_4")
         uobj.put(1, flags + "Electrostatic")
 
-        # --- no cell deformation ---
-        TopExporter._normalize_deformation_method(uobj)
+    @staticmethod
+    def _write_coupling_masses(uobj, model: TopModel, nh_dof: str) -> None:
+        """熱浴の ``Q`` と圧力浴の ``Cell_Mass``、 重心運動の除去。
 
+        ``Q [amu A^2] = g * k_B * T * tau^2``  (k_B = 0.83144626 amu A^2/ps^2/K)
+
+        ``g`` の数え方は ``nh_dof`` で選ぶ。 ``Cell_Mass`` は系の全質量。
+        Berendsen 系だけは質量ではなく ``tau_T`` を直に持つ。
+        """
         # --- Nose-Hoover Q ---
         n = model.n_atoms_total
         if n > 0:
-            g = max(1, 3 * n - 3)           # degrees of freedom
-            Q = g * KB_AMU_A2_PS2_K * model.ref_t * (model.tau_t ** 2)
-            uobj.put(Q,
-                     "Simulation_Conditions.Solver.Dynamics.NVT_Nose_Hoover.Q")
+            # 熱浴に結合している自由度。 既定は **3N**。 UDF を書き出す側の
+            # 慣行が重心運動を除かない `comm-mode = None` なので、 それに
+            # 合わせてある (実測: 原子数 23〜3050 の 4 系で、 既存 UDF の Q が
+            # Q = 3N*kB*T*(0.1 ps)^2 にぴったり乗る。 GROMACS も
+            # "degrees of freedom ... is 9150" = 3N と報告した)。
+            # `comm-mode = Linear` (GROMACS の既定) で流すなら 3 を引く方が
+            # 正しいので、 --nh-dof 3N-3 で選べるようにしてある。
+            # 差は 3050 原子で 0.03%、 80 原子で 0.6% 程度。
+            g = max(1, 3 * n - 3) if nh_dof == "3N-3" else max(1, 3 * n)
 
+            # 数え方に合わせて重心運動の除去も設定する。 これを書かないと
+            # 下流の変換器が `comm-mode = None` の mdp を出すので、
+            # --nh-dof 3N-3 で Q を 3N-3 で作っても GROMACS は 3N で積分し、
+            # **オプションが説明どおりに動かない** (2026-09-12 に実機で確認)。
+            # UDF から mdp への対応:
+            #   Calc_Moment=0                        -> comm-mode = None
+            #   Calc_Moment=1, Stop_Translation=1    -> comm-mode = Linear
+            #   さらに Stop_Rotation=1               -> comm-mode = Angular
+            _moment = "Simulation_Conditions.Dynamics_Conditions.Moment."
+            _linear = 1 if nh_dof == "3N-3" else 0
+            uobj.put(_linear, _moment + "Calc_Moment")
+            uobj.put(_linear, _moment + "Stop_Translation")
+            uobj.put(0, _moment + "Stop_Rotation")
+            if _linear:
+                # nstcomm。 GROMACS の既定 (100) に合わせる
+                uobj.put(100, _moment + "Interval_of_Calc_Moment")
+            Q = g * KB_AMU_A2_PS2_K * model.ref_t * (model.tau_t ** 2)
+            # ★ NVT だけでなく NPT 系にも同じ Q を入れる。
+            # Q は **アルゴリズムごとに別のフィールド**に置かれる。 NVT の分
+            # しか書かないと、 NPT に切り替えた瞬間に Q=0 が読まれて
+            # **tau_t = 0** になり、 Nose-Hoover が 0 除算して箱が nan に飛ぶ
+            # (2026-09-12 実機)。 NVT では露見しないのはこのため。
+            for _alg in ("NVT_Nose_Hoover",
+                         "NPT_Parrinello_Rahman_Nose_Hoover",
+                         "NPT_Andersen_Nose_Hoover"):
+                uobj.put(Q, "Simulation_Conditions.Solver.Dynamics.%s.Q" % _alg)
+
+            # この Q が GROMACS の tau_t に直るとどうなるかを知らせておく。
+            # 変換器によっては分母の g*k_B を落として tau_t を戻すものがあり、
+            # その場合 tau_t が sqrt(3N) に比例して増大する。 書く Q は
+            # どちらでも同じなので、 **戻した先の値**を見て確かめられるように
+            # 両方出す。 abmptools.udf2gro は g*k_B を含む式を使う
+            # (docs/udf2gro.md)。
+            _ml2 = 1.0 * 0.1 ** 2          # amu, nm を仮定した Unit_Parameter
+            _correct = 2.0 * math.pi * math.sqrt(
+                Q * _ml2 / (g * 0.0083144626 * model.ref_t))
+            _nodof = 2.0 * math.pi * math.sqrt(Q * _ml2 / model.ref_t)
+            # 実害が出るのは tau_t が実用域 (0.5-2 ps) を大きく外れるときだけ。
+            # 小さい系では差が小さいので INFO に留める。
+            _msg = ("Nose-Hoover Q = %.1f gives tau_t = %.3f ps through "
+                    "abmptools.udf2gro. A converter that drops g*k_B from the "
+                    "formula would give %.3f ps for the same file; see "
+                    "docs/udf2gro.md. Override with `udf2gro --tau-t`, or "
+                    "edit the .mdp.")
+            if _nodof > 2.0:
+                logger.warning(_msg, Q, _correct, _nodof)
+            else:
+                logger.info(_msg, Q, _correct, _nodof)
+
+            # Cell_Mass は系の全質量。 UDF を書き出す側の慣行に合わせている
+            # (`CognacSystemUtil.setCellMass`。 実測 4 系で一致)。
+            # 未記入 (0) だと tau_p の式が 0 になり、 下限 2.0 に丸められる。
+            total_mass = sum(
+                model.mass_dict.get(a.type_name, 0.0)
+                for mol_name in model.mol_instance_list
+                for a in model.mol_specs[
+                    model.mol_type_names.index(mol_name)].atoms)
+            for _alg in ("NPH_Andersen", "NPH_Parrinello_Rahman",
+                         "NPT_Andersen_Nose_Hoover",
+                         "NPT_Parrinello_Rahman_Nose_Hoover"):
+                try:
+                    uobj.put(float(total_mass),
+                             "Simulation_Conditions.Solver.Dynamics.%s.Cell_Mass"
+                             % _alg)
+                except Exception:                        # noqa: BLE001
+                    pass
+            # Berendsen 系は Q ではなく tau_T [ps] を直に読む
+            for _alg in ("NVT_Berendsen", "NPT_Berendsen"):
+                try:
+                    _put_with_unit_fallback(
+                        uobj, float(model.tau_t),
+                        "Simulation_Conditions.Solver.Dynamics.%s.tau_T" % _alg,
+                        None, "[ps]")
+                except Exception:                        # noqa: BLE001
+                    pass
+
+    @staticmethod
+    def _write_ewald_defaults(uobj, model: TopModel) -> None:
+        """静電の既定。 ``Scale_1_4_Pair`` は 5/6 (AMBER 規約)。"""
         # --- Ewald electrostatic interaction defaults ---
         loc = "Interactions.Electrostatic_Interaction[0]"
         uobj.put("POINT_CHARGE",      loc + ".Name")
@@ -936,6 +1075,9 @@ class TopExporter:
         uobj.put(model.ewald_r_cutoff, loc + ".Ewald.R_cutoff")
         uobj.put("Auto",              loc + ".Ewald.Ewald_Parameters")
 
+    @staticmethod
+    def _write_time_conditions(uobj, model: TopModel) -> None:
+        """``.mdp`` 由来の時間刻み・総ステップ・出力間隔。"""
         # --- Dynamics_Conditions.Time (from MDP) ---
         # delta_T native unit is [tau]; we pass [ps] and let UDFManager
         # convert via Unit_Parameter.
@@ -953,7 +1095,6 @@ class TopExporter:
         if out_interval > 0:
             uobj.put(out_interval, time_loc + ".Output_Interval_Steps")
 
-        uobj.write()
 
     #: Location of the cell-deformation selector.
     _DEFORM_METHOD = ("Simulation_Conditions.Dynamics_Conditions"
@@ -968,11 +1109,11 @@ class TopExporter:
         ``len(method) > 0`` and then match it against the deformations they
         support, so "None" reads as an unrecognised deformation and aborts::
 
-            Export_GROMACS.GROMACS_ConvertError:
+            GROMACS_ConvertError:
                 Error!! deformation type 'None' is not supported.
 
-        (J-OCTA 11.1 ``python/Export_GROMACS.py`` lines 1722-1737;
-        ``abmptools.udf2gro`` carried the same guard until 2.13.4.)  J-OCTA
+        (seen in a downstream GROMACS converter;
+        ``abmptools.udf2gro`` carried the same guard until 2.13.4.)  That converter
         writes "" in its own UDFs, so "" is what both COGNAC and those
         converters accept.
 
@@ -984,7 +1125,7 @@ class TopExporter:
 
     @staticmethod
     def _write_molecular_attributes(uobj, model: TopModel) -> None:
-        """Port of add_molecular_attributes_byTop."""
+        """Molecular_Attributes — bonded terms per molecule type."""
         display_map = build_display_type_map(model)
         uobj.jump(-1)
 
@@ -1063,6 +1204,22 @@ class TopExporter:
                 uobj.put(1,
                          "Molecular_Attributes.Torsion_Potential[].Amber.trans_is_0",
                          [j])
+                # ★ 1-4 のスケーリングを User_Torsion に添える。 これが無いと
+                # 下流は 1-4 の扱いを決められず、 NPT が流せない (2026-09-12
+                # に実機で確認。 下流で力場を取得しなおすと SCNB/SCEE
+                # が入り、 それで通るようになった)。 名前は AMBER の慣用だが、
+                # 値は GROMACS の fudge をそのまま入れる (実測で一致)。
+                # 多重度の 2 つめ以降には付けない —— 取り直し後のファイルも
+                # 先頭の項にだけ持っていた。
+                if not _is_multiplicity_continuation(tt.name):
+                    for kk, (nm, val) in enumerate(
+                            (("SCNB", model.fudge_lj), ("SCEE", model.fudge_qq))):
+                        uobj.put(nm,
+                                 "Molecular_Attributes.Torsion_Potential[]"
+                                 ".User_Torsion.Parameters[].Name", [j, kk])
+                        uobj.put(_fudge_str(val),
+                                 "Molecular_Attributes.Torsion_Potential[]"
+                                 ".User_Torsion.Parameters[].Value", [j, kk])
 
             elif funct == 3:
                 # Ryckaert-Bellemans / Cosine_Polynomial
@@ -1091,7 +1248,7 @@ class TopExporter:
 
     @staticmethod
     def _write_interactions(uobj, model: TopModel) -> None:
-        """Port of add_interactions."""
+        """Interactions — nonbonded pair styles and mixing."""
         uobj.jump(-1)
 
         # Collect atom types actually referenced in Set_of_Molecules
