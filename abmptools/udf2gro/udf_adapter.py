@@ -276,6 +276,7 @@ class UdfAdapter:
     ALL_ATOM_UNIT = (1.0, 4.184, 0.1)
 
     def __init__(self, udf, unit_parameter=None, tau_t=None, tau_p=None,
+                 tau_p_max=None,
                  barostat=None):
         """
         Parameters
@@ -289,11 +290,19 @@ class UdfAdapter:
             無次元値を GROMACS 単位として書き出さないため)。
         tau_t, tau_p : float | None
             熱浴 / 圧力浴の時定数 [ps] を直接指定する。 ``None`` なら
-            ``tau_t`` は ``Q`` から算出し、 ``tau_p`` は既定値を使う。
+            ``tau_t`` は ``Q`` から算出し、 ``tau_p`` は ``Cell_Mass`` から換算する。
+        tau_p_max : float | None
+            換算した ``tau_p`` の上限 [ps]。 既定は ``None`` (上限なし)。
+            **既定で丸めないのは、 変換器が黙って値を変えないため。**
+            GROMACS で走らせるのが目的で実用域 (2-5 ps) に収めたいときに
+            指定する。 丸めたときは元の値とともに警告に出す。
+            ``tau_p`` を直接指定した場合はそちらが優先される。
         """
         #: --tau-t / --tau-p による上書き
         self._tau_t_override = tau_t
         self._tau_p_override = tau_p
+        #: --tau-p-max による上限 (換算値にのみ効く)
+        self._tau_p_max = tau_p_max
         #: 圧力浴の上書き。 UDF に対応する概念が無いので指定でのみ効く。
         #: C-rescale (GROMACS 2021+) は Berendsen 並に安定で、
         #: かつ正しい NPT アンサンブルを与える。 拘束とも併用できる。
@@ -1638,6 +1647,15 @@ class UdfAdapter:
             logger.info("tau_p = %.4f ps (--tau-p で指定。 算出値 "
                         "%.4f ps を上書き)", self._tau_p_override, tau_p)
             tau_p = self._tau_p_override
+        elif self._tau_p_max is not None and tau_p > self._tau_p_max:
+            # 換算値を丸める。 **黙って丸めない** — 値が正しくないから丸める
+            # のではなく、 GROMACS の実用域に入れるための意図的な打ち切りな
+            # ので、 元の値と一緒にログへ残す。
+            logger.warning(
+                "tau_p %.2f ps -> %.2f ps (--tau-p-max). Cell_Mass asks for "
+                "%.2f ps; this is a deliberate cap, not the value the UDF "
+                "describes.", tau_p, self._tau_p_max, tau_p)
+            tau_p = float(self._tau_p_max)
 
         ref_p, ref_p_tensor = self._reference_pressure(algorithm)
         comp_tensor = self._compressibility_tensor(

@@ -55,6 +55,7 @@ def _adapter(values, tau_t=None, tau_p=None, barostat=None):
     a._udf = _StubUDF(values)
     a._tau_t_override = tau_t
     a._tau_p_override = tau_p
+    a._tau_p_max = None
     a._barostat_override = barostat
     return a
 
@@ -435,3 +436,61 @@ def test_nothing_is_said_when_there_is_no_barostat(caplog):
 
 def test_the_practical_range_matches_what_the_docs_say():
     assert PRACTICAL_TAU_P_PS == (2.0, 5.0)
+
+
+# ---------------------------------------------------------------------------
+# --tau-p-max
+#
+# 換算した tau_p は Cell_Mass = 全質量 の慣用のため箱の一辺に比例して伸び、
+# GROMACS の実用域 (2-5 ps) をすぐ超える。 実行が目的なら打ち切りたいが、
+# **既定では丸めない** — 変換器が黙って値を変えると、 COGNAC の run と
+# 突き合わせたときに合わない理由が分からなくなる。
+# ---------------------------------------------------------------------------
+
+def _adapter_max(values, tau_p_max=None, tau_p=None):
+    a = _adapter(values, tau_p=tau_p)
+    a._tau_p_max = tau_p_max
+    return a
+
+
+def test_no_cap_by_default():
+    """既定は上限なし。 UDF が言うとおりの値を書く。"""
+    out = _pressure(_adapter_max(_npt_values(cell_mass=14076.4)))
+    assert out.tau_p > 5.0
+
+
+def test_the_cap_applies_to_a_converted_value():
+    out = _adapter_max(_npt_values(cell_mass=14076.4),
+                       tau_p_max=5.0)._build_barostat(
+        "NPT_Andersen_Nose_Hoover", "", 0, False, None,
+        _Cell(2.29911, 2.29911, 5.20238))
+    assert out.tau_p == 5.0
+
+
+def test_a_value_under_the_cap_is_untouched():
+    """上限より小さいものは触らない。 小さい系まで引き延ばさない。"""
+    plain = _pressure(_adapter_max(_npt_values(cell_mass=1.0e3))).tau_p
+    capped = _pressure(_adapter_max(_npt_values(cell_mass=1.0e3),
+                                    tau_p_max=5.0)).tau_p
+    assert plain == capped
+    assert capped < 5.0
+
+
+def test_capping_says_what_the_udf_asked_for(caplog):
+    """丸めたことと元の値を必ず残す。 黙って丸めない。"""
+    with caplog.at_level(logging.WARNING,
+                         logger="abmptools.udf2gro.udf_adapter"):
+        _adapter_max(_npt_values(cell_mass=14076.4),
+                     tau_p_max=5.0)._build_barostat(
+            "NPT_Andersen_Nose_Hoover", "", 0, False, None,
+            _Cell(2.29911, 2.29911, 5.20238))
+    assert "--tau-p-max" in caplog.text
+    assert "8.9" in caplog.text          # 元の値
+    assert "deliberate cap" in caplog.text
+
+
+def test_an_explicit_tau_p_beats_the_cap():
+    """--tau-p は直接の指示なので、 上限より優先する。"""
+    out = _pressure(_adapter_max(_npt_values(cell_mass=14076.4),
+                                 tau_p_max=5.0, tau_p=7.0))
+    assert out.tau_p == 7.0
