@@ -20,6 +20,28 @@ NVT で露見しなかったのはこのため。
 J-OCTA  NVT.Q = 22823.2   NPT.Q = 22823.2    Cell_Mass = 14076.4
 ```
 
+### Fixed — `--nh-dof 3N-3` が mdp と食い違っていた
+
+`Q` を 3N-3 で作る一方、生成される mdp は `comm-mode = None` のままだったので、
+**GROMACS は 3N で積分していた**。オプションが説明どおりに動いていない状態
+(2026-09-12 に Windows 実機で指摘)。
+
+`comm-mode` は UDF から制御できる。`Export_GROMACS.py` は
+`Dynamics_Conditions.Moment` の 3 フラグを見る:
+
+```
+Calc_Moment=0                       -> comm-mode = None
+Calc_Moment=1, Stop_Translation=1   -> comm-mode = Linear
+さらに Stop_Rotation=1              -> comm-mode = Angular  (GROMACS は回転のみ不可)
+```
+
+`--nh-dof` に連動させた。実機確認:
+
+```
+--nh-dof 3N     comm-mode = None     degrees of freedom is 9150.00
+--nh-dof 3N-3   comm-mode = Linear   degrees of freedom is 9147.00
+```
+
 ### Added — `--nh-dof` (自由度の数え方)
 
 `Q = g·k_B·T·τ²` の `g`。**既定は `3N`** で、J-OCTA が書く値と一致する。

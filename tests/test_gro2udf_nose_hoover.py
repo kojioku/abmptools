@@ -81,3 +81,64 @@ def test_tau_t_is_not_zero_when_q_is_written():
 def test_tau_t_is_zero_when_q_is_missing():
     """NPT 側の Q を書かなかったときに起きていたこと。"""
     assert _tau_t(0.0) == 0.0
+
+
+# ---------------------------------------------------------------------------
+# comm-mode の連動
+# ---------------------------------------------------------------------------
+
+class _MomentUDF:
+    """Moment まわりの put だけ覚える stand-in。"""
+
+    def __init__(self):
+        self.puts = {}
+
+    def jump(self, _r):
+        pass
+
+    def put(self, value, path, *_a, **_kw):
+        self.puts[path] = value
+
+    def get(self, *_a, **_kw):
+        return None
+
+    def size(self, *_a, **_kw):
+        return 0
+
+
+def _moment(nh_dof):
+    """_set_default_condition が Moment に何を書くかだけ取り出す。"""
+    from abmptools.gro2udf.top_exporter import TopExporter
+    from abmptools.gro2udf.top_model import TopModel
+    u = _MomentUDF()
+    model = TopModel(
+        comb_rule=2, fudge_lj=0.5, fudge_qq=0.8333,
+        atom_type_specs=[], bond_type_specs=[], angle_type_specs=[],
+        torsion_type_specs=[], mass_dict={}, mol_specs=[],
+        mol_type_names=[], mol_instance_list=[], n_atoms_total=100,
+    )
+    try:
+        TopExporter._set_default_condition(u, model, nh_dof=nh_dof)
+    except Exception:                                    # noqa: BLE001
+        pass          # Moment 以外の put で落ちても、そこまでの記録は使える
+    pre = "Simulation_Conditions.Dynamics_Conditions.Moment."
+    return {k[len(pre):]: v for k, v in u.puts.items() if k.startswith(pre)}
+
+
+def test_3n_leaves_centre_of_mass_motion_alone():
+    """comm-mode = None。 J-OCTA の既定と同じで、3N と整合する。"""
+    m = _moment("3N")
+    assert m.get("Calc_Moment") == 0 and m.get("Stop_Translation") == 0
+
+
+def test_3n_minus_3_turns_on_removal():
+    """comm-mode = Linear。 これを書かないと GROMACS は 3N で積分してしまい、
+    --nh-dof 3N-3 が説明どおりに動かない。"""
+    m = _moment("3N-3")
+    assert m.get("Calc_Moment") == 1 and m.get("Stop_Translation") == 1
+
+
+def test_rotation_is_never_stopped():
+    """GROMACS は回転のみの除去を受け付けない (J-OCTA が例外を投げる)。"""
+    for dof in ("3N", "3N-3"):
+        assert _moment(dof).get("Stop_Rotation") == 0

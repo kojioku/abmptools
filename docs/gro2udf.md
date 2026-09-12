@@ -266,10 +266,23 @@ tau_t = 2 * pi * sqrt(Q * Unit_Parameter.Mass * Unit_Parameter.Length^2 / T)
 
 `Q = g * k_B * T * tau^2` の `g` をどう数えるか。**既定は `3N`**。
 
-| | いつ使うか |
+| | 何が変わるか |
 |---|---|
-| **`3N`** (既定) | **J-OCTA が書き出す mdp は `comm-mode = None`** なので重心運動が除かれない。J-OCTA 自身もこの数え方をする |
-| `3N-3` | **`comm-mode = Linear` (GROMACS の既定) で流す**とき。重心運動が除かれるぶん 3 を引く |
+| **`3N`** (既定) | `Q = 3N·k_B·T·τ²` / mdp は **`comm-mode = None`**。J-OCTA 自身と同じ |
+| `3N-3` | `Q = (3N-3)·k_B·T·τ²` / mdp は **`comm-mode = Linear`** (`nstcomm = 100`) |
+
+**`comm-mode` も一緒に切り替わる。** `Q` の数え方だけ変えて mdp が
+`comm-mode = None` のままだと、GROMACS は 3N で積分してしまい**オプションが
+説明どおりに動かない**。`gro2udf` は
+`Simulation_Conditions.Dynamics_Conditions.Moment` の
+`Calc_Moment` / `Stop_Translation` を立てて J-OCTA に `Linear` を書かせる。
+
+確認は GROMACS の報告で:
+
+```
+--nh-dof 3N     Number of degrees of freedom in T-Coupling group System is 9150.00
+--nh-dof 3N-3   Number of degrees of freedom in T-Coupling group System is 9147.00
+```
 
 ```bash
 python -m abmptools.gro2udf --from-top system.top md.gro --nh-dof 3N-3 --out out.udf

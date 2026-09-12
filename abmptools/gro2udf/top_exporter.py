@@ -978,6 +978,23 @@ class TopExporter:
             # 正しいので、 --nh-dof 3N-3 で選べるようにしてある。
             # 差は 3050 原子で 0.03%、 80 原子で 0.6% 程度。
             g = max(1, 3 * n - 3) if nh_dof == "3N-3" else max(1, 3 * n)
+
+            # 数え方に合わせて重心運動の除去も設定する。 これを書かないと
+            # J-OCTA は `comm-mode = None` の mdp を出すので、 --nh-dof 3N-3 で
+            # Q を 3N-3 で作っても GROMACS は 3N で積分してしまい、
+            # **オプションが説明どおりに動かない** (2026-09-12 に Windows 実機で
+            # 指摘された)。 J-OCTA の対応:
+            #   Calc_Moment=0                        -> comm-mode = None
+            #   Calc_Moment=1, Stop_Translation=1    -> comm-mode = Linear
+            #   さらに Stop_Rotation=1               -> comm-mode = Angular
+            _moment = "Simulation_Conditions.Dynamics_Conditions.Moment."
+            _linear = 1 if nh_dof == "3N-3" else 0
+            uobj.put(_linear, _moment + "Calc_Moment")
+            uobj.put(_linear, _moment + "Stop_Translation")
+            uobj.put(0, _moment + "Stop_Rotation")
+            if _linear:
+                # nstcomm。 GROMACS の既定 (100) に合わせる
+                uobj.put(100, _moment + "Interval_of_Calc_Moment")
             Q = g * KB_AMU_A2_PS2_K * model.ref_t * (model.tau_t ** 2)
             # ★ NVT だけでなく NPT 系にも同じ Q を入れる。
             # Export_GROMACS.py は **アルゴリズムごとに別のフィールドから Q を
