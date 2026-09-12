@@ -29,6 +29,22 @@ _HAS_GETIFIE_DATA = os.path.isdir(
 _HAS_EXT_SAMPLE = os.path.isdir(_ABMPTOOLS_SAMPLE)
 
 
+#: このリポジトリを子プロセスに読ませるための環境。
+#:
+#: **これが無いと、回帰テストは作業ツリーではなく `pip install` 済みの
+#: abmptools を回す。** 子プロセスの cwd は tmp_path なので、カレント優先の
+#: 解決が効かず、editable install が指す先 (共有 checkout = main) が読まれる。
+#: その状態では feature ブランチで何を壊しても回帰テストは緑のままで、実際に
+#: 2026-09-11 に `getsumdf` の戻り値を dict にした変更が、合計の代わりに列名を
+#: csv に書く状態で develop に入った (両者ともテストは通っていた)。
+def _repo_env():
+    root = os.path.normpath(os.path.join(TESTS_DIR, os.pardir))
+    env = dict(os.environ)
+    existing = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = root + (os.pathsep + existing if existing else "")
+    return env
+
+
 def _run(args, cwd):
     """Run a CLI command and return completed process."""
     return subprocess.run(
@@ -37,6 +53,7 @@ def _run(args, cwd):
         capture_output=True,
         text=True,
         timeout=120,
+        env=_repo_env(),
     )
 
 

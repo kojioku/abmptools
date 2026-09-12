@@ -331,6 +331,80 @@ Note: sys_S10.udf exists but is NOT used. Templates are only used when
 まとめ、`top_exporter` と `exporter` の双方から呼ぶ。テスト 8 件追加
 (`tests/test_top_exporter_static_cell.py`)。
 
+### Fixed — `--fraginmol` の合計 csv に、合計の代わりに列名が書かれていた
+
+`getsumdf()` が dict を返すようになったのに、`anlfmo.py:3162` が **11 要素の
+タプルとして展開していた**。dict を展開すると**キー**が返るので、
+
+```
+,HF-IFIE,MP2-IFIE,...,mol1        期待              実際
+HF-IFIE,,,,,,,,,,,,-23.921917  ←  合計値      →  HF-IFIE   ← 列名
+MP2-IFIE,,,,,,,,,,,,-21.974128                    MP2-IFIE
+```
+
+という csv が**エラーも警告も無く**出ていた。`--mol` 側 (3044) は正しく dict を
+使っていたので、`--fraginmol` だけが壊れていた。
+
+### Fixed — pandas 3 で csv の桁が変わる
+
+`columns=` だけで作った空フレームは全列 object で、そこへ concat すると
+**pandas 3 は空フレームの object を尊重して結果も object** になる (pandas 2 は
+空を dtype 決定から除外していた。その `FutureWarning` がそのまま実装された)。
+object 列には `to_csv(float_format='%.6f')` が効かないので、
+
+```
+pandas 2   -262.205472
+pandas 3   -262.2054720845
+```
+
+と桁が変わっていた。`anlfmo.py:3044` の空フレームの数値列を float にして揃えた
+(`I` / `J` はフラグメント番号のリストなので対象外)。**pandas 2 の出力は変わらない。**
+
+### Fixed — 回帰テストが作業ツリーではなく install 済みの abmptools を回していた
+
+`tests/test_regression.py` の `_run()` は子プロセスを `cwd=tmp_path` で起動する。
+カレント優先の解決が効かないので、**editable install が指す先 (共有 checkout =
+main) が読まれていた**。feature ブランチで何を壊しても回帰テストは緑のままで、
+上の `--fraginmol` の不具合が両者のテストを通過して develop に入った。
+`PYTHONPATH` にリポジトリを足して、作業ツリーを回すようにした。
+
+### Added — enhanced PIEDA (ABINIT-MP Ver.2 Rev.8) の読み込み
+
+`&LRD DISP='ON'` + `&ANALYSIS ES_RESP='YES'` を付けると PIEDA の列が 2 本増える。
+
+```
+IJ-PAIR  ES        EX  CT+mix  DI(MP2)          q(I=>J)      従来
+IJ-PAIR  ES(RESP)  ES  EX  CT+mix  DI(LRD)  Erest  q(I=>J)   enhanced
+```
+
+`DI(LRD)` が**分散力**、`Erest` が**それ以外の相関**で、和が従来の `DI` にあたる。
+`ES(RESP)` は RESP 電荷から求めた古典静電。V1DD2024 では使えない。
+
+- `abmptools/anlfmo.py`: `pieda_columns_from_header()` を追加し、
+  **PIEDA テーブルのヘッダ行から列名を決める**ようにした。知らないヘッダ語が
+  あれば例外を投げる
+- 合計対象の列も、固定リストではなく**実際にある列**から決める
+  (`sum_terms()` / `di_column()`)。`getsumdf()` は dict を返すようになった
+- `abmptools/logmanager.py`: 同様にヘッダ駆動化。`ES-RESP` / `DI` / `EREST` を
+  dimer ラベルに追加する
+- `docs/io_spec.md`: 拡張列と、成分の和が `HF-IFIE` / `MP2-IFIE` に戻ることを記載
+- `generateajf`: `-esresp` を追加 (`&ANALYSIS ES_RESP='YES'`)。既存の `-disp`
+  (`&LRD DISP='ON'`) と `-rp` (`&POP ESPTYP='RESP'`) と合わせて enhanced PIEDA の
+  ajf が組める。`-ajfv v2rev8` 以外では `ES_RESP` を書かない
+
+### Fixed — 列位置の決め打ちで enhanced PIEDA を 1 列ずれて読む
+
+`read_pieda` / `readifiepieda` は PIEDA の値を `Items[2..6]` と位置で取っていた。
+enhanced PIEDA のログでは `ES(RESP)` を `ES` として、`ES` を `EX` として…と
+**全部 1 つずつずれた値を例外なしで返していた**。ヘッダから対応づけるように
+修正し、行の列数がヘッダと合わなければ例外を投げる。
+
+### Fixed — `MP2-IFIE` 列の説明が誤り
+
+`docs/io_spec.md` は「MP2 IFIE (HF + MP2 correlation)」としていたが、
+ログの `MP2-IFIE` 列は**相関補正のみ**で、全 IFIE は `HF-IFIE + MP2-IFIE`。
+実際 `ES + EX + CT-mix = HF-IFIE`、`DI + Erest = MP2-IFIE` になる。
+
 
 ### Changed — Windows: `--user --no-deps` を既定にし、`B-0` / `B-1` / `B-2` をやめた
 
