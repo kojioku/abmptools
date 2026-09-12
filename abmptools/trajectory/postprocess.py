@@ -187,7 +187,7 @@ def nojump(
 ) -> Path:
     """``-pbc nojump`` のみ (frame 数そのまま、 unwrap だけ).
 
-    OCTA / J-OCTA Viewer に出す trajectory はこちら (-pbc mol は分子境界で
+    OCTA viewer (GOURMET) に出す trajectory はこちら (-pbc mol は分子境界で
     瞬間移動して見える)。 amorphous の旧 ``gen_for_udf.sh`` 相当の処理を 1 file
     分実行。
     """

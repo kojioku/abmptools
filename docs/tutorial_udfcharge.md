@@ -14,7 +14,7 @@ UDF** を別途用意できる場合 (例: 量子化学 / FMO で求めた電荷
 ## 1. 環境
 
 `abmptools` 本体に加えて **OCTA 同梱の `UDFManager`** が import できること
-(PyPI には無い。 OCTA / J-OCTA インストールに付属)。
+(PyPI には無い。 OCTA のインストールに付属)。
 
 ```bash
 python -c "from UDFManager import UDFManager; print('UDFManager OK')"
@@ -193,7 +193,7 @@ python -m abmptools.udfcharge restore --udf system_neutral.udf --formal-charge -
 | `Atom_Type_Name 列 ... 不一致` で例外 | atom 順序や型名が違う | 同一構造か確認。 型名だけ違う等で意図的に進めるなら `--no-verify-types` |
 | `一致する分子がありません` | template の `Mol_Name` がバルクに無い | `--mol-name` でバルク側の名前に合わせる |
 | 割り当てたのに電荷が 0 | numpy 値を直接 put した (silent 0 化) | 本モジュールは `float()` cast 済。 自前で put する場合は必ず `float()` |
-| `UDFManager` が import できない | OCTA 未インストール | OCTA/J-OCTA を入れる (PyPI には無い) |
+| `UDFManager` が import できない | OCTA 未インストール | OCTATA を入れる (PyPI には無い) |
 
 > **契約**: 電荷は **atom index 対応** (template atom *i* → 対象分子 atom *i*) で
 > 割り当てる。 同名分子は同一の atom 順序であることが前提。 point charge

@@ -438,10 +438,10 @@ python build_amorphous.py ... \
 
 ## 9. 次のステップ
 
-### OCTA / J-OCTA で見る — UDF への変換
+### OCTA viewer (GOURMET) で見る — UDF への変換
 
 ここまでで出来た `build/system.top` と `md/05_npt_final.gro` を
-**そのまま OCTA の UDF に変換できます**。J-OCTA で構造を眺めたり、
+**そのまま OCTA の UDF に変換できます**。viewer で構造を眺めたり、
 DPD や解析ツールに渡したりする入口になります。
 
 最小構成なら、MD が終わった時点のファイルだけで変換できます。

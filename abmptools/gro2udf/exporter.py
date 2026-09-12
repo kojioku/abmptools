@@ -109,7 +109,7 @@ class Exporter:
 
         # 静的 Structure.Unit_Cell と Initial_Unit_Cell はテンプレートの値の
         # ままなので、 .gro の箱で揃える。 揃えないと「座標は新しい箱・セルは
-        # 古い箱」の UDF になり、 静的側を読む下流 (J-OCTA の GROMACS
+        # 古い箱」の UDF になり、 静的側を読む下流 (OCTA の GROMACS
         # コンバータ等) が壊れる。 NVT では箱が変わらないので露見しない。
         if first_frame_cell is not None:
             warn_if_template_box_differs(udf, udf_path, first_frame_cell.a,
@@ -117,7 +117,7 @@ class Exporter:
             write_static_cell_abc(udf, first_frame_cell.a,
                                   first_frame_cell.b, first_frame_cell.c)
 
-        # J-OCTA は Unit_Parameter.Comment の FF=n で力場を決める。 テンプレート
+        # 下流は Unit_Parameter.Comment の FF=n で力場を決める。 テンプレート
         # 由来の値があればそれを残す ([[gro2udf]] の既定は GAFF)。
         set_force_field_comment(udf, "gaff")
 

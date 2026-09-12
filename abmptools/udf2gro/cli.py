@@ -95,7 +95,7 @@ def main(argv=None):
         print("  --tau-t  熱浴の tau_t [ps] を直接指定する (既定は Q から算出)")
         print("  --tau-p  圧力浴の tau_p [ps] を直接指定する (既定 2.0)")
         print("  --unit  UDF が Unit_Parameter を持たないときのスケール。")
-        print("          all_atom = 長さ Å / エネルギー kcal/mol (J-OCTA / GAFF 系)")
+        print("          all_atom = 長さ Å / エネルギー kcal/mol (GAFF 系)")
         print("          M,E,L    = Mass[amu], Energy[kJ/mol], Length[nm]")
         raise RuntimeError("")
 

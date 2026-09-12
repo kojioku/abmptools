@@ -8,7 +8,7 @@
 
 レコード側は正しいので、変換も下流のスキーマ検証も何も言わない。
 ところが静的側を読む実装に渡すと、**座標は新しい箱・セルは古い箱**という
-組み合わせになる。J-OCTA の GROMACS コンバータがそれで、変換自体は通り、
+組み合わせになる。下流の GROMACS コンバータがそれで、変換自体は通り、
 **実行時にセルが inf になった** (2026-09-11 に実機で報告)。
 
 NVT では箱が変わらないので露見しない。**NPT を通した軌跡でだけ壊れる。**
@@ -141,7 +141,7 @@ def test_a_template_without_a_cell_is_not_an_error(caplog):
 # ---------------------------------------------------------------------------
 
 def test_gaff_is_ff_2():
-    """J-OCTA が力場を取り直すと FF=2 が入る。 実測 3 件で対応を確認済み。"""
+    """力場を取り直すと FF=2 が入る。 実測 3 件で対応を確認済み。"""
     assert ff_comment("gaff") == "FF=2"
     assert ff_comment("GAFF2") == "FF=3"
     assert ff_comment("dreiding") == "FF=4"
@@ -164,7 +164,7 @@ def test_empty_means_leave_it_alone():
 
 
 def test_the_id_is_written_when_the_field_is_empty():
-    """空のままだと J-OCTA が「力場が分からない」扱いにして書き出しが通らない。"""
+    """空のままだと 下流が「力場が分からない」扱いにして書き出しが通らない。"""
     u = _RecordingUDF()
     u._comment = ""
     set_force_field_comment(u, "gaff")

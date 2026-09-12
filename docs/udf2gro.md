@@ -169,20 +169,17 @@ PR        tau_p = 5.16 ps
 
 #### 旧実装との違い
 
-`Export_GROMACS.py` の移植だったので、次の 2 点を引き継いでいた。
+旧実装は次の 2 点でずれていた。
 
 1. **`Cell_Mass` に `Q` 用の `[mass·sigma²]` の換算係数
    (`unit_Mass · unit_L²`) を掛けていた。** スキーマは `[mass]` なので
    `unit_L²` が余計で、all-atom (`unit_L` = 0.1) では 0.01 倍になる。
    **現実的な系では下限 2.0 ps に丸められていた**ので、値としては表面化して
    いなかった
-2. **Andersen → PR の質量換算の向きが逆。** `Export_GROMACS.py` は
-   `W = W * 1.0/3.0` (コメント `Andersen -> parrinello_Rahman`) としているが、
-   上の導出では **3 倍**。`τ_p` にすると 3 倍の差。これも 1 に隠れて
-   表面化しない
+2. **Andersen → PR の質量換算の向きが逆だった** (`1/3` 倍)。上の導出では
+   **3 倍**。`τ_p` にすると 3 倍の差。これも 1 に隠れて表面化しない
 
-なお `max_L` を使うのは `Export_GROMACS.py` と同じで、これは GROMACS の
-`W⁻¹` の定義どおりなので正しい。
+`L` に最長辺を使う点は変えていない。GROMACS の `W⁻¹` の定義どおりなので。
 
 #### ★ 出てくる値は GROMACS の実務より遅い
 
@@ -224,10 +221,10 @@ PR        tau_p = 5.16 ps
 - **`pcoupl = MTTK` では近似。** Andersen の既定の行き先だが、MTTK は
   バロスタット質量の定義が違う。厳密に合わせたいなら
   `--barostat Parrinello-Rahman` にする
-- **`--barostat C-rescale` は J-OCTA 同梱の GROMACS では通らない。**
-  J-OCTA 11.1 の同梱は 2020.4-MODIFIED で、C-rescale は 2021 以降
-  (`Invalid enum 'C-rescale' for variable pcoupl`)。使えるのは
-  No / Berendsen / Parrinello-Rahman / Isotropic / MTTK
+- **`--barostat C-rescale` は GROMACS 2021 以降が要る。** 2020 系に渡すと
+  `Invalid enum 'C-rescale' for variable pcoupl` で `grompp` が止まる。
+  2020 系で使える `pcoupl` は No / Berendsen / Parrinello-Rahman /
+  Isotropic / MTTK
 - **`tau_p ≥ 2·tau_t` を書き出し時に確認する。** `grompp` も言うが、こちらは
   両方の値を持っているので先に言える
 
@@ -253,30 +250,6 @@ COGNAC は `NPT_<バロスタット>_<サーモスタット>` という命名。
 > ただし MTTK は GROMACS で拘束 (LINCS / SETTLE) と併用できないので、
 > 水を含む系では `.mdp` を手で `Parrinello-Rahman` + `isotropic`、または
 > `C-rescale` に直すこと。
-
-### ★ J-OCTA の `Export_GROMACS.py` とは値が違う
-
-同じ UDF でも `tau_t` が一致しない。**こちらの式が上記のとおりで、J-OCTA は
-分母の `g · k_B` を落としている**ため。
-
-| 原子数 | `abmptools.udf2gro` | J-OCTA `Export_GROMACS.py` |
-|---|---|---|
-| 110 | **0.6283 ps** | 1.0408 ps |
-| 3050 | **0.6282 ps** | 5.4803 ps |
-
-J-OCTA 側は `tau_t ∝ √(3N)` で系のサイズとともに増大する。同じ J-OCTA でも
-`Export_LAMMPS.py` / `Export_HOOMD_blue.py` は `3N` で割っており、こちらは
-そちらと同じ扱いにしている。詳細は `SI/udfcheck/jocta_tau_report_20260912.md`。
-
-`tau_p` も一致しない。J-OCTA の式の骨格 (`√(4π²βW/(3L))`) は GROMACS の
-`W⁻¹` の定義から出ていて正しいが、`[mass]` の `Cell_Mass` に `[mass·sigma²]`
-用の係数 (`unit_Mass · unit_L²`) を掛けているため 0.01 倍になり、下限 2.0 ps
-に丸められる。Andersen → PR の質量換算も向きが逆に見える (`1/3` 対 `3`)。
-
-| 原子数 | `abmptools.udf2gro` | J-OCTA `Export_GROMACS.py` |
-|---|---|---|
-| 3050 (Andersen) | **8.93 ps** | 2.0 ps (下限に丸め) |
-| 3050 (PR) | **5.16 ps** | 2.0 ps (下限に丸め) |
 
 ## 使い方
 

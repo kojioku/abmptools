@@ -71,7 +71,7 @@ def _is_rectangular(cell_raw, thres: float = 1e-5) -> bool:
 
 
 def _get_proper_dihedral_params(udf, j: int, n: int, kk: float):
-    """Port of get_proper_dihedral_params() from udf2gro.py."""
+    """Proper dihedral parameters from a UDF torsion entry."""
     loc = "Molecular_Attributes.Torsion_Potential[].Cosine_Polynomial.p[]"
     gro_k = 0.0
     gro_phi = 0.0
@@ -220,7 +220,7 @@ class UdfAdapter:
     """Reads a UDFManager object and produces a SystemModel."""
 
     #: Unit_Parameter が無い UDF に当てる既定のスケール。
-    #: 全原子 UDF (J-OCTA / AMBER / GAFF 系) の慣用単位 = 長さ Å, エネルギー kcal/mol。
+    #: 全原子 UDF (AMBER / GAFF 系) の慣用単位 = 長さ Å, エネルギー kcal/mol。
     #: (Mass [amu], Energy [kJ/mol], Length [nm])
     ALL_ATOM_UNIT = (1.0, 4.184, 0.1)
 
@@ -303,7 +303,7 @@ class UdfAdapter:
                 "Å の値が nm、kcal/mol の値が kJ/mol として書き出されます\n"
                 "(grompp は通ってしまい、箱が 10 倍 = 密度 1/1000 の系が走ります)。\n"
                 "\n"
-                "全原子 UDF (J-OCTA / GAFF 系、長さ Å・エネルギー kcal/mol) なら:\n"
+                "全原子 UDF (GAFF 系、長さ Å・エネルギー kcal/mol) なら:\n"
                 "    Exporter().export(udf, prefix, unit_parameter='all_atom')\n"
                 "    python -m abmptools.udf2gro in.udf out --unit all_atom\n"
                 "別のスケールなら (Mass[amu], Energy[kJ/mol], Length[nm]) を渡すか、\n"
@@ -1332,12 +1332,10 @@ class UdfAdapter:
         緩和時間ではなく**運動エネルギー振動の周期**なので、 ``2*pi*tau`` に
         なる。 したがって ``tau_t = 2*pi*sqrt(Q_d/(g k_B T))``。
 
-        **J-OCTA の ``Export_GROMACS.py`` とは値が違う。** あちらは
-        ``2*pi*sqrt(Q_d/T)`` で、 分母の ``g * k_B`` が抜けているため
-        ``tau_t`` が ``sqrt(3N)`` に比例して増大する (3050 原子で 5.48 ps、
-        本式なら 0.63 ps)。 同じ J-OCTA でも ``Export_LAMMPS.py`` /
-        ``Export_HOOMD_blue.py`` は ``3N`` で割っており、 そちらと同じ扱いに
-        している。 詳細は ``docs/udf2gro.md``。
+        **``g * k_B`` を落とすと ``tau_t`` が ``sqrt(3N)`` に比例して増大する**
+        (3050 原子で 5.48 ps、 本式なら 0.63 ps)。 系を大きくするほど熱浴が
+        鈍くなるので、 変換の検算はサイズを変えた 2 系で行うとよい。
+        詳細は ``docs/udf2gro.md``。
 
         ``g`` は UDF の ``Dynamics_Conditions.Moment`` から決める。 重心運動を
         止める設定なら GROMACS 側も ``comm-mode = Linear`` になるので 3 を引く。
@@ -1442,10 +1440,9 @@ class UdfAdapter:
         書き直すと ``omega^2 = L/(C beta)`` で、 **PR より sqrt(3) 倍遅い**。
         言い換えると、 同じ周期を PR で出すには ``Cell_Mass`` を **3 倍**する。
 
-        > J-OCTA の ``Export_GROMACS.py`` はここを ``W = W * 1.0/3.0``
-        > (``Andersen -> parrinello_Rahman``) としており、 向きが逆に見える。
-        > あちらは ``unit_L^2`` も掛けているため実際には下限 2.0 に丸められ、
-        > 値としては表面化しない。 ``docs/udf2gro.md`` 参照。
+        > 旧実装はここを ``1/3`` 倍にしていた (向きが逆)。 ``unit_L^2`` の
+        > 取り違えと重なって下限 2.0 に丸められるため、 値としては表面化して
+        > いなかった。 ``docs/udf2gro.md`` 参照。
 
         **実際の圧縮率は式から消える。** GROMACS 側の周期は
         ``tau_p * sqrt(beta_true/beta_mdp)`` なので、 等置すると ``beta_true``

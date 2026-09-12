@@ -339,22 +339,20 @@ md/
 > **MTTK は選べない。** LINCS / SETTLE と併用できず、非晶質の系ではまず拘束を
 > 使うため。
 
-> ### ★ J-OCTA 同梱の GROMACS では C-rescale が使えない
+> ### ★ C-rescale は GROMACS 2021 以降
 >
-> **J-OCTA 11.1 が同梱しているのは GROMACS 2020.4-MODIFIED** で、C-rescale が
-> 入っていない (2021 で追加された)。既定のまま `.mdp` を持っていくと
-> `grompp` が止まる:
+> **2020 系に既定のまま `.mdp` を渡すと `grompp` が止まる。**
 >
 > ```
 > Invalid enum 'C-rescale' for variable pcoupl
 > ```
 >
-> 2020.4 の `pcoupl` は **No / Berendsen / Parrinello-Rahman / Isotropic /
-> MTTK** のみ。J-OCTA 環境で走らせるなら
-> `--barostat Parrinello-Rahman`（平衡化済みなら）か `--barostat Berendsen`
-> （詰め込み直後で安定性が要るなら）を指定する。
+> 2020 系で使える `pcoupl` は **No / Berendsen / Parrinello-Rahman /
+> Isotropic / MTTK** のみ。`--barostat Parrinello-Rahman`（平衡化済みなら）か
+> `--barostat Berendsen`（詰め込み直後で安定性が要るなら）を指定する。
 >
-> 2026-09-12 に Windows の J-OCTA 実機で確認。
+> **古い GROMACS が同梱された環境で走らせる場合は注意。** MD パッケージに
+> 付属する GROMACS は本体より数年古いことがある。
 
 綴りは生成時に照合する。間違っていれば `.mdp` を書く前に `ValueError` になる
 (そのまま書くと `grompp` で初めて落ちるため)。
@@ -445,9 +443,9 @@ python -m abmptools.gro2udf --from-top build/system.top build/system.gro \
     --out 05_topology_with_initial.udf
 ```
 
-### OCTA8.4 / J-OCTA-9.1-Student 環境向け
+### 古い OCTA (cognac10.1 まで) 環境向け
 
-OCTA8.4 / J-OCTA-9.1-Student は cognac10.1 までしか同梱していないため、
+OCTA 8.4 系は cognac10.1 までしか同梱していないため、
 default 出力 (cognac11.2 schema 要求) は読めません。`--cognac-version 101` を
 付けて bundled の cognac10.1 互換 template を auto-select させます:
 

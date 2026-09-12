@@ -62,13 +62,13 @@ def _run_from_top(argv: list) -> None:
                              "comm-mode = Linear, which is GROMACS' own "
                              "default and stops kinetic energy accumulating "
                              "in the centre of mass. 3N leaves "
-                             "comm-mode = None, which is what J-OCTA writes, "
+                             "comm-mode = None, the usual UDF convention, "
                              "and reproduces its output exactly. The "
                              "difference in Q is 0.03%% at 3050 atoms and "
                              "0.6%% at 80.")
     parser.add_argument("--ff", dest="force_field", default="gaff",
                         help="Force field to declare in Unit_Parameter.Comment "
-                             "as FF=n, which is where J-OCTA reads it. A .top "
+                             "as FF=n, where downstream converters read it. A .top "
                              "does not say which force field it came from, so "
                              "it has to be named here. Accepts gaff (default), "
                              "gaff2, amber, amber20, dreiding, uff, oplsaa, "

@@ -2,8 +2,8 @@
 """ポテンシャル名は正規形 ``<型>-<型>`` にする。
 
 以前は index を無条件に付けて ``c3-hc-0`` / ``c3-c3-1`` のようにしていた。
-UDF の中では表と参照が揃うので解決はでき、`Export_GROMACS.py` も分子側の
-``Potential_Name`` で引くだけなので通る。 ところが **J-OCTA で NPT を流すと
+UDF の中では表と参照が揃うので解決はでき、下流の変換器も分子側の
+``Potential_Name`` で引くだけなので通る。 ところが **下流で NPT を流すと
 落ち、「力場を取得しなおす」と通るようになる** (2026-09-12 に実機で確認)。
 その操作の後のファイルを見ると、名前が連番の無い正規形に書き直されていた。
 
@@ -60,7 +60,7 @@ def test_a_genuine_duplicate_still_gets_distinguished():
 
 
 def test_torsion_multiplicity_terms_keep_the_colon_form():
-    """多重度は ``:0`` / ``:1`` で分ける。 ここは J-OCTA も同じ形だった。"""
+    """多重度は ``:0`` / ``:1`` で分ける。 ここは 下流の変換器 も同じ形だった。"""
     specs = TopAdapter._build_torsion_type_specs([
         ("c3", "c3", "c3", "c3", 9, False,
          [0.0, 0.6, 3.0, 180.0, 0.25, 2.0, 0.0, 0.18, 1.0]),

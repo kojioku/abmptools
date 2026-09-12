@@ -18,7 +18,7 @@ COGNAC-UDF の Structure レコードに書き戻すパッケージです。
 | 何をするか | **既にある UDF の座標だけを差し替える** | **UDF を新しく作る** |
 | 入力 | `.udf` ＋ `.gro` | `.top` ＋ `.gro` |
 | UDF の分子構造・力場 | **元の UDF のものをそのまま使う** | `.top` から組み立てる |
-| 使う場面 | J-OCTA で系を組んだ後、GROMACS で MD を回して**構造を戻したい** | GROMACS で組んだ系を**初めて J-OCTA に持ち込む** |
+| 使う場面 | OCTA で系を組んだ後、GROMACS で MD を回して**構造を戻したい** | GROMACS で組んだ系を**初めて OCTA に持ち込む** |
 | コマンド | `python -m abmptools.gro2udf in.udf out.gro` | `python -m abmptools.gro2udf --from-top system.top out.gro` |
 
 ### udf-and-gro モード — 座標の差し替え
@@ -31,7 +31,7 @@ COGNAC-UDF の Structure レコードに書き戻すパッケージです。
            └─ 座標・速度・セル  ←── .gro から差し替え
 ```
 
-**J-OCTA で系を組み、GROMACS で MD を回し、結果を J-OCTA に戻す**、という
+**OCTA で系を組み、GROMACS で MD を回し、結果を OCTA に戻す**、という
 往復のうち「戻り」にあたります。UDF 側に何も足せないので、GROMACS 側で
 分子を増減させた場合は使えません。
 
@@ -50,7 +50,7 @@ GROMACS の topology（`.top` / `.itp`）を読んで、**分子構造・結合�
 .mdp  ──→ 温度・カットオフ（任意、下記）
 ```
 
-元になる UDF が要らないので、**GROMACS だけで組んだ系を J-OCTA に持ち込める**
+元になる UDF が要らないので、**GROMACS だけで組んだ系を OCTA に持ち込める**
 のが利点です。UDF のスキーマ（どの項目を持つか）はテンプレートから取るので、
 `--template` を省略すると同梱の `default_template.udf` が使われます。
 
@@ -212,7 +212,7 @@ UDF は **静的セクション（共通部）** と **動的レコード（フ�
 
 同梱テンプレート（`default_template.udf` / `default_template_cognac101.udf`）は
 この部分が空なので、何も主張しない。問題になるのは **実在の UDF を
-`--template` に渡したとき**で、J-OCTA や COGNAC の系を往復させるときは自然に
+`--template` に渡したとき**で、COGNAC の系を往復させるときは自然に
 そうなる。このとき出来上がる UDF は:
 
 - 静的 `Structure` … **変換前**の座標と箱（テンプレートのもの）
@@ -237,29 +237,29 @@ structure and box. ...
 
 ---
 
-## ★ J-OCTA へ渡すときに要るもの
+## ★ 下流の GROMACS 変換器へ渡すときに要るもの
 
-`gro2udf` の UDF を J-OCTA の GROMACS コンバータ (`Export_GROMACS.py`) に通す
-場合、**UDF が形式として正しいだけでは足りない**。J-OCTA は UDF スキーマが
+`gro2udf` の UDF を下流の GROMACS コンバータに通す
+場合、**UDF が形式として正しいだけでは足りない**。下流は UDF スキーマが
 「空でも妥当」としている場所を規約として読んでいる。**変換は成功し、下流の
 検証も通り、NVT では何も起きず、NPT でだけ落ちる**という形になるので、
 気付きにくい (2026-09 に実機で 5 件見つかった)。
 
 ### Nose-Hoover の `Q` と `Cell_Mass`
 
-`Export_GROMACS.py` は **アルゴリズムごとに別のフィールド**から `Q` を読み、
+下流は **アルゴリズムごとに別のフィールド**から `Q` を読み、
 
 ```
 tau_t = 2 * pi * sqrt(Q * Unit_Parameter.Mass * Unit_Parameter.Length^2 / T)
 ```
 
 で GROMACS の `tau_t` を作る。`NVT_Nose_Hoover.Q` だけ書いて NPT 側を空に
-すると、**J-OCTA で NPT に切り替えた瞬間に `Q = 0` が読まれ `tau_t = 0` に
+すると、**NPT に切り替えた瞬間に `Q = 0` が読まれ `tau_t = 0` に
 なり、Nose-Hoover が 0 除算して箱が `nan` に飛ぶ**。`gro2udf` は NVT / NPT の
 両系統に同じ `Q` を書く。
 
 `Cell_Mass` (バロスタット質量) も同様で、未記入だと `tau_p` の式が 0 になり
-下限の 2.0 に丸められる。J-OCTA は `CognacSystemUtil.setCellMass` で
+下限の 2.0 に丸められる。`CognacSystemUtil.setCellMass` は
 **系の全質量**を入れるので、`gro2udf` もそれに合わせる。
 
 ### ★ `--nh-dof` — 自由度の数え方
@@ -269,19 +269,19 @@ tau_t = 2 * pi * sqrt(Q * Unit_Parameter.Mass * Unit_Parameter.Length^2 / T)
 | | 何が変わるか |
 |---|---|
 | **`3N-3`** (既定) | `Q = (3N-3)·k_B·T·τ²` / mdp は **`comm-mode = Linear`** (`nstcomm = 100`) |
-| `3N` | `Q = 3N·k_B·T·τ²` / mdp は **`comm-mode = None`**。**J-OCTA が書く UDF と同一**になる |
+| `3N` | `Q = 3N·k_B·T·τ²` / mdp は **`comm-mode = None`**。**既存の UDF と同一**になる |
 
 **既定を `3N-3` にしている理由。** GROMACS 自身の既定が `comm-mode = Linear`
 で、重心のドリフトを除くのが MD の通常の作法。`None` のままだと grompp が
 毎回「運動エネルギーが重心に溜まる」と警告する。出力の行き先は GROMACS
-なので、そちらの流儀に合わせている。**J-OCTA が作る UDF と揃えたいときは
+なので、その流儀に合わせている。**既存の UDF と揃えたいときは
 `--nh-dof 3N`**。
 
 **`comm-mode` も一緒に切り替わる。** `Q` の数え方だけ変えて mdp が
 `comm-mode = None` のままだと、GROMACS は 3N で積分してしまい**オプションが
 説明どおりに動かない**。`gro2udf` は
 `Simulation_Conditions.Dynamics_Conditions.Moment` の
-`Calc_Moment` / `Stop_Translation` を立てて J-OCTA に `Linear` を書かせる。
+`Calc_Moment` / `Stop_Translation` を立てて下流に `Linear` を書かせる。
 
 確認は GROMACS の報告で:
 
@@ -294,10 +294,10 @@ tau_t = 2 * pi * sqrt(Q * Unit_Parameter.Mass * Unit_Parameter.Length^2 / T)
 python -m abmptools.gro2udf --from-top system.top md.gro --nh-dof 3N-3 --out out.udf
 ```
 
-根拠は実測。J-OCTA が書いた UDF 4 系 (原子数 23 / 80 / 110 / 3050) の `Q` は
+根拠は実測。既存の UDF 4 系 (原子数 23 / 80 / 110 / 3050) の `Q` は
 いずれも `3N * k_B * T * (0.1 ps)^2` にぴったり乗る (逆算した tau が 4 系とも
 0.099999972 ps)。**`3N-3` では乗らない** —— 80 原子で 0.1006 とずれる。
-GROMACS 自身も J-OCTA の mdp に対し `degrees of freedom ... is 9150.00`
+GROMACS 自身もその mdp に対し `degrees of freedom ... is 9150.00`
 (= 3 x 3050) と報告した。
 
 差は **3050 原子で 0.03%、80 原子で 0.6%** 程度。`Q` は熱浴の応答の速さを
@@ -305,20 +305,20 @@ GROMACS 自身も J-OCTA の mdp に対し `degrees of freedom ... is 9150.00`
 どちらでも実害はない**。小さい系ほど効く。
 
 > **`tau_t` は系のサイズとともに大きくなる。** 上の規約に完全準拠しても
-> 3050 原子で `tau_t = 5.48 ps` になる。J-OCTA が書く `Q` の意味 (自由度と
+> 3050 原子で `tau_t = 5.48 ps` になる。`Q` の意味 (自由度と
 > `k_B` を含む物理的な熱浴質量) と、読み戻す式 (`2*pi*sqrt(Q/T)`) が噛み合って
-> いないためで、**J-OCTA が自分で作った UDF でも同じことが起きる**。
+> いないためで、**書いた側が自分で作った UDF でも同じことが起きる**。
 > `.mdp` は雛形と考え、本番では `tau_t` / `tau_p` を実験条件に合わせて
-> 上書きすること。`tau_p` は J-OCTA 側で 2.0 が下限なので、
+> 上書きすること。`tau_p` は下流で 2.0 が下限なので、
 > `tau_p >= 2 * tau_t` を満たすには `tau_t <= 1.0 ps` が要る。
 
 ### 力場 ID と 1-4 スケーリング
 
-- **`Unit_Parameter.Comment` の `FF=n`** — J-OCTA はここで力場を判定する。
+- **`Unit_Parameter.Comment` の `FF=n`** — 下流はここで力場を判定する。
   空だと「力場が分からない」扱いになり書き出しが通らない。`--ff` で指定
-  (既定 `gaff` = `FF=2`)。番号は J-OCTA の `conf/modeo.conf` の力場の並び
+  (既定 `gaff` = `FF=2`)。番号は力場定義ファイルの並び
 - **`User_Torsion.Parameters[]` の `SCNB` / `SCEE`** — 1-4 のスケーリング。
-  空だと J-OCTA が 1-4 の扱いを決められず NPT が流せない。`.top` の
+  空だと下流が 1-4 の扱いを決められず NPT が流せない。`.top` の
   `fudgeLJ` / `fudgeQQ` をそのまま入れる
 
 ### 静的セルとテンプレート

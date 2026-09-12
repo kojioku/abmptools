@@ -37,9 +37,9 @@ _VELOCITY_UNIT = 1000   # nm/ps → m/s  (1 nm/ps = 1000 m/s)
 _SHEAR_STRAIN  = 0.0    # constant, same as original
 
 
-#: J-OCTA が `Unit_Parameter.Comment` に書く力場 ID。 番号は
-#: `J-OCTA/conf/modeo.conf` の力場の並び (0 始まり) に対応する。 実データ 3 件で
-#: 検算済み: GAFF 型の UDF が FF=2、 DREIDING 型 (C_3 / C_33) の J-OCTA 同梱
+#: `Unit_Parameter.Comment` に書く力場 ID。 番号は
+#: 力場定義ファイルの並び (0 始まり) に対応する。 実データ 3 件で
+#: 検算済み: GAFF 型の UDF が FF=2、 DREIDING 型 (C_3 / C_33) の参照
 #: サンプルが FF=4。
 FF_IDS = {
     "amber": 0, "amber20": 1, "gaff": 2, "gaff2": 3, "dreiding": 4,
@@ -69,9 +69,9 @@ def ff_comment(ff) -> str:
 def set_force_field_comment(udf, ff, overwrite: bool = False) -> None:
     """``Unit_Parameter.Comment`` に力場 ID を書く。
 
-    J-OCTA はここを見て力場を決める。 **空だと「力場が分からない」扱いになり、
-    GROMACS への書き出しが通らない** (2026-09-12 に実機で確認。 J-OCTA 側で
-    「力場を取得しなおす」と ``FF=2`` が入り、 それで通るようになった)。
+    下流はここを見て力場を決める。 **空だと「力場が分からない」扱いになり、
+    GROMACS への書き出しが通らない** (2026-09-12 に実機で確認。 下流で
+    力場を取得しなおすと ``FF=2`` が入り、 それで通るようになった)。
     ``.top`` には力場の種類が書かれていないので、 こちらで名乗るしかない。
 
     既存の値は既定では残す。 テンプレート由来の ``FF=n`` を上書きしないため。
@@ -90,7 +90,7 @@ def set_force_field_comment(udf, ff, overwrite: bool = False) -> None:
                         current, comment)
         return
     udf.put(comment, "Unit_Parameter.Comment")
-    logger.info("Unit_Parameter.Comment = %r (force field for J-OCTA)", comment)
+    logger.info("Unit_Parameter.Comment = %r (force field id)", comment)
 
 
 def write_static_cell_abc(udf, a_nm: float, b_nm: float, c_nm: float) -> None:
@@ -102,7 +102,7 @@ def write_static_cell_abc(udf, a_nm: float, b_nm: float, c_nm: float) -> None:
     which has anything to do with the system. Everything downstream that
     reads a record is fine, which is why it went unnoticed: a reader that
     takes the static section instead gets coordinates from one box and a
-    cell from another. J-OCTA's GROMACS converter accepted such a file and
+    cell from another. A downstream GROMACS converter accepted such a file and
     produced an infinite cell at run time.
 
     NVT hides it, because then every box is the same one.

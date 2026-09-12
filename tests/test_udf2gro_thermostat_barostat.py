@@ -8,7 +8,7 @@ COGNAC は熱浴・圧力浴を**質量**で持ち (``Q`` / ``Cell_Mass``)、 GR
 ここで押さえるのは 4 点:
 
 1. ``tau_t`` は **系のサイズに依存しない**。 ``Q = g k_B T tau^2`` の ``g``
-   で割り忘れると ``sqrt(3N)`` 倍に膨らむ (J-OCTA の ``Export_GROMACS.py``
+   で割り忘れると ``sqrt(3N)`` 倍に膨らむ (下流の ``下流の GROMACS 変換器``
    がこれで、 3050 原子で 5.48 ps。 正しくは 0.63 ps)
 2. GROMACS の Nose-Hoover の ``tau_t`` は緩和時間ではなく**振動の周期**な
    ので ``2*pi`` が要る
@@ -102,25 +102,25 @@ def test_tau_t_does_not_change_with_system_size():
     assert t_small == pytest.approx(t_large, rel=1e-9)
 
 
-def test_the_jocta_formula_would_differ_and_grow_with_n():
+def test_dropping_g_kb_would_differ_and_grow_with_n():
     """``2*pi*sqrt(Q_d/T)`` (g*k_B 抜け) との差を明示的に残す。"""
     n, tau, T = 3050, 0.1, 300.0
     values = _nvt_values(n, tau, T=T)
     Q = values["Simulation_Conditions.Solver.Dynamics.NVT_Nose_Hoover.Q"]
 
     _, ours, _ = _adapter(values)._extract_temperature("NVT_Nose_Hoover", n)
-    jocta = 2.0 * math.pi * math.sqrt(Q / T)
+    nodof = 2.0 * math.pi * math.sqrt(Q / T)
 
     assert ours == pytest.approx(2.0 * math.pi * tau, rel=1e-9)
     # 比は sqrt(3N k_B) = 8.7。 実機 (3050 原子) の 5.48 ps と一致する
-    assert jocta == pytest.approx(ours * math.sqrt(3 * n * _KB), rel=1e-9)
-    assert jocta == pytest.approx(5.48, abs=0.01)
+    assert nodof == pytest.approx(ours * math.sqrt(3 * n * _KB), rel=1e-9)
+    assert nodof == pytest.approx(5.48, abs=0.01)
     assert ours == pytest.approx(0.628, abs=0.001)
 
     # そして N とともに増える。 これが「系を大きくすると熱浴が鈍る」の正体
     small = _nvt_values(100, tau, T=T)
     q_small = small["Simulation_Conditions.Solver.Dynamics.NVT_Nose_Hoover.Q"]
-    assert 2.0 * math.pi * math.sqrt(q_small / T) < jocta
+    assert 2.0 * math.pi * math.sqrt(q_small / T) < nodof
 
 
 def test_stopping_com_motion_uses_3n_minus_3():
@@ -357,7 +357,7 @@ def test_barostat_no_turns_pressure_coupling_off():
 
 
 def test_an_overridden_barostat_is_isotropic():
-    """Parrinello-Rahman の anisotropic は J-OCTA 由来の既定。 指定時は外す。"""
+    """Parrinello-Rahman の anisotropic は 下流の変換器 由来の既定。 指定時は外す。"""
     out = _adapter(_npt_values(), barostat="Parrinello-Rahman")._extract_pressure(
         "NPT_Parrinello_Rahman_Nose_Hoover", "", 0, False, None, _Cell())
     assert out[1] == "isotropic"

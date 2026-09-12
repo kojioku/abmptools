@@ -62,7 +62,7 @@ def _build_parser() -> argparse.ArgumentParser:
     # nojump 単発
     p_nj = sub.add_parser(
         "nojump",
-        help="-pbc nojump のみ (frame 数そのまま、 OCTA / J-OCTA Viewer 用)",
+        help="-pbc nojump のみ (frame 数そのまま、 OCTA viewer (GOURMET) 用)",
     )
     _add_common_args(p_nj)
 

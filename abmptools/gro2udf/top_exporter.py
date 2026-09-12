@@ -4,12 +4,14 @@ top_exporter.py
 ---------------
 Writes a :class:`TopModel` to a COGNAC UDF file using UDFManager.
 
-This module ports the following functions from convert_gromacs_udf.py:
-- add_set_of_molecules_byTop  → _write_set_of_molecules
-- add_molecular_attributes_byTop → _write_molecular_attributes
-- add_interactions            → _write_interactions
-- append_structure            → _append_structure
-- set_default_condition       → _set_default_condition
+Writing is split into five steps, in the order the UDF sections must
+appear:
+
+- ``_write_set_of_molecules``     — Set_of_Molecules (topology)
+- ``_write_molecular_attributes`` — Molecular_Attributes (bonded terms)
+- ``_write_interactions``         — Interactions (nonbonded, pair styles)
+- ``_append_structure``           — one GRO frame → one dynamic record
+- ``_set_default_condition``      — Simulation_Conditions defaults
 """
 from __future__ import annotations
 
@@ -89,7 +91,7 @@ def _static_structure_mol_count(uobj) -> int:
     the static ``Structure`` and ``Initial_Structure`` blocks are whatever the
     template carried, and nothing here ever rewrites them. The bundled
     templates leave them empty, so they claim nothing. A template that is
-    itself a real UDF -- the natural choice when round-tripping a J-OCTA or
+    itself a real UDF -- the natural choice when round-tripping an OCTA or
     COGNAC system -- carries that system's coordinates, and those survive the
     conversion untouched while the records hold the new ones. Both halves are
     well formed, so nothing downstream objects.
@@ -174,10 +176,10 @@ _XVG_TO_UDF_STATS = {
     # correction; the barostat-controlled (true) pressure = Pressure + Pres. DC.
     # Both legends fold to Statistics_Data.Pressure and are summed by
     # _aggregate_statistics_per_frame (same folding as Proper+Improper Dih. ->
-    # Torsion), matching J-OCTA's converter. Verified on a J-OCTA reference
+    # Torsion). Verified on a reference
     # (DRO10-PVP10 NPT, ref_p = 1 bar, 100k steps): avg Pressure alone = 44 MPa,
     # but avg(Pressure + Pres. DC) = 0.22 MPa ~= the 0.1 MPa barostat target
-    # (and bit-matches the J-OCTA-exported BDF's Statistics_Data.Pressure).
+    # (and bit-matches the reference BDF's Statistics_Data.Pressure).
     "Pres. DC":      ("Pressure",    "",         "[bar]"),
     "Density":       ("Density",     "",         "[kg/m^3]"),
     "Volume":        ("Volume",      "",         "[nm^3]"),
@@ -590,7 +592,7 @@ class TopExporter:
         """
         Write *model* into a new UDF at *out_path* using *template_path* as schema.
 
-        Steps (mirrors convert_gromacs_udf.py ordering):
+        Steps (UDF sections must be written in this order):
         1. copy template → out_path
         2. erase existing dynamic records
         3. write Set_of_Molecules (common record)
@@ -695,12 +697,12 @@ class TopExporter:
             self._write_interactions(uobj, model)
 
     # -------------------------------------------------------------------------
-    # Writing helpers – all mirror convert_gromacs_udf.py functions
+    # Writing helpers – one per UDF section
     # -------------------------------------------------------------------------
 
     @staticmethod
     def _write_set_of_molecules(uobj, model: TopModel) -> None:
-        """Port of add_set_of_molecules_byTop."""
+        """Set_of_Molecules — atoms, bonds and molecule counts."""
         display_map = build_display_type_map(model)
         uobj.jump(-1)
 
@@ -844,7 +846,7 @@ class TopExporter:
     @staticmethod
     def _append_structure(uobj, model: TopModel, frame: GROFrameData,
                           energy_values: Optional[dict] = None) -> None:
-        """Port of append_structure (one GRO frame → one UDF dynamic record).
+        """One GRO frame → one UDF dynamic record.
 
         When *energy_values* is given (mapping UDF field name -> float, e.g.
         ``{"Bond": 1596.5, "Angle": 2220.1, ...}``), those values land in
@@ -970,10 +972,10 @@ class TopExporter:
         # --- Nose-Hoover Q ---
         n = model.n_atoms_total
         if n > 0:
-            # 熱浴に結合している自由度。 **J-OCTA が書く mdp は
-            # `comm-mode = None`** なので重心運動が除かれず、 J-OCTA 自身も
-            # 3N を使う (実測: sys1/sys2/sys3 と testallatom の 4 系、 原子数
-            # 23〜3050 で Q = 3N*kB*T*(0.1 ps)^2 にぴったり乗る。 GROMACS も
+            # 熱浴に結合している自由度。 既定は **3N**。 UDF を書き出す側の
+            # 慣行が重心運動を除かない `comm-mode = None` なので、 それに
+            # 合わせてある (実測: 原子数 23〜3050 の 4 系で、 既存 UDF の Q が
+            # Q = 3N*kB*T*(0.1 ps)^2 にぴったり乗る。 GROMACS も
             # "degrees of freedom ... is 9150" = 3N と報告した)。
             # `comm-mode = Linear` (GROMACS の既定) で流すなら 3 を引く方が
             # 正しいので、 --nh-dof 3N-3 で選べるようにしてある。
@@ -981,10 +983,10 @@ class TopExporter:
             g = max(1, 3 * n - 3) if nh_dof == "3N-3" else max(1, 3 * n)
 
             # 数え方に合わせて重心運動の除去も設定する。 これを書かないと
-            # J-OCTA は `comm-mode = None` の mdp を出すので、 --nh-dof 3N-3 で
-            # Q を 3N-3 で作っても GROMACS は 3N で積分してしまい、
-            # **オプションが説明どおりに動かない** (2026-09-12 に Windows 実機で
-            # 指摘された)。 J-OCTA の対応:
+            # 下流の変換器が `comm-mode = None` の mdp を出すので、
+            # --nh-dof 3N-3 で Q を 3N-3 で作っても GROMACS は 3N で積分し、
+            # **オプションが説明どおりに動かない** (2026-09-12 に実機で確認)。
+            # UDF から mdp への対応:
             #   Calc_Moment=0                        -> comm-mode = None
             #   Calc_Moment=1, Stop_Translation=1    -> comm-mode = Linear
             #   さらに Stop_Rotation=1               -> comm-mode = Angular
@@ -998,38 +1000,38 @@ class TopExporter:
                 uobj.put(100, _moment + "Interval_of_Calc_Moment")
             Q = g * KB_AMU_A2_PS2_K * model.ref_t * (model.tau_t ** 2)
             # ★ NVT だけでなく NPT 系にも同じ Q を入れる。
-            # Export_GROMACS.py は **アルゴリズムごとに別のフィールドから Q を
-            # 読み**、tau_t = sqrt(Q/T * 4pi^2) を作る。 NVT の分しか書かないと、
-            # J-OCTA 側で NPT に切り替えた瞬間に Q=0 が読まれて **tau_t = 0** に
-            # なり、 Nose-Hoover が 0 除算して箱が nan に飛ぶ (2026-09-12 実機)。
-            # NVT では露見しないのはこのため。
+            # Q は **アルゴリズムごとに別のフィールド**に置かれる。 NVT の分
+            # しか書かないと、 NPT に切り替えた瞬間に Q=0 が読まれて
+            # **tau_t = 0** になり、 Nose-Hoover が 0 除算して箱が nan に飛ぶ
+            # (2026-09-12 実機)。 NVT では露見しないのはこのため。
             for _alg in ("NVT_Nose_Hoover",
                          "NPT_Parrinello_Rahman_Nose_Hoover",
                          "NPT_Andersen_Nose_Hoover"):
                 uobj.put(Q, "Simulation_Conditions.Solver.Dynamics.%s.Q" % _alg)
 
-            # J-OCTA の Export_GROMACS.py は Q から tau_t を戻すとき
-            # 分母の g*k_B を落としており、 tau_t が sqrt(3N) に比例して
-            # 増大する。 こちらが書く Q は正しいが、 **J-OCTA を通すと
-            # 意図と違う tau_t が出る** ので、 その値を知らせておく。
-            # abmptools.udf2gro は正しい式を使う (docs/udf2gro.md)。
+            # この Q が GROMACS の tau_t に直るとどうなるかを知らせておく。
+            # 変換器によっては分母の g*k_B を落として tau_t を戻すものがあり、
+            # その場合 tau_t が sqrt(3N) に比例して増大する。 書く Q は
+            # どちらでも同じなので、 **戻した先の値**を見て確かめられるように
+            # 両方出す。 abmptools.udf2gro は g*k_B を含む式を使う
+            # (docs/udf2gro.md)。
             _ml2 = 1.0 * 0.1 ** 2          # amu, nm を仮定した Unit_Parameter
             _correct = 2.0 * math.pi * math.sqrt(
                 Q * _ml2 / (g * 0.0083144626 * model.ref_t))
-            _jocta = 2.0 * math.pi * math.sqrt(Q * _ml2 / model.ref_t)
-            # J-OCTA 経由でも実害が出るのは tau_t が実用域 (0.5-2 ps) を
-            # 大きく外れるときだけ。 小さい系では差が小さいので INFO に留める。
+            _nodof = 2.0 * math.pi * math.sqrt(Q * _ml2 / model.ref_t)
+            # 実害が出るのは tau_t が実用域 (0.5-2 ps) を大きく外れるときだけ。
+            # 小さい系では差が小さいので INFO に留める。
             _msg = ("Nose-Hoover Q = %.1f gives tau_t = %.3f ps through "
-                    "abmptools.udf2gro. J-OCTA's Export_GROMACS.py would give "
-                    "%.3f ps for the same file, because its formula drops "
-                    "g*k_B; see docs/udf2gro.md. Override with "
-                    "`udf2gro --tau-t`, or edit the .mdp.")
-            if _jocta > 2.0:
-                logger.warning(_msg, Q, _correct, _jocta)
+                    "abmptools.udf2gro. A converter that drops g*k_B from the "
+                    "formula would give %.3f ps for the same file; see "
+                    "docs/udf2gro.md. Override with `udf2gro --tau-t`, or "
+                    "edit the .mdp.")
+            if _nodof > 2.0:
+                logger.warning(_msg, Q, _correct, _nodof)
             else:
-                logger.info(_msg, Q, _correct, _jocta)
+                logger.info(_msg, Q, _correct, _nodof)
 
-            # Cell_Mass は系の全質量。 J-OCTA 自身がそうしている
+            # Cell_Mass は系の全質量。 UDF を書き出す側の慣行に合わせている
             # (`CognacSystemUtil.setCellMass`。 実測 4 系で一致)。
             # 未記入 (0) だと tau_p の式が 0 になり、 下限 2.0 に丸められる。
             total_mass = sum(
@@ -1097,11 +1099,11 @@ class TopExporter:
         ``len(method) > 0`` and then match it against the deformations they
         support, so "None" reads as an unrecognised deformation and aborts::
 
-            Export_GROMACS.GROMACS_ConvertError:
+            GROMACS_ConvertError:
                 Error!! deformation type 'None' is not supported.
 
-        (J-OCTA 11.1 ``python/Export_GROMACS.py`` lines 1722-1737;
-        ``abmptools.udf2gro`` carried the same guard until 2.13.4.)  J-OCTA
+        (seen in a downstream GROMACS converter;
+        ``abmptools.udf2gro`` carried the same guard until 2.13.4.)  That converter
         writes "" in its own UDFs, so "" is what both COGNAC and those
         converters accept.
 
@@ -1113,7 +1115,7 @@ class TopExporter:
 
     @staticmethod
     def _write_molecular_attributes(uobj, model: TopModel) -> None:
-        """Port of add_molecular_attributes_byTop."""
+        """Molecular_Attributes — bonded terms per molecule type."""
         display_map = build_display_type_map(model)
         uobj.jump(-1)
 
@@ -1193,8 +1195,8 @@ class TopExporter:
                          "Molecular_Attributes.Torsion_Potential[].Amber.trans_is_0",
                          [j])
                 # ★ 1-4 のスケーリングを User_Torsion に添える。 これが無いと
-                # J-OCTA は 1-4 の扱いを決められず、 NPT が流せない (2026-09-12
-                # に実機で確認。 J-OCTA 側で「力場を取得しなおす」と SCNB/SCEE
+                # 下流は 1-4 の扱いを決められず、 NPT が流せない (2026-09-12
+                # に実機で確認。 下流で力場を取得しなおすと SCNB/SCEE
                 # が入り、 それで通るようになった)。 名前は AMBER の慣用だが、
                 # 値は GROMACS の fudge をそのまま入れる (実測で一致)。
                 # 多重度の 2 つめ以降には付けない —— 取り直し後のファイルも
@@ -1236,7 +1238,7 @@ class TopExporter:
 
     @staticmethod
     def _write_interactions(uobj, model: TopModel) -> None:
-        """Port of add_interactions."""
+        """Interactions — nonbonded pair styles and mixing."""
         uobj.jump(-1)
 
         # Collect atom types actually referenced in Set_of_Molecules

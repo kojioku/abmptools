@@ -24,9 +24,8 @@ HOOMD の `tau` は緩和時間なので `2π` は付かない)。
 `g` は UDF の `Dynamics_Conditions.Moment` から決める (`comm-mode = Linear`
 なら `3N-3`)。`--tau-t` で直接指定もできる。
 
-> J-OCTA の `Export_GROMACS.py` も同じ式なので、同じ UDF から違う `tau_t` が
-> 出る。同じ J-OCTA でも `Export_LAMMPS.py` / `Export_HOOMD_blue.py` は `3N`
-> で割っている。`gro2udf` はこの差を書き出し時に警告として出す。
+> **`g·k_B` を落とす変換器を通すと違う `tau_t` が出る。** `gro2udf` は
+> 書き出し時に両方の値を警告として出すので、戻した先で確かめられる。
 
 ### Fixed — `tau_p` の `Cell_Mass` 換算が 2 か所ずれていた
 
@@ -93,25 +92,24 @@ MTTK は選べない (LINCS / SETTLE と併用できないため)。
 
 COGNAC は熱浴・圧力浴を**質量** (`Q` / `Cell_Mass`) で持ち、GROMACS は**時間**
 (`tau_t` / `tau_p`) で持つ。この橋渡しの式と根拠、アルゴリズムの対応表、
-J-OCTA との差を書いた。別ソルバまで含めた対応は moldeck の
-`docs/md_solver_matrix.md`。
+別ソルバまで含めた対応は moldeck の `docs/md_solver_matrix.md`。
 
 ### Fixed — NPT 系の Nose-Hoover `Q` と `Cell_Mass` が空で、NPT が流せなかった
 
-`Export_GROMACS.py` は**アルゴリズムごとに別のフィールド**から `Q` を読み、
+UDF は**アルゴリズムごとに別のフィールド**に `Q` を持ち、変換器はそこから
 `tau_t = 2π·√(Q·Mass·Length²/T)` を作る。`gro2udf` は `NVT_Nose_Hoover.Q` しか
-書いていなかったので、**J-OCTA で NPT に切り替えた瞬間に `Q = 0` が読まれ
+書いていなかったので、**NPT に切り替えた瞬間に `Q = 0` が読まれ
 `tau_t = 0` になり、Nose-Hoover が 0 除算して箱が `nan` に飛んでいた**。
 NVT で露見しなかったのはこのため。
 
 `Cell_Mass` (バロスタット質量) も未記入で、`tau_p` の式が 0 になり下限 2.0 に
-丸められていた。J-OCTA は `CognacSystemUtil.setCellMass` で**系の全質量**を
-入れるので、それに合わせた。
+丸められていた。`CognacSystemUtil.setCellMass` の慣行に合わせ、**系の全質量**を
+入れる。
 
 ```
 修正前  NVT.Q = 22815.7   NPT.Q = 0.0        Cell_Mass = 0.0     → tau_t = 0.0
 修正後  NVT.Q = 22823.2   NPT.Q = 22823.2    Cell_Mass = 14076.4 → tau_t = 5.48
-J-OCTA  NVT.Q = 22823.2   NPT.Q = 22823.2    Cell_Mass = 14076.4
+参照値  NVT.Q = 22823.2   NPT.Q = 22823.2    Cell_Mass = 14076.4
 ```
 
 ### Fixed — `--nh-dof 3N-3` が mdp と食い違っていた
@@ -120,7 +118,7 @@ J-OCTA  NVT.Q = 22823.2   NPT.Q = 22823.2    Cell_Mass = 14076.4
 **GROMACS は 3N で積分していた**。オプションが説明どおりに動いていない状態
 (2026-09-12 に Windows 実機で指摘)。
 
-`comm-mode` は UDF から制御できる。`Export_GROMACS.py` は
+`comm-mode` は UDF から制御できる。変換器は
 `Dynamics_Conditions.Moment` の 3 フラグを見る:
 
 ```
@@ -138,16 +136,16 @@ Calc_Moment=1, Stop_Translation=1   -> comm-mode = Linear
 
 ### Added — `--nh-dof` (自由度の数え方)
 
-`Q = g·k_B·T·τ²` の `g`。**既定は `3N`** で、J-OCTA が書く値と一致する。
+`Q = g·k_B·T·τ²` の `g`。**既定は `3N`** で、既存 UDF の値と一致する。
 
 | | いつ |
 |---|---|
-| `3N` (既定) | **J-OCTA の mdp は `comm-mode = None`** で重心運動を除かない |
+| `3N` (既定) | UDF 書き出しの慣行が `comm-mode = None` で重心運動を除かない |
 | `3N-3` | **`comm-mode = Linear` (GROMACS の既定) で流す**とき |
 
-根拠は実測。J-OCTA が書いた UDF **4 系 (原子数 23 / 80 / 110 / 3050)** の `Q` が
+根拠は実測。既存の UDF **4 系 (原子数 23 / 80 / 110 / 3050)** の `Q` が
 いずれも `3N·k_B·T·(0.1 ps)²` に乗る (逆算した τ が 4 系とも 0.099999972 ps)。
-**`3N-3` では乗らない** —— 80 原子で 0.1006 とずれる。GROMACS 自身も J-OCTA の
+**`3N-3` では乗らない** —— 80 原子で 0.1006 とずれる。GROMACS 自身も その
 mdp に対し `degrees of freedom ... is 9150.00` (= 3×3050) と報告した。
 
 原子数が同じ 110 で全質量だけ違う 2 系 (sys1 655.87 / sys3 440.94) の `Q` が
@@ -157,20 +155,20 @@ mdp に対し `degrees of freedom ... is 9150.00` (= 3×3050) と報告した。
 アンサンブルは変えないので、大きい系では実害はない。
 
 > **`tau_t` は系のサイズとともに大きくなる。** 規約に完全準拠しても 3050 原子で
-> 5.48 ps。J-OCTA が書く `Q` の意味 (自由度と `k_B` を含む物理的な熱浴質量) と
-> 読み戻す式 (`2π√(Q/T)`) が噛み合っていないためで、**J-OCTA が自分で作った
+> 5.48 ps。`Q` の意味 (自由度と `k_B` を含む物理的な熱浴質量) と
+> 読み戻す式 (`2π√(Q/T)`) が噛み合っていないためで、**書いた側が自分で作った
 > UDF でも同じ**。`.mdp` は雛形と考え、本番では上書きすること。
 
 テスト 11 件追加 (`tests/test_gro2udf_nose_hoover.py`、4 系の実測値を回帰値に)。
-`docs/gro2udf.md` に「★ J-OCTA へ渡すときに要るもの」節を新設し、今回の 5 件を
+`docs/gro2udf.md` に「★ 下流の GROMACS 変換器へ渡すときに要るもの」節を新設し、今回の 5 件を
 まとめた。
 
 
-### Fixed — Amber 二面角に 1-4 のスケーリングが無く、J-OCTA で NPT が流せなかった
+### Fixed — Amber 二面角に 1-4 のスケーリングが無く、NPT が流せなかった
 
 `User_Torsion.Parameters[]` を**空のまま**にしていた。UDF は形式として正しく、
-変換も GROMACS 書き出しも通るが、**J-OCTA は 1-4 の扱いをここから読む**ので、
-空だと決められない。上の 3 点を直してもなお NPT が流せず、J-OCTA 側で
+変換も GROMACS 書き出しも通るが、**下流は 1-4 の扱いをここから読む**ので、
+空だと決められない。上の 3 点を直してもなお NPT が流せず、下流側で
 「力場を取得しなおす」と通る、という報告から判明した (2026-09-12 実機)。
 取り直した後のファイルには `SCNB` / `SCEE` が入っていた。
 
@@ -184,23 +182,23 @@ mdp に対し `degrees of freedom ... is 9150.00` (= 3×3050) と報告した。
   AMBER の SCNB は本来「割る数」だが、**実測で一致したのは倍率の方**だった
 - **多重度の 2 つめ以降 (`:1`, `:2`) には付けない。** 取り直し後のファイルも
   先頭の項にだけ持っていた
-- 検算: 修正版を `Export_GROMACS.py` に通すと、出てくる `.top` に
+- 検算: 修正版を下流の GROMACS 変換器に通すと、出てくる `.top` に
   `fudgeLJ 0.5` / `fudgeQQ 0.83333333` が入り、1-4 対 351 組も保たれる
 
 テスト 6 件追加 (`tests/test_gro2udf_torsion_scaling.py`)。
 
 **この一連の 4 件は、どれも「変換は通り、下流のスキーマ検証も通り、NVT では
 露見せず、NPT でだけ落ちる」という形だった。** 静的セル / テンプレートの自動採用 /
-`FF=n` / 1-4 スケーリングの 4 点で、`gro2udf` の出力は J-OCTA が力場を
+`FF=n` / 1-4 スケーリングの 4 点で、`gro2udf` の出力は下流が力場を
 取り直した後のファイルと全項目で一致するようになった。
 
 
-### Fixed — `gro2udf` の UDF が J-OCTA で NPT を流せなかった
+### Fixed — `gro2udf` の UDF が下流の変換器で NPT を流せなかった
 
-J-OCTA 側で「力場を取得しなおす」と流せるようになる、という報告から追った。
+下流側で力場を取得しなおすと流せるようになる、という報告から追った。
 取り直した後のファイルと突き合わせて、差は 2 点だった。
 
-**1. `Unit_Parameter.Comment` が空だった。** J-OCTA はここの `FF=n` で力場を
+**1. `Unit_Parameter.Comment` が空だった。** 下流はここの `FF=n` で力場を
 判定する。空だと「力場が分からない」扱いになる。同梱テンプレートが空のままで、
 `.top` には力場の種類が書かれていないので、こちらで名乗るしかない。
 
@@ -209,19 +207,19 @@ J-OCTA 側で「力場を取得しなおす」と流せるようになる、と�
 `FF=7` のような文字列も受ける。`--ff ""` で何も書かない。**テンプレート由来の
 値は既定で残す** (潰さないため)。
 
-番号は `J-OCTA/conf/modeo.conf` の力場の並び (0 始まり)。実データ 3 件で検算:
-GAFF 型の UDF が `FF=2`、DREIDING 型 (`C_3` / `C_33`) の J-OCTA 同梱サンプルが
+番号は力場定義ファイルの並び (0 始まり)。実データ 3 件で検算:
+GAFF 型の UDF が `FF=2`、DREIDING 型 (`C_3` / `C_33`) の参照サンプルが
 `FF=4`、力場取り直し後のファイルが `FF=2`。
 
 **2. ポテンシャル名に index を無条件で付けていた。** `c3-hc-0` / `c3-c3-1` /
 `c3-c3-c3-c3-2:0` のようになる。UDF の中では表と参照が揃うので解決でき、
-`Export_GROMACS.py` も分子側の `Potential_Name` で引くだけなので変換は通る。
-それでも **J-OCTA は正規形を期待する** —— 力場を取り直すと、名前がちょうど
+下流も分子側の `Potential_Name` で引くだけなので変換は通る。
+それでも **下流は正規形を期待する** —— 力場を取り直すと、名前がちょうど
 連番の無い形に書き直されていた。
 
 型の組み合わせが重なるときだけ連番を付けるようにした (`c3-hc`, `c3-hc-1`)。
 名前は UDF のキーなので重複はさせられない。多重度の `:0` / `:1` は従来どおりで、
-これは J-OCTA 側も同じ形だった。
+これは参照 UDF も同じ形だった。
 
 修正後の名前は取り直し後のファイルと完全に一致する:
 
@@ -235,7 +233,7 @@ Torsion  c3-c3-c3-c3:0, c3-c3-c3-c3:1, c3-c3-c3-c3:2, c3-c3-c3-hc, hc-c3-c3-hc
 テスト 7 件追加 (`tests/test_gro2udf_potential_names.py`)。
 
 
-### Fixed — `gro2udf` が静的セルを書かず、J-OCTA 側で箱が inf になっていた
+### Fixed — `gro2udf` が静的セルを書かず、下流で箱が inf になっていた
 
 `gro2udf` はセルを**動的レコードにしか書いていなかった**。静的
 `Structure.Unit_Cell` と `Initial_Structure.Initial_Unit_Cell` はテンプレートの
@@ -251,7 +249,7 @@ Torsion  c3-c3-c3-c3:0, c3-c3-c3-c3:1, c3-c3-c3-c3:2, c3-c3-c3-hc, hc-c3-c3-hc
 
 レコード側は正しいので、変換も下流のスキーマ検証も何も言わない。静的側を読む
 実装に渡したときだけ、**座標は新しい箱・セルは古い箱**という組み合わせになる。
-**J-OCTA の GROMACS コンバータがそれで、変換は通り、実行時にセルが inf になった**
+**下流の GROMACS コンバータがそれで、変換は通り、実行時にセルが inf になった**
 (2026-09-11 に実機で報告)。
 
 **NVT では箱が変わらないので露見しない。NPT を通した軌跡でだけ壊れる。**
@@ -290,11 +288,11 @@ Note: sys_S10.udf exists but is NOT used. Templates are only used when
 ### Changed — Windows: `--user --no-deps` を既定にし、`B-0` / `B-1` / `B-2` をやめた
 
 venv + constraints を推奨にしていたが、**使うたびに 2 手の有効化が要る**。
-`jocta_env.bat` の取り込みと venv の activate で、しかも**順序が決まっている**
+同梱環境の環境変数バッチの取り込みと venv の activate で、しかも**順序が決まっている**
 (bat が `PATH` を組み立て直すので、逆にすると `python` が同梱の方に戻る)。
 
 `--user --no-deps` なら **有効化が要らない**。user site は同梱の site-packages より
-先に読まれるので、J-OCTA からコンソールを開けばそのまま動く。依存が解決されない
+先に読まれるので、同梱環境のコンソールを開けばそのまま動く。依存が解決されない
 欠点は残るが、実際に足りないのは MDAnalysis 一式だけで、それは分かっている。
 
 - `#### 6.3.1 入れる — `--user --no-deps` (既定)` /
@@ -367,14 +365,14 @@ guard は**検出しかしない**。これらを変換できるようにする�
 - 機能ごとに何が要るか → プラットフォーム別の 1 行 → native Windows で変わる 2 箇所、
   という順に並べ直した
 - **UDFManager の調達を 3 経路として整理** —— WSL でプリビルドの `.so` を使う (推奨) /
-  WSL から Windows の J-OCTA python を呼ぶ / Windows の J-OCTA Python を使う
+  WSL から Windows の同梱 python を呼ぶ / Windows の同梱 Python を使う
 - プリビルド `.so` は **GOURMET のビルド不要**。足りないのは `libjpeg.so.62` と
   `libGLU.so.1` の 2 本だけで、root が無くても `dpkg-deb -x` + `LD_LIBRARY_PATH`
   で通る。**`libjpeg.so.8` を `.62` に symlink してはいけない** (ABI が違う)
-- **J-OCTA コンソールは venv + constraints を推奨に変更**した。同梱を継承する venv を
+- **同梱環境のコンソールは venv + constraints を推奨に変更**した。同梱を継承する venv を
   作り、同梱の版を pin してから入れる。従来の `--user --no-deps` は依存を解決しない
   ため、フォールバックとして残した。あわせて **先に `--user` で入れたものを消す手順を
-  追加** —— user site は J-OCTA 同梱より優先されるので、残っていると venv を作っても
+  追加** —— user site は同梱の site-packages より優先されるので、残っていると venv を作っても
   そちらが混ざる
 
 ### Docs — amorphous: IMC + PVP の原子数を訂正
@@ -499,10 +497,10 @@ Bond / Angle が厳密一致、二面角の総和も一致。回帰コーパス 
 
 ## [2.13.5] - 2026-08-30
 
-### Fixed — gro2udf: 書き出した UDF が J-OCTA の GROMACS コンバータで弾かれる
+### Fixed — gro2udf: 書き出した UDF が下流の GROMACS コンバータで弾かれる
 
 ```
-Export_GROMACS.GROMACS_ConvertError:
+GROMACS_ConvertError:
     Error!! deformation type 'None' is not supported.
 ```
 
@@ -522,13 +520,12 @@ if len(deform) > 0:                      # ← "None" は 4 文字なので入�
 ```
 
 と `len(...) > 0` で空判定するため、**4 文字の `"None"` が「知らない変形」として
-弾かれる** (J-OCTA 11.1 `python/Export_GROMACS.py` 1722-1737 行)。
-J-OCTA は自分の出力には `""` を書くので、`""` が COGNAC と両コンバータの
+弾かれる**。書き出し側は自分の出力には `""` を書くので、`""` が COGNAC と両コンバータの
 どちらも受ける値になる。
 
 - 同梱テンプレートのうち **cognac10.1 版だけが `"None"`** を持っていた
-  (cognac11.2 版は元から `""`)。`--cognac-version 101` は OCTA8.4 / J-OCTA 向けの
-  経路なので、**まさに J-OCTA に渡す UDF だけが落ちる**組合せだった
+  (cognac11.2 版は元から `""`)。`--cognac-version 101` は OCTA8.4 向けの
+  経路なので、**まさに下流に渡す UDF だけが落ちる**組合せだった
 - テンプレートを修正し、書き出し時にも `"None"` → `""` の正規化を入れた。
   `Cell_Deformation` / `Lees_Edwards` を意図的に設定したテンプレートはそのまま残す
 - 既存 UDF の修正用に `work/gro2udf_fix_20260830/fix_deformation_none.py` を用意
@@ -673,7 +670,7 @@ UDF は静的セクションと動的レコードに分かれ、`gro2udf` が座
 `--template` に渡した UDF の内容がそのまま残り、ここが書き換えられることは無い。
 
 同梱テンプレートはこの部分が空なので何も主張しない。問題になるのは**実在の UDF
-をテンプレートに渡したとき**で、J-OCTA や COGNAC の系を往復させるときは自然に
+をテンプレートに渡したとき**で、COGNAC の系を往復させるときは自然に
 そうなる。出来上がる UDF は静的側に**変換前**の座標と箱、レコードに**変換後**の
 それを同時に持つ。**どちらも形式としては正しいので `gmx` も COGNAC も
 OCTA viewer も何も言わず**、静的側を初期構造として読む経路に乗せると、変換した
@@ -699,7 +696,7 @@ OCTA viewer も何も言わず**、静的側を初期構造として読む経路
 ロジック自体は正しい**。実際の換算は UDFManager が UDF の `Unit_Parameter`
 (1 sigma が何 nm か、1 epsilon が何 kJ/mol か) を基準に行う。
 
-**問題**: `Unit_Parameter` が無いと換算は**黙って素通りする**。J-OCTA lemon が出す
+**問題**: `Unit_Parameter` が無いと換算は**黙って素通りする**。OCTA lemon が出す
 全原子 UDF はこれを持たないため、Å の座標が nm、kcal/mol の epsilon が kJ/mol と
 して書き出されていた。`gmx grompp` は形式が正しいので通してしまい、**箱が 10 倍
 (= 密度 1/1000) の系が警告なしに走る**ため極めて気付きにくい。
@@ -730,10 +727,10 @@ LJ c3 `σ=0.339967 nm / ε=0.4577296 kJ/mol`、1-4 対 351 組、box 2.29911 nm 
 
 テスト: `tests/test_udf2gro_unit_parameter.py` (7 件)。
 
-**影響範囲**: J-OCTA の分子モデリング API (lemon 経路) が出す UDF は
+**影響範囲**: 一部のモデリング API が出す UDF は
 `Unit_Parameter` を必ず持つ (`Length = 0.1` nm / `Energy = 4.184` kJ/mol = σ 1 Å・ε 1 kcal/mol) ため、
 **この経路の挙動は変わらない**。`RuntimeError` で止まるのは手書き UDF や
-`Unit_Parameter` を書かない他ツール由来のものに限られる。J-OCTA 生成 UDF での
+`Unit_Parameter` を書かない他ツール由来のものに限られる。それら 生成 UDF での
 換算は GAFF の既知値と一致することを別途確認済み (結合 c3-hc `kb` = 330.7 vs
 GAFF 330.6 kcal/mol/Å²、角度 hc-c3-hc は UDF が補角 72.42° で保持しているのを
 107.58° に正しく復元、電荷は `ES_Element / 18.224159264` で e 単位に一致)。
@@ -1266,8 +1263,8 @@ Release も削除した。同一バージョン番号は PyPI の仕様上再利
 ### Changed — hbond: `_colored.bdf`(Mol_Name 分子色分け)を opt-in 化(既定 `--colorize-mode` を `action` に)
 
 - `--colorize-mode` の既定を `molname`(v1.25 legacy)→ **`action`** に変更。既定出力は
-  `.bdf`(素)/ `_attribute_rec{N}.bdf`(J-OCTA 属性)/ `_action.bdf`(官能基 action)の 3 種で、
-  **`_colored.bdf` は既定では出力しない**。J-OCTA は別方法(action / 属性)で分子色分けできるため。
+  `.bdf`(素)/ `_attribute_rec{N}.bdf`(viewer 属性)/ `_action.bdf`(官能基 action)の 3 種で、
+  **`_colored.bdf` は既定では出力しない**。viewer は別方法(action / 属性)で分子色分けできるため。
 - `_colored.bdf`(imc の Mol_Name → `IMC_DUAL/CHAIN/SINGLE/FREE` リネーム + Draw_Attributes)が
   欲しいときは **`--colorize-mode molname`(colored のみ)または `both`(action + colored)を明示**。
 - `AnalyzerConfig.colorize_mode` 既定も `"action"` に。`colorize_udf`(直接呼び出し)は不変。
@@ -1294,9 +1291,9 @@ Release も削除した。同一バージョン番号は PyPI の仕様上再利
   (IMC/APZ/ASD)の `_action.bdf` を per-frame attr 読み取り版に再生成(`.act` 数 KB、BDF に
   record 毎属性)。rec0/50/100 で 414 原子が role 変化することを実機確認。
 
-### Changed — hbond: J-OCTA 属性着色を 1 record の `_attribute_rec{N}.bdf` に分離
+### Changed — hbond: viewer 属性着色を 1 record の `_attribute_rec{N}.bdf` に分離
 
-- J-OCTA は `Attributes[]` を**起動時に 1 回だけ読み、record スライダでは読み直さない**(実機確認済)。
+- viewer は `Attributes[]` を**起動時に 1 回だけ読み、record スライダでは読み直さない**(実機確認済)。
   そのため多 record の `<prefix>.bdf` に静的な per-atom 属性タグを付けると「スライダで色が変わるはず」と
   **誤解を生む**。→ **特定フレーム(既定=最終解析フレーム `N`)を 1 record だけ切り出した
   `<prefix>_attribute_rec{N}.bdf`** に hbond `Attributes[]` を付与するよう変更。ファイル名に record 番号を
@@ -1309,16 +1306,16 @@ Release も削除した。同一バージョン番号は PyPI の仕様上再利
   多 record 付与に戻す)。config `do_attribute_single`(既定 True)/`attribute_record`。test +2。
   実機: imc で `_attribute_rec100.bdf` 1 record・1.6 MB、topology/hbond 属性保持を確認。
 
-### Fixed — gro2udf: 圧力に Pres. DC を加算(barostat 目標・J-OCTA と一致)
+### Fixed — gro2udf: 圧力に Pres. DC を加算(barostat 目標・参照実装と一致)
 
 - `--energy` 経路の `Statistics_Data.Pressure` が **GROMACS の生 `Pressure`(virial のみ、
   long-range 分散補正なし)**を書いていたのを修正。GROMACS の `Pressure` は分散補正を含まず、
   **barostat 制御の真の圧力 = `Pressure` + `Pres. DC`**。`_XVG_TO_UDF_STATS` に `Pres. DC` を
   追加して `Statistics_Data.Pressure` へ fold(既存の合算機構=Proper+Improper Dih.→Torsion と同じ)。
-  これで **J-OCTA の gro→bdf 変換と一致**する。従来コメントの「DC は Pressure に含まれるので足さない」
+  これで **参照実装の gro→bdf 変換と一致**する。従来コメントの「DC は Pressure に含まれるので足さない」
   という判断は誤りだった。
 - 実機検証(DRO10-PVP10 NPT、`ref_p = 1 bar`、100k steps): avg `Pressure` 単独 = **44 MPa**(目標から
-  大きく外れる)に対し avg(`Pressure`+`Pres. DC`)= **0.22 MPa ≈ 0.1 MPa** 目標で、J-OCTA-export BDF の
+  大きく外れる)に対し avg(`Pressure`+`Pres. DC`)= **0.22 MPa ≈ 0.1 MPa** 目標で、参照実装が書き出した BDF の
   `Statistics_Data.Pressure`(Total_Average 0.215 MPa)とも一致。test +2。
 
   - `fragment_protein(mol) -> CutSet`: protein を **CA–C 切断 (SP3) → heavy-atom
@@ -1339,11 +1336,11 @@ Release も削除した。同一バージョン番号は PyPI の仕様上再利
 - **`--attributes-per-record` の実装を全面変更**(以下の一連の Fixed を統合・最終化)。COGNAC は
   `Set_of_Molecules` を `\begin{global_def}`(record 非依存)で宣言し 1 回だけ格納する。ここへ
   per-record Attribute を書く従来方式は、ブロックを per-record 化させ **肥大化 + topology 欠落**を
-  招き J-OCTA/COGNAC モデラを壊した(全ブロック丸コピーで回避したが今度は BDF が肥大)。
+  招き COGNAC モデラを壊した(全ブロック丸コピーで回避したが今度は BDF が肥大)。
 - **最終方式**: `Set_of_Molecules` は **global のまま一切触らない**。per-frame は **GOURMET action**
   が `{record -> roles}` テーブルを埋め込み **`currentRecord()`**(cognac_draw.act と同じ)で現フレーム
   を引いて overlay 描画。`_action.bdf` は入力素コピー(topology 完全・肥大化なし)。`.bdf`/`_colored.bdf`
-  の Attribute/Mol_Name タグは **global(`jump(-1)`)へ 1 回だけ**書く=静的(J-OCTA は静的フィルタのみ、
+  の Attribute/Mol_Name タグは **global(`jump(-1)`)へ 1 回だけ**書く=静的(viewer は静的フィルタのみ、
   per-frame は原理的に不可)。BDF サイズが正常化(imc .bdf 47.8→25 MB)。`colorize_udf_action_per_record`
   /`write_show_python_script_per_record` は埋込テーブル+`currentRecord()`、`write_hbond_attributes`
   (+generic)/`colorize_udf` は global-only 書込に変更。test 更新(action が BDF 不変+テーブル埋込を検証)。
@@ -1354,7 +1351,7 @@ Release も削除した。同一バージョン番号は PyPI の仕様上再利
   **その record の Set_of_Molecules から Attribute 以外(`Mol_Name`/`Atom_Name`/`Atom_Type_Name`/
   `bond[]` 等)が丸ごと欠落する**バグを修正。原因は record 非依存の `Set_of_Molecules` ブロックが
   per-record put で per-record コピーへ昇格する際、明示的に再 put しないフィールドが引き継がれ
-  ないため。**GOURMET autorun は座標から描くので無症状**だったが、**J-OCTA ポスト描画 /
+  ないため。**GOURMET autorun は座標から描くので無症状**だったが、**viewer のポスト描画 /
   COGNAC モデラは atom name/type・分子名・結合を record から直接読むため認識不能**になっていた。
 - `write_hbond_attributes_per_record` が **`Set_of_Molecules` ブロック全体を record 不変 topology
   として一度キャッシュ(`get`)し、触れた各 record で丸ごと再 put(`put`)してから Attribute を
@@ -1371,7 +1368,7 @@ Release も削除した。同一バージョン番号は PyPI の仕様上再利
   色が固定)だったが、`--attributes-per-record`(config `attributes_per_record=True`)を
   付けると **各 record 自身の H-bond role** を `Set_of_Molecules.molecule[].atom[].
   Attributes[]`(この容器は COGNAC/gro2udf スキーマで **record 可変**)に書き込む。
-  OCTA viewer / J-OCTA が `hbond` Attribute で色分け・フィルタする経路がそのまま
+  OCTA viewer が `hbond` Attribute で色分け・フィルタする経路がそのまま
   per-snapshot 化し、H-bond ネットワークの生成消滅が軌道再生で追える。
 - あるフレームで idle な atom は `inactive_value`(既定 `'none'`)に **リセット**して
   書く(前フレームの色が滲まない)。タグ対象は全 record で active になった atom の和集合で
@@ -1385,8 +1382,8 @@ Release も削除した。同一バージョン番号は PyPI の仕様上再利
   `hbond` Attribute を描画時に読んで sphere を塗る** autorun action になる
   (`colorize_udf_action_per_record`)。autorun は record 切替で再実行され `get`/`size` は
   現在 record 参照(座標が動くのと同じ機構)なので **GOURMET 上で色が snapshot ごとに変わる**
-  = J-OCTA の Attribute 再読込挙動に依存しない確実な per-frame 経路。従来の静的 action
-  (role を最終フレーム固定で埋込)は原子は動くが色不変だった。`_show.py`(J-OCTA Python
+  = viewer の Attribute 再読込挙動に依存しない確実な per-frame 経路。従来の静的 action
+  (role を最終フレーム固定で埋込)は原子は動くが色不変だった。`_show.py`(viewer の Python
   パネル用)も同じ読取ロジック。実機(acetaminophen generic 5 record)で `_action.bdf` に
   per-record Attributes 同梱 + `.act` が Attributes 読取形になることを確認。test +3(計 90 passed)。
 

@@ -100,7 +100,7 @@ class TopRawData:
 
 
 # ---------------------------------------------------------------------------
-# Pure helper functions (module level, same logic as convert_gromacs_udf.py)
+# Pure helper functions (module level)
 # ---------------------------------------------------------------------------
 
 def _is_comment(line: str) -> bool:
@@ -366,7 +366,7 @@ class TopParser:
         Parse [ moleculetype ], [ atoms ], [ bonds ], [ angles ],
         [ dihedrals ], and [ molecules ].
 
-        Returns a 9-tuple matching convert_gromacs_udf.py read_top_data():
+        Returns a 9-tuple:
           (mol_types, atomlist, bondlist, anglelist, torsionlist,
            mol_instance_list,
            bond_types_from_mol, angle_types_from_mol, torsion_types_from_mol)
