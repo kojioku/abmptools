@@ -348,11 +348,13 @@ md/
 > ```
 >
 > 2020 系で使える `pcoupl` は **No / Berendsen / Parrinello-Rahman /
-> Isotropic / MTTK** のみ。`--barostat Parrinello-Rahman`（平衡化済みなら）か
-> `--barostat Berendsen`（詰め込み直後で安定性が要るなら）を指定する。
+> Isotropic / MTTK** のみ。
 >
-> **古い GROMACS が同梱された環境で走らせる場合は注意。** MD パッケージに
-> 付属する GROMACS は本体より数年古いことがある。
+> **古い GROMACS で流すなら `--barostat` を指定する。** 平衡化済みなら
+> `Parrinello-Rahman`、詰め込み直後で安定性が要るなら `Berendsen`。
+>
+> 手元の `gmx` が本体より古いことはよくある (MD パッケージに付属するもの等)。
+> `gmx --version` で確かめる。
 
 綴りは生成時に照合する。間違っていれば `.mdp` を書く前に `ValueError` になる
 (そのまま書くと `grompp` で初めて落ちるため)。

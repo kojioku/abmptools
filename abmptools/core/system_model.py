@@ -335,8 +335,11 @@ class AnnealProtocol:
     #: アンサンブル**を与える。 Parrinello-Rahman は初期応力が大きいと箱が
     #: 振動するため平衡化に向かず、 MTTK は拘束 (LINCS / SETTLE) と併用でき
     #: ない。 非晶質の作成は初期構造が悪い状態から詰める工程なので C-rescale
-    #: が素直。 厳密な PR が要る生産計算や GROMACS 2020 以前では
-    #: "Parrinello-Rahman" を指定する。
+    #: が素直。
+    #:
+    #: **C-rescale は GROMACS 2021 以降。** 2020 系に渡すと grompp が
+    #: `Invalid enum 'C-rescale' for variable pcoupl` で止まる。 古い gmx で
+    #: 流すなら "Parrinello-Rahman" か "Berendsen" を指定する。
     barostat: str = "C-rescale"
     #: 熱浴。 "V-rescale" (既定) / "Nose-Hoover" / "Berendsen" / "no"。
     #:

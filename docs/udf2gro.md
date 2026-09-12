@@ -64,9 +64,37 @@ tau_t = 2π · √( Q_d / (g · k_B · T) )
   k_B = 0.0083144626 amu nm² / (ps² K)
 ```
 
-**`2π` が要る理由。** COGNAC の `Q = g k_B T τ²` の `τ` は応答時間だが、
-GROMACS の `tau_t` は Nose-Hoover では**振動の周期**で、`2π·τ` にあたる。
-LAMMPS や HOOMD は緩和時間を取るので `2π` は付けない。
+**この式は両者のマニュアルに書かれているものを解いただけ。** 導出ではない。
+
+GROMACS リファレンスマニュアル (Nose-Hoover の節、**式 51**):
+
+```
+Q = τ_T² · N_f · k · T₀ / (4π²)
+```
+
+`τ_T` について解くと `τ_T = 2π·√(Q/(N_f·k·T₀))` で、上の式そのもの。
+GROMACS が `Q` ではなく周期を入力させる理由も同じ節にある。
+
+> To maintain the coupling strength, one would have to change Q in proportion
+> to the change in reference temperature. For this reason, we prefer to let the
+> GROMACS user work with the period τ_T of the oscillations of kinetic energy
+> between the system and the reservoir instead.
+
+`.mdp` オプションの説明も同じ:
+
+> for nose-hoover ... **tau-t controls the period of the temperature
+> fluctuations at equilibrium**, which is slightly different from a relaxation
+> time.
+
+COGNAC 側も同じ形で、`Q` は `g·k_B·T` と組で現れる (COGNAC マニュアル
+**式 2.6**、`g`: degrees of freedom):
+
+```
+dζ/dt = ( Σ pᵢ²/mᵢ − g·k_B·T ) / Q
+```
+
+**`2π` は Nose-Hoover のときだけ。** LAMMPS の `Tdamp` や HOOMD の `tau` は
+緩和時間なので付かない。
 
 **`g` の決め方。** UDF の `Dynamics_Conditions.Moment`
 (`Calc_Moment` / `Stop_Translation`) から `comm-mode` が決まるので、それに
