@@ -2,6 +2,53 @@
 
 ## [Unreleased]
 
+### Changed — `gro2udf` / `udf2gro` のリファクタリング
+
+**動作は変えていない。** 名前と関数の切り方だけ。
+
+#### タプル返しをやめた
+
+`udf2gro` の熱浴・圧力浴の抽出が 3-tuple / **7-tuple** を返していて、
+呼び出し側が位置で数えていた。要素はどれも `float` か `str` なので、
+**順序を取り違えても型エラーにならず `.mdp` に違う値が書かれるだけ**になる。
+`ThermostatSettings` / `BarostatSettings` に変えた。
+
+#### 長い関数を、書く対象ごとに分けた
+
+| | 前 | 後 |
+|---|---|---|
+| `udf2gro._build_barostat` | 183 行 | 93 行 + `_barostat_name` / `_reference_pressure` / `_compressibility_tensor` |
+| `gro2udf._set_default_condition` | 163 行 | 23 行 + `_write_potential_flags` / `_write_coupling_masses` / `_write_ewald_defaults` / `_write_time_conditions` |
+
+`_compressibility_tensor` の `Fix_Cell_Length` 分岐は、7 通りの `elif` を
+「動かせる方向」のテーブルに畳んだ。
+
+#### 名前
+
+| 前 | 後 |
+|---|---|
+| `_get_proper_dihedral_params(udf, j, n, kk)` | `_cosine_polynomial_to_proper_dihedral(udf, torsion_index, n_terms, energy_scale)` |
+| `_extract_temperature` / `_extract_pressure` | `_build_thermostat` / `_build_barostat` |
+| `_extract_deform` | `_build_deformation` |
+| `_determine_integrator` | `_build_integrator` |
+| `_search_molname_same_topol` | `_molname_with_same_topology` |
+| `get_bond_name(n1, n2)` ほか | `(type1, type2)` ほか |
+| `ff_comment(ff)` | `(force_field)` |
+
+`Exporter` / `TopExporter` は公開 API なので**名前を変えていない**。代わりに
+`__init__.py` の冒頭で **入口が 2 つあることと使い分け**を表にした
+（UDF がテンプレート = `Exporter` / `.top` から組む = `TopExporter`）。
+
+### Fixed — `_sanitize_gromacs_molname` / `_shorten_molname` が壊れていた
+
+引数名を直したときに本体を直し忘れて `NameError` になったが、**テスト
+1036 件が緑のままだった**。この 2 つが 1 度も実行されていなかったため。
+
+`Mol_Name` に空白や `;` が入ると `.top` の `[ moleculetype ]` が壊れる
+（`;` 以降が黙って捨てられる）経路で、素直な英数字の名前でしか試して
+いなかったことになる。修正のうえテスト 11 件を追加
+（`tests/test_udf2gro_molname_helpers.py`）。
+
 ### Fixed — `udf2gro` の `tau_t` が分子数とともに増えていた
 
 `tau_t` を `2π·√(Q_d/T)` で出していたので、**系を大きくするほど熱浴が鈍く

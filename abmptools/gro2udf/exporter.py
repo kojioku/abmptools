@@ -2,7 +2,12 @@
 """
 exporter.py
 -----------
-Orchestrator: GROParser → GROAdapter → UDFWriter → output UDF.
+既にある UDF の**座標とセルだけ**を .gro で差し替える経路。
+
+GROParser -> GROAdapter -> UDFWriter -> UDF。力場・トポロジ・計算条件は
+テンプレートの UDF から丸ごと引き継ぐので、**COGNAC で組んだ系を GROMACS で
+流して戻す往復**に使う。.top からトポロジごと組み立てたいときは
+:class:`~abmptools.gro2udf.top_exporter.TopExporter`。
 
 Usage::
 
@@ -10,8 +15,7 @@ Usage::
     Exporter().export("test.udf", "output.gro")
     # writes: test_groout.udf  in the current directory
 
-The output filename is always ``{udf_basename}_groout.udf`` placed in the
-current working directory, matching the original gro2udf.py behaviour.
+出力名は常に ``{udf_basename}_groout.udf`` で、カレントディレクトリに置く。
 
 Step-filter logic (replicates importStructure / ConvertStructure):
   - read Output_Interval_Steps from the UDF's static section

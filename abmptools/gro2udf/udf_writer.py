@@ -47,11 +47,11 @@ FF_IDS = {
 }
 
 
-def ff_comment(ff) -> str:
+def ff_comment(force_field) -> str:
     """力場の名前か番号を ``FF=n`` にする。"""
-    if ff is None:
+    if force_field is None:
         return ""
-    s = str(ff).strip()
+    s = str(force_field).strip()
     if not s:                       # "" = 名乗らない (既存の値をそのまま使う)
         return ""
     if s.upper().startswith("FF="):
@@ -62,11 +62,11 @@ def ff_comment(ff) -> str:
     if key not in FF_IDS:
         raise ValueError(
             "unknown force field %r; use one of %s, or a number"
-            % (ff, ", ".join(sorted(FF_IDS))))
+            % (force_field, ", ".join(sorted(FF_IDS))))
     return "FF=%d" % FF_IDS[key]
 
 
-def set_force_field_comment(udf, ff, overwrite: bool = False) -> None:
+def set_force_field_comment(udf, force_field, overwrite: bool = False) -> None:
     """``Unit_Parameter.Comment`` に力場 ID を書く。
 
     下流はここを見て力場を決める。 **空だと「力場が分からない」扱いになり、
@@ -76,7 +76,7 @@ def set_force_field_comment(udf, ff, overwrite: bool = False) -> None:
 
     既存の値は既定では残す。 テンプレート由来の ``FF=n`` を上書きしないため。
     """
-    comment = ff_comment(ff)
+    comment = ff_comment(force_field)
     if not comment:
         return
     try:

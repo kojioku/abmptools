@@ -924,32 +924,31 @@ class TopExporter:
     @staticmethod
     def _set_default_condition(uobj, model: TopModel,
                                nh_dof: str = "3N-3") -> None:
-        """
-        Set electrostatic flags, Nose-Hoover Q, and Ewald parameters.
+        """UDF の Simulation_Conditions と Interactions に既定値を書く。
 
-        Nose-Hoover Q
-        -------------
-        Q [amu·Å²] = g · k_B · T · τ²
+        書く先ごとに分けてある。
 
-        where:
-          g   = 3·N_atoms − 3   (degrees of freedom; COM motion removed)
-          k_B = 0.83144626      amu·Å² / (ps²·K)  (Boltzmann constant in
-                                COGNAC internal units: amu, Å, ps)
-          T   = model.ref_t     [K]   (from MDP ref_t, default 300.0)
-          τ   = model.tau_t     [ps]  (from MDP tau_t, default 0.1)
+        - :meth:`_write_potential_flags`  — どの相互作用を計算するか
+        - :meth:`_normalize_deformation_method` — セル変形なし
+        - :meth:`_write_coupling_masses` — 熱浴の ``Q`` と圧力浴の ``Cell_Mass``
+        - :meth:`_write_ewald_defaults`  — 静電の既定
+        - :meth:`_write_time_conditions` — ``.mdp`` 由来の時間刻みとステップ数
 
-        Ewald defaults
-        --------------
-        Name                = "POINT_CHARGE"
-        Algorithm           = "Ewald"
-        Scale_1_4_Pair      = 0.83333333333333   (5/6, AMBER convention)
-        Ewald.Dielectric_Constant = 0.0
-        Ewald.R_cutoff      = model.ewald_r_cutoff [Å]  (Deserno & Holm
-                              formula from GRO box; fallback 10.0 Å)
-        Ewald.Ewald_Parameters = "Auto"
+        Parameters
+        ----------
+        nh_dof : "3N" か "3N-3"。 熱浴に結合する自由度の数え方。
         """
         uobj.jump(-1)
+        TopExporter._write_potential_flags(uobj)
+        TopExporter._normalize_deformation_method(uobj)
+        TopExporter._write_coupling_masses(uobj, model, nh_dof)
+        TopExporter._write_ewald_defaults(uobj, model)
+        TopExporter._write_time_conditions(uobj, model)
+        uobj.write()
 
+    @staticmethod
+    def _write_potential_flags(uobj) -> None:
+        """どの相互作用を計算するか。 AMBER / GAFF の規約で明示する。"""
         # --- potential flags ---
         # The COGNAC template ships with Angle / Torsion / Non_Bonding_1_4 set
         # to 0.  Leaving them there produces a UDF whose bonded terms are
@@ -966,9 +965,15 @@ class TopExporter:
         uobj.put(1, flags + "Non_Bonding_1_4")
         uobj.put(1, flags + "Electrostatic")
 
-        # --- no cell deformation ---
-        TopExporter._normalize_deformation_method(uobj)
+    @staticmethod
+    def _write_coupling_masses(uobj, model: TopModel, nh_dof: str) -> None:
+        """熱浴の ``Q`` と圧力浴の ``Cell_Mass``、 重心運動の除去。
 
+        ``Q [amu A^2] = g * k_B * T * tau^2``  (k_B = 0.83144626 amu A^2/ps^2/K)
+
+        ``g`` の数え方は ``nh_dof`` で選ぶ。 ``Cell_Mass`` は系の全質量。
+        Berendsen 系だけは質量ではなく ``tau_T`` を直に持つ。
+        """
         # --- Nose-Hoover Q ---
         n = model.n_atoms_total
         if n > 0:
@@ -1058,6 +1063,9 @@ class TopExporter:
                 except Exception:                        # noqa: BLE001
                     pass
 
+    @staticmethod
+    def _write_ewald_defaults(uobj, model: TopModel) -> None:
+        """静電の既定。 ``Scale_1_4_Pair`` は 5/6 (AMBER 規約)。"""
         # --- Ewald electrostatic interaction defaults ---
         loc = "Interactions.Electrostatic_Interaction[0]"
         uobj.put("POINT_CHARGE",      loc + ".Name")
@@ -1067,6 +1075,9 @@ class TopExporter:
         uobj.put(model.ewald_r_cutoff, loc + ".Ewald.R_cutoff")
         uobj.put("Auto",              loc + ".Ewald.Ewald_Parameters")
 
+    @staticmethod
+    def _write_time_conditions(uobj, model: TopModel) -> None:
+        """``.mdp`` 由来の時間刻み・総ステップ・出力間隔。"""
         # --- Dynamics_Conditions.Time (from MDP) ---
         # delta_T native unit is [tau]; we pass [ps] and let UDFManager
         # convert via Unit_Parameter.
@@ -1084,7 +1095,6 @@ class TopExporter:
         if out_interval > 0:
             uobj.put(out_interval, time_loc + ".Output_Interval_Steps")
 
-        uobj.write()
 
     #: Location of the cell-deformation selector.
     _DEFORM_METHOD = ("Simulation_Conditions.Dynamics_Conditions"

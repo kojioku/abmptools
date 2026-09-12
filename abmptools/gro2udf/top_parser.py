@@ -112,29 +112,29 @@ def _is_blank(line: str) -> bool:
     return line.strip() == ""
 
 
-def get_bond_name(n1: str, n2: str) -> str:
+def get_bond_name(type1: str, type2: str) -> str:
     """2つの原子名からソート済みの結合名を生成する。"""
-    if n1 <= n2:
-        return n1 + "-" + n2
-    return n2 + "-" + n1
+    if type1 <= type2:
+        return type1 + "-" + type2
+    return type2 + "-" + type1
 
 
-def get_angle_name(n1: str, n2: str, n3: str) -> str:
+def get_angle_name(type1: str, type2: str, type3: str) -> str:
     """3つの原子名からソート済みの角度名を生成する。"""
-    if n1 <= n3:
-        return n1 + "-" + n2 + "-" + n3
-    return n3 + "-" + n2 + "-" + n1
+    if type1 <= type3:
+        return type1 + "-" + type2 + "-" + type3
+    return type3 + "-" + type2 + "-" + type1
 
 
-def get_torsion_name(n1: str, n2: str, n3: str, n4: str) -> str:
+def get_torsion_name(type1: str, type2: str, type3: str, type4: str) -> str:
     """4つの原子名からソート済みの二面角名を生成する。"""
-    if n1 < n4:
-        return n1 + "-" + n2 + "-" + n3 + "-" + n4
-    elif n1 == n4:
-        if n2 <= n3:
-            return n1 + "-" + n2 + "-" + n3 + "-" + n4
-        return n4 + "-" + n3 + "-" + n2 + "-" + n1
-    return n4 + "-" + n3 + "-" + n2 + "-" + n1
+    if type1 < type4:
+        return type1 + "-" + type2 + "-" + type3 + "-" + type4
+    elif type1 == type4:
+        if type2 <= type3:
+            return type1 + "-" + type2 + "-" + type3 + "-" + type4
+        return type4 + "-" + type3 + "-" + type2 + "-" + type1
+    return type4 + "-" + type3 + "-" + type2 + "-" + type1
 
 
 def is_improper(torsion_1based: List[int], bondlist_mol: List) -> bool:
