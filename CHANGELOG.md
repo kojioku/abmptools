@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Docs — `Q` ↔ `tau_t` の根拠を、両者のマニュアルの式に差し替えた
+
+`docs/udf2gro.md` の換算式は導出ではなく、**GROMACS と COGNAC のマニュアルに
+書かれている式を解いただけ**だった。そう書いていなかったので、根拠を明示した。
+
+```
+GROMACS リファレンス 式 51   Q = τ_T² · N_f · k · T₀ / (4π²)
+  → τ_T について解く         τ_T = 2π · √( Q / (N_f·k·T₀) )
+COGNAC マニュアル 式 2.6     dζ/dt = ( Σ pᵢ²/mᵢ − g·k_B·T ) / Q
+```
+
+`2π` の根拠も、GROMACS の `.mdp` オプションの記述を引いた
+(「for nose-hoover ... tau-t controls the **period** of the temperature
+fluctuations at equilibrium, which is slightly different from a relaxation
+time」)。
+
+### Docs — C-rescale の注記を、環境ではなくバージョンの話にした
+
+「古い GROMACS が同梱された環境」ではなく **「C-rescale は GROMACS 2021 以降。
+古い `gmx` で流すなら `--barostat` を指定する」**と書く。`gmx --version` で
+確かめるよう促す。`docs/amorphous.md` / `system_model.py` / `--help` の 3 か所。
+
+既定は **C-rescale のまま**。詰め込み直後の非晶質で Parrinello-Rahman は
+箱が振動するため。
+
 ### Test — 回帰テストの参照出力を差し替えた
 
 `gro2udf` / `udf2gro` の振る舞いを意図的に変えたので、

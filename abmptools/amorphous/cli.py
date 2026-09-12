@@ -73,8 +73,10 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     md.add_argument("--barostat", type=str, default="C-rescale",
                     metavar="NAME",
                     help="圧力浴 (default: C-rescale)。 C-rescale / "
-                         "Parrinello-Rahman / Berendsen / no。 C-rescale は "
-                         "GROMACS 2021+。 2020 以前では Parrinello-Rahman を")
+                         "Parrinello-Rahman / Berendsen / no。 "
+                         "**C-rescale は GROMACS 2021 以降**。 2020 系では "
+                         "grompp が Invalid enum で止まるので、 古い gmx で "
+                         "流すなら Parrinello-Rahman か Berendsen を指定する")
     md.add_argument("--seed", type=int, default=None,
                     help="Random seed")
     md.add_argument("--forcefield", type=str,
