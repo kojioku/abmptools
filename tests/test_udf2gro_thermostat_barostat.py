@@ -12,8 +12,8 @@ COGNAC は熱浴・圧力浴を**質量**で持ち (``Q`` / ``Cell_Mass``)、 GR
    がこれで、 3050 原子で 5.48 ps。 正しくは 0.63 ps)
 2. GROMACS の Nose-Hoover の ``tau_t`` は緩和時間ではなく**振動の周期**な
    ので ``2*pi`` が要る
-3. ``tau_p`` は **UDF が時間で持っているときだけ変換する** (Berendsen)。
-   ``Cell_Mass`` は質量なので変換しない
+3. ``tau_p`` も **UDF から変換する**。 Berendsen は時間なので単位換算、
+   Andersen / PR は ``Cell_Mass`` から運動方程式経由
 4. ``--barostat`` は **UDF が NVT でも効く**。 C-rescale は COGNAC に対応
    概念が無く、 指定でしか選べないため
 """
@@ -174,29 +174,126 @@ def _npt_values(cell_mass=1.0e4):
     return v
 
 
+def _pr_values(cell_mass):
+    v = _npt_values(cell_mass=cell_mass)
+    v["Simulation_Conditions.Solver.Dynamics."
+      "NPT_Parrinello_Rahman_Nose_Hoover.Cell_Mass"] = cell_mass
+    return v
+
+
 def _pressure(adapter, algorithm="NPT_Andersen_Nose_Hoover"):
     return adapter._extract_pressure(algorithm, "", 0, False, None, _Cell())
 
 
-def test_cell_mass_is_not_turned_into_tau_p():
-    """Cell_Mass は [mass]。 時間に読み替えると系ごとに違う tau_p が出る。"""
-    light = _pressure(_adapter(_npt_values(cell_mass=1.0e3)))
-    heavy = _pressure(_adapter(_npt_values(cell_mass=1.0e6)))
+def _expected_pr_tau_p(C, max_L):
+    beta = 0.000045 / 0.06022140762          # nm^3 mol / kJ
+    return 2.0 * math.pi * math.sqrt(C * beta / (3.0 * max_L))
 
-    assert light[2] == DEFAULT_TAU_P_PS
-    assert heavy[2] == DEFAULT_TAU_P_PS
+
+def test_cell_mass_is_converted_through_the_equation_of_motion():
+    """PR: ``tau_p = 2*pi*sqrt(C*beta/(3*L))``、 ``L`` は最長のセル辺。
+
+    GROMACS は ``W^-1 = 4*pi^2*beta/(3*tau_p^2*L)`` (``L`` = 最長の箱要素) で
+    バロスタット質量を決めるので、 ``tau_p`` は箱の振動の周期そのもの。
+    COGNAC PR は ``W h_ddot = dP h^-1 V`` (``PRsystem.cpp:7,58``)。 周期どうし
+    を等置すればこの式になる。
+    """
+    C = 1.0e4
+    out = _adapter(_pr_values(C))._extract_pressure(
+        "NPT_Parrinello_Rahman_Nose_Hoover", "", 0, False, None, _Cell())
+
+    assert out[2] == pytest.approx(_expected_pr_tau_p(C, 3.0), rel=1e-9)
+
+
+def test_andersen_is_slower_than_pr_by_sqrt3():
+    """Andersen は体積を座標にしていて ``W = C*V^(-4/3)`` (``Anphsystem.cpp:17``)。
+
+    ``dL`` で書き直すと ``omega^2 = L/(C*beta)``、 PR の ``3L/(C*beta)`` に
+    対して 1/3 なので、 周期は ``sqrt(3)`` 倍。 同じ周期を PR で出したければ
+    ``Cell_Mass`` を **3 倍**する。
+    """
+    C = 1.0e4
+    andersen = _pressure(_adapter(_npt_values(cell_mass=C)))[2]
+    pr = _adapter(_pr_values(C))._extract_pressure(
+        "NPT_Parrinello_Rahman_Nose_Hoover", "", 0, False, None, _Cell())[2]
+
+    assert andersen == pytest.approx(pr * math.sqrt(3.0), rel=1e-9)
+
+
+def test_the_longest_edge_is_used_not_the_cube_root():
+    """GROMACS の ``W^-1`` は最長の箱要素で定義されている。
+
+    立方体では区別がつかないので、 扁平なセルで固定する
+    (2.3 x 2.3 x 5.2 では ``V^(1/3)`` = 3.02 に対し ``max_L`` = 5.20)。
+    """
+    C = 1.0e4
+    flat = _Cell(2.29911, 2.29911, 5.20238)
+    out = _adapter(_pr_values(C))._extract_pressure(
+        "NPT_Parrinello_Rahman_Nose_Hoover", "", 0, False, None, flat)
+
+    assert out[2] == pytest.approx(_expected_pr_tau_p(C, 5.20238), rel=1e-9)
+    assert out[2] != pytest.approx(_expected_pr_tau_p(C, 3.0180), rel=1e-3)
+
+
+def test_a_heavier_cell_gives_a_slower_barostat():
+    """質量を捨てて既定を返していた頃は、 ここが同じ値になっていた。"""
+    light = _pressure(_adapter(_npt_values(cell_mass=1.0e3)))[2]
+    heavy = _pressure(_adapter(_npt_values(cell_mass=1.0e5)))[2]
+
+    assert heavy == pytest.approx(light * 10.0, rel=1e-9)
+
+
+def test_sigma_squared_is_not_applied_to_cell_mass():
+    """``Cell_Mass`` は [mass]。 ``Q`` 用の ``unit_L^2`` を掛けると 100 倍ずれる。
+
+    all-atom の UDF は ``Unit_Parameter.Length = 0.1`` (Å) なので、 旧実装は
+    ここで 0.01 倍になり、 下限 2.0 ps に丸められて値が見えなくなっていた。
+    """
+    v = _npt_values(cell_mass=1.0e4)
+    v["Unit_Parameter.Length"] = 0.1        # Å 系
+    out = _pressure(_adapter(v))
+
+    # 長さの単位は体積 (cell) 側で既に nm になっているので、 tau_p は変わらない
+    assert out[2] == pytest.approx(
+        _pressure(_adapter(_npt_values(cell_mass=1.0e4)))[2], rel=1e-9)
+
+
+def test_the_real_system_reproduces_the_measured_values():
+    """実機 (3050 原子、 Cell_Mass = 14076.4 amu、 2.3 x 2.3 x 5.2 nm)。"""
+    cell = _Cell(2.29911, 2.29911, 5.20238)
+
+    andersen = _adapter(_npt_values(cell_mass=14076.4))._extract_pressure(
+        "NPT_Andersen_Nose_Hoover", "", 0, False, None, cell)[2]
+    pr = _adapter(_pr_values(14076.4))._extract_pressure(
+        "NPT_Parrinello_Rahman_Nose_Hoover", "", 0, False, None, cell)[2]
+
+    assert andersen == pytest.approx(8.93, abs=0.01)
+    assert pr == pytest.approx(5.16, abs=0.01)
+
+
+def test_a_missing_cell_mass_falls_back_and_says_so(caplog):
+    v = _npt_values(cell_mass=0.0)
+    with caplog.at_level(logging.WARNING,
+                         logger="abmptools.udf2gro.udf_adapter"):
+        out = _pressure(_adapter(v))
+
+    assert out[2] == DEFAULT_TAU_P_PS
+    assert "Cell_Mass" in caplog.text
+
+
+def test_an_implausible_tau_p_is_flagged_but_kept(caplog):
+    """Cell_Mass が既定 (系の全質量) のままだと大きな系で数十 ps に伸びる。"""
+    with caplog.at_level(logging.WARNING,
+                         logger="abmptools.udf2gro.udf_adapter"):
+        out = _pressure(_adapter(_npt_values(cell_mass=1.0e6)))
+
+    assert out[2] > 20.0
+    assert "--tau-p" in caplog.text
 
 
 def test_tau_p_override_wins():
     out = _pressure(_adapter(_npt_values(), tau_p=5.0))
     assert out[2] == 5.0
-
-
-def test_the_cell_mass_reference_value_is_only_logged(caplog):
-    """採用はしないが、 元の値を知りたいことはあるので INFO に残す。"""
-    with caplog.at_level(logging.INFO, logger="abmptools.udf2gro.udf_adapter"):
-        _pressure(_adapter(_npt_values()))
-    assert "Cell_Mass" in caplog.text
 
 
 def test_berendsen_tau_p_is_converted_because_the_udf_holds_a_time():

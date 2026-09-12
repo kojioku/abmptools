@@ -1363,32 +1363,81 @@ class UdfAdapter:
         ref_t = T_d
         return t_coupl_str, tau_t, ref_t
 
-    def _log_reference_tau_p(self, algorithm, unit_Mass, cell) -> None:
-        """COGNAC の Cell_Mass から出る参考値を INFO に出す (採用はしない)。
+    def _barostat_tau_p(self, algorithm, unit_Mass, cell, beta_mdp):
+        """COGNAC の ``Cell_Mass`` から GROMACS の ``tau_p`` [ps] を出す。
 
-        Andersen の運動方程式 ``W_int * V_ddot = dP``、
-        ``W_int = Cell_Mass * V^(-4/3)`` を線形化 (``dP = -dV/(V*beta)``) すると
+        **式**::
 
-            tau_p = 2*pi * sqrt( Cell_Mass * beta / V^(1/3) )
+            PR       : tau_p = 2*pi * sqrt( C * beta / (3 * L) )
+            Andersen : tau_p = 2*pi * sqrt( C * beta / L )        = sqrt(3) * PR
 
-        Parrinello-Rahman は ``V^(-4/3)`` の補正が無い (src/PRsystem.cpp) ため
-        この式は当てはまらない。 目安として同じ式で出す。
+            C    = Cell_Mass * Unit_Parameter.Mass    [amu]
+            L    = max(a, b, c)                       [nm]
+            beta = .mdp に書く compressibility         [nm^3 mol / kJ]
+
+        ``Cell_Mass`` はスキーマ上 ``[mass]`` (``def_udf/cognac*.udf``)。
+        ``Q`` と違って ``sigma^2`` は掛けない。
+
+        **根拠**。 どちらの側も ``tau_p`` は箱の振動の周期なので、 周期どうしを
+        等置すれば出る。
+
+        *GROMACS Parrinello-Rahman*::
+
+            W^-1 = 4 pi^2 beta / (3 tau_p^2 L)      L = 最長のセル辺
+            b_ddot = V W^-1 b'^-1 (P - P_ref)
+
+        直方体 ``b = diag(a,b,c)`` で ``dP = -dV/(V beta)`` と線形化すると
+        ``a_ddot = -4 pi^2 da / tau_p^2``、 つまり **``tau_p`` そのものが周期**。
+        ``L`` が最長辺なのは GROMACS の定義どおりなので、 立方体でなくてよい。
+
+        *COGNAC Parrinello-Rahman* (``COGNAC1124/src/PRsystem.cpp``)::
+
+            cellMass = cellMassFactor;                                   (l.7)
+            h2 = ((-currentStress - press0Tensor)*hinv*volume)/cellMass; (l.58)
+
+        同じ線形化で係数を突き合わせると ``4 pi^2 beta/(3 tau_p^2 L) = 1/C``。
+
+        *COGNAC Andersen* (``COGNAC1124/src/Anphsystem.cpp``)::
+
+            cellMass = cellMassFactor * pow(volume, -4./3.);   (l.17)
+            aVolume  = (currentPress - pressSum)/cellMass;     (l.122)
+
+        体積を座標にした ``W V_ddot = dP``。 ``V = L^3`` として ``dL`` で
+        書き直すと ``omega^2 = L/(C beta)`` で、 **PR より sqrt(3) 倍遅い**。
+        言い換えると、 同じ周期を PR で出すには ``Cell_Mass`` を **3 倍**する。
+
+        > J-OCTA の ``Export_GROMACS.py`` はここを ``W = W * 1.0/3.0``
+        > (``Andersen -> parrinello_Rahman``) としており、 向きが逆に見える。
+        > あちらは ``unit_L^2`` も掛けているため実際には下限 2.0 に丸められ、
+        > 値としては表面化しない。 ``docs/udf2gro.md`` 参照。
+
+        **実際の圧縮率は式から消える。** GROMACS 側の周期は
+        ``tau_p * sqrt(beta_true/beta_mdp)`` なので、 等置すると ``beta_true``
+        が両辺で相殺し、 ``.mdp`` に書く ``beta_mdp`` だけが残る。 系の本当の
+        圧縮率を知らなくてよい。
+
+        **近似**。 ``pcoupl = MTTK`` (Andersen の既定の行き先) はバロスタット
+        質量の定義が違うので目安にとどまる。 ``Cell_Mass`` が無い / 0 の UDF
+        では ``None`` を返す。
         """
         try:
             W = self._udf.get(
                 "Simulation_Conditions.Solver.Dynamics.%s.Cell_Mass" % algorithm)
-            if not W:
-                return
-            beta = _COMPRESSIBILITY_BAR / _BAR_TO_KJ_MOL_NM3   # nm^3 mol / kJ
-            volume = float(cell.a) * float(cell.b) * float(cell.c)
-            ref = 2.0 * math.pi * math.sqrt(
-                float(W) * float(unit_Mass) * beta / volume ** (1.0 / 3.0))
-            logger.info(
-                "tau_p = %.1f ps (chosen). For reference, the Andersen period "
-                "implied by Cell_Mass = %.1f is %.2f ps; override with --tau-p "
-                "if you want it.", DEFAULT_TAU_P_PS, float(W), ref)
         except Exception:                                # noqa: BLE001
-            pass
+            return None
+        if not W:
+            return None
+
+        C = float(W) * float(unit_Mass)                       # amu
+        beta = float(beta_mdp) / _BAR_TO_KJ_MOL_NM3           # nm^3 mol / kJ
+        max_L = max(float(cell.a), float(cell.b), float(cell.c))
+        if C <= 0.0 or beta <= 0.0 or max_L <= 0.0:
+            return None
+
+        tau_p = 2.0 * math.pi * math.sqrt(C * beta / (3.0 * max_L))
+        if algorithm == "NPT_Andersen_Nose_Hoover":
+            tau_p *= math.sqrt(3.0)
+        return tau_p
 
     def _extract_pressure(self, algorithm, fix_cell, fix_angle, deform_npt, deform_vel, cell):
         udf = self._udf
@@ -1453,31 +1502,46 @@ class UdfAdapter:
         cell_z = cell.c
         max_L = max(cell_x, cell_y, cell_z)
 
-        # tau_p は、 UDF が **時間で持っているなら変換する** (NPT_Berendsen の
-        # tau_P。 下の elif で単位換算だけして採用する)。 UDF が **質量で
-        # 持っている場合 (Cell_Mass) は変換せずに選ぶ**。 以下はその理由。
+        # tau_p は **どのバロスタットでも UDF から変換する**。 経路は 2 つ:
         #
-        # GROMACS をはじめ LAMMPS (Pdamp) /
-        # AMBER (taup) / NAMD (LangevinPistonPeriod) はいずれも時間で指定する
-        # 設計で、 バロスタット質量はそこから内部的に決まる。 応答時間は
-        # 注目する現象と安定性で決めるものなので、 系のサイズや質量からは
-        # 決まらない。 COGNAC だけが質量 (Cell_Mass) で持つ。
+        #   NPT_Berendsen  : UDF が tau_P を時間で持つ -> 単位換算だけ
+        #   Andersen / PR  : UDF が Cell_Mass を質量で持つ -> 運動方程式経由
+        #                    (_barostat_tau_p。 導出はそちらの docstring)
         #
-        # 従来は Cell_Mass から逆算していたが、 2 つの理由でやめた:
-        #   1. Cell_Mass はスキーマ上 [mass] なのに、 Q 用の
-        #      [mass*sigma^2] の換算係数 (unit_Mass * unit_L^2) を掛けていた
-        #   2. COGNAC の運動方程式を経由していない。 Andersen の内部質量は
-        #      Cell_Mass * V^(-4/3) (COGNAC1124/src/Anphsystem.cpp) なので、
-        #      周期は 2*pi*sqrt(Cell_Mass * beta / V^(1/3)) になる
-        # いずれにせよ現実的な系では下限 2.0 に丸められていた。 詳細は
-        # docs/udf2gro.md。 参考値は下で INFO に出す。
-        tau_p = (self._tau_p_override if self._tau_p_override is not None
-                 else DEFAULT_TAU_P_PS)
+        # 旧実装は後者を「Cell_Mass に Q 用の [mass*sigma^2] の換算係数を
+        # 掛ける」という取り違えで出していた。 Cell_Mass はスキーマ上 [mass]
+        # なので unit_L^2 (all-atom で 0.01) が余計で、 現実的な系では下限
+        # 2.0 に丸められて値が表面化していなかった。 運動方程式を経由する
+        # 形に直したので、 実機 (3050 原子) で Andersen 11.74 ps /
+        # PR 6.78 ps が出る。
+        #
+        # 変換できないとき (Cell_Mass が無い) だけ既定 2.0 ps に落とす。
+        # --tau-p はこのブロックの後で一度だけ適用する。
+        tau_p = DEFAULT_TAU_P_PS
 
         if algorithm in ("NPT_Parrinello_Rahman_Nose_Hoover",
                          "NPT_Andersen_Nose_Hoover"):
-            self._log_reference_tau_p(algorithm, unit_Mass, cell)
-        elif algorithm == "NPT_Berendsen" and self._tau_p_override is None:
+            _converted = self._barostat_tau_p(algorithm, unit_Mass, cell, commp)
+            if _converted is None:
+                logger.warning(
+                    "%s has no Cell_Mass; tau_p falls back to %.1f ps. "
+                    "Pass --tau-p if the run needs a particular value.",
+                    algorithm, DEFAULT_TAU_P_PS)
+            else:
+                tau_p = _converted
+                logger.info("tau_p = %.2f ps (Cell_Mass から換算)", tau_p)
+                if not 0.5 <= tau_p <= 20.0:
+                    # 箱の応答が遅すぎる / 速すぎる。 Cell_Mass が既定
+                    # (系の全質量) のままだと大きな系で数十 ps に伸びる。
+                    logger.warning(
+                        "tau_p = %.2f ps is outside the usual 0.5-20 ps. "
+                        "This is what Cell_Mass = %s asks for; override with "
+                        "--tau-p if it is not what you want.",
+                        tau_p,
+                        self._udf.get(
+                            "Simulation_Conditions.Solver.Dynamics.%s.Cell_Mass"
+                            % algorithm))
+        elif algorithm == "NPT_Berendsen":
             # COGNAC が時間で持っているので、 単位換算だけして採用する。
             unit_P = udf.get(
                 "Simulation_Conditions.Dynamics_Conditions.Pressure_Stress.Pressure", "[bar]"
@@ -1488,6 +1552,11 @@ class UdfAdapter:
                 "Simulation_Conditions.Solver.Dynamics.NPT_Berendsen.tau_P", "[P*ps]"
             )
             tau_p = tau_p_raw * unit_P * commp
+
+        if self._tau_p_override is not None:
+            logger.info("tau_p = %.4f ps (--tau-p で指定。 算出値 "
+                        "%.4f ps を上書き)", self._tau_p_override, tau_p)
+            tau_p = self._tau_p_override
 
         # ref_p
         pressure = udf.get(

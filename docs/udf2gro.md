@@ -72,40 +72,101 @@ LAMMPS や HOOMD は緩和時間を取るので `2π` は付けない。
 (`Calc_Moment` / `Stop_Translation`) から `comm-mode` が決まるので、それに
 合わせる。重心運動を除くなら 3 を引く。
 
-### `tau_p` は `Cell_Mass` からは変換しない
+### `tau_p` の変換
 
-**COGNAC のどのバロスタットかで扱いが変わる。**
+**どのバロスタットでも UDF から変換する。** 経路が 2 つある。
 
-| UDF の algorithm | UDF が持つ量 | `tau_p` |
+| UDF の algorithm | UDF が持つ量 | 変換 |
 |---|---|---|
-| `NPT_Berendsen` | **`tau_P` `[P*ps]`** = 時間 | **変換する** (既定) |
-| `NPT_Andersen_Nose_Hoover` | `Cell_Mass` `[mass]` = 質量 | 変換しない。既定 **2.0 ps** |
-| `NPT_Parrinello_Rahman_Nose_Hoover` | `Cell_Mass` `[mass]` = 質量 | 同上 |
+| `NPT_Berendsen` | `tau_P` `[P*ps]` = 時間 | 単位換算 (`tau_P × unit_P × β`) |
+| `NPT_Andersen_Nose_Hoover` | `Cell_Mass` `[mass]` = 質量 | 運動方程式経由（下記） |
+| `NPT_Parrinello_Rahman_Nose_Hoover` | 同上 | 同上 |
 
-**Berendsen は変換する。** COGNAC がもともと時間で持っているので、
-`tau_P × unit_P × β` で ps に直すだけの単位換算であり、物理を挟まない。
+`--tau-p` で上書きできる。`Cell_Mass` が無い UDF では 2.0 ps に落ちる。
 
-**Nose-Hoover 系は変換しない。** UDF 側が持っているのは質量なので、時間に
-直すには運動方程式を経由する必要がある。ここは **選ぶ量**として扱い、既定
-**2.0 ps**（Parrinello-Rahman の実用域 2〜5 ps の下端）を書く。`--tau-p` で
-上書きできる。
-
-`Cell_Mass` から逆算しないのは 2 つの理由による。
-
-1. **応答時間は系のサイズで決まらない。** 注目する現象と安定性で決めるもの
-2. **COGNAC の `Cell_Mass` は経験則。** `CognacSystemUtil.setCellMass` が
-   系の全質量を入れているだけで、物理的に最適な値ではない
-
-参考値は INFO ログに出す。Andersen の運動方程式
-(`W_int = Cell_Mass · V^(-4/3)`、`W_int·V̈ = ΔP`、`COGNAC1124/src/Anphsystem.cpp`)
-を線形化すると
+#### `Cell_Mass` → `tau_p`
 
 ```
-tau_p = 2π · √( Cell_Mass · β / V^(1/3) )
+PR       : tau_p = 2π · √( C · β / (3 · L) )
+Andersen : tau_p = 2π · √( C · β / L )        = √3 × PR
+
+C = Cell_Mass · Unit_Parameter.Mass   [amu]     ← sigma² は掛けない
+L = max(a, b, c)                      [nm]      ← GROMACS の定義に合わせる
+β = .mdp に書く compressibility        [nm³ mol/kJ]
 ```
 
-Parrinello-Rahman は `V^(-4/3)` の補正が無い (`src/PRsystem.cpp`) ので、この式は
-目安にとどまる。
+`Cell_Mass` はスキーマ上 `[mass]`
+(`COGNAC1124/def_udf/cognac*.udf:293` ほか、`Cell_Mass:double [mass]`)。
+
+**両側とも `tau_p` は「箱の振動の周期」なので、周期どうしを等置すれば出る。**
+
+*GROMACS Parrinello-Rahman*:
+
+```
+W⁻¹ = 4π²β / (3 · τ_p² · L)      L = 最長の箱要素
+b̈  = V W⁻¹ b'⁻¹ (P − P_ref)
+```
+
+直方体 `b = diag(a,b,c)` で `ΔP = −ΔV/(Vβ)` と線形化すると
+`ä = −4π²Δa/τ_p²`。つまり **`τ_p` そのものが周期**。`L` が最長辺なのは
+GROMACS の定義どおりなので、立方体でなくてよい。
+
+*COGNAC Parrinello-Rahman* (`COGNAC1124/src/PRsystem.cpp`):
+
+```cpp
+cellMass = cellMassFactor;                                    // l.7
+h2 = ((-currentStress - press0Tensor)*hinv*volume)/cellMass;  // l.58
+```
+
+同じ線形化で係数を突き合わせると `4π²β/(3τ_p²L) = 1/C`。
+
+*COGNAC Andersen* (`COGNAC1124/src/Anphsystem.cpp`):
+
+```cpp
+cellMass = cellMassFactor * pow(volume, -4./3.);   // l.17
+aVolume  = (currentPress - pressSum)/cellMass;     // l.122
+```
+
+体積を座標にした `W V̈ = ΔP`。`V = L³` として `ΔL` で書き直すと
+`ω² = L/(Cβ)` で、PR の `3L/(Cβ)` に対して 1/3。**周期は PR の √3 倍**。
+言い換えると、同じ周期を PR で出すには `Cell_Mass` を **3 倍**する。
+
+**実際の圧縮率は式から消える。** GROMACS 側の周期は `τ_p·√(β_true/β_mdp)`
+になるので、等置すると `β_true` が両辺で相殺し、`.mdp` に書く `β_mdp` だけが
+残る。系の本当の圧縮率を知らなくてよい。
+
+実機 (3050 原子、`Cell_Mass` = 14076.4 amu、セル 2.29911 × 2.29911 × 5.20238 nm):
+
+```
+Andersen  tau_p = 8.93 ps
+PR        tau_p = 5.16 ps
+```
+
+#### 旧実装との違い
+
+`Export_GROMACS.py` の移植だったので、次の 2 点を引き継いでいた。
+
+1. **`Cell_Mass` に `Q` 用の `[mass·sigma²]` の換算係数
+   (`unit_Mass · unit_L²`) を掛けていた。** スキーマは `[mass]` なので
+   `unit_L²` が余計で、all-atom (`unit_L` = 0.1) では 0.01 倍になる。
+   **現実的な系では下限 2.0 ps に丸められていた**ので、値としては表面化して
+   いなかった
+2. **Andersen → PR の質量換算の向きが逆。** `Export_GROMACS.py` は
+   `W = W * 1.0/3.0` (コメント `Andersen -> parrinello_Rahman`) としているが、
+   上の導出では **3 倍**。`τ_p` にすると 3 倍の差。これも 1 に隠れて
+   表面化しない
+
+なお `max_L` を使うのは `Export_GROMACS.py` と同じで、これは GROMACS の
+`W⁻¹` の定義どおりなので正しい。
+
+#### 注意
+
+- **`pcoupl = MTTK` では近似。** Andersen の既定の行き先だが、MTTK は
+  バロスタット質量の定義が違う。厳密に合わせたいなら
+  `--barostat Parrinello-Rahman` にする
+- `Cell_Mass` は J-OCTA が**系の全質量**を入れる (`CognacSystemUtil.setCellMass`)
+  だけの慣用値。大きな系では `tau_p` が数十 ps に伸びるので、
+  0.5〜20 ps を外れたら警告を出す。そのときは `--tau-p` で決め打ちする
 
 ### アルゴリズムの対応
 
@@ -144,8 +205,15 @@ J-OCTA 側は `tau_t ∝ √(3N)` で系のサイズとともに増大する。�
 `Export_LAMMPS.py` / `Export_HOOMD_blue.py` は `3N` で割っており、こちらは
 そちらと同じ扱いにしている。詳細は `SI/udfcheck/jocta_tau_report_20260912.md`。
 
-`Cell_Mass` の単位換算も、J-OCTA は `[mass]` に `[mass·sigma²]` 用の係数
-(`unit_Mass · unit_L²`) を掛けている。こちらは掛けない。
+`tau_p` も一致しない。J-OCTA の式の骨格 (`√(4π²βW/(3L))`) は GROMACS の
+`W⁻¹` の定義から出ていて正しいが、`[mass]` の `Cell_Mass` に `[mass·sigma²]`
+用の係数 (`unit_Mass · unit_L²`) を掛けているため 0.01 倍になり、下限 2.0 ps
+に丸められる。Andersen → PR の質量換算も向きが逆に見える (`1/3` 対 `3`)。
+
+| 原子数 | `abmptools.udf2gro` | J-OCTA `Export_GROMACS.py` |
+|---|---|---|
+| 3050 (Andersen) | **8.93 ps** | 2.0 ps (下限に丸め) |
+| 3050 (PR) | **5.16 ps** | 2.0 ps (下限に丸め) |
 
 ## 使い方
 

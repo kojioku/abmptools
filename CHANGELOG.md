@@ -28,19 +28,33 @@ HOOMD の `tau` は緩和時間なので `2π` は付かない)。
 > 出る。同じ J-OCTA でも `Export_LAMMPS.py` / `Export_HOOMD_blue.py` は `3N`
 > で割っている。`gro2udf` はこの差を書き出し時に警告として出す。
 
-### Fixed — `tau_p` を `Cell_Mass` から逆算していた
+### Fixed — `tau_p` の `Cell_Mass` 換算が 2 か所ずれていた
 
-`Cell_Mass` はスキーマ上 `[mass]` なのに、`Q` 用の `[mass·sigma²]` の換算係数
-(`unit_Mass · unit_L²`) を掛けていた。COGNAC の運動方程式も経由していない
-(Andersen の内部質量は `Cell_Mass · V^(-4/3)`、`COGNAC1124/src/Anphsystem.cpp`)。
-現実的な系では下限 2.0 に丸められていたので値としては表面化していなかった。
+1. **`Cell_Mass` に `Q` 用の `[mass·sigma²]` の換算係数 (`unit_Mass · unit_L²`)
+   を掛けていた。** スキーマは `[mass]`
+   (`COGNAC1124/def_udf/cognac*.udf`、`Cell_Mass:double [mass]`)。
+   all-atom (`unit_L` = 0.1) では 0.01 倍になる
+2. **Andersen → PR の質量換算の向きが逆。** COGNAC の Andersen は体積を座標に
+   した `W V̈ = ΔP` で `W = Cell_Mass · V^(-4/3)`
+   (`COGNAC1124/src/Anphsystem.cpp:17,122`)、PR は `V^(-4/3)` の補正が無い
+   (`PRsystem.cpp:7,58`)。線形化すると **Andersen の周期は PR の √3 倍**で、
+   同じ周期を PR で出すには `Cell_Mass` を 3 倍する。移植元は `1/3` 倍していた
 
-**Nose-Hoover 系の `tau_p` は変換をやめ、選ぶ量にした** (既定 2.0 ps)。
-GROMACS / LAMMPS / AMBER / NAMD はいずれも時間で指定する設計で、応答時間は
-系の質量からは決まらない。`Cell_Mass` から出る参考値は INFO ログに出す。
+どちらも 1 のせいで下限 2.0 ps に丸められ、値としては表面化していなかった。
 
-**`NPT_Berendsen` は従来どおり変換する。** COGNAC が `tau_P` を時間で持って
-いるので、こちらは単位換算だけで済む。
+```
+3050 原子、Cell_Mass = 14076.4 amu、セル 2.29911 × 2.29911 × 5.20238 nm
+  Andersen   修正前 2.0 ps (丸め)   修正後 8.93 ps
+  PR         修正前 2.0 ps (丸め)   修正後 5.16 ps
+```
+
+**式の骨格自体は正しかった。** GROMACS は `W⁻¹ = 4π²β/(3·τ_p²·L)`
+(`L` = 最長の箱要素) でバロスタット質量を決めるので、`τ_p` は箱の振動の周期
+そのもの。COGNAC 側も周期なので、周期どうしを等置すれば出る。**系の本当の
+圧縮率は両辺で相殺して消える**ので、`.mdp` に書く値だけで決まる。
+
+`NPT_Berendsen` は従来どおり単位換算のみ (COGNAC が `tau_P` を時間で持つ)。
+`Cell_Mass` が無い UDF では 2.0 ps に落とし、その旨を警告する。
 
 ### Added — `udf2gro --tau-t` / `--tau-p` / `--barostat`
 
