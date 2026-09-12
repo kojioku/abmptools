@@ -339,6 +339,23 @@ md/
 > **MTTK は選べない。** LINCS / SETTLE と併用できず、非晶質の系ではまず拘束を
 > 使うため。
 
+> ### ★ J-OCTA 同梱の GROMACS では C-rescale が使えない
+>
+> **J-OCTA 11.1 が同梱しているのは GROMACS 2020.4-MODIFIED** で、C-rescale が
+> 入っていない (2021 で追加された)。既定のまま `.mdp` を持っていくと
+> `grompp` が止まる:
+>
+> ```
+> Invalid enum 'C-rescale' for variable pcoupl
+> ```
+>
+> 2020.4 の `pcoupl` は **No / Berendsen / Parrinello-Rahman / Isotropic /
+> MTTK** のみ。J-OCTA 環境で走らせるなら
+> `--barostat Parrinello-Rahman`（平衡化済みなら）か `--barostat Berendsen`
+> （詰め込み直後で安定性が要るなら）を指定する。
+>
+> 2026-09-12 に Windows の J-OCTA 実機で確認。
+
 綴りは生成時に照合する。間違っていれば `.mdp` を書く前に `ValueError` になる
 (そのまま書くと `grompp` で初めて落ちるため)。
 

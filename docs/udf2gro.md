@@ -142,6 +142,31 @@ Andersen  tau_p = 8.93 ps
 PR        tau_p = 5.16 ps
 ```
 
+#### 実測で確かめたこと
+
+導出だけでなく、COGNAC と GROMACS を実際に回して確認した (2026-09-12)。
+
+| 事項 | 方法 | 結果 |
+|---|---|---|
+| Andersen は PR の `√3` 倍 | COGNAC で NPT を回し箱の振動周期を測定 | **1.702** vs √3 = 1.732 |
+| `tau_p ∝ √Cell_Mass` | 同上、`Cell_Mass` 4 倍 | **2.010** vs 2.000 |
+| GROMACS の `tau_p` = 周期 | 水 2165 分子で `tau_p` を 4→16 ps | **0.99〜1.02** |
+
+周期は体積の自己相関の最初のゼロ点と極小から出す。**Welch 平均した
+パワースペクトルのピークは使えない** — 長周期側ほど残留トレンドに引きずられ、
+比が窓の取り方で ±15% 動く。
+
+**比だけを根拠にしている。** 絶対値は `β` の精度で決まるが、`β` を体積ゆらぎ
+(`⟨δV²⟩ = k_B T V β`) から出すと同じ系でも 2.84e-5〜6.79e-5 bar⁻¹ とばらつく。
+減衰のないバロスタットでは体積分散がバロスタット自身の振動に支配され、この式が
+成り立たないため。周期比は `β` に依存しないので影響を受けない。
+
+> **`cellMass` は初期体積で固定される。** `Anphsystem.cpp:17` は
+> `doInitialStep` の中にあり、`W = Cell_Mass · V₀^(-4/3)` が走り始めの体積で
+> 一度決まったきり更新されない。変換対象の UDF のセルは常にその run の初期
+> セルなので上の式は成立するが、**GROMACS は `W⁻¹` を現在の箱から毎回計算する**
+> ので、箱が大きく変わる run では両者が離れていく。
+
 #### 旧実装との違い
 
 `Export_GROMACS.py` の移植だったので、次の 2 点を引き継いでいた。
@@ -199,6 +224,10 @@ PR        tau_p = 5.16 ps
 - **`pcoupl = MTTK` では近似。** Andersen の既定の行き先だが、MTTK は
   バロスタット質量の定義が違う。厳密に合わせたいなら
   `--barostat Parrinello-Rahman` にする
+- **`--barostat C-rescale` は J-OCTA 同梱の GROMACS では通らない。**
+  J-OCTA 11.1 の同梱は 2020.4-MODIFIED で、C-rescale は 2021 以降
+  (`Invalid enum 'C-rescale' for variable pcoupl`)。使えるのは
+  No / Berendsen / Parrinello-Rahman / Isotropic / MTTK
 - **`tau_p ≥ 2·tau_t` を書き出し時に確認する。** `grompp` も言うが、こちらは
   両方の値を持っているので先に言える
 
