@@ -43,7 +43,71 @@ def test_generate_nvt_high_mdp_contains_gen_vel(protocol):
 def test_generate_npt_high_mdp_contains_barostat(protocol):
     text = generate_npt_high_mdp(protocol)
     assert "pcoupl" in text
+    # 既定は C-rescale。 Parrinello-Rahman は初期応力の大きい非晶質の
+    # 詰め込みで箱が振動するため、 平衡化工程の既定にはしない
+    assert "C-rescale" in text
+
+
+# ---------------------------------------------------------------------------
+# 熱浴・圧力浴の選択
+#
+# どちらも「間違った名前でも .mdp は書けてしまい、 grompp で初めて落ちる」
+# ので、 生成の時点で弾く。 既定を変えたときにここが赤くなるようにもしておく。
+# ---------------------------------------------------------------------------
+
+def test_the_default_thermostat_is_v_rescale(protocol):
+    """Berendsen 並みに安定で、 かつ正準分布が正しい。 anneal 全工程を通せる。"""
+    assert protocol.thermostat == "V-rescale"
+    assert "V-rescale" in generate_nvt_high_mdp(protocol)
+
+
+def test_the_default_barostat_is_c_rescale(protocol):
+    assert protocol.barostat == "C-rescale"
+
+
+def test_the_thermostat_can_be_changed():
+    text = generate_nvt_high_mdp(
+        AnnealProtocol(T_high=600.0, T_low=300.0, thermostat="nose-hoover"))
+    assert "Nose-Hoover" in text
+    assert "V-rescale" not in text
+
+
+def test_the_barostat_can_be_changed():
+    text = generate_npt_high_mdp(
+        AnnealProtocol(T_high=600.0, T_low=300.0,
+                       barostat="parrinello-rahman"))
     assert "Parrinello-Rahman" in text
+    assert "C-rescale" not in text
+
+
+def test_turning_the_thermostat_off_drops_the_groups():
+    """tcoupl = no のまま tc-grps を残すと grompp が警告を出す。"""
+    text = generate_nvt_high_mdp(
+        AnnealProtocol(T_high=600.0, T_low=300.0, thermostat="no"))
+    assert "tcoupl" in text and "no" in text
+    assert "tc-grps" not in text
+
+
+def test_a_misspelled_thermostat_is_refused():
+    with pytest.raises(ValueError):
+        generate_nvt_high_mdp(
+            AnnealProtocol(T_high=600.0, T_low=300.0, thermostat="v_rescal"))
+
+
+def test_a_misspelled_barostat_is_refused():
+    with pytest.raises(ValueError):
+        generate_npt_high_mdp(
+            AnnealProtocol(T_high=600.0, T_low=300.0, barostat="crescale"))
+
+
+def test_every_component_gets_the_same_thermostat():
+    """tc-grps が 2 つなら ref-t / tau-t も 2 つ要る (grompp が数を照合する)。"""
+    from abmptools.amorphous.mdp_protocol import _thermostat_block
+
+    block = _thermostat_block(AnnealProtocol(T_high=600.0, T_low=300.0),
+                              300.0, tc_grps="A_methanol B_water")
+    assert len(block["ref-t"].split()) == 2
+    assert len(block["tau-t"].split()) == 2
 
 
 def test_generate_anneal_mdp_contains_annealing(protocol):

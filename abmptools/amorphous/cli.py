@@ -65,6 +65,16 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                     help="Final temperature [K] (default: 300)")
     md.add_argument("--T_high", type=float, default=600.0,
                     help="High temperature [K] (default: 600)")
+    md.add_argument("--thermostat", type=str, default="V-rescale",
+                    metavar="NAME",
+                    help="熱浴 (default: V-rescale)。 V-rescale / Nose-Hoover "
+                         "/ Berendsen / no。 Nose-Hoover では tau_t が"
+                         "振動の周期になるので値も見直すこと")
+    md.add_argument("--barostat", type=str, default="C-rescale",
+                    metavar="NAME",
+                    help="圧力浴 (default: C-rescale)。 C-rescale / "
+                         "Parrinello-Rahman / Berendsen / no。 C-rescale は "
+                         "GROMACS 2021+。 2020 以前では Parrinello-Rahman を")
     md.add_argument("--seed", type=int, default=None,
                     help="Random seed")
     md.add_argument("--forcefield", type=str,
@@ -184,6 +194,8 @@ def _build_config_from_args(args: argparse.Namespace) -> BuildConfig:
         density_g_cm3=args.density,
         temperature=args.temperature,
         T_high=args.T_high,
+        thermostat=args.thermostat,
+        barostat=args.barostat,
         seed=args.seed,
         forcefield=args.forcefield,
         packmol_tolerance=args.packmol_tolerance,

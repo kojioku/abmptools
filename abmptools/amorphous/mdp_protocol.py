@@ -45,8 +45,40 @@ def _common_mdp(protocol: AnnealProtocol) -> dict:
     }
 
 
+#: GROMACS が受け付ける熱浴。 小文字で照合する。
+_THERMOSTATS = {
+    "v-rescale": "V-rescale",
+    "velocity-rescale": "V-rescale",
+    "nose-hoover": "Nose-Hoover",
+    "nose_hoover": "Nose-Hoover",
+    "berendsen": "Berendsen",
+    "no": "no",
+}
+
+
 def _thermostat_block(protocol: AnnealProtocol, ref_t: float,
                       tc_grps: str = "System") -> dict:
+    """熱浴のブロック。 既定は V-rescale。
+
+    **V-rescale**: 速度スケーリング + ノイズ項。 Berendsen と同じ安定性で
+    **正しい正準分布**を与える。 昇温・急冷を含む anneal の全工程を 1 つで
+    通せるので既定にしている。
+
+    **Nose-Hoover**: 正準分布は正しいが振動的で、 初期構造が悪いと温度が
+    行き過ぎる。 平衡化済みの系での生産計算向け。 なお GROMACS の
+    ``tau-t`` は Nose-Hoover では**振動の周期**なので、 他の熱浴と同じ値を
+    入れると応答が ``2*pi`` 倍遅くなる (``docs/udf2gro.md``)。
+
+    **Berendsen**: 温度は合うが分布が正準にならない (GROMACS 2021 で非推奨)。
+    """
+    name = _THERMOSTATS.get(str(protocol.thermostat).lower())
+    if name is None:
+        raise ValueError(
+            "unknown thermostat %r; use one of %s"
+            % (protocol.thermostat, ", ".join(sorted(_THERMOSTATS.values()))))
+    if name == "no":
+        return {"tcoupl": "no"}
+
     # GROMACS requires the cardinality of ref-t / tau-t to match the
     # number of tokens in tc-grps. With multiple components in the
     # system the builder emits e.g. ``tc-grps = A_methanol B_water``,
@@ -56,16 +88,47 @@ def _thermostat_block(protocol: AnnealProtocol, ref_t: float,
     # components is what amorphous-build runs want anyway.
     n_groups = max(1, len(tc_grps.split()))
     return {
-        "tcoupl": "V-rescale",
+        "tcoupl": name,
         "tc-grps": tc_grps,
         "tau-t": " ".join([str(protocol.tau_t)] * n_groups),
         "ref-t": " ".join([str(ref_t)] * n_groups),
     }
 
 
+#: GROMACS が受け付ける圧力浴。 小文字で照合する。
+_BAROSTATS = {
+    "c-rescale": "C-rescale",
+    "parrinello-rahman": "Parrinello-Rahman",
+    "berendsen": "Berendsen",
+    "no": "no",
+}
+
+
 def _barostat_block(protocol: AnnealProtocol) -> dict:
+    """圧力浴のブロック。 既定は C-rescale。
+
+    **C-rescale**: GROMACS 2021 以降。 確率的セルスケーリングで、 Berendsen と
+    同じ安定性を持ちながら**正しい NPT アンサンブル**を与える。 拘束とも併用
+    できる。 非晶質の作成のように初期構造が悪い工程に向く。
+
+    **Parrinello-Rahman**: 厳密な NPT だが、 初期応力が大きいと箱が振動する。
+    平衡化済みの系での生産計算向け。 GROMACS 2020 以前ではこちらを使う。
+
+    **Berendsen**: 体積のゆらぎが正しくない (GROMACS 2021 で非推奨)。
+    互換のためだけに残す。
+
+    等方系を前提に ``pcoupltype = isotropic`` 固定。 配向系や変形計算で
+    ``anisotropic`` が要る場合は、 生成後に .mdp を編集する。
+    """
+    name = _BAROSTATS.get(str(protocol.barostat).lower())
+    if name is None:
+        raise ValueError(
+            "unknown barostat %r; use one of %s"
+            % (protocol.barostat, ", ".join(sorted(_BAROSTATS.values()))))
+    if name == "no":
+        return {"pcoupl": "no"}
     return {
-        "pcoupl": "Parrinello-Rahman",
+        "pcoupl": name,
         "pcoupltype": "isotropic",
         "tau-p": protocol.tau_p,
         "ref-p": protocol.P_ref,

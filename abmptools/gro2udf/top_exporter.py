@@ -13,6 +13,7 @@ This module ports the following functions from convert_gromacs_udf.py:
 """
 from __future__ import annotations
 
+import math
 import logging
 import os
 import shutil
@@ -500,7 +501,7 @@ class TopExporter:
         energy_path: Optional[str] = None,
         allow_unsupported: bool = False,
         force_field: Optional[str] = "gaff",
-        nh_dof: str = "3N",
+        nh_dof: str = "3N-3",
     ) -> None:
         """
         Parse *top_path* + *gro_path*, build :class:`TopModel`, write to *out_path*.
@@ -584,7 +585,7 @@ class TopExporter:
         energy_times: Optional[List[float]] = None,
         energy_series: Optional[dict] = None,
         force_field: Optional[str] = "gaff",
-        nh_dof: str = "3N",
+        nh_dof: str = "3N-3",
     ) -> None:
         """
         Write *model* into a new UDF at *out_path* using *template_path* as schema.
@@ -920,7 +921,7 @@ class TopExporter:
 
     @staticmethod
     def _set_default_condition(uobj, model: TopModel,
-                               nh_dof: str = "3N") -> None:
+                               nh_dof: str = "3N-3") -> None:
         """
         Set electrostatic flags, Nose-Hoover Q, and Ewald parameters.
 
@@ -1006,6 +1007,27 @@ class TopExporter:
                          "NPT_Parrinello_Rahman_Nose_Hoover",
                          "NPT_Andersen_Nose_Hoover"):
                 uobj.put(Q, "Simulation_Conditions.Solver.Dynamics.%s.Q" % _alg)
+
+            # J-OCTA の Export_GROMACS.py は Q から tau_t を戻すとき
+            # 分母の g*k_B を落としており、 tau_t が sqrt(3N) に比例して
+            # 増大する。 こちらが書く Q は正しいが、 **J-OCTA を通すと
+            # 意図と違う tau_t が出る** ので、 その値を知らせておく。
+            # abmptools.udf2gro は正しい式を使う (docs/udf2gro.md)。
+            _ml2 = 1.0 * 0.1 ** 2          # amu, nm を仮定した Unit_Parameter
+            _correct = 2.0 * math.pi * math.sqrt(
+                Q * _ml2 / (g * 0.0083144626 * model.ref_t))
+            _jocta = 2.0 * math.pi * math.sqrt(Q * _ml2 / model.ref_t)
+            # J-OCTA 経由でも実害が出るのは tau_t が実用域 (0.5-2 ps) を
+            # 大きく外れるときだけ。 小さい系では差が小さいので INFO に留める。
+            _msg = ("Nose-Hoover Q = %.1f gives tau_t = %.3f ps through "
+                    "abmptools.udf2gro. J-OCTA's Export_GROMACS.py would give "
+                    "%.3f ps for the same file, because its formula drops "
+                    "g*k_B; see docs/udf2gro.md. Override with "
+                    "`udf2gro --tau-t`, or edit the .mdp.")
+            if _jocta > 2.0:
+                logger.warning(_msg, Q, _correct, _jocta)
+            else:
+                logger.info(_msg, Q, _correct, _jocta)
 
             # Cell_Mass は系の全質量。 J-OCTA 自身がそうしている
             # (`CognacSystemUtil.setCellMass`。 実測 4 系で一致)。

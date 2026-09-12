@@ -139,6 +139,49 @@ def _get_proper_dihedral_params(udf, j: int, n: int, kk: float):
 # Main adapter class
 # ---------------------------------------------------------------------------
 
+#: Q を持つ Nose-Hoover 系のアルゴリズム。 いずれも同じ式で tau_t を出す。
+_NOSE_HOOVER_ALGORITHMS = (
+    "NVT_Nose_Hoover",
+    "NPT_Parrinello_Rahman_Nose_Hoover",
+    "NPT_Andersen_Nose_Hoover",
+)
+
+#: Boltzmann 定数 [amu nm^2 / (ps^2 K)]。 amu/nm/ps 系では energy = kJ/mol。
+_KB_AMU_NM2_PS2_K = 0.0083144626
+
+#: 水の等温圧縮率 [bar^-1]。 GROMACS の compressibility の慣用既定値。
+_COMPRESSIBILITY_BAR = 4.5e-5
+
+#: 1 bar を kJ/mol/nm^3 に直す係数。
+_BAR_TO_KJ_MOL_NM3 = 0.06022140762
+
+#: tau_p の既定 [ps]。 Parrinello-Rahman の実用域 (2-5 ps) の下端。
+DEFAULT_TAU_P_PS = 2.0
+
+#: ``--barostat`` で受ける名前 -> GROMACS の ``pcoupl`` に書く綴り。
+#: 綴りを間違えると grompp が落ちるだけなので、 ここで正規化して弾く。
+#: C-rescale は GROMACS 2021+。 COGNAC 側に対応概念が無いので指定でしか選べない。
+BAROSTAT_NAMES = {
+    "c-rescale":          "C-rescale",
+    "crescale":           "C-rescale",
+    "parrinello-rahman":  "Parrinello-Rahman",
+    "parrinello_rahman":  "Parrinello-Rahman",
+    "berendsen":          "Berendsen",
+    "mttk":               "MTTK",
+    "no":                 "no",
+}
+
+
+def canonical_barostat(name: str) -> str:
+    """``--barostat`` の値を GROMACS の綴りに直す。 未知なら ValueError。"""
+    try:
+        return BAROSTAT_NAMES[str(name).strip().lower()]
+    except KeyError:
+        raise ValueError(
+            "unknown barostat %r; choose one of %s"
+            % (name, ", ".join(sorted(set(BAROSTAT_NAMES.values())))))
+
+
 class UdfAdapter:
     """Reads a UDFManager object and produces a SystemModel."""
 
@@ -147,7 +190,8 @@ class UdfAdapter:
     #: (Mass [amu], Energy [kJ/mol], Length [nm])
     ALL_ATOM_UNIT = (1.0, 4.184, 0.1)
 
-    def __init__(self, udf, unit_parameter=None):
+    def __init__(self, udf, unit_parameter=None, tau_t=None, tau_p=None,
+                 barostat=None):
         """
         Parameters
         ----------
@@ -158,7 +202,17 @@ class UdfAdapter:
             ``"all_atom"`` で :data:`ALL_ATOM_UNIT` (Å / kcal/mol)。
             ``None`` かつ UDF にも無ければ **エラーにする** (黙って
             無次元値を GROMACS 単位として書き出さないため)。
+        tau_t, tau_p : float | None
+            熱浴 / 圧力浴の時定数 [ps] を直接指定する。 ``None`` なら
+            ``tau_t`` は ``Q`` から算出し、 ``tau_p`` は既定値を使う。
         """
+        #: --tau-t / --tau-p による上書き
+        self._tau_t_override = tau_t
+        self._tau_p_override = tau_p
+        #: 圧力浴の上書き。 UDF に対応する概念が無いので指定でのみ効く。
+        #: C-rescale (GROMACS 2021+) は Berendsen 並に安定で、
+        #: かつ正しい NPT アンサンブルを与える。 拘束とも併用できる。
+        self._barostat_override = barostat
         self._udf = udf
         if isinstance(unit_parameter, str):
             if unit_parameter != "all_atom":
@@ -1226,6 +1280,50 @@ class UdfAdapter:
 
         return deform, deform_npt, deform_vel
 
+    def _nose_hoover_tau_t(self, Q, T_d, unit_Mass, unit_L, n_atoms):
+        """COGNAC の熱浴質量 Q から GROMACS の ``tau_t`` [ps] を出す。
+
+        **式**::
+
+            tau_t = 2*pi * sqrt( Q_d / (g * k_B * T) )
+
+            Q_d = Q * Unit_Parameter.Mass * Unit_Parameter.Length^2   [amu nm^2]
+            g   = 3N   (comm-mode = None)  /  3N-3  (comm-mode = Linear)
+            k_B = 0.0083144626 amu nm^2 / (ps^2 K)
+
+        **根拠**。 COGNAC の Q は Nose-Hoover の熱浴質量 ``Q = g k_B T tau^2``
+        で、 ``tau`` が応答時間。 GROMACS の ``tau_t`` は Nose-Hoover では
+        緩和時間ではなく**運動エネルギー振動の周期**なので、 ``2*pi*tau`` に
+        なる。 したがって ``tau_t = 2*pi*sqrt(Q_d/(g k_B T))``。
+
+        **J-OCTA の ``Export_GROMACS.py`` とは値が違う。** あちらは
+        ``2*pi*sqrt(Q_d/T)`` で、 分母の ``g * k_B`` が抜けているため
+        ``tau_t`` が ``sqrt(3N)`` に比例して増大する (3050 原子で 5.48 ps、
+        本式なら 0.63 ps)。 同じ J-OCTA でも ``Export_LAMMPS.py`` /
+        ``Export_HOOMD_blue.py`` は ``3N`` で割っており、 そちらと同じ扱いに
+        している。 詳細は ``docs/udf2gro.md``。
+
+        ``g`` は UDF の ``Dynamics_Conditions.Moment`` から決める。 重心運動を
+        止める設定なら GROMACS 側も ``comm-mode = Linear`` になるので 3 を引く。
+        """
+        udf = self._udf
+        Q_d = float(Q) * float(unit_Mass) * float(unit_L) ** 2
+        g = max(1, 3 * int(n_atoms) - (3 if self._removes_com_motion() else 0))
+        denom = g * _KB_AMU_NM2_PS2_K * float(T_d)
+        if denom <= 0.0 or Q_d <= 0.0:
+            return 0.1
+        return 2.0 * math.pi * math.sqrt(Q_d / denom)
+
+    def _removes_com_motion(self) -> bool:
+        """GROMACS 側が ``comm-mode = Linear`` になる設定か。"""
+        udf = self._udf
+        base = "Simulation_Conditions.Dynamics_Conditions.Moment."
+        try:
+            return bool(udf.get(base + "Calc_Moment")) and \
+                bool(udf.get(base + "Stop_Translation"))
+        except Exception:                                # noqa: BLE001
+            return False
+
     def _extract_temperature(self, algorithm, all_atm_num):
         udf = self._udf
         t_coupl_map = {
@@ -1249,25 +1347,48 @@ class UdfAdapter:
         unit_Mass = udf.get("Unit_Parameter.Mass",   "[amu]")
 
         tau_t = 0.1
-        if algorithm == "NVT_Nose_Hoover":
-            Q   = udf.get("Simulation_Conditions.Solver.Dynamics.NVT_Nose_Hoover.Q")
-            Q_d = Q * unit_Mass * unit_L * unit_L
-            tau_t = math.sqrt((Q_d / T_d) * 4.0 * math.pi * math.pi)
-        elif algorithm == "NPT_Parrinello_Rahman_Nose_Hoover":
-            Q   = udf.get("Simulation_Conditions.Solver.Dynamics.NPT_Parrinello_Rahman_Nose_Hoover.Q")
-            Q_d = Q * unit_Mass * unit_L * unit_L
-            tau_t = math.sqrt((Q_d / T_d) * 4.0 * math.pi * math.pi)
-        elif algorithm == "NPT_Andersen_Nose_Hoover":
-            Q   = udf.get("Simulation_Conditions.Solver.Dynamics.NPT_Andersen_Nose_Hoover.Q")
-            Q_d = Q * unit_Mass * unit_L * unit_L
-            tau_t = math.sqrt((Q_d / T_d) * 4.0 * math.pi * math.pi)
+        if algorithm in _NOSE_HOOVER_ALGORITHMS:
+            Q = udf.get("Simulation_Conditions.Solver.Dynamics.%s.Q" % algorithm)
+            tau_t = self._nose_hoover_tau_t(Q, T_d, unit_Mass, unit_L,
+                                            all_atm_num)
         elif algorithm == "NVT_Berendsen":
             tau_t = udf.get("Simulation_Conditions.Solver.Dynamics.NVT_Berendsen.tau_T", "[ps]")
         elif algorithm == "NPT_Berendsen":
             tau_t = udf.get("Simulation_Conditions.Solver.Dynamics.NPT_Berendsen.tau_T", "[ps]")
 
+        if self._tau_t_override is not None:
+            logger.info("tau_t = %.4f ps (--tau-t で指定。 算出値 "
+                        "%.4f ps を上書き)", self._tau_t_override, tau_t)
+            tau_t = self._tau_t_override
         ref_t = T_d
         return t_coupl_str, tau_t, ref_t
+
+    def _log_reference_tau_p(self, algorithm, unit_Mass, cell) -> None:
+        """COGNAC の Cell_Mass から出る参考値を INFO に出す (採用はしない)。
+
+        Andersen の運動方程式 ``W_int * V_ddot = dP``、
+        ``W_int = Cell_Mass * V^(-4/3)`` を線形化 (``dP = -dV/(V*beta)``) すると
+
+            tau_p = 2*pi * sqrt( Cell_Mass * beta / V^(1/3) )
+
+        Parrinello-Rahman は ``V^(-4/3)`` の補正が無い (src/PRsystem.cpp) ため
+        この式は当てはまらない。 目安として同じ式で出す。
+        """
+        try:
+            W = self._udf.get(
+                "Simulation_Conditions.Solver.Dynamics.%s.Cell_Mass" % algorithm)
+            if not W:
+                return
+            beta = _COMPRESSIBILITY_BAR / _BAR_TO_KJ_MOL_NM3   # nm^3 mol / kJ
+            volume = float(cell.a) * float(cell.b) * float(cell.c)
+            ref = 2.0 * math.pi * math.sqrt(
+                float(W) * float(unit_Mass) * beta / volume ** (1.0 / 3.0))
+            logger.info(
+                "tau_p = %.1f ps (chosen). For reference, the Andersen period "
+                "implied by Cell_Mass = %.1f is %.2f ps; override with --tau-p "
+                "if you want it.", DEFAULT_TAU_P_PS, float(W), ref)
+        except Exception:                                # noqa: BLE001
+            pass
 
     def _extract_pressure(self, algorithm, fix_cell, fix_angle, deform_npt, deform_vel, cell):
         udf = self._udf
@@ -1292,11 +1413,29 @@ class UdfAdapter:
         else:
             p_coupl_str = "no"
 
+        # --barostat が指定されていれば、 UDF が何であれそちらを優先する。
+        # UDF (COGNAC) には C-rescale に対応する概念が無いので、 指定でしか
+        # 選べない。 NVE/NVT の UDF に付けるとアンサンブルが変わる点に注意。
+        if self._barostat_override:
+            _name = canonical_barostat(self._barostat_override)
+            if _name == "no":
+                p_coupl_str = "no"
+            else:
+                if p_coupl_str in (None, "no"):
+                    logger.warning(
+                        "the UDF asks for no pressure coupling, but --barostat "
+                        "%s was given: the run will be NPT, not %s.",
+                        _name, algorithm or "NVE")
+                p_coupl_str = _name
+            logger.info("pcoupl = %s (--barostat で指定)", p_coupl_str)
+
         if p_coupl_str == "no":
             return "no", "isotropic", 2.0, 1.0, None, commp, None
 
         # pcoupltype
-        if algorithm == "NPT_Parrinello_Rahman_Nose_Hoover":
+        if self._barostat_override:
+            pcoupltype = "isotropic"
+        elif algorithm == "NPT_Parrinello_Rahman_Nose_Hoover":
             if fix_cell in ("", "xy", "yz", "zx", "x", "y", "z") or deform_npt:
                 pcoupltype = "anisotropic"
             else:
@@ -1314,21 +1453,32 @@ class UdfAdapter:
         cell_z = cell.c
         max_L = max(cell_x, cell_y, cell_z)
 
-        tau_p = 2.0
-        if algorithm == "NPT_Parrinello_Rahman_Nose_Hoover":
-            W   = udf.get("Simulation_Conditions.Solver.Dynamics.NPT_Parrinello_Rahman_Nose_Hoover.Cell_Mass")
-            W_d = W * unit_Mass * unit_L * unit_L
-            tau_p = math.sqrt((W_d * 4.0 * math.pi * math.pi * commp) / (3.0 * max_L))
-            if tau_p < 2.0:
-                tau_p = 2.0
-        elif algorithm == "NPT_Andersen_Nose_Hoover":
-            W   = udf.get("Simulation_Conditions.Solver.Dynamics.NPT_Andersen_Nose_Hoover.Cell_Mass")
-            W   = W / 3.0  # Andersen -> Parrinello-Rahman
-            W_d = W * unit_Mass * unit_L * unit_L
-            tau_p = math.sqrt((W_d * 4.0 * math.pi * math.pi * commp) / (3.0 * max_L))
-            if tau_p < 2.0:
-                tau_p = 2.0
-        elif algorithm == "NPT_Berendsen":
+        # tau_p は、 UDF が **時間で持っているなら変換する** (NPT_Berendsen の
+        # tau_P。 下の elif で単位換算だけして採用する)。 UDF が **質量で
+        # 持っている場合 (Cell_Mass) は変換せずに選ぶ**。 以下はその理由。
+        #
+        # GROMACS をはじめ LAMMPS (Pdamp) /
+        # AMBER (taup) / NAMD (LangevinPistonPeriod) はいずれも時間で指定する
+        # 設計で、 バロスタット質量はそこから内部的に決まる。 応答時間は
+        # 注目する現象と安定性で決めるものなので、 系のサイズや質量からは
+        # 決まらない。 COGNAC だけが質量 (Cell_Mass) で持つ。
+        #
+        # 従来は Cell_Mass から逆算していたが、 2 つの理由でやめた:
+        #   1. Cell_Mass はスキーマ上 [mass] なのに、 Q 用の
+        #      [mass*sigma^2] の換算係数 (unit_Mass * unit_L^2) を掛けていた
+        #   2. COGNAC の運動方程式を経由していない。 Andersen の内部質量は
+        #      Cell_Mass * V^(-4/3) (COGNAC1124/src/Anphsystem.cpp) なので、
+        #      周期は 2*pi*sqrt(Cell_Mass * beta / V^(1/3)) になる
+        # いずれにせよ現実的な系では下限 2.0 に丸められていた。 詳細は
+        # docs/udf2gro.md。 参考値は下で INFO に出す。
+        tau_p = (self._tau_p_override if self._tau_p_override is not None
+                 else DEFAULT_TAU_P_PS)
+
+        if algorithm in ("NPT_Parrinello_Rahman_Nose_Hoover",
+                         "NPT_Andersen_Nose_Hoover"):
+            self._log_reference_tau_p(algorithm, unit_Mass, cell)
+        elif algorithm == "NPT_Berendsen" and self._tau_p_override is None:
+            # COGNAC が時間で持っているので、 単位換算だけして採用する。
             unit_P = udf.get(
                 "Simulation_Conditions.Dynamics_Conditions.Pressure_Stress.Pressure", "[bar]"
             ) / udf.get(

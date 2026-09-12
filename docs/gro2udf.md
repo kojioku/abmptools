@@ -264,12 +264,18 @@ tau_t = 2 * pi * sqrt(Q * Unit_Parameter.Mass * Unit_Parameter.Length^2 / T)
 
 ### ★ `--nh-dof` — 自由度の数え方
 
-`Q = g * k_B * T * tau^2` の `g` をどう数えるか。**既定は `3N`**。
+`Q = g * k_B * T * tau^2` の `g` をどう数えるか。**既定は `3N-3`**。
 
 | | 何が変わるか |
 |---|---|
-| **`3N`** (既定) | `Q = 3N·k_B·T·τ²` / mdp は **`comm-mode = None`**。J-OCTA 自身と同じ |
-| `3N-3` | `Q = (3N-3)·k_B·T·τ²` / mdp は **`comm-mode = Linear`** (`nstcomm = 100`) |
+| **`3N-3`** (既定) | `Q = (3N-3)·k_B·T·τ²` / mdp は **`comm-mode = Linear`** (`nstcomm = 100`) |
+| `3N` | `Q = 3N·k_B·T·τ²` / mdp は **`comm-mode = None`**。**J-OCTA が書く UDF と同一**になる |
+
+**既定を `3N-3` にしている理由。** GROMACS 自身の既定が `comm-mode = Linear`
+で、重心のドリフトを除くのが MD の通常の作法。`None` のままだと grompp が
+毎回「運動エネルギーが重心に溜まる」と警告する。出力の行き先は GROMACS
+なので、そちらの流儀に合わせている。**J-OCTA が作る UDF と揃えたいときは
+`--nh-dof 3N`**。
 
 **`comm-mode` も一緒に切り替わる。** `Q` の数え方だけ変えて mdp が
 `comm-mode = None` のままだと、GROMACS は 3N で積分してしまい**オプションが

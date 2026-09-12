@@ -54,15 +54,18 @@ def _run_from_top(argv: list) -> None:
     parser.add_argument("gro_path", help="GROMACS .gro file")
     parser.add_argument("--mdp", dest="mdp_path", default=None,
                         help="GROMACS .mdp file (ref_t, tau_t, rcoulomb are read)")
-    parser.add_argument("--nh-dof", dest="nh_dof", default="3N",
+    parser.add_argument("--nh-dof", dest="nh_dof", default="3N-3",
                         choices=["3N", "3N-3"],
-                        help="Degrees of freedom behind the Nose-Hoover Q. "
-                             "3N (default) is what J-OCTA writes, and matches "
-                             "the mdp it exports, which sets comm-mode = None. "
-                             "Use 3N-3 when the run will remove centre-of-mass "
-                             "motion (comm-mode = Linear, GROMACS' own "
-                             "default). The difference is 0.03%% at 3050 atoms "
-                             "and 0.6%% at 80.")
+                        help="Degrees of freedom behind the Nose-Hoover Q, "
+                             "and with it whether centre-of-mass motion is "
+                             "removed. 3N-3 (default) asks for "
+                             "comm-mode = Linear, which is GROMACS' own "
+                             "default and stops kinetic energy accumulating "
+                             "in the centre of mass. 3N leaves "
+                             "comm-mode = None, which is what J-OCTA writes, "
+                             "and reproduces its output exactly. The "
+                             "difference in Q is 0.03%% at 3050 atoms and "
+                             "0.6%% at 80.")
     parser.add_argument("--ff", dest="force_field", default="gaff",
                         help="Force field to declare in Unit_Parameter.Comment "
                              "as FF=n, which is where J-OCTA reads it. A .top "

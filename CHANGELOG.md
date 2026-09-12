@@ -2,6 +2,79 @@
 
 ## [Unreleased]
 
+### Fixed — `udf2gro` の `tau_t` が分子数とともに増えていた
+
+`tau_t` を `2π·√(Q_d/T)` で出していたので、**系を大きくするほど熱浴が鈍く
+なっていた**。Nose-Hoover の熱浴質量は `Q = g·k_B·T·τ²` なので、`τ` を取り出す
+には `g·k_B` で割る必要がある。落とすと `√(3N)` 倍にずれる:
+
+```
+3050 原子   修正前 5.4794 ps   修正後 0.6282 ps   (比 √(3N·k_B) = 8.7)
+ 110 原子   修正前 1.0408 ps   修正後 0.6283 ps
+```
+
+**`tau_t` は系のサイズに依存しない**のが正しい。`τ` は熱浴の応答時間で、
+`Q` の側が `g` に比例して大きくなることで辻褄が合う。修正後は 3050 原子でも
+110 原子でも同じ値が出る。
+
+`2π` は残す。**GROMACS の `tau_t` は Nose-Hoover のときだけ緩和時間ではなく
+運動エネルギー振動の周期**なので、`2π·τ` が正しい (LAMMPS の `Tdamp` や
+HOOMD の `tau` は緩和時間なので `2π` は付かない)。
+
+`g` は UDF の `Dynamics_Conditions.Moment` から決める (`comm-mode = Linear`
+なら `3N-3`)。`--tau-t` で直接指定もできる。
+
+> J-OCTA の `Export_GROMACS.py` も同じ式なので、同じ UDF から違う `tau_t` が
+> 出る。同じ J-OCTA でも `Export_LAMMPS.py` / `Export_HOOMD_blue.py` は `3N`
+> で割っている。`gro2udf` はこの差を書き出し時に警告として出す。
+
+### Fixed — `tau_p` を `Cell_Mass` から逆算していた
+
+`Cell_Mass` はスキーマ上 `[mass]` なのに、`Q` 用の `[mass·sigma²]` の換算係数
+(`unit_Mass · unit_L²`) を掛けていた。COGNAC の運動方程式も経由していない
+(Andersen の内部質量は `Cell_Mass · V^(-4/3)`、`COGNAC1124/src/Anphsystem.cpp`)。
+現実的な系では下限 2.0 に丸められていたので値としては表面化していなかった。
+
+**Nose-Hoover 系の `tau_p` は変換をやめ、選ぶ量にした** (既定 2.0 ps)。
+GROMACS / LAMMPS / AMBER / NAMD はいずれも時間で指定する設計で、応答時間は
+系の質量からは決まらない。`Cell_Mass` から出る参考値は INFO ログに出す。
+
+**`NPT_Berendsen` は従来どおり変換する。** COGNAC が `tau_P` を時間で持って
+いるので、こちらは単位換算だけで済む。
+
+### Added — `udf2gro --tau-t` / `--tau-p` / `--barostat`
+
+```bash
+python -m abmptools.udf2gro in.udf out --tau-t 1.0 --tau-p 5.0
+python -m abmptools.udf2gro in.udf out --barostat C-rescale
+```
+
+**`--barostat` は UDF が NVT でも効く。** C-rescale は COGNAC に対応する概念が
+無く、UDF 経由では選べないため。アンサンブルが変わるときは警告を出す。
+綴りは実行前に照合する (`grompp` で初めて落ちるのを避ける)。
+
+### Added — `amorphous` の熱浴・圧力浴を選べるようにした (`--thermostat` / `--barostat`)
+
+既定は **V-rescale + C-rescale**。どちらも Berendsen 並みに安定で、かつ分布が
+正しい。昇温・急冷を含む 5 段階を設定を変えずに 1 本で通せる。
+
+```bash
+python -m abmptools.amorphous ... --thermostat Nose-Hoover --barostat Parrinello-Rahman
+```
+
+圧力浴の既定は `Parrinello-Rahman` から **`C-rescale` に変えた**。非晶質の
+作成は初期構造が悪い状態から詰める工程で、P-R は初期応力が大きいと箱が振動
+するため。GROMACS 2020 以前では `--barostat Parrinello-Rahman` を指定する。
+
+MTTK は選べない (LINCS / SETTLE と併用できないため)。
+
+### Docs — `docs/udf2gro.md` に「COGNAC と GROMACS の対応」を追加
+
+COGNAC は熱浴・圧力浴を**質量** (`Q` / `Cell_Mass`) で持ち、GROMACS は**時間**
+(`tau_t` / `tau_p`) で持つ。この橋渡しの式と根拠、アルゴリズムの対応表、
+J-OCTA との差を書いた。別ソルバまで含めた対応は moldeck の
+`docs/md_solver_matrix.md`。
+
 ### Fixed — NPT 系の Nose-Hoover `Q` と `Cell_Mass` が空で、NPT が流せなかった
 
 `Export_GROMACS.py` は**アルゴリズムごとに別のフィールド**から `Q` を読み、

@@ -101,6 +101,13 @@ class BuildConfig:
     dt: float = 0.001
     tau_t: float = 0.1
     tau_p: float = 2.0
+    # 熱浴・圧力浴。 いずれも既定は「安定かつ分布が正しい」組合せ。
+    # V-rescale / C-rescale は昇温・急冷を挟む anneal を 1 つの設定で通せる。
+    # 厳密な Nose-Hoover / Parrinello-Rahman が要る生産計算では指定して替える。
+    # 選べる名前は abmptools/amorphous/mdp_protocol.py の
+    # _THERMOSTATS / _BAROSTATS を参照。 綴り違いは生成時に ValueError。
+    thermostat: str = "V-rescale"
+    barostat: str = "C-rescale"
     nstxout_compressed: int = 5000
     nstenergy: int = 1000
 
