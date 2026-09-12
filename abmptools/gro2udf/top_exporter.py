@@ -1014,27 +1014,21 @@ class TopExporter:
                          "NPT_Andersen_Nose_Hoover"):
                 uobj.put(Q, "Simulation_Conditions.Solver.Dynamics.%s.Q" % _alg)
 
-            # この Q が GROMACS の tau_t に直るとどうなるかを知らせておく。
-            # 変換器によっては分母の g*k_B を落として tau_t を戻すものがあり、
-            # その場合 tau_t が sqrt(3N) に比例して増大する。 書く Q は
-            # どちらでも同じなので、 **戻した先の値**を見て確かめられるように
-            # 両方出す。 abmptools.udf2gro は g*k_B を含む式を使う
-            # (docs/udf2gro.md)。
+            # 書いた Q が GROMACS の tau_t に直るといくつになるかを出す。
+            # Q は熱浴質量なので、 UDF を見ただけでは応答の速さが分からない。
+            # GROMACS 側は tau_t = 2*pi*sqrt(Q_d/(g*k_B*T)) (リファレンス
+            # マニュアル 式 51 を tau_T について解いたもの)。
+            # 実用域 (0.5-2 ps) を外れていたら警告する。
             _ml2 = 1.0 * 0.1 ** 2          # amu, nm を仮定した Unit_Parameter
-            _correct = 2.0 * math.pi * math.sqrt(
+            _tau_t = 2.0 * math.pi * math.sqrt(
                 Q * _ml2 / (g * 0.0083144626 * model.ref_t))
-            _nodof = 2.0 * math.pi * math.sqrt(Q * _ml2 / model.ref_t)
-            # 実害が出るのは tau_t が実用域 (0.5-2 ps) を大きく外れるときだけ。
-            # 小さい系では差が小さいので INFO に留める。
-            _msg = ("Nose-Hoover Q = %.1f gives tau_t = %.3f ps through "
-                    "abmptools.udf2gro. A converter that drops g*k_B from the "
-                    "formula would give %.3f ps for the same file; see "
-                    "docs/udf2gro.md. Override with `udf2gro --tau-t`, or "
-                    "edit the .mdp.")
-            if _nodof > 2.0:
-                logger.warning(_msg, Q, _correct, _nodof)
+            _msg = ("Nose-Hoover Q = %.1f corresponds to tau_t = %.3f ps "
+                    "(g = %d). Check the tau_t in whatever .mdp you run; "
+                    "see docs/udf2gro.md. Override with `udf2gro --tau-t`.")
+            if not 0.1 <= _tau_t <= 5.0:
+                logger.warning(_msg, Q, _tau_t, g)
             else:
-                logger.info(_msg, Q, _correct, _nodof)
+                logger.info(_msg, Q, _tau_t, g)
 
             # Cell_Mass は系の全質量。 UDF を書き出す側の慣行に合わせている
             # (`CognacSystemUtil.setCellMass`。 実測 4 系で一致)。
