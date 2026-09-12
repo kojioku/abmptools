@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Test — 回帰テストの参照出力を差し替えた
+
+`gro2udf` / `udf2gro` の振る舞いを意図的に変えたので、
+`tests/regression/reference/prerefactor/` の 3 セットを取り直した。
+差し替えの理由と、どの差分がどの修正に対応するかは
+`tests/regression/reference/prerefactor/CHANGES.md`。
+
+**この 3 件はそれまで落ちていなかった。** 回帰テストが作業ツリーではなく
+install 済みの `abmptools` を回していたため (develop 側で修正済み)。
+つまりリファクタ以降、この参照は一度も効いていなかったことになる。
+develop を取り込んで初めて、今回の変更が突き合わされた。
+
+差分は意図した箇所だけで、それ以外は 1 バイトも動いていない
+（`tau_t` / `tau_p`、静的セル、`Moment` フラグ、NPT 系の `Q` / `Cell_Mass`、
+ポテンシャル名の連番、1-4 スケーリングの 6 種）。
+
 ### Changed — `gro2udf` / `udf2gro` のリファクタリング
 
 **動作は変えていない。** 名前と関数の切り方だけ。
