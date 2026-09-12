@@ -247,14 +247,21 @@ structure and box. ...
 
 ### Nose-Hoover の `Q` と `Cell_Mass`
 
-下流は **アルゴリズムごとに別のフィールド**から `Q` を読み、
+`Q` は Nose-Hoover の**熱浴質量**で、GROMACS の `tau_t` に対応する量。
+両者の関係はどちらのマニュアルにも書かれている。
 
 ```
-tau_t = 2 * pi * sqrt(Q * Unit_Parameter.Mass * Unit_Parameter.Length^2 / T)
+COGNAC マニュアル 式 2.6      dζ/dt = ( Σ pᵢ²/mᵢ − g·k_B·T ) / Q
+GROMACS リファレンス 式 51    Q = τ_T² · N_f · k · T₀ / (4π²)
+  → τ_T について解くと         tau_t = 2π · √( Q_d / (g·k_B·T) )
 ```
 
-で GROMACS の `tau_t` を作る。`NVT_Nose_Hoover.Q` だけ書いて NPT 側を空に
-すると、**NPT に切り替えた瞬間に `Q = 0` が読まれ `tau_t = 0` に
+`Q` は `g·k_B·T` と組で現れるので、**時間に直すには `g·k_B·T` で割る**。
+`Q_d` は `Q · Unit_Parameter.Mass · Unit_Parameter.Length²`。詳細は
+[udf2gro.md](udf2gro.md)。
+
+`Q` は **アルゴリズムごとに別のフィールド**に置かれる。`NVT_Nose_Hoover.Q`
+だけ書いて NPT 側を空にすると、**NPT に切り替えた瞬間に `Q = 0` が読まれ `tau_t = 0` に
 なり、Nose-Hoover が 0 除算して箱が `nan` に飛ぶ**。`gro2udf` は NVT / NPT の
 両系統に同じ `Q` を書く。
 
@@ -304,13 +311,13 @@ GROMACS 自身もその mdp に対し `degrees of freedom ... is 9150.00`
 決めるだけでサンプリングされるアンサンブルは変えないので、**大きい系では
 どちらでも実害はない**。小さい系ほど効く。
 
-> **`tau_t` は系のサイズとともに大きくなる。** 上の規約に完全準拠しても
-> 3050 原子で `tau_t = 5.48 ps` になる。`Q` の意味 (自由度と
-> `k_B` を含む物理的な熱浴質量) と、読み戻す式 (`2*pi*sqrt(Q/T)`) が噛み合って
-> いないためで、**書いた側が自分で作った UDF でも同じことが起きる**。
-> `.mdp` は雛形と考え、本番では `tau_t` / `tau_p` を実験条件に合わせて
-> 上書きすること。`tau_p` は下流で 2.0 が下限なので、
-> `tau_p >= 2 * tau_t` を満たすには `tau_t <= 1.0 ps` が要る。
+> **`Q` を書いたら、戻した先の `tau_t` を確かめる。** `Q` は自由度と `k_B` を
+> 含む熱浴質量なので、`tau_t` に直すには `g·k_B·T` で割る必要がある
+> ([udf2gro.md の「`Q` → `tau_t` の変換」](udf2gro.md))。この系の `Q` なら
+> `tau_t = 0.628 ps` に対応する。
+>
+> `.mdp` は雛形と考え、**本番では `tau_t` / `tau_p` を実験条件に合わせて
+> 見直すこと。** `tau_p >= 2 * tau_t` (共鳴を避ける) も確認する。
 
 ### 力場 ID と 1-4 スケーリング
 
