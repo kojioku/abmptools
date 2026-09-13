@@ -327,6 +327,11 @@ class AnnealProtocol:
     npt_low_nsteps: int = 500000
     dt: float = 0.001                  # [ps]
     tau_t: float = 0.1                 # [ps]
+    #: 圧力浴の時定数 [ps]。 箱の応答は tau_p に比例し、 収束は減衰の
+    #: 3〜5 回分 (減衰 ≒ 0.19 * tau_p、 水で実測)。 2 ps なら 1〜2 ps で
+    #: 収束するので、 詰め込み・平衡化のどの段階でも律速にならない。
+    #: **律速はバロスタットと材料自身の構造緩和の遅い方。** ポリマー融体の
+    #: 緩和は ns〜us なので、 そちらが効く。 詳細は docs/udf2gro.md。
     tau_p: float = 2.0                 # [ps]
     #: 圧力浴。 "C-rescale" (既定) / "Parrinello-Rahman" / "Berendsen" / "no"。
     #:
