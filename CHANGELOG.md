@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Docs — `2π` が付く理由と、COGNAC 0.1 ps → GROMACS 0.628 ps の具体例
+
+`docs/udf2gro.md`。`2π` が要る根拠（GROMACS の `tau_t` は周期）は書いてあったが、
+**具体例が無かった**ので、COGNAC モデラの「緩和時間」がそのまま GROMACS の
+`tau_t` にならないことが読み取りにくかった。
+
+```
+COGNAC   τ      = 0.1 ps                     ← 応答時間
+GROMACS  tau_t  = 2π · τ = 0.6283185 ps      ← 周期
+```
+
+**原子数によらず 0.628 ps。** 3050 / 7808 原子の UDF で実測済み。
+
+あわせて「`2π` は Nose-Hoover のときだけ」を**「受け取る側が周期で定義して
+いる量にだけ付く」**に直した。`tau_p` (Parrinello-Rahman / MTTK) にも同じ
+理由で入り、`tau_p` (berendsen) には入らない（COGNAC も GROMACS も緩和時間
+なので単位換算だけ）。付く／付かないの一覧を表にした。
+
 ### Docs — `tau_p` を変えるとどれだけ遅くなるかを実測で載せた
 
 `docs/udf2gro.md`。**箱の応答は `tau_p` に比例する。** 水 2165 分子で
