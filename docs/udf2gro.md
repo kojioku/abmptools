@@ -93,8 +93,32 @@ COGNAC 側も同じ形で、`Q` は `g·k_B·T` と組で現れる (COGNAC マ�
 dζ/dt = ( Σ pᵢ²/mᵢ − g·k_B·T ) / Q
 ```
 
-**`2π` は Nose-Hoover のときだけ。** LAMMPS の `Tdamp` や HOOMD の `tau` は
-緩和時間なので付かない。
+#### 具体例: COGNAC の 0.1 ps は GROMACS の 0.628 ps
+
+COGNAC は `Q` を**応答時間 `τ` から作る**（既存 UDF の慣用は `τ` = 0.1 ps。
+COGNAC モデラの「緩和時間」がこれ）。GROMACS はその**周期**を入力に取る。
+
+```
+COGNAC   τ      = 0.1 ps                     ← 応答時間
+GROMACS  tau_t  = 2π · τ = 0.6283185 ps      ← 周期
+```
+
+**原子数によらず 0.628 ps。** 実測でも、3050 原子と 7808 原子の UDF から
+`Q` を逆算すると τ = 0.100000017 ps、`tau_t` は両方とも 0.6283186 ps だった。
+
+#### `2π` が付くところ・付かないところ
+
+**GROMACS が「周期」で受け取る量にだけ付く。**
+
+| | GROMACS 側の意味 | `2π` |
+|---|---|---|
+| `tau_t` (nose-hoover) | 周期 | **付く** |
+| `tau_t` (berendsen / v-rescale) | 緩和時間 | 付かない |
+| `tau_p` (Parrinello-Rahman / MTTK) | 周期 | **付く**（`Cell_Mass` からの換算式の中） |
+| `tau_p` (berendsen) | 緩和時間 | 付かない（UDF の `tau_P` を単位換算するだけ） |
+| LAMMPS `Tdamp` / HOOMD `tau` | 緩和時間 | 付かない |
+
+**Nose-Hoover 固有ではなく、受け取る側が周期で定義しているかどうかで決まる。**
 
 **`g` の決め方。** UDF の `Dynamics_Conditions.Moment`
 (`Calc_Moment` / `Stop_Translation`) から `comm-mode` が決まるので、それに
@@ -122,6 +146,13 @@ C = Cell_Mass · Unit_Parameter.Mass   [amu]     ← sigma² は掛けない
 L = max(a, b, c)                      [nm]      ← GROMACS の定義に合わせる
 β = .mdp に書く compressibility        [nm³ mol/kJ]
 ```
+
+**ここの `2π` も `tau_t` と同じ理由。** GROMACS の `tau_p` も箱の振動の
+**周期**なので、質量から取り出した角振動数を周期に直すときに付く。ただし
+`tau_t` と違い、**COGNAC 側に対応する「入力の時間」が無い**（`Cell_Mass` は
+質量）ので、「0.1 ps と入れたら 0.628 になる」に相当するものは無い。
+`NPT_Berendsen` だけは COGNAC が `tau_P` を時間で持つので、**そちらは `2π` が
+付かず単位換算だけ**。
 
 `Cell_Mass` はスキーマ上 `[mass]`
 (`COGNAC1124/def_udf/cognac*.udf:293` ほか、`Cell_Mass:double [mass]`)。
