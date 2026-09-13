@@ -50,7 +50,7 @@ class GROParser:
 
     def parse_frames(self, filepath: str) -> Iterator[GROFrame]:
         """Yield GROFrame for each frame found in *filepath*."""
-        with open(filepath, "r") as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             while True:
                 frame = self._read_one_frame(f)
                 if frame is None:

@@ -136,7 +136,7 @@ class TopWriter:
             ValueError: ``model.ensemble_family == 'cognac_only'`` のとき。
         """
         raise_if_cognac_only(model, kind="top")
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(self._build_header(model))
             for topo in model.mol_topologies:
                 self._write_moleculetype(f, model, topo)

@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+### Fixed — 日本語 Windows で `.top` / `.itp` が読めない (`moldeck.hbond` の `.top` 経路が落ちる)
+
+`gro2udf/top_parser.py` の `open()` に `encoding=` が無く、ロケール既定で
+開いていた。日本語 Windows では cp932 になるので、**コメントに日本語のある
+UTF-8 の `.top` を読むと落ちる**。
+
+```
+UnicodeDecodeError: 'cp932' codec can't decode byte 0x87 in position 2874
+```
+
+J-OCTA 11.1 / 12.0 の**どちらでも再現** (2026-09-13 実機)。`PYTHONUTF8=1` で
+回避できるが、それを知らないと機能ごと使えない。**`moldeck.hbond` の `.top`
+経路はこのパーサを通る**ので、そこが丸ごと落ちる。
+
+`gro2udf` / `udf2gro` の**テキスト `open()` 10 か所すべて**に
+`encoding="utf-8"` を付けた (読み 4 / 書き 6)。書き側も同じ理由で要る ——
+cp932 に無い文字を書く瞬間に `UnicodeEncodeError` になる。
+
+`tests/test_gro2udf_encoding.py` が、この 2 パッケージに encoding 無しの
+`open()` が増えないことと、日本語コメント入りの `.top` が実際に読めることを
+検査する。Linux でも `LC_ALL=C PYTHONUTF8=0 PYTHONIOENCODING=utf-8` で再現
+できることを確認済み (修正前は `UnicodeDecodeError`、修正後は 30 分子を読む)。
+
+### Fixed — `abmptools[rdkit]` が Python 3.11 で入らない
+
+extra が **`rdkit-pypi`** を指していた。これは旧名で、**2022.9.5 (py310) で
+止まっている**ため、3.11 では wheel が無い。現行の `rdkit` は 2026.3.6 まで
+出ていて cp311 wheel がある。`rdkit>=2022.09` に変更。同じ upstream なので
+API 差分は無い。
+
+J-OCTA 12.0 は Python 3.11 なので、そこで `pip install abmptools[rdkit]` を
+する人が踏む (12.0 は rdkit 2026.3.3 を同梱しているので、同梱環境では不要)。
+
 ### Docs — `2π` が付く理由と、COGNAC 0.1 ps → GROMACS 0.628 ps の具体例
 
 `docs/udf2gro.md`。`2π` が要る根拠（GROMACS の `tau_t` は周期）は書いてあったが、

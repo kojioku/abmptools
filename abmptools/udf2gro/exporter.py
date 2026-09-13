@@ -80,7 +80,7 @@ class Exporter:
         from ..core.system_model import NdxData
         ndx: NdxData = model.ndx_data
 
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write("[ System ]\n")
             buf = ""
             for aid in range(1, ndx.atom_id_max + 1):

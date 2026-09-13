@@ -27,7 +27,7 @@ class GroWriter:
         """
         raise_if_cognac_only(model, kind="gro")
         content = self._build(model)
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(content)
 
     def _build(self, model: SystemModel) -> str:

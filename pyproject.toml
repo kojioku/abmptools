@@ -45,7 +45,7 @@ amorphous = [
 ]
 # rdkit を使う機能 (geomopt の構造正規化) 用。
 rdkit = [
-    "rdkit-pypi>=2022.09",  # 分子構造の正規化 (canonical SMILES)、SVG 描画、bond perception
+    "rdkit>=2022.09",  # 分子構造の正規化 (canonical SMILES)、SVG 描画、bond perception
                             # PyPI、BSD-3-Clause
 ]
 # 旧名。`fragmenter` サブパッケージは本 repo には無いが、この extras 名で

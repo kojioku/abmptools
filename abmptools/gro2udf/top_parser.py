@@ -200,7 +200,7 @@ class TopParser:
     def _resolve_includes(self, top_path: str) -> List[str]:
         """Read *top_path* and inline all ``#include "*.itp"`` files."""
         dirpath = os.path.dirname(os.path.abspath(top_path))
-        with open(top_path, "r") as f:
+        with open(top_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
         return self._inline_includes(lines, dirpath)
 
@@ -214,7 +214,7 @@ class TopParser:
                     itp_name = parts[1].strip('"\'')
                     itp_path = os.path.join(dirpath, itp_name)
                     try:
-                        with open(itp_path, "r") as f:
+                        with open(itp_path, "r", encoding="utf-8") as f:
                             itp_lines = f.readlines()
                         result.append("\n")
                         result.extend(itp_lines)

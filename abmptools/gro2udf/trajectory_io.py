@@ -63,7 +63,7 @@ def frames_from_multi_gro(path: str) -> List[GROFrameData]:
         raise FileNotFoundError(f"multi-frame .gro not found: {path}")
 
     frames: List[GROFrameData] = []
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         while True:
             title = f.readline()
             if not title:
@@ -171,7 +171,7 @@ def read_xvg(path: str) -> Tuple[List[float], Dict[str, List[float]]]:
     times: List[float] = []
     columns: List[List[float]] = []
 
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for raw_line in f:
             line = raw_line.strip()
             if not line:

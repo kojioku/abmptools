@@ -25,7 +25,7 @@ def parse_mdp(mdp_path: str) -> dict:
     Values have inline comments (``; …``) stripped.
     """
     params: dict = {}
-    with open(mdp_path, "r") as fh:
+    with open(mdp_path, "r", encoding="utf-8") as fh:
         for raw_line in fh:
             line = raw_line.strip()
             if not line or line.startswith(";"):
