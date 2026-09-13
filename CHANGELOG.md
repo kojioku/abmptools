@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Fixed — `&ANALYSIS ` の末尾空白で Ver.2 Rev.8 が節ごと無視する
+
+`generateajf` は節見出しを `&ANALYSIS ` と**末尾に空白を付けて**出力していた。
+ajf→inp 変換の節の探し方がバージョンで違う:
+
+```
+V1DD2024      line.find("&ANALYSIS")              部分一致  -> 通る
+Ver.2 Rev.8   re.search("&ANALYSIS$", line, I)    行末固定  -> 一致しない
+```
+
+Rev.8 では節が認識されず、**中の指定が全部捨てられる**。ジョブは普通に走り、
+`.inp` の `&ANALYSIS` は空、ログには ajf で `'YES'` と書いたはずの
+`ES_RESP = NO` が出る。**エラーも警告も無い。**
+
+富岳の BRD4 18 ジョブで踏んだ。`PIEDA` は Rev.8 の既定で有効なため表自体は出ており、
+欠けたのは `ES(RESP)` 列だけだったので気づきにくい。V1DD2024 では変換側が
+部分一致なので表面化しない。
+
+- `abmptools/abinit_io.py`: `&ANALYSIS` の末尾空白を削除
+- `tests/test_ajf_section_headers.py`: 節見出しに末尾空白が無いことを検査する。
+  **インストール済みの abmptools ではなくファイルパスでソースを読む**
+  (editable install が作業ツリーを隠すため)
+
+
 ## [2.14.1] - 2026-09-13
 
 ### Fixed — `.gro` を読むたびに `no record` と警告していた

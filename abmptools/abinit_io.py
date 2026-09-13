@@ -432,7 +432,7 @@ LPRINT=2"""
 &DFT
 /
 
-&ANALYSIS """
+&ANALYSIS"""
             if self.piedaflag:
                 new_section += """
 PIEDA='YES'"""
