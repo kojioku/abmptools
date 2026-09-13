@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Fixed — `.gro` を読むたびに `no record` と警告していた
+
+`.gro` のタイトル行に `t=` が無いときに `logger.warning("no record")` を
+出していた。**`t=` を書かない writer のほうが多い**ので普通の `.gro` で毎回
+出るうえ、「何の record が無いのか」を言っていない。
+
+`moldeck.hbond` の `.top` 経路では、**直後に `101 record(s)` と表示される**
+ので矛盾して見える (2026-09-13、Windows 実機で指摘)。単一構造の `.gro` で
+`t = 0.0` に落とすのは正しい動作なので、`debug` に下げ、何が無くて何を
+使ったかを書くようにした。
+
 ### Fixed — 日本語 Windows で `.top` / `.itp` が読めない (`moldeck.hbond` の `.top` 経路が落ちる)
 
 `gro2udf/top_parser.py` の `open()` に `encoding=` が無く、ロケール既定で

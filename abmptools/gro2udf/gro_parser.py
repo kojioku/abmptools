@@ -108,8 +108,14 @@ class GROParser:
             npos = temp.index("t=")
             time = float(temp[npos + 1])
         else:
+            # A .gro title line carries `t=` only when the writer put it there;
+            # most do not, and 0.0 is the right answer for a single structure.
+            # This used to warn "no record", which said nothing about what was
+            # missing and printed on every ordinary .gro -- directly above the
+            # line reporting how many records were in fact loaded, so it read
+            # as a contradiction (2026-09-13, via moldeck.hbond's .top route).
             time = 0.0
-            logger.warning("no record")
+            logger.debug("%s: no `t=` in the title line; using t = 0.0", s.strip())
 
         if "step=" in temp:
             npos = temp.index("step=")
