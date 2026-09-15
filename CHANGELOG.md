@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-09-15
+
 ### Fixed — `udf2gro` の `[ atomtypes ]` に元素が書かれておらず、CG と誤認されていた
 
 **J-OCTA の `import_gromacs` が、全原子系を粗視化として読んでいた**
