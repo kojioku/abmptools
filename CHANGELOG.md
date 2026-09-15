@@ -29,6 +29,19 @@ Charge section ToolkitAM1BCC, using charge method am1bcc
 
 ## [2.15.0] - 2026-09-15
 
+### Docs — `sample/amorphous`: `.bat` が無い理由と、欠けていた README 2 本
+
+**`amorphous` の構造ビルドは Linux で行うもの** —— `--charge_method nagl`
+が sqm を回避するので電荷は Windows でも解けるが、**packmol に win-64
+ビルドが無く、箱を詰める工程に代替経路が無い**。`tools/windows/` に
+`install_for_build.bat` が元から無いのも同じ理由。**「組んだ後の解析は
+Windows で動く」**ことを併記して、行き止まりに見えないようにした。
+
+README が欠けていた 2 件を書いた —— `pentane_benzene` (SMILES 駆動) と
+`mixture_json` (JSON 駆動)。**同じ系の CLI 版 / JSON 版という対**なので
+相互参照を張った。一覧表には元から両方載っていて、**欠けていたのは
+README だけ**だった。
+
 ### Fixed — `--help` が日本語 Windows のコンソールで落ちていた
 
 ```
@@ -107,6 +120,26 @@ if len(stmp) > 7:                   # [ atoms ] が 8 列以上のときだけ
 > 「不明」に使う値)。Martini のビーズ質量 72 amu はどの元素にも近くないので
 > 0 になる。**埋められないものを埋めない**のが、ここでは正しい。
 
+
+### Fixed — その `--charges` が、値を受け取っていなかった
+
+**オプションは定義されていたが、`ComponentSpec` に渡していなかった。**
+指定したファイルは読まれず、AM1-BCC がそのまま走り、**run は成功して、
+出来上がりには違う電荷が入る**。`RC 0`、警告なし、出力あり。渡した側から
+区別が付かない。
+
+```
+ログ  Creating Interchange with ... (precomputed charges=False)
+.top の電荷  渡したファイルと 75 原子中 1 個しか一致しない
+```
+
+**気づいたのは所要時間だった** —— `--charges` を渡したのに電荷の段が
+既定より長かったため (2026-09-16)。**`--help` に出ることは、配線されている
+証拠にならない。**
+
+成分数と渡されたファイル数が合わなければ `ValueError` で止める ——
+足りないぶんを黙って落とすと、**混合系で一部の成分だけ AM1-BCC** になり、
+やはり出来上がりから気づけない。
 
 ### Added — `amorphous --charges FILE`: 電荷を呼び出し側から渡す
 
