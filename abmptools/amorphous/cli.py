@@ -181,6 +181,15 @@ def _build_config_from_args(args: argparse.Namespace) -> BuildConfig:
     names = args.name or []
     n_mol_list = args.n_mol or []
     wf_list = args.weight_fraction or []
+    charge_files = list(args.charges or [])
+    # One file per component, or none. Anything else is a miscount the user
+    # wants to hear about now: a silently dropped file means the charge
+    # backend runs and the run looks fine with the wrong charges.
+    if charge_files and len(charge_files) != n_components:
+        raise ValueError(
+            "--charges takes one file per component: got %d file(s) for %d "
+            "component(s)." % (len(charge_files), n_components)
+        )
 
     components = []
     for i in range(n_components):
@@ -196,6 +205,7 @@ def _build_config_from_args(args: argparse.Namespace) -> BuildConfig:
             sdf_path=sdf_path,
             n_mol=n_mol,
             weight_fraction=wf,
+            charges_path=charge_files[i] if charge_files else "",
         ))
 
     return BuildConfig(

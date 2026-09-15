@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Fixed — `--charges` がファイルを読まずに AM1-BCC を走らせていた
+
+**オプションは受け取るが、`ComponentSpec` に渡していなかった。**
+`_build_config_from_args` が `charges_path` を埋めずに組んでいたので、
+
+```
+Creating Interchange with ... (precomputed charges=False)
+Charge section ToolkitAM1BCC, using charge method am1bcc
+```
+
+となり、**指定したファイルは読まれず、終了コード 0 で、出来た `.top` には
+違う電荷が入る**。警告も出ない。PVA 10 量体で、渡した電荷と `.top` の電荷が
+**75 原子中 1 個しか一致していなかった**。
+
+**`--help` に出ることは、配線されていることの証拠にならない。** 気付いたのは
+`--charges` を渡したのに **Stage 4 の所要時間が変わらなかった** (むしろ長かった)
+から。時間を測っていなければ通っていた。
+
+あわせて**成分の数と一致しなければ `ValueError`** にした。足りないぶんを黙って
+落とすと、混合系で「一部の成分だけ AM1-BCC」になり、出来上がりからは気付けない。
+
+`tests/test_amorphous_charges_from_file.py` に 4 件 (配線されていること / 無指定
+なら空 / 数が合わなければ止まる / 成分ごとに別のファイル)。
+
+
 ## [2.15.0] - 2026-09-15
 
 ### Fixed — `--help` が日本語 Windows のコンソールで落ちていた

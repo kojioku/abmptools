@@ -60,3 +60,51 @@ def test_charges_land_on_the_molecule_in_order(tmp_path):
     got = [float(x.m) for x in mol.partial_charges]
     assert got[0] == pytest.approx(-0.4)
     assert sum(got) == pytest.approx(0.0, abs=1e-6)
+
+
+# --- CLI -> ComponentSpec の配線 ---------------------------------------------
+#
+# **`--charges` を受け取っておきながら、 ComponentSpec に渡していなかった。**
+# argparse は黙って受け取り、 ファイルは読まれず、 AM1-BCC がそのまま走る ---
+# **run は成功し、 出来た .top には違う電荷が入る** (2026-09-16、 PVA 10 量体で
+# 発覚。 .top の電荷が転写ファイルと 75 原子中 1 個しか一致しなかった)。
+
+def test_the_charges_option_reaches_the_component():
+    """`--charges` が捨てられていないこと。"""
+    from abmptools.amorphous.cli import _build_config_from_args, _parse_args
+
+    cfg = _build_config_from_args(_parse_args(
+        ["--mol", "x.sdf", "--n_mol", "5", "--charges", "q.txt"]))
+    assert cfg.components[0].charges_path == "q.txt"
+
+
+def test_no_charges_option_leaves_the_component_empty():
+    from abmptools.amorphous.cli import _build_config_from_args, _parse_args
+
+    cfg = _build_config_from_args(_parse_args(["--mol", "x.sdf", "--n_mol", "5"]))
+    assert cfg.components[0].charges_path == ""
+
+
+def test_one_file_per_component_or_it_stops():
+    """**数が合わなければ止める。**
+
+    足りないぶんを黙って落とすと、 その成分だけ AM1-BCC が走る。 混合系では
+    「一部だけ違う電荷」になり、 出来上がりからは気付けない。
+    """
+    import pytest
+
+    from abmptools.amorphous.cli import _build_config_from_args, _parse_args
+
+    with pytest.raises(ValueError, match="one file per component"):
+        _build_config_from_args(_parse_args(
+            ["--mol", "a.sdf", "b.sdf", "--n_mol", "5", "5",
+             "--charges", "q.txt"]))
+
+
+def test_each_component_gets_its_own_file():
+    from abmptools.amorphous.cli import _build_config_from_args, _parse_args
+
+    cfg = _build_config_from_args(_parse_args(
+        ["--mol", "a.sdf", "b.sdf", "--n_mol", "5", "5",
+         "--charges", "qa.txt", "qb.txt"]))
+    assert [c.charges_path for c in cfg.components] == ["qa.txt", "qb.txt"]
