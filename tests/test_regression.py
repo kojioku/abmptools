@@ -227,7 +227,14 @@ def test_convertcpf_gly5(tmp_path, in_cpf, out_cpf):
 # ---------------------------------------------------------------------------
 def test_udf2gro(tmp_path):
     pytest.importorskip("UDFManager")  # OCTA 同梱。無い環境では検証できない
-    """udf2gro output must match pre-refactor reference."""
+    """udf2gro output must match the reference.
+
+    The reference is pre-refactor output, kept to prove the refactor changed
+    nothing. It has been edited once since, deliberately: `[ atomtypes ]`
+    gained the atomic number column, because without it an importer cannot
+    tell an all-atom system from coarse-grained beads and J-OCTA read one as
+    the other. Any further edit to this file needs the same kind of reason.
+    """
     udf_src = os.path.join(SAMPLE_DIR, "udf2gro", "input", "test.udf")
     shutil.copy(udf_src, tmp_path / "test.udf")
 

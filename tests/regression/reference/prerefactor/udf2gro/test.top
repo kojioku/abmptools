@@ -6,9 +6,9 @@
 1          2          yes        0.5        0.83333333 
 
 [ atomtypes ]
-;  atom type         mass            q particle_type    sigma[nm] epsion[kJ mol^-1] 
-          ha        1.008          0.0            A 0.2599642459 0.0627600000 
-          ca        12.01          0.0            A 0.3399669508 0.3598240000 
+;  atom type  at.num         mass            q particle_type    sigma[nm] epsion[kJ mol^-1] 
+          ha       1        1.008          0.0            A 0.2599642459 0.0627600000 
+          ca       6        12.01          0.0            A 0.3399669508 0.3598240000 
 
 ; And here is the topology.
 [ moleculetype ]
