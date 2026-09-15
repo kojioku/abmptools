@@ -41,8 +41,14 @@ _BUILTIN_TEMPLATE_COGNAC101 = os.path.join(
 )
 
 
-def _run_from_top(argv: list) -> None:
-    """Handle --from-top mode."""
+def _from_top_parser():
+    """The --from-top option parser.
+
+    Split out so ``--help`` can show the real option list. It used to print
+    a two-line usage and tell the reader to run ``--from-top --help`` for
+    the rest, which meant ``--trajectory`` -- the reason most people come
+    here -- was not in the help they actually read (2026-09-16).
+    """
     import argparse
 
     parser = argparse.ArgumentParser(
@@ -130,6 +136,13 @@ def _run_from_top(argv: list) -> None:
                              "that are merely dropped always warn and never "
                              "block.")
 
+    return parser
+
+
+def _run_from_top(argv: list) -> None:
+    """Handle --from-top mode."""
+    parser = _from_top_parser()
+
     # Strip the --from-top flag from argv before parsing
     filtered = [a for a in argv[1:] if a != "--from-top"]
     args = parser.parse_args(filtered)
@@ -209,9 +222,14 @@ def _usage(argv) -> None:
     print("       {} --from-top topfile grofile "
           "[--trajectory md.xtc] [--energy e.xvg]".format(prog))
     print()
-    print("  --from-top mode takes a GROMACS topology; --trajectory accepts a")
-    print("  multi-frame .gro or an .xtc and writes every frame as a record.")
-    print("  Run with --from-top --help for the full option list.")
+    print("Legacy mode takes an existing UDF as the schema and replaces its")
+    print("coordinates from the .gro. --from-top builds the UDF from a GROMACS")
+    print("topology instead, and can embed a whole trajectory:")
+    print()
+    print("  gro2udf --from-top system.top system.gro \\")
+    print("          --trajectory md.xtc --energy energy.xvg --out out.udf")
+    print()
+    print(_from_top_parser().format_help())
 
 
 def main(argv=None):

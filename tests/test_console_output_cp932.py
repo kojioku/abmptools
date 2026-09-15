@@ -42,3 +42,26 @@ def test_no_source_file_holds_a_character_cp932_cannot_write():
     assert not bad, (
         "cp932 のコンソールで落ちる文字がある:\n  " + "\n  ".join(bad[:20])
         + (f"\n  ... 他 {len(bad) - 20} 件" if len(bad) > 20 else ""))
+
+
+def test_gro2udf_help_lists_the_options_people_come_for():
+    """`--help` に `--trajectory` が出ること。
+
+    以前は 2 行の usage を出して「全部見るなら `--from-top --help`」と
+    案内していた。**ほとんどの人がここに来る理由である `--trajectory` が、
+    実際に読まれる help に載っていなかった** (2026-09-16、利用者の指摘)。
+
+    `--help` は**実際のオプション一覧**を出す。案内の中に案内を置かない。
+    """
+    import io
+    import contextlib
+
+    from abmptools.gro2udf.cli import _usage
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        _usage(["gro2udf"])
+    out = buf.getvalue()
+    for flag in ("--trajectory", "--energy", "--from-top", "--topology-only"):
+        assert flag in out, f"{flag} が --help に出ていない"
+    assert ".xtc" in out, "xtc を受けることが help から読み取れない"
