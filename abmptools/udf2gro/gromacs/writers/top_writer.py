@@ -122,6 +122,39 @@ def _dedup_dihedrals(dihedrals):
 # TopWriter
 # ---------------------------------------------------------------------------
 
+#: Standard atomic weights, for recovering the element from a mass.
+#: The topology has no element column of its own -- the UDF carries force
+#: field type names ("c3", "os", "hc"), which say nothing about the element
+#: to anyone outside that force field -- so the mass is the only thing left
+#: to go on. GROMACS itself does not need the atomic number, but importers
+#: do: without it a reader has no way to tell carbon from a coarse-grained
+#: bead, and J-OCTA's import_gromacs takes an all-atom system for a CG one
+#: (2026-09-15, reported from a J-OCTA 11.0 import).
+_MASS_TO_Z = {
+    1.008: 1, 4.003: 2, 6.941: 3, 9.012: 4, 10.811: 5, 12.011: 6,
+    14.007: 7, 15.999: 8, 18.998: 9, 20.180: 10, 22.990: 11, 24.305: 12,
+    26.982: 13, 28.086: 14, 30.974: 15, 32.065: 16, 35.453: 17, 39.948: 18,
+    39.098: 19, 40.078: 20, 55.845: 26, 63.546: 29, 65.38: 30, 79.904: 35,
+    126.904: 53,
+}
+
+
+def _atomic_number(mass: float) -> int:
+    """Nearest element for *mass* [amu]; 0 when nothing is close enough.
+
+    0 is what GROMACS writes for "unknown", so an unrecognised mass stays
+    honest rather than guessing. The tolerance is loose enough for the
+    rounded masses force fields ship (16.0 for oxygen, 12.01 for carbon)
+    and tight enough not to confuse neighbouring elements.
+    """
+    best, best_d = 0, 1e9
+    for m, z in _MASS_TO_Z.items():
+        d = abs(mass - m)
+        if d < best_d:
+            best, best_d = z, d
+    return best if best_d <= 0.4 else 0
+
+
 class TopWriter:
     """Generates the content of a .top file and writes it."""
 
@@ -143,6 +176,7 @@ class TopWriter:
             f.write(self._build_system_molecules(model))
 
     # ------------------------------------------------------------------
+
     # Header: defaults + atomtypes
     # ------------------------------------------------------------------
 
@@ -173,6 +207,7 @@ class TopWriter:
         s += "[ atomtypes ]\n"
         s += ";"
         s = _strr(s, "atom type",         11)
+        s = _strr(s, "at.num",             7)
         s = _strr(s, "mass",              12)
         s = _strr(s, "q",                 12)
         s = _strr(s, "particle_type",     13)
@@ -182,6 +217,7 @@ class TopWriter:
 
         for at in model.atom_types:
             s = _strr(s, at.name,         12)
+            s = _strr(s, str(_atomic_number(at.mass)), 7)
             s = _strr(s, str(at.mass),    12)
             s = _strr(s, "0.0",           12)
             s = _strr(s, "A",             12)
