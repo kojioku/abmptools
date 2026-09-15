@@ -48,3 +48,33 @@ def test_neighbouring_elements_are_not_confused():
     assert _atomic_number(15.999) == 8
     assert _atomic_number(18.998) == 9
     assert _atomic_number(19.5) == 0       # 間はどちらでもない
+
+
+def test_atoms_carry_the_mass_column():
+    """`[ atoms ]` の 8 列目に質量を出すこと。
+
+    GROMACS では省略可 —— 無ければ `[ atomtypes ]` から引く、という規約。
+    **J-OCTA の importer はその規約を実装していない。**
+    `convert_gromacs_udf.py:238-246` は
+
+        if len(stmp) > 7:
+            mass = float(stmp[7])
+            ... mass_map[round(mass)] で元素名を決める
+
+    と**この列だけ**を見ており、無ければ力場の型名 (`hc1`) がそのまま
+    原子名になる。結果、**全原子系が粗視化として読まれる** (2026-09-15、
+    J-OCTA 11.1 / 12.0 の実機で両方向を確認)。
+
+    `[ atomtypes ]` の `at.num` は同じ importer の中で**コメントアウト
+    されている**ので、そちらを足しても解決しない —— 最初にそう直して
+    外した。
+    """
+    import pathlib
+    ref = (pathlib.Path(__file__).parent / "regression" / "reference"
+           / "prerefactor" / "udf2gro" / "test.top")
+    lines = ref.read_text(encoding="utf-8").splitlines()
+    i = next(n for n, s in enumerate(lines) if s.startswith("[ atoms ]"))
+    assert "mass" in lines[i + 1], "[ atoms ] のヘッダに mass が無い"
+    row = lines[i + 2].split()
+    assert len(row) == 8, f"[ atoms ] が 8 列でない: {row}"
+    assert float(row[7]) > 0, f"質量が入っていない: {row}"

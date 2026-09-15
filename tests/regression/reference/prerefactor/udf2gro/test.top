@@ -16,19 +16,19 @@
 test         3     
 
 [ atoms ]
-;         nr         type        resnr       residu         atom         cgnr       charge 
-          1           ca            1         test          ca1            1 -0.130605000 
-          2           ca            1         test          ca1            2 -0.112321000 
-          3           ca            1         test          ca1            3 -0.125754000 
-          4           ca            1         test          ca1            4 -0.121363000 
-          5           ca            1         test          ca1            5 -0.127167000 
-          6           ca            1         test          ca1            6 -0.127475000 
-          7           ha            1         test          ha0            7 0.1259480000 
-          8           ha            1         test          ha0            8 0.1203840000 
-          9           ha            1         test          ha0            9 0.1227890000 
-         10           ha            1         test          ha0           10 0.1236120000 
-         11           ha            1         test          ha0           11 0.1255210000 
-         12           ha            1         test          ha0           12 0.1264300000 
+;         nr         type        resnr       residu         atom         cgnr       charge         mass 
+          1           ca            1         test          ca1            1 -0.130605000        12.01 
+          2           ca            1         test          ca1            2 -0.112321000        12.01 
+          3           ca            1         test          ca1            3 -0.125754000        12.01 
+          4           ca            1         test          ca1            4 -0.121363000        12.01 
+          5           ca            1         test          ca1            5 -0.127167000        12.01 
+          6           ca            1         test          ca1            6 -0.127475000        12.01 
+          7           ha            1         test          ha0            7 0.1259480000        1.008 
+          8           ha            1         test          ha0            8 0.1203840000        1.008 
+          9           ha            1         test          ha0            9 0.1227890000        1.008 
+         10           ha            1         test          ha0           10 0.1236120000        1.008 
+         11           ha            1         test          ha0           11 0.1255210000        1.008 
+         12           ha            1         test          ha0           12 0.1264300000        1.008 
 
 
 [ bonds ]

@@ -264,9 +264,20 @@ class TopWriter:
         s = _strr(s, "atom",   12)
         s = _strr(s, "cgnr",   12)
         s = _strr(s, "charge", 12)
+        s = _strr(s, "mass",   12)
         s += "\n"
         f.write(s)
 
+        # The mass column is optional in GROMACS -- left out, it is looked up
+        # in [ atomtypes ]. J-OCTA's importer does not do that lookup: it
+        # decides the element from this column alone, and falls back to the
+        # force field type name ("hc1") when the column is absent, which
+        # leaves an all-atom system looking coarse-grained. Writing it costs
+        # nothing and is the only thing that importer reads (verified on
+        # J-OCTA 11.1 and 12.0: convert_gromacs_udf.py:238-246 keys on
+        # len(stmp) > 7, while the at.num column in [ atomtypes ] is
+        # commented out in its parser).
+        mass_of = {a.name: a.mass for a in model.atom_types}
         for atom in topo.atoms:
             s = ""
             s = _strr(s, str(atom.index),     11)
@@ -276,6 +287,7 @@ class TopWriter:
             s = _strr(s, atom.gro_name,       12)
             s = _strr(s, str(atom.index),     12)
             s = _strr(s, _f2s(atom.charge, 12), 12)
+            s = _strr(s, str(mass_of.get(atom.type_name, 0.0)), 12)
             s += "\n"
             f.write(s)
 
