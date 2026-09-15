@@ -44,3 +44,31 @@ micromamba install -n abmptoolsenv -c conda-forge -y \
     openff-toolkit openff-interchange openmm rdkit packmol ambertools
 export PATH=~/.local/share/mamba/envs/abmptoolsenv/bin:$PATH
 ```
+
+### Windows で組めない理由 (`.bat` を置いていない理由)
+
+このサンプル群に `.bat` は無い。**Linux / macOS 専用**。他のサンプルが
+`.sh` / `.bat` を対にしているのに、ここだけ `.sh` しかないのは意図的。
+
+理由は **packmol** で、AM1-BCC ではない。
+
+| 必要なもの | conda-forge win-64 | 備考 |
+|---|---|---|
+| `openff-toolkit` / `openff-nagl` | **あり** | 電荷は `--charge_method nagl` で解決済み |
+| **`packmol`** | **無し** | 箱を詰める本体。代替経路なし |
+| `ambertools` | 無し | `nagl` を使えば `sqm` は不要になる |
+
+`--charge_method nagl` は「Windows でも動くように」入っている経路で、
+`charge_from_molecules` を渡して **`sqm` を完全に回避する** (`sqm` に Windows
+ビルドが無いため)。**そこは解決済み**。残るのが packmol で、
+`abmptools.amorphous` は `shutil.which("packmol")` で探し、無ければ
+`FileNotFoundError` で止まる。**詰める工程を飛ばす経路は無い。**
+
+したがって Windows で組むなら WSL か Linux 機を使う。**組んだ後の解析は
+Windows で動く** —— 出来上がった UDF / xtc を渡せば、`moldeck.hbond` は
+J-OCTA のコンソールから `.bat` で回せる (`<moldeck>/sample/amorphous/` に
+対になったスクリプトがある)。
+
+> conda-forge の状況は 2026-09 に `micromamba search --platform win-64` で
+> 確認した。`linux-64` では packmol / ambertools とも見つかるので、
+> 検索自体は効いている。将来 win-64 ビルドが出たらこの節ごと見直すこと。
