@@ -59,6 +59,7 @@ def prepare_molecule(
     name: str = "",
     charge_method: str = "",
     nagl_model: str = "openff-gnn-am1bcc-0.1.0-rc.3.pt",
+    charges_path: str = "",
 ) -> Any:
     """Load or create an OpenFF Molecule from SMILES, SDF, or PDB.
 
@@ -115,7 +116,10 @@ def prepare_molecule(
     if not name:
         mol.name = mol.name or "MOL"
 
-    _maybe_assign_partial_charges(mol, charge_method, nagl_model)
+    if charges_path:
+        _assign_charges_from_file(mol, charges_path)
+    else:
+        _maybe_assign_partial_charges(mol, charge_method, nagl_model)
 
     logger.info("Prepared molecule '%s': %d atoms, MW=%.2f g/mol",
                 mol.name, mol.n_atoms, _molecular_weight(mol))
@@ -225,6 +229,52 @@ def _pdb_to_sdf_via_openbabel(pdb_path: str) -> str:
             f"obabel returned 0 but {sdf} was not produced."
         )
     return str(sdf)
+
+
+def read_charges(path: str) -> list:
+    """Read partial charges [e] from a plain text file, one per atom.
+
+    Whitespace- or newline-separated; anything after ``#`` is a comment.
+    Kept deliberately dumb: a list of numbers is the one interchange format
+    every tool can write, and parsing mol2 or SDF charge blocks here would
+    tie this to whichever toolkit wrote them.
+    """
+    vals = []
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            for tok in line.split("#", 1)[0].split():
+                vals.append(float(tok))
+    if not vals:
+        raise ValueError(f"No charges found in {path}")
+    return vals
+
+
+def _assign_charges_from_file(mol: Any, path: str) -> None:
+    """Put the charges in *path* onto *mol*, in atom order.
+
+    Refuses a count mismatch: silently truncating or recycling would give a
+    system that runs and is wrong, which is the failure mode worth spending
+    an exception on. A net charge far from an integer is reported too --
+    that usually means the file belongs to a different molecule.
+    """
+    from openff.units import unit
+
+    q = read_charges(path)
+    if len(q) != mol.n_atoms:
+        raise ValueError(
+            f"{path} holds {len(q)} charges but '{mol.name}' has "
+            f"{mol.n_atoms} atoms. The file must list one charge per atom, "
+            "in the same order as the structure."
+        )
+    total = sum(q)
+    if abs(total - round(total)) > 1e-3:
+        logger.warning(
+            "Charges in %s sum to %+.4f e, which is not an integer. "
+            "Check that they belong to this molecule.", path, total,
+        )
+    mol.partial_charges = q * unit.elementary_charge
+    logger.info("Assigned %d charges from %s (net %+.4f e)",
+                len(q), path, total)
 
 
 def _maybe_assign_partial_charges(mol: Any, method: str, nagl_model: str) -> None:

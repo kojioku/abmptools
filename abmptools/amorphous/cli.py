@@ -88,6 +88,15 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                          "Interchange's AM1-BCC via AmberTools sqm — requires "
                          "Linux/macOS), 'nagl' (ML AM1-BCC via openff-nagl; "
                          "Windows-compatible), or 'gasteiger' (fast fallback).")
+    md.add_argument(
+        "--charges", nargs="+", metavar="FILE",
+        help="Per-atom partial charges [e] for each component: one file per "
+             "component, one number per atom in structure order (whitespace "
+             "or newline separated, '#' starts a comment). Used verbatim, so "
+             "no charge backend runs for that component. Meant for polymers "
+             "-- charge a short oligomer, expand it unit by unit, and pass "
+             "the result here; AM1-BCC on a whole chain is slow, and on a "
+             "strained random-walk build it is also unreliable.")
     md.add_argument("--nagl_model", type=str,
                     default="openff-gnn-am1bcc-0.1.0-rc.3.pt",
                     help="openff-nagl model file (used only with "

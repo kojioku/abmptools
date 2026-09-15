@@ -159,6 +159,7 @@ class AmorphousBuilder:
                 name=comp.name or f"comp_{i}",
                 charge_method=self.config.charge_method,
                 nagl_model=self.config.nagl_model,
+                charges_path=comp.charges_path,
             )
             mw = get_molecular_weight(mol)
             comp.molecular_weight = mw
@@ -240,7 +241,10 @@ class AmorphousBuilder:
         # When the user opted into nagl / gasteiger we pre-assigned charges
         # on each molecule; tell Interchange to reuse them instead of
         # invoking AM1-BCC via sqm (which has no Windows build).
-        use_precomputed = self.config.charge_method in ("nagl", "gasteiger")
+        # A component with charges of its own is precomputed by definition;
+        # Interchange must be told to keep them rather than re-deriving.
+        use_precomputed = (self.config.charge_method in ("nagl", "gasteiger")
+                           or any(c.charges_path for c in self.config.components))
         interchange = create_interchange(
             molecules=self._molecules,
             counts=self._counts,

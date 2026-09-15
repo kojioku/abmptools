@@ -31,6 +31,18 @@ class ComponentSpec:
     smiles: str = ""
     sdf_path: str = ""
     pdb_path: str = ""
+    #: Partial charges [e], one per atom, read from a plain text file
+    #: (whitespace- or newline-separated; ``#`` starts a comment). When set,
+    #: these are used verbatim instead of running a charge backend.
+    #:
+    #: The point is polymers. AM1-BCC on a whole chain is both slow and
+    #: unreliable -- an N-mer costs far more than its monomer and a chain
+    #: from a random-walk build can be strained enough to wreck the charges.
+    #: Callers that know the repeat structure can charge a short oligomer,
+    #: expand unit by unit, and hand the result in here. Deciding *how* to
+    #: expand is chemistry-specific and stays with the caller; all this
+    #: layer promises is to use the numbers it is given.
+    charges_path: str = ""
     n_mol: int = 0
     weight_fraction: float = 0.0
     molecular_weight: float = 0.0  # filled at runtime
