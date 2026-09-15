@@ -1,4 +1,4 @@
-"""abmptools.udfcharge — OCTA/COGNAC UDF への per-atom 電荷割り当て。
+"""abmptools.udfcharge -- OCTA/COGNAC UDF への per-atom 電荷割り当て。
 
 単分子 UDF (電荷あり) → バルク UDF (同名分子、 電荷なし) へ電荷を転写する。
 

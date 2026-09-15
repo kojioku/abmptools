@@ -294,9 +294,9 @@ def assign_charges_to_bulk(
 # ---------------------------------------------------------------------------
 #
 # 前提となる中和ルール (forward): 元電荷 A_i (Σ A = S = 形式電荷) を、 過剰分 S を
-# ``|A_i|`` 比例で各原子に分散して中和し、 B_i (Σ B ≈ 0) を得る:
+# ``|A_i|`` 比例で各原子に分散して中和し、 B_i (Σ B ~= 0) を得る:
 #
-#     B_i = A_i - S·|A_i| / Σ|A|          (λ = S/Σ|A| とおくと)
+#     B_i = A_i - S*|A_i| / Σ|A|          (λ = S/Σ|A| とおくと)
 #     B_i = (1-λ)A_i   (A_i>0)
 #     B_i = (1+λ)A_i   (A_i<0)
 #
@@ -308,7 +308,7 @@ def assign_charges_to_bulk(
 #
 # λ は Σ A = S の制約から、 P=Σ_{B>0}B / N=Σ_{B<0}B を用いて
 #
-#     S·λ² + (P-N)·λ + (P+N-S) = 0
+#     S*λ^2 + (P-N)*λ + (P+N-S) = 0
 #
 # の |λ|<1 の根として求まる (詳細は docs/udfcharge.md)。
 #
@@ -329,7 +329,7 @@ class RestoreResult:
     mol_name: str
     n_atoms: int
     formal_charge: int
-    input_total: float       # 入力 UDF の総電荷 (≈0 を想定)
+    input_total: float       # 入力 UDF の総電荷 (~=0 を想定)
     output_total: float      # 出力 UDF の総電荷 (= formal_charge)
     mode: str = "proportional"          # "proportional" | "uniform"
     lam: Optional[float] = None         # proportional 時の λ (uniform では None)
@@ -339,15 +339,15 @@ class RestoreResult:
 def _solve_neutralization_lambda(charges: List[float], formal_charge: float) -> float:
     """中和電荷 (B) と目標形式電荷 S から逆変換用 λ を解く。
 
-    ``S·λ² + (P-N)·λ + (P+N-S) = 0`` (P=Σ_{B>0}B, N=Σ_{B<0}B) の |λ|<1 の根。
-    S≈0 のときは線形に縮退する。
+    ``S*λ^2 + (P-N)*λ + (P+N-S) = 0`` (P=Σ_{B>0}B, N=Σ_{B<0}B) の |λ|<1 の根。
+    S~=0 のときは線形に縮退する。
     """
     P = sum(b for b in charges if b > 0.0)
     N = sum(b for b in charges if b < 0.0)
     S = float(formal_charge)
     a, b, c = S, (P - N), (P + N - S)
 
-    if abs(a) < 1e-12:                       # S ≈ 0 → 線形 (P-N)λ + (P+N) = 0
+    if abs(a) < 1e-12:                       # S ~= 0 → 線形 (P-N)λ + (P+N) = 0
         if abs(b) < 1e-12:
             return 0.0
         lam = -(P + N) / b
@@ -378,17 +378,17 @@ def restore_formal_charge(
     mol_name: Optional[str] = None,
     mode: str = "proportional",
 ) -> RestoreResult:
-    """中和 (Σq≈0) された 1 分子 UDF の電荷を、 指定形式電荷になるよう逆変換して出力。
+    """中和 (Σq~=0) された 1 分子 UDF の電荷を、 指定形式電荷になるよう逆変換して出力。
 
-    過剰電荷を分散して中和した UDF (Σ電荷≈0) を入力に、 目標の **形式電荷 (整数) S**
+    過剰電荷を分散して中和した UDF (Σ電荷~=0) を入力に、 目標の **形式電荷 (整数) S**
     を与えると、 中和前の per-atom 電荷 (Σ=S) を復元して別 UDF に書き出す。
     ``electrostatic_Site`` のみ更新し、 座標・結合等は無改変。
 
-    **中和ルール (``mode``) を正しく選ぶこと** — UDF を中和した方法に一致させる:
+    **中和ルール (``mode``) を正しく選ぶこと** -- UDF を中和した方法に一致させる:
 
     - ``"proportional"`` (既定): 過剰分 S を ``|q|`` 比例で分散
-      (`B_i = A_i − S·|A_i|/Σ|A|`)。 逆変換は二次方程式で λ を解く。
-      ``|S| ≥ Σ|q|`` (符号反転) のケースは ``ValueError``。
+      (`B_i = A_i − S*|A_i|/Σ|A|`)。 逆変換は二次方程式で λ を解く。
+      ``|S| >= Σ|q|`` (符号反転) のケースは ``ValueError``。
     - ``"uniform"``: 過剰分 S を全原子に**均等**に分散 (`B_i = A_i − S/N`)。
       逆変換は `A_i = B_i + S/N` で常に厳密・一意 (符号問題なし)。
 

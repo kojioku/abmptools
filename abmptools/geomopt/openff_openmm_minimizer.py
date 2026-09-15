@@ -226,9 +226,9 @@ class OpenFFOpenMMMinimizer:
 
         Two strategies are attempted in order:
 
-        1. ``Molecule.from_file(pdb, file_format="PDB")`` — works when the
+        1. ``Molecule.from_file(pdb, file_format="PDB")`` -- works when the
            PDB has CONECT records or when OpenFF can infer bonds.
-        2. RDKit ``MolFromPDBFile`` → ``Molecule.from_rdkit`` — works for
+        2. RDKit ``MolFromPDBFile`` → ``Molecule.from_rdkit`` -- works for
            most organic small molecules when RDKit is installed.
 
         Parameters
@@ -282,7 +282,7 @@ class OpenFFOpenMMMinimizer:
                 )
                 if rdmol is None:
                     raise ValueError(
-                        "RDKit MolFromPDBFile returned None — "
+                        "RDKit MolFromPDBFile returned None -- "
                         "check for unsupported elements or malformed PDB"
                     )
                 mol = Molecule.from_rdkit(rdmol, allow_undefined_stereo=True)

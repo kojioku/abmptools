@@ -113,9 +113,9 @@ class AmorphousBuilder:
         # atoms specified). freezegrps was tried first but failed Fugaku MPI:
         # LINCS/SETTLE matrix inversion failed (`determinant = -inf`) because
         # hard freeze + DD + rigid water constraints are incompatible. Switch
-        # to harmonic position_restraints (k=10000 kJ/mol/nm² default) which
-        # plays nice with all constraints and keeps atoms within ~0.01 Å of
-        # initial position — functionally equivalent for trimer center fix.
+        # to harmonic position_restraints (k=10000 kJ/mol/nm^2 default) which
+        # plays nice with all constraints and keeps atoms within ~0.01 A of
+        # initial position -- functionally equivalent for trimer center fix.
         frozen = list(getattr(self.config, "frozen_atom_indices", []) or [])
         define_posres = None
         if frozen:
@@ -281,9 +281,9 @@ class AmorphousBuilder:
         Why posres (not freezegrps): hard freeze on rigid water O atoms
         breaks LINCS / SETTLE matrix inversion under MPI Domain
         Decomposition (`determinant = -inf`). Harmonic posres
-        (k = posres_force_constant, default 10000 kJ/mol/nm²) keeps the
-        atoms within ~0.01 Å of initial position without any constraint
-        conflict — functionally equivalent for trimer cluster fix.
+        (k = posres_force_constant, default 10000 kJ/mol/nm^2) keeps the
+        atoms within ~0.01 A of initial position without any constraint
+        conflict -- functionally equivalent for trimer cluster fix.
         """
         if not self._molecules:
             return
@@ -421,7 +421,7 @@ class AmorphousBuilder:
             )
             text = text.replace(first_line_text, new_first_line, 1)
         else:
-            # No split — append posres at end of first moltype block
+            # No split -- append posres at end of first moltype block
             new_block = first_block.rstrip() + '\n' + posres_str + '\n'
             text = text.replace(first_block, new_block, 1)
 

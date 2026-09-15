@@ -182,7 +182,7 @@ def run_packmol(
     # Packmol exit-code 173 means "ENDED WITHOUT PERFECT PACKING": the
     # solver couldn't satisfy the tolerance everywhere but still wrote
     # the best-found mixture.pdb to disk. That's a usable starting
-    # configuration — the downstream EM stage in the 5-stage protocol
+    # configuration -- the downstream EM stage in the 5-stage protocol
     # cleans up residual close contacts within the first few hundred
     # steps. Treat it as a warning and continue, only failing on
     # ``returncode > 0 and missing output_pdb`` or on hard exit codes

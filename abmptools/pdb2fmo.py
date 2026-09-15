@@ -110,7 +110,7 @@ def run_pdb2fmo(
 ) -> List[str]:
     """In-process driver for the pdb2fmo workflow.
 
-    Mirrors the legacy CLI loop body — one fresh :class:`abmp.setfmo`
+    Mirrors the legacy CLI loop body -- one fresh :class:`abmp.setfmo`
     instance per input PDB, ``setrfmoparam`` from a dict, optional
     ``is_xyz`` flag, cutmode-aware ``oname`` resolution, then
     ``getcontact_rmapfmopdb``. Suitable for callers inside the same

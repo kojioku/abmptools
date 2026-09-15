@@ -84,7 +84,7 @@ def from_interchange(
     Returns
     -------
     SystemModel
-        ``ensemble_family`` is set via :func:`classify_ensemble` — the
+        ``ensemble_family`` is set via :func:`classify_ensemble` -- the
         OpenFF path only produces GROMACS-native algorithms, so this
         almost always resolves to ``"gromacs_ok"``.
     """
@@ -130,7 +130,7 @@ def _topmodel_to_systemmodel(tm: Any, *, title: str) -> SystemModel:
 
     Fields left intentionally empty:
 
-    - mol_topologies (bond/angle/dihedral records — not yet required;
+    - mol_topologies (bond/angle/dihedral records -- not yet required;
       keep emitting .top via ``interchange.to_top`` for now)
     - sim_params / ndx_data / cluster_data / fixed_labels
     """

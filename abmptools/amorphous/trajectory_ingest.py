@@ -8,7 +8,7 @@ consumes when writing COGNAC UDF structure records.
 
 Used by downstream tools that want to reuse a static
 ``TopModel`` (built from ``system.top`` + initial ``system.gro``) and swap
-the coordinate frames in for a longer MD trajectory — e.g. fcews-manybody's
+the coordinate frames in for a longer MD trajectory -- e.g. fcews-manybody's
 ``setupgetcontact_gromacs`` injects xtc-sourced frames so the resulting
 UDF can be fed into legacy contact / AJF extraction unchanged.
 
@@ -98,7 +98,7 @@ def _bonds_from_top(top_path: str) -> List[Tuple[int, int]]:
     offset = 0
     for instance_name in raw.mol_instance_list:
         if instance_name not in type_to_idx:
-            # Unknown molecule type — skip but advance offset by 0
+            # Unknown molecule type -- skip but advance offset by 0
             # (we won't know the atom count, so we leave it; downstream
             #  make_whole will simply not unwrap this segment).
             continue
@@ -153,7 +153,7 @@ def frames_from_xtc(
         Path to the GROMACS ``.top``. When provided we parse the
         ``[ bonds ]`` section to populate Universe bonds and then apply
         :func:`MDAnalysis.lib.mdamath.make_whole` per fragment per frame
-        — i.e. molecules that straddle a periodic-boundary in ``xtc``
+        -- i.e. molecules that straddle a periodic-boundary in ``xtc``
         get reconstructed as single connected clusters. Without this
         the FMO snapshot extraction downstream sees half-broken
         molecules and SCC fails (see the methanol-acetone reference
@@ -163,8 +163,8 @@ def frames_from_xtc(
     -------
     list of GROFrameData
         One record per selected frame, with coordinates converted to nm
-        (MDAnalysis returns Å) and cell as the diagonal of the unit-cell
-        matrix (orthogonal box — non-orthogonal boxes are flattened to
+        (MDAnalysis returns A) and cell as the diagonal of the unit-cell
+        matrix (orthogonal box -- non-orthogonal boxes are flattened to
         their ``a/b/c`` lengths, matching the GRO frame convention).
 
     Raises
@@ -226,7 +226,7 @@ def frames_from_xtc(
             # MD trajectory was unwrapped (GROMACS xtc default). Downstream
             # contact analysis in fcewsmb's getcontactstructure uses COM
             # distances against (radius_i + radius_j) * 2, so a fragment that
-            # drifted to coords ~150 Å in a 22 Å box is silently dropped from
+            # drifted to coords ~150 A in a 22 A box is silently dropped from
             # the neighbour list. Wrap fragment-by-fragment so each COM
             # lands in [0, box_size) and intra-fragment bonds stay intact.
             try:
@@ -235,7 +235,7 @@ def frames_from_xtc(
                 )
             except (TypeError, ValueError, AttributeError) as e:
                 # Older MDAnalysis releases (< 2.0) don't accept compound=
-                # 'fragments' or center='com'. Log once and continue —
+                # 'fragments' or center='com'. Log once and continue --
                 # caller can pre-process the xtc with `gmx trjconv -pbc mol`
                 # to get the same effect on disk.
                 logger.warning(
@@ -243,10 +243,10 @@ def frames_from_xtc(
                     "unwrapped. Pre-process the xtc with "
                     "'gmx trjconv -pbc mol -ur compact' to recover.", e,
                 )
-        # MDAnalysis positions are Å — convert to nm (GROMACS convention)
+        # MDAnalysis positions are A -- convert to nm (GROMACS convention)
         coords_nm = (universe.atoms.positions / 10.0).tolist()
-        # universe.dimensions: [a, b, c, alpha, beta, gamma] in Å / deg.
-        # Cast each element to Python float — UDFManager.put silently
+        # universe.dimensions: [a, b, c, alpha, beta, gamma] in A / deg.
+        # Cast each element to Python float -- UDFManager.put silently
         # writes 0 when handed numpy float32 (the MDAnalysis dtype),
         # which downstream produces a trajectory.udf with
         # Cell_Size = [0, 0, 0, ...] and makes

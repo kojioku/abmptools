@@ -74,7 +74,7 @@ FATAL_SECTIONS: Dict[str, str] = {
 #: Dropping these loses real terms, but the loss is an absence rather than a
 #: wrong number, and all-atom topologies have always been converted this way.
 DROPPED_SECTIONS: Dict[str, str] = {
-    "pairtypes": "per-type 1-4 LJ overrides. The plain [ pairs ] list is\n                  fine — COGNAC reproduces it from Scale_1_4_Pair, which\n                  gro2udf sets from fudgeLJ — but a [ pairtypes ] override\n                  cannot be expressed by that single scale factor",
+    "pairtypes": "per-type 1-4 LJ overrides. The plain [ pairs ] list is\n                  fine -- COGNAC reproduces it from Scale_1_4_Pair, which\n                  gro2udf sets from fudgeLJ -- but a [ pairtypes ] override\n                  cannot be expressed by that single scale factor",
     "settles": "rigid water geometry (note that #ifdef is not evaluated, so a "
                "FLEXIBLE branch in the same .itp is read instead)",
     "exclusions": "explicit non-bonded exclusions",
@@ -95,7 +95,7 @@ DROPPED_SECTIONS: Dict[str, str] = {
 # (the ``*_restraints`` family) are therefore left out of the list above:
 # warning about them would be wrong more often than right. ``settles`` is
 # kept even though it sits in an ``#else`` branch, because that branch is the
-# active one — the ``#ifdef FLEXIBLE`` bonds are read in its place.
+# active one -- the ``#ifdef FLEXIBLE`` bonds are read in its place.
 
 #: ``top_exporter`` writes every bond as COGNAC ``Harmonic``, whatever the funct.
 SUPPORTED_BOND_FUNCTS = frozenset({1})
@@ -124,7 +124,7 @@ def _is_data_line(line: str) -> bool:
 def scan_sections(lines: List[str]) -> Dict[str, int]:
     """Count data (non-comment, non-blank) lines per ``[ section ]``.
 
-    *lines* must already have ``#include`` resolved — otherwise a section
+    *lines* must already have ``#include`` resolved -- otherwise a section
     living in an ``.itp`` is missed, which is exactly where a Martini force
     field keeps ``[ nonbond_params ]``.
     """
@@ -203,7 +203,7 @@ def check_top(raw, sections: Dict[str, int],
     if getattr(raw, "comb_rule", 2) == 1:
         fatal.append(
             "[ defaults ] declares comb-rule 1, so the last two [ atomtypes ] "
-            "columns are c6 and c12 — gro2udf reads them as sigma and epsilon. "
+            "columns are c6 and c12 -- gro2udf reads them as sigma and epsilon. "
             "Every LJ parameter would be wrong; for Martini they are 0.0, "
             "which also makes Interaction_Site_Type[].Range come out as 0")
 
@@ -237,7 +237,7 @@ def check_top(raw, sections: Dict[str, int],
                     ": " + note if note else ""))
 
     # A dihedral with an unsupported funct never reaches the exporter, so no
-    # wrong number is written — but the line is misread as a reference to a
+    # wrong number is written -- but the line is misread as a reference to a
     # torsion type that does not exist, so the term is lost.
     found_dihedral = (dihedral_functs if dihedral_functs is not None
                       else _functs(list(raw.torsiontypes)

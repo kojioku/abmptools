@@ -188,7 +188,7 @@ def read_xvg(path: str) -> Tuple[List[float], Dict[str, List[float]]]:
             try:
                 values = [float(p) for p in parts]
             except ValueError:
-                # Non-numeric data row — skip silently (some xvg files
+                # Non-numeric data row -- skip silently (some xvg files
                 # have stray annotation lines).
                 continue
             if not values:

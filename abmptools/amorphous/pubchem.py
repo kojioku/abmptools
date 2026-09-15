@@ -132,7 +132,7 @@ def fetch_3d_sdf(query: object, by: str = "cid",
         raise PubChemNo3DError(
             f"No 3D conformer available on PubChem for {by}={query!r} "
             "(the compound may not exist, or may exist only as a 2D "
-            "record — common for polymers, salts, and metal complexes). "
+            "record -- common for polymers, salts, and metal complexes). "
             "Consider using fetch_smiles() and letting OpenFF generate "
             "a conformer instead."
         ) from e

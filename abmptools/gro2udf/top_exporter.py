@@ -7,11 +7,11 @@ Writes a :class:`TopModel` to a COGNAC UDF file using UDFManager.
 Writing is split into five steps, in the order the UDF sections must
 appear:
 
-- ``_write_set_of_molecules``     — Set_of_Molecules (topology)
-- ``_write_molecular_attributes`` — Molecular_Attributes (bonded terms)
-- ``_write_interactions``         — Interactions (nonbonded, pair styles)
-- ``_append_structure``           — one GRO frame → one dynamic record
-- ``_set_default_condition``      — Simulation_Conditions defaults
+- ``_write_set_of_molecules``     -- Set_of_Molecules (topology)
+- ``_write_molecular_attributes`` -- Molecular_Attributes (bonded terms)
+- ``_write_interactions``         -- Interactions (nonbonded, pair styles)
+- ``_append_structure``           -- one GRO frame → one dynamic record
+- ``_set_default_condition``      -- Simulation_Conditions defaults
 """
 from __future__ import annotations
 
@@ -45,8 +45,8 @@ def _rewrite_cognac_include(udf_path: str, cognac_version: str) -> None:
     """Rewrite the ``\\include{"cognac<N>.udf"}`` directive in *udf_path*.
 
     Used so OCTA84 / OCTA viewer 9.1 users (which only ship cognac110.udf or
-    earlier) can still consume the bundled default_template.udf — which
-    requests cognac112.udf — by passing ``--cognac-version 110``.
+    earlier) can still consume the bundled default_template.udf -- which
+    requests cognac112.udf -- by passing ``--cognac-version 110``.
 
     The substitution targets the first occurrence of a ``\\include{"cognac
     <digits>.udf"}`` token; non-cognac includes are left untouched.
@@ -56,7 +56,7 @@ def _rewrite_cognac_include(udf_path: str, cognac_version: str) -> None:
     text = path.read_text()
     pattern = re.compile(r'\\include\{\s*"cognac\d+\.udf"\s*\}')
     if pattern.search(text) is None:
-        # No cognac include to rewrite — silently leave the template alone
+        # No cognac include to rewrite -- silently leave the template alone
         # so non-cognac templates aren't disturbed.
         return
     new_directive = '\\include{"cognac' + str(cognac_version) + '.udf"}'
@@ -150,10 +150,10 @@ def _load_energy_series(xvg_path: str):
 # to and including the class (Energy / Temperature / Pressure / ...); the
 # Instantaneous / Batch_Average / Total_Average leaves under that class are
 # appended at write time. ``leaf_name`` is the trailing field inside the
-# ``Energy.<Avg>`` triple (Bond, Angle, ...) — for top-level classes like
+# ``Energy.<Avg>`` triple (Bond, Angle, ...) -- for top-level classes like
 # Temperature where ``Instantaneous`` is itself a double, leaf_name is "".
 _XVG_TO_UDF_STATS = {
-    # Energy components — Statistics_Data.Energy.{Instantaneous,
+    # Energy components -- Statistics_Data.Energy.{Instantaneous,
     # Batch_Average, Total_Average}.<leaf> (native [epsilon] = kJ/mol)
     "Bond":          ("Energy", "Bond",          "[kJ/mol]"),
     "Angle":         ("Energy", "Angle",         "[kJ/mol]"),
@@ -168,7 +168,7 @@ _XVG_TO_UDF_STATS = {
     "Potential":     ("Energy", "Potential",     "[kJ/mol]"),
     "Kinetic En.":   ("Energy", "Kinetic",       "[kJ/mol]"),
     "Total Energy":  ("Energy", "Total",         "[kJ/mol]"),
-    # Bulk thermodynamic observables — Statistics_Data.<Class>.{Instantaneous,
+    # Bulk thermodynamic observables -- Statistics_Data.<Class>.{Instantaneous,
     # Batch_Average, Total_Average} (each leaf is a scalar, no further field).
     "Temperature":   ("Temperature", "",         "[K]"),
     "Pressure":      ("Pressure",    "",         "[bar]"),
@@ -697,12 +697,12 @@ class TopExporter:
             self._write_interactions(uobj, model)
 
     # -------------------------------------------------------------------------
-    # Writing helpers – one per UDF section
+    # Writing helpers - one per UDF section
     # -------------------------------------------------------------------------
 
     @staticmethod
     def _write_set_of_molecules(uobj, model: TopModel) -> None:
-        """Set_of_Molecules — atoms, bonds and molecule counts."""
+        """Set_of_Molecules -- atoms, bonds and molecule counts."""
         display_map = build_display_type_map(model)
         uobj.jump(-1)
 
@@ -876,7 +876,7 @@ class TopExporter:
 
         cell = frame.cell
         # Defensive cast to Python float: UDFManager.put silently writes 0
-        # when given numpy float32 / float64 (typical MDAnalysis dtype) —
+        # when given numpy float32 / float64 (typical MDAnalysis dtype) --
         # this once made trajectory.udf carry Cell_Size = [0, 0, 0, ...]
         # and made fcews-manybody's moveintocell infinite-loop. Cast first,
         # then go through _put_with_unit_fallback for OCTA8.4 compatibility.
@@ -928,11 +928,11 @@ class TopExporter:
 
         書く先ごとに分けてある。
 
-        - :meth:`_write_potential_flags`  — どの相互作用を計算するか
-        - :meth:`_normalize_deformation_method` — セル変形なし
-        - :meth:`_write_coupling_masses` — 熱浴の ``Q`` と圧力浴の ``Cell_Mass``
-        - :meth:`_write_ewald_defaults`  — 静電の既定
-        - :meth:`_write_time_conditions` — ``.mdp`` 由来の時間刻みとステップ数
+        - :meth:`_write_potential_flags`  -- どの相互作用を計算するか
+        - :meth:`_normalize_deformation_method` -- セル変形なし
+        - :meth:`_write_coupling_masses` -- 熱浴の ``Q`` と圧力浴の ``Cell_Mass``
+        - :meth:`_write_ewald_defaults`  -- 静電の既定
+        - :meth:`_write_time_conditions` -- ``.mdp`` 由来の時間刻みとステップ数
 
         Parameters
         ----------
@@ -1119,7 +1119,7 @@ class TopExporter:
 
     @staticmethod
     def _write_molecular_attributes(uobj, model: TopModel) -> None:
-        """Molecular_Attributes — bonded terms per molecule type."""
+        """Molecular_Attributes -- bonded terms per molecule type."""
         display_map = build_display_type_map(model)
         uobj.jump(-1)
 
@@ -1203,7 +1203,7 @@ class TopExporter:
                 # に実機で確認。 下流で力場を取得しなおすと SCNB/SCEE
                 # が入り、 それで通るようになった)。 名前は AMBER の慣用だが、
                 # 値は GROMACS の fudge をそのまま入れる (実測で一致)。
-                # 多重度の 2 つめ以降には付けない —— 取り直し後のファイルも
+                # 多重度の 2 つめ以降には付けない ---- 取り直し後のファイルも
                 # 先頭の項にだけ持っていた。
                 if not _is_multiplicity_continuation(tt.name):
                     for kk, (nm, val) in enumerate(
@@ -1242,7 +1242,7 @@ class TopExporter:
 
     @staticmethod
     def _write_interactions(uobj, model: TopModel) -> None:
-        """Interactions — nonbonded pair styles and mixing."""
+        """Interactions -- nonbonded pair styles and mixing."""
         uobj.jump(-1)
 
         # Collect atom types actually referenced in Set_of_Molecules

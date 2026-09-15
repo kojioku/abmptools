@@ -24,7 +24,7 @@ class ComponentSpec:
     segments). The PDB is fed to OpenFF Topology directly via
     ``Topology.from_pdb``; the OpenFF Toolkit must be able to assign
     parameters to the resulting molecule (works for simple sp3/sp2
-    organics, may fail for complex polymers — fall back to the legacy
+    organics, may fail for complex polymers -- fall back to the legacy
     UDF route in that case).
     """
     name: str = ""
@@ -83,7 +83,7 @@ class BuildConfig:
     #   typical 用途は water に専用モデルを当てること:
     #   ['openff_unconstrained-2.1.0.offxml', 'tip3p.offxml']
     #   GAFF water の repulsive σ/ε で純 water 系が膨張する問題
-    #   (1.0→0.26 g/cm³) の解決策。OpenFF 標準の 'tip3p.offxml' /
+    #   (1.0→0.26 g/cm^3) の解決策。OpenFF 標準の 'tip3p.offxml' /
     #   'tip3p_fb.offxml' / 'spce.offxml' 等を最後に追加すれば water
     #   分子に SMIRKS マッチして上書きされる。
     forcefield: Any = "openff_unconstrained-2.1.0.offxml"
@@ -134,7 +134,7 @@ class BuildConfig:
     #      moletype を split し TRIMER 用コピーに posres 追加。
     #   3. 02_nvt_highT 以降の全 mdp に `define = -DPOSRES_TRIMER` が挿入され
     #      posres が active 化
-    # cluster center (water trimer 等) を MD 中ほぼ静止 (~0.01 Å の wiggle のみ)
+    # cluster center (water trimer 等) を MD 中ほぼ静止 (~0.01 A の wiggle のみ)
     # に維持。 freezegrps の hard-fix は LINCS/SETTLE と MPI DD で
     # `determinant = -inf` で abort するので harmonic restraint を使う。
     frozen_atom_indices: List[int] = field(default_factory=list)

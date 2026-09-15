@@ -153,8 +153,8 @@ class MoleculeTopology:
 class AtomPosition:
     """One atom entry in the .gro body."""
     mol_id: int             # 1-based (capped at 99999)
-    mol_name_short: str     # ≤5 chars Gromacs mol name
-    atom_gro_name: str      # atomname_in_gro (≤5 chars)
+    mol_name_short: str     # <=5 chars Gromacs mol name
+    atom_gro_name: str      # atomname_in_gro (<=5 chars)
     atom_id: int            # 1-based Atom_ID (capped at 99999)
     x: float                # [nm]
     y: float                # [nm]
@@ -277,7 +277,7 @@ class ClusterData:
 
     Used when a specific group of molecules needs to be placed as a pre-built
     cluster (e.g. a water tetramer) rather than distributed by Packmol.
-    Consumed by the COGNAC UDF writer only — ignored by GROMACS writers.
+    Consumed by the COGNAC UDF writer only -- ignored by GROMACS writers.
 
     Attributes
     ----------

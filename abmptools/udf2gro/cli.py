@@ -103,7 +103,7 @@ def main(argv=None):
         print("           比例して伸びる。 GROMACS の実用域 (2-5 ps) に収めたい")
         print("           ときに --tau-p-max 5 とする。 丸めたら警告に出す")
         print("  --unit  UDF が Unit_Parameter を持たないときのスケール。")
-        print("          all_atom = 長さ Å / エネルギー kcal/mol (GAFF 系)")
+        print("          all_atom = 長さ A / エネルギー kcal/mol (GAFF 系)")
         print("          M,E,L    = Mass[amu], Energy[kJ/mol], Length[nm]")
         raise RuntimeError("")
 

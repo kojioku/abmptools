@@ -200,7 +200,7 @@ class UDFWriter:
                 udf.put(vz,   "Structure.Velocity.mol[].atom[].z", [m, a])
 
         # --- Unit cell ---
-        # Cast to Python float — UDFManager.put silently writes 0 for
+        # Cast to Python float -- UDFManager.put silently writes 0 for
         # numpy float32 / float64 values (see trajectory_ingest fix).
         ca, cb, cc = float(cell.a), float(cell.b), float(cell.c)
         try:

@@ -85,7 +85,7 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     md.add_argument("--charge_method", type=str, default="",
                     choices=["", "am1bcc", "nagl", "gasteiger"],
                     help="Partial charge backend: '' / 'am1bcc' (default; "
-                         "Interchange's AM1-BCC via AmberTools sqm — requires "
+                         "Interchange's AM1-BCC via AmberTools sqm -- requires "
                          "Linux/macOS), 'nagl' (ML AM1-BCC via openff-nagl; "
                          "Windows-compatible), or 'gasteiger' (fast fallback).")
     md.add_argument(

@@ -815,7 +815,7 @@ class udf_io(molc):
         if contact_cutmode == 'around':
             contact_criteria = getattr(self, 'contact_criteria', 4.0)
             crit2 = contact_criteria * contact_criteria
-            logger.info("neighbor selection: cutmode='around', criteria=%.2f Å",
+            logger.info("neighbor selection: cutmode='around', criteria=%.2f A",
                         contact_criteria)
             posMol_np = [np.asarray(pm, dtype=float) for pm in posMol]
             # Precompute COM array for fast pairwise filter

@@ -52,7 +52,7 @@ class MacePdbOptimizer:
         ASE optimizer: ``"BFGS"``, ``"FIRE"``, or ``"LBFGS"``.
         Default: ``"BFGS"``.
     fmax : float
-        Force convergence threshold [eV/Å].  Default: ``0.05``.
+        Force convergence threshold [eV/A].  Default: ``0.05``.
     steps : int
         Maximum number of optimization steps.  Default: ``500``.
     trajectory : str or None

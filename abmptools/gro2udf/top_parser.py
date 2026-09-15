@@ -466,7 +466,7 @@ class TopParser:
                 flg_mol = True
                 continue
             elif stripped.startswith("[") and stripped.endswith("]"):
-                # unknown section — stop current flags
+                # unknown section -- stop current flags
                 flg1 = flg2 = flg3 = flg4 = flg5 = False
                 continue
 
@@ -615,7 +615,7 @@ class TopParser:
                 torsion_types_from_mol)
 
     # ------------------------------------------------------------------
-    # Internal helpers: put*Type — deduplicate and register type entries
+    # Internal helpers: put*Type -- deduplicate and register type entries
     # ------------------------------------------------------------------
 
     @staticmethod

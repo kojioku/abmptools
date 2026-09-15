@@ -38,7 +38,7 @@ def _dedup_angles(angles):
     Two angles are equivalent if they share atom2 (vertex) and the
     end-atom pair {atom1, atom3} matches. We canonicalize by sorting
     (atom1, atom3) and key on (atom2, sorted-pair). Self-angles where
-    atom1 == atom3 are silently dropped — they are never physically
+    atom1 == atom3 are silently dropped -- they are never physically
     meaningful.
 
     Some COGNAC UDFs (notably for molecules with sp2/double-bond

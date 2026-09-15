@@ -7,7 +7,7 @@ QM geometry optimization using PySCF DFT with optional D3(BJ) dispersion.
 Default settings: B3LYP / def2-SVP with D3(BJ) dispersion correction.
 
 Supported input formats: xyz, pdb
-    - xyz: element symbol + Cartesian coordinates (Å), standard format
+    - xyz: element symbol + Cartesian coordinates (A), standard format
     - pdb: ATOM/HETATM records; element is read from cols 77-78 and inferred
       from the atom name when the element column is blank.  If neither
       strategy yields an unambiguous symbol, a ValueError is raised.
@@ -279,7 +279,7 @@ class QMOptimizerPySCF:
         solver-specific (see geomeTRIC / berny documentation).
         ``None`` uses the solver defaults.
     verbose : int
-        PySCF verbosity level (0–9).  Default: ``3``.
+        PySCF verbosity level (0-9).  Default: ``3``.
     seed : int or None
         Reserved for future use.  QM calculations are deterministic;
         this parameter has no effect in the current implementation.

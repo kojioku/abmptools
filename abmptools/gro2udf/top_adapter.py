@@ -390,7 +390,7 @@ class TopAdapter:
         frames: List[GROFrameData],
     ) -> float:
         """
-        Compute the optimal Ewald real-space cutoff [Å] using the
+        Compute the optimal Ewald real-space cutoff [A] using the
         Deserno & Holm (J. Chem. Phys. 109, 7678, 1998) formula that
         equalises real-space and reciprocal-space errors:
 
@@ -400,7 +400,7 @@ class TopAdapter:
 
             \\alpha = \\sqrt{\\pi}\\left(\\frac{5.5 N}{V^2}\\right)^{1/6}
 
-        where N is the number of atoms and V [nm³] is the box volume
+        where N is the number of atoms and V [nm^3] is the box volume
         taken from the first GRO frame.
 
         Falls back to :data:`EWALD_R_CUTOFF_DEFAULT` when the box
@@ -409,7 +409,7 @@ class TopAdapter:
         Returns
         -------
         float
-            R_cutoff in [Å] (COGNAC internal length unit).
+            R_cutoff in [A] (COGNAC internal length unit).
         """
         if not frames or n_atoms <= 0:
             return EWALD_R_CUTOFF_DEFAULT
@@ -420,4 +420,4 @@ class TopAdapter:
             return EWALD_R_CUTOFF_DEFAULT
 
         alpha = math.sqrt(math.pi) * (5.5 * n_atoms / V ** 2) ** (1.0 / 6.0)
-        return (math.sqrt(11.5) / alpha) * 10.0  # nm → Å
+        return (math.sqrt(11.5) / alpha) * 10.0  # nm → A

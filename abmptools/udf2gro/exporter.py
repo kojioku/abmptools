@@ -30,7 +30,7 @@ class Exporter:
         unit_parameter : tuple | str | None
             UDF が ``Unit_Parameter`` を宣言していないときに当てるスケール
             ``(Mass[amu], Energy[kJ/mol], Length[nm])``。全原子 UDF
-            (長さ Å / エネルギー kcal/mol) なら ``"all_atom"``。
+            (長さ A / エネルギー kcal/mol) なら ``"all_atom"``。
             省略かつ UDF にも無ければエラーになる (単位が換算されないまま
             書き出されるのを防ぐため)。
 

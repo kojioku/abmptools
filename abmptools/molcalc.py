@@ -307,7 +307,7 @@ class molcalc():
 
         # 定数
         amu_to_grams = 1.66053906660e-24  # 1 amu = 1.66054e-24 g
-        cm_to_angstrom = 1e8  # 1 cm = 1e8 Å
+        cm_to_angstrom = 1e8  # 1 cm = 1e8 A
 
         # 総分子量 [amu] をグラムに変換
         mass_in_grams = totalmass * amu_to_grams
@@ -315,7 +315,7 @@ class molcalc():
         # 体積 [cm^3] を求める
         volume_in_cm3 = mass_in_grams / density
 
-        # セルの体積から立方体のセルサイズ [Å] を求める
+        # セルの体積から立方体のセルサイズ [A] を求める
         cellsize_in_angstrom = math.pow(volume_in_cm3, 1/3.0) * cm_to_angstrom
 
         return cellsize_in_angstrom
@@ -334,7 +334,7 @@ class molcalc():
             path: 出力ディレクトリパス。
             iname: 出力ファイル名（拡張子なし）。
             molindex: 出力対象の分子インデックスリスト。
-            posMol: 全分子の原子座標 (Å)。
+            posMol: 全分子の原子座標 (A)。
             nameAtom: 全分子の原子名 (例: ['O0', 'H1', 'H2'])。
             molnames: 各 mol の `Mol_Name` (例: ['A_PEG5', 'B_water', ...])。
                 None のとき全 'UNK'。PDB の residue name 列 (先頭 3 char 大文字)

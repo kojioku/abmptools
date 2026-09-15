@@ -2,7 +2,7 @@
 """
 abmptools.udfcreate_v2
 ----------------------
-Phase 2c-E successor of :mod:`abmptools.udfcreate` (gen_udf path) — emits
+Phase 2c-E successor of :mod:`abmptools.udfcreate` (gen_udf path) -- emits
 COGNAC UDF using a static template + structured ``UDFManager.put`` calls
 instead of Python-string concatenation.
 
@@ -12,7 +12,7 @@ The legacy ``gen_udf`` builds a UDF by concatenating ~700 lines of
 hand-written ``put*`` text helpers. This is fragile (recall the
 self-angle / duplicate-angle bug fixed via post-process clean_top.py)
 and difficult to test piecewise. ``TopExporter`` (gro2udf direction) has
-shown that a template-UDF + UDFManager.put approach is much cleaner —
+shown that a template-UDF + UDFManager.put approach is much cleaner --
 this module brings the same approach to the udf_create direction.
 
 Status (2026-04-28, D-2: Molecular_Attributes)
@@ -37,7 +37,7 @@ Remaining (planned, in order of size):
   D-3: Set_of_Molecules + Structure.Position
   D-4: switch fcewsmb call sites + deprecate ``udfcreate.gen_udf``
 
-Until D-4 lands, this is an additive module — ``gen_udf`` stays
+Until D-4 lands, this is an additive module -- ``gen_udf`` stays
 authoritative and v2 is a per-section migration target.
 
 Public API
@@ -128,9 +128,9 @@ def set_initial_cell(uobj, cellsize_nm: Sequence[float],
     cellsize_nm : sequence of 3 floats
         Box edge lengths ``[a, b, c]`` in **nm**. Note: COGNAC's UDF
         stores cell sizes as plain numbers without an explicit unit, so
-        they end up in whatever unit the schema implies (Å in the
+        they end up in whatever unit the schema implies (A in the
         existing flow). We follow the legacy behaviour of writing the
-        raw numbers; conversion to Å (if needed) is the caller's
+        raw numbers; conversion to A (if needed) is the caller's
         responsibility.
     angles_deg : sequence of 3 floats, optional
         ``[alpha, beta, gamma]`` in degrees. Defaults to orthorhombic
@@ -176,7 +176,7 @@ def set_bond_potentials(uobj, bond_types: Sequence[BondTypeSpec]) -> None:
     """Populate ``Molecular_Attributes.Bond_Potential[]`` (Harmonic).
 
     Equivalent to the ``putbondparam`` text helper. Currently only
-    ``funct=1`` (Harmonic) is supported — the same scope gen_udf has.
+    ``funct=1`` (Harmonic) is supported -- the same scope gen_udf has.
 
     Parameters
     ----------
@@ -558,7 +558,7 @@ def set_initial_positions(uobj,
 
     Equivalent to the ``putstructure`` text helper. Writes ONE frame
     (the initial structure) into the common record. Trajectory frames
-    are appended separately by callers via ``uobj.newRecord()`` —
+    are appended separately by callers via ``uobj.newRecord()`` --
     matching :class:`TopExporter._append_structure` semantics.
 
     Parameters
@@ -696,7 +696,7 @@ def molspec_from_legacy(*,
 
 
 # ---------------------------------------------------------------------------
-# D-4: Drop-in gen_udf_v2 — same signature as legacy gen_udf
+# D-4: Drop-in gen_udf_v2 -- same signature as legacy gen_udf
 # ---------------------------------------------------------------------------
 
 
@@ -735,7 +735,7 @@ def gen_udf_v2(udf_param: Sequence,
     Behaviour parity with legacy ``gen_udf`` is **not yet byte-verified**.
     Use this only after running a head-to-head ``diff`` against the
     legacy output for a representative system. fcewsmb's setmbparam
-    call sites have not been switched to v2 — that's a separate
+    call sites have not been switched to v2 -- that's a separate
     verification step (planned in D-4 phase 2).
     """
     try:
@@ -869,7 +869,7 @@ def write_skeleton_udf(out_path: str, *,
 
     This is a convenience wrapper that drives ``set_simulation_time`` +
     ``set_initial_cell`` end-to-end. It produces a UDF that is *valid*
-    but missing all force-field / molecule data — the remaining
+    but missing all force-field / molecule data -- the remaining
     sections (Molecular_Attributes, Set_of_Molecules, Structure) are
     still emitted by the legacy gen_udf path until D-2/D-3 land.
 

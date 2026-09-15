@@ -76,18 +76,18 @@ def prepare_molecule(
         match its supported chemistry get proper bond perception;
         otherwise ``Molecule.from_file`` (legacy path) is the fallback.
         OpenFF Toolkit's polymer support is improving but still limited
-        for arbitrary chemistries — if FF assignment fails downstream,
+        for arbitrary chemistries -- if FF assignment fails downstream,
         either supply a SMILES-derived monomer instead or use the legacy
         UDF route.
     name : str
         Optional molecule name.
     charge_method : str
-        ``""`` / ``"am1bcc"`` — leave charges unassigned so
+        ``""`` / ``"am1bcc"`` -- leave charges unassigned so
         :class:`openff.interchange.Interchange` invokes AM1-BCC via
         AmberTools ``sqm`` (Linux/macOS default, fails on Windows).
-        ``"nagl"``            — pre-assign using openff-nagl's ML
+        ``"nagl"``            -- pre-assign using openff-nagl's ML
         AM1-BCC approximation (Windows-compatible).
-        ``"gasteiger"``       — pre-assign Gasteiger charges
+        ``"gasteiger"``       -- pre-assign Gasteiger charges
         (fast, lower fidelity; useful as a sanity check).
     nagl_model : str
         OpenFF NAGL model identifier (used only when
@@ -158,7 +158,7 @@ def _load_molecule_from_pdb(pdb_path: str, name: str = "") -> Any:
        the bundled substructure library (proteins, DNA), not for
        generic chain oligomers like propane×3.
     2. ``Molecule.from_file`` for ``.pdb`` raises NotImplementedError
-       in current releases — RDKit can't safely infer bond orders
+       in current releases -- RDKit can't safely infer bond orders
        from a PDB alone.
     3. ``Molecule.from_pdb_and_smiles`` works but needs an oligomer
        SMILES the caller would have to construct.

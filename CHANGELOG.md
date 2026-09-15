@@ -4,6 +4,36 @@
 
 ## [2.15.0] - 2026-09-15
 
+### Fixed — `--help` が日本語 Windows のコンソールで落ちていた
+
+```
+python -m abmptools.amorphous --help
+  UnicodeEncodeError: 'cp932' codec can't encode character '—'
+  RC 1
+```
+
+`amorphous` と `udf2gro` の両方。**2.14.1 でも同じ**で、今回の回帰では
+ない。J-OCTA のコンソールは既定 cp932 なので、**「`--help` を見てください」
+と案内している経路が落ちる**。
+
+**日本語そのものは cp932 で出せる。** 落ちるのは `—` `Å` `≈` のような記号
+だけなので、ASCII に置き換えた (36 ファイル / 162 文字)。
+`PYTHONIOENCODING=utf-8` で逃げると、**今度は日本語が化ける**。
+
+`tests/test_console_output_cp932.py` が、ソース全体に cp932 で書けない文字
+が無いことを検査する。**出力に載るものだけ**でなく全部を見るのは、文字列は
+届きうるだけで害になり、コメントを揃えておく費用はゼロだから。
+
+### Fixed — `gro2udf --help` が usage を出しておきながら 1 を返していた
+
+`--help` を argparse に渡さず、独自 usage を出してから
+`RuntimeError("Illegal arguments.")` にしていた。**使い方を正しく表示して
+おきながら失敗を返す**ので、終了コードを見る呼び出し側は失敗と読む。
+`moldeck` の `install_minimum.bat` と `moldeck.cg.martini_top` で直したのと
+同じ型。`--help` / `-h` は **0**、引数不足は 1 のまま。ついでに usage に
+`--trajectory` / `--energy` を載せた。
+
+
 ### Fixed — `[ atoms ]` に質量を書く (J-OCTA の CG 誤認の**本命**)
 
 **`[ atomtypes ]` に `at.num` を足しただけでは直らなかった。** J-OCTA の

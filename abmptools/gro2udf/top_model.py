@@ -19,16 +19,16 @@ from typing import Dict, List, Optional, Tuple
 # Physical constants
 # ---------------------------------------------------------------------------
 
-#: Boltzmann constant in COGNAC internal units [amu * Å² / (ps² * K)]
-#: k_B = R / N_A  converted from (kg·m²/s²/K) → (amu·Å²/ps²/K)
-#: = 1.38064852e-23 J/K / (1.66053906660e-23 J / (amu·Å²/ps²))
+#: Boltzmann constant in COGNAC internal units [amu * A^2 / (ps^2 * K)]
+#: k_B = R / N_A  converted from (kg*m^2/s^2/K) → (amu*A^2/ps^2/K)
+#: = 1.38064852e-23 J/K / (1.66053906660e-23 J / (amu*A^2/ps^2))
 #: = 0.83144626
 KB_AMU_A2_PS2_K: float = 0.83144626
 
-#: Fallback Ewald R_cutoff [Å] used only when GRO frames are unavailable.
+#: Fallback Ewald R_cutoff [A] used only when GRO frames are unavailable.
 #: Under normal circumstances, R_cutoff is computed by the Deserno & Holm
-#: (JCP 1998) formula: R_cutoff = sqrt(11.5) / (sqrt(pi)*(5.5N/V²)^(1/6))
-#: (result converted nm → Å by ×10).
+#: (JCP 1998) formula: R_cutoff = sqrt(11.5) / (sqrt(pi)*(5.5N/V^2)^(1/6))
+#: (result converted nm → A by ×10).
 EWALD_R_CUTOFF_DEFAULT: float = 10.0
 
 from ..core.system_model import CellGeometry
@@ -236,7 +236,7 @@ class TopModel:
     ref_t: float = 300.0
     #: Nose-Hoover relaxation time [ps]  (from mdp: tau_t)
     tau_t: float = 0.1
-    #: Ewald real-space cutoff [Å]  (Deserno & Holm formula from GRO box, or default)
+    #: Ewald real-space cutoff [A]  (Deserno & Holm formula from GRO box, or default)
     ewald_r_cutoff: float = EWALD_R_CUTOFF_DEFAULT
     #: Integration step [ps]  (from mdp: dt)
     dt_ps: float = 0.001

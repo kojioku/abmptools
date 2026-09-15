@@ -271,7 +271,7 @@ class UdfAdapter:
     """Reads a UDFManager object and produces a SystemModel."""
 
     #: Unit_Parameter が無い UDF に当てる既定のスケール。
-    #: 全原子 UDF (AMBER / GAFF 系) の慣用単位 = 長さ Å, エネルギー kcal/mol。
+    #: 全原子 UDF (AMBER / GAFF 系) の慣用単位 = 長さ A, エネルギー kcal/mol。
     #: (Mass [amu], Energy [kJ/mol], Length [nm])
     ALL_ATOM_UNIT = (1.0, 4.184, 0.1)
 
@@ -285,7 +285,7 @@ class UdfAdapter:
         unit_parameter : tuple | str | None
             ``Unit_Parameter`` が UDF に無いときに使うスケール
             ``(Mass[amu], Energy[kJ/mol], Length[nm])``。
-            ``"all_atom"`` で :data:`ALL_ATOM_UNIT` (Å / kcal/mol)。
+            ``"all_atom"`` で :data:`ALL_ATOM_UNIT` (A / kcal/mol)。
             ``None`` かつ UDF にも無ければ **エラーにする** (黙って
             無次元値を GROMACS 単位として書き出さないため)。
         tau_t, tau_p : float | None
@@ -330,7 +330,7 @@ class UdfAdapter:
         基づく。
 
         **``Unit_Parameter`` が無いと換算は黙って素通りする。** その場合
-        Å の座標が nm、kcal/mol の epsilon が kJ/mol として書き出され、
+        A の座標が nm、kcal/mol の epsilon が kJ/mol として書き出され、
         ``gmx grompp`` は形式が正しいので通してしまう。箱が 10 倍
         (= 密度 1/1000) の系が警告なしに走るので、極めて気付きにくい。
 
@@ -360,10 +360,10 @@ class UdfAdapter:
             raise RuntimeError(
                 "この UDF は Unit_Parameter を宣言していません。\n"
                 "UDFManager の単位換算はこれを基準に行うため、このまま変換すると\n"
-                "Å の値が nm、kcal/mol の値が kJ/mol として書き出されます\n"
+                "A の値が nm、kcal/mol の値が kJ/mol として書き出されます\n"
                 "(grompp は通ってしまい、箱が 10 倍 = 密度 1/1000 の系が走ります)。\n"
                 "\n"
-                "全原子 UDF (GAFF 系、長さ Å・エネルギー kcal/mol) なら:\n"
+                "全原子 UDF (GAFF 系、長さ A・エネルギー kcal/mol) なら:\n"
                 "    Exporter().export(udf, prefix, unit_parameter='all_atom')\n"
                 "    python -m abmptools.udf2gro in.udf out --unit all_atom\n"
                 "別のスケールなら (Mass[amu], Energy[kJ/mol], Length[nm]) を渡すか、\n"
@@ -815,7 +815,7 @@ class UdfAdapter:
                 if (s1 == name1 and s2 == name2) or (s1 == name2 and s2 == name1):
                     found = True
                     break
-            # Always add pair (found or not) — matches original behaviour
+            # Always add pair (found or not) -- matches original behaviour
             pairs.append(PairRecord(atom1=pair1[i] + 1, atom2=pair2[i] + 1))
 
         return pairs
@@ -1648,7 +1648,7 @@ class UdfAdapter:
                         "%.4f ps を上書き)", self._tau_p_override, tau_p)
             tau_p = self._tau_p_override
         elif self._tau_p_max is not None and tau_p > self._tau_p_max:
-            # 換算値を丸める。 **黙って丸めない** — 値が正しくないから丸める
+            # 換算値を丸める。 **黙って丸めない** -- 値が正しくないから丸める
             # のではなく、 GROMACS の実用域に入れるための意図的な打ち切りな
             # ので、 元の値と一緒にログへ残す。
             logger.warning(

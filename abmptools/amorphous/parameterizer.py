@@ -53,7 +53,7 @@ def create_interchange(
     ----------
     molecules : list of openff.toolkit.Molecule
         One OpenFF Molecule per component (with conformer, optionally
-        with pre-assigned partial charges — see *use_precomputed_charges*).
+        with pre-assigned partial charges -- see *use_precomputed_charges*).
     counts : list of int
         Number of molecules for each component.
     box_size_nm : float
@@ -62,7 +62,7 @@ def create_interchange(
         Path to the Packmol-generated mixture PDB.
     forcefield_name : str or sequence of str
         OpenFF force field OFFXML name(s). When a sequence is passed,
-        OpenFF combines them in order — typical use case is overriding
+        OpenFF combines them in order -- typical use case is overriding
         water with a specific model, e.g.
         ``["openff_unconstrained-2.1.0.offxml", "tip3p.offxml"]``.
         The first FF defines defaults; subsequent FFs override matching

@@ -5,7 +5,7 @@
         [--out bulk_charged.udf] [--mol-name NAME] [--mol-index I] \
         [--no-verify-types] [--non-strict]
 
-    # 中和 (Σq≈0) された 1 分子 UDF の電荷を指定形式電荷に復元
+    # 中和 (Σq~=0) された 1 分子 UDF の電荷を指定形式電荷に復元
     python -m abmptools.udfcharge restore --udf mol.udf --formal-charge 12 \
         [--out mol_q+12.udf] [--mol-index I] [--mol-name NAME]
 
@@ -89,7 +89,7 @@ def main(argv=None) -> int:
 
     pr = sub.add_parser("restore",
                         help="中和済み 1 分子 UDF の電荷を指定形式電荷に復元")
-    pr.add_argument("--udf", required=True, help="中和 (Σq≈0) された 1 分子 UDF")
+    pr.add_argument("--udf", required=True, help="中和 (Σq~=0) された 1 分子 UDF")
     pr.add_argument("--formal-charge", type=int, required=True,
                     help="目標の形式電荷 (整数)")
     pr.add_argument("--out", default=None, help="出力 (省略時 <udf>_q<±S>.udf)")

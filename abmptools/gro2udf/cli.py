@@ -155,7 +155,7 @@ def _run_from_top(argv: list) -> None:
         # When the user explicitly asked for a cognac10.x schema
         # (OCTA8.4 / OCTA8.4), pick the cognac101-compatible
         # bundled template so its data section parses on that install.
-        # NOTE: enumerate cognac10.x explicitly — `str.startswith("10")`
+        # NOTE: enumerate cognac10.x explicitly -- `str.startswith("10")`
         # would erroneously match `"110"`/`"112"` (those are cognac 11.x,
         # not cognac 10.x).
         cv = args.cognac_version
@@ -192,12 +192,26 @@ def _run_from_top(argv: list) -> None:
             print(f"  (topology + 1 initial frame from {args.initial_gro_path!s}. "
                   f"Load further trajectory / energy in OCTA viewer (GOURMET).)")
         else:
-            print("  (topology-only — no Structure record. Load trajectory "
+            print("  (topology-only -- no Structure record. Load trajectory "
                   "/ energy directly in OCTA viewer (GOURMET).)")
     elif args.trajectory_path:
         print("  (embedded {} frames{})".format(
             "trajectory",
             " + energy" if args.energy_path else ""))
+
+
+def _usage(argv) -> None:
+    """Print how to call this. Used by --help and by the argument error."""
+    prog = os.path.basename(argv[0])
+    print("Usage: {} udffile grofile [xvg]".format(prog))
+    print("       {} --from-top topfile grofile "
+          "[--template t.udf] [--out out.udf]".format(prog))
+    print("       {} --from-top topfile grofile "
+          "[--trajectory md.xtc] [--energy e.xvg]".format(prog))
+    print()
+    print("  --from-top mode takes a GROMACS topology; --trajectory accepts a")
+    print("  multi-frame .gro or an .xtc and writes every frame as a record.")
+    print("  Run with --from-top --help for the full option list.")
 
 
 def main(argv=None):
@@ -212,13 +226,16 @@ def main(argv=None):
         _run_from_top(argv)
         return
 
+    # Asking for the usage is not a failure. This printed it correctly and
+    # then raised, so `gro2udf --help` came back as 1 and a caller checking
+    # the exit code read it as one -- the same thing that was fixed in
+    # moldeck's install_minimum.bat and in moldeck.cg.martini_top.
+    if any(a in ("-h", "--help") for a in argv[1:]):
+        _usage(argv)
+        return
+
     if len(argv) < 3:
-        print("Usage: {} udffile grofile [xvg]".format(
-            os.path.basename(argv[0])
-        ))
-        print("       {} --from-top topfile grofile [--template t.udf] [--out out.udf]".format(
-            os.path.basename(argv[0])
-        ))
+        _usage(argv)
         raise RuntimeError("Illegal arguments.")
 
     udf_path = argv[1]
