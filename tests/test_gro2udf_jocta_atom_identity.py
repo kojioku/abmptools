@@ -93,3 +93,65 @@ class TestAtomIdIsGlobal:
         seg = udf_text[udf_text.find("Molecular_Attributes"):]
         names = re.findall(r'"([A-Z][a-z]?\d+)"', seg)
         assert len(set(names)) < 10, sorted(set(names))
+
+class TestBondedTypesCollapseToo:
+    """atom type を畳むと、 結合 / 角度 / 二面角の型も一緒に畳まれる。
+
+    parser は結合項の型を **(型名, funct, パラメータ)** で重複判定する
+    (``_put_bond_type`` ほか)。 per-atom unique な型名のままだと、 同じ
+    パラメータでも名前が違うので 1 本ごとに別の型になり、 UDF に何百もの
+    ``Bond_Potential`` / ``Torsion_Potential`` が並ぶ。 名前を畳めばここも
+    畳まれる。
+
+    **パラメータは判定キーに入っているので、 中身が違うものは決して
+    混ざらない。** ここではその不変条件を、 畳む前後でパラメータの集合が
+    変わらないことで押さえる。
+    """
+
+    @staticmethod
+    def _parsed(fold: bool):
+        import abmptools.gro2udf.top_parser as tp
+        from abmptools.gro2udf.top_parser import TopParser
+
+        original = tp.fold_atomtypes
+        if not fold:
+            tp.fold_atomtypes = lambda text: (text, {})
+        try:
+            return TopParser().parse(str(DATA / "system.top"))
+        finally:
+            tp.fold_atomtypes = original
+
+    def test_bonded_type_counts_drop(self):
+        before, after = self._parsed(False), self._parsed(True)
+        for kind in ("bond_types_from_mol", "angle_types_from_mol",
+                     "torsion_types_from_mol"):
+            n_before = len(getattr(before, kind))
+            n_after = len(getattr(after, kind))
+            assert n_after < n_before, f"{kind}: {n_before} -> {n_after}"
+            assert n_after < 20, f"{kind} still has {n_after} types"
+
+    def test_parameters_are_untouched(self):
+        """畳んでもパラメータの集合は 1 つも増減しない。"""
+        before, after = self._parsed(False), self._parsed(True)
+        for kind in ("bond_types_from_mol", "angle_types_from_mol",
+                     "torsion_types_from_mol"):
+            sets = [{tuple(t[-1]) for t in getattr(raw, kind)}
+                    for raw in (before, after)]
+            assert sets[0] == sets[1], (
+                f"{kind}: パラメータが変わった\n"
+                f"  畳む前のみ: {sets[0] - sets[1]}\n"
+                f"  畳んだ後のみ: {sets[1] - sets[0]}"
+            )
+
+    def test_differing_parameters_stay_separate(self):
+        """同じ型名の組でもパラメータが違えば別の型のまま。"""
+        from abmptools.gro2udf.top_parser import get_bond_name
+
+        raw = self._parsed(True)
+        seen = {}
+        for a1, a2, _funct, params in raw.bond_types_from_mol:
+            name = get_bond_name(a1, a2)
+            if name in seen:
+                # 名前が重なるなら中身は必ず違う (同じなら畳まれているはず)
+                assert seen[name] != tuple(params), name
+            seen[name] = tuple(params)

@@ -23,6 +23,20 @@ atom type の概念が無いためで、PVA 10-mer では `[ atomtypes ]` が **
 - **型名で引くセクション (`bondtypes` 等) がある `.top` は畳まない。** 畳むと
   引き先が変わり、**エラーを出さずに力場が変わる**
 
+**結合項の型も一緒に畳まれる。** parser は結合 / 角度 / 二面角の型を
+**(型名, funct, パラメータ)** で重複判定するので、per-atom unique な名前の
+ままだと同じパラメータでも 1 本ごとに別の型になる。PVA 10-mer の実測:
+
+| | 畳む前 | 畳んだ後 |
+|---|---|---|
+| atom type | 75 | **5** |
+| `Bond_Potential` | 74 | **5** |
+| `Angle_Potential` | 136 | **7** |
+| `Torsion_Potential` | 210 | **8** |
+
+**パラメータは判定キーに入っているので、中身の違うものは決して混ざらない。**
+畳む前後でパラメータの集合が変わらないことをテストで押さえてある。
+
 等価性は grompp + 0 step で確認済み。Bond / Angle / Proper Dih. / LJ-14 /
 Coulomb-14 / LJ (SR) / Disper. corr. / Coulomb (SR) / Coul. recip. / Potential /
 Kinetic / Total の **全 12 項で最大絶対差 0**。
