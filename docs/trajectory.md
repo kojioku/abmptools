@@ -82,10 +82,65 @@ python -m abmptools.trajectory gen_for_udf --stage prod --no-ndx
 python -m abmptools.trajectory gen_for_udf --dir run1/md
 ```
 
-`.trr` と `.xtc` が両方あれば、速度も持つ `.trr` を使います。
-`.edr` しか無い stage では energy だけを出力し、軌跡は
-`(skipped: ...)` と明示します。どちらも作れない場合は RC 1 で停止します
-(何も作らずに「完了」と言わないため)。
+#### 引数なしのとき、何が読まれるか
+
+`gen_for_udf` は必須引数がありません。引数なしで実行すると、カレント
+ディレクトリ(`--dir` があればそちら)の中身から読むファイルを決めます。
+
+**1. どの stage か** —— `*.tpr` を列挙し、**同じ basename の `.edr` /
+`.xtc` / `.trr` が 1 つでもある**ものだけを候補にします(`.tpr` だけの
+grompp 残骸は無視)。
+
+- 候補が 1 つ → それを使う(名前は何でもよい)
+- 複数 → `05_npt_final` → `prod` → `production` の順で優先
+- それでも決まらない → **候補を列挙して RC 1 で停止**
+
+**2. 決まった stage から読むファイル**
+
+| 読むもの | 用途 | 無い場合 |
+|---|---|---|
+| `<stage>.edr` | `gmx energy` → `<stage>_energy.xvg` | energy をスキップ (明示表示) |
+| `<stage>.trr` or `.xtc` | `gmx trjconv -pbc nojump` の入力 | 軌跡をスキップ (明示表示) |
+| `<stage>.tpr` | 上の reference 構造 | 軌跡をスキップ |
+
+`.trr` と `.xtc` が両方あれば、**速度も持つ `.trr` を優先**します。
+両方ともスキップになれば RC 1 です(何も作らずに「完了」と言わないため)。
+
+**3. index file** —— `../build/system.ndx` → `system.ndx` の順に探し、
+見つかれば使い、無ければ使いません。
+
+出力は**読んだファイルと同じディレクトリ**に置かれます。
+どの stage を選んだかは必ず 1 行目に出るので、実行後にそこを見れば
+意図と合っているか確認できます:
+
+```
+stage: 05_npt_final
+index: /path/to/build/system.ndx
+  /path/to/md/05_npt_final_energy.xvg  (gmx energy, 0.3 MB)
+  /path/to/md/05_npt_final_nojump.gro  (trjconv -pbc nojump, 4.3 MB)
+```
+
+#### `--no-ndx` を使うとき
+
+index file (`.ndx`) は原子を group にまとめた定義で、`gmx trjconv` の `-n`
+に渡すものです。`--no-ndx` は**自動探索ごと止めて `-n` を付けずに実行**します。
+
+なぜ要るかというと、**group 番号の意味が `.ndx` の有無で変わる**からです。
+
+| | group 0 の中身 |
+|---|---|
+| `.ndx` なし | tpr の既定 group。**0 = System** |
+| `.ndx` あり | **その `.ndx` の最初の group** (System とは限らない) |
+
+`gen_for_udf` は group 0 を出力するので、隣に**別の系・別の目的で作った
+`.ndx`** が置いてあると、意図せず一部の原子だけを切り出した `.gro` が
+**エラーなしで**出来てしまいます。Tg 計算のように index を使わない run の
+ディレクトリで、たまたま `system.ndx` が同居しているようなときに付けて
+ください。
+
+逆に「別の `.ndx` の、特定の group を出したい」場合は
+`--ndx <file> --group <名前か番号>` を明示します。index が元から無い run
+では、付けても付けなくても結果は同じです。
 
 ## Python API
 

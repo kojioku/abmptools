@@ -477,6 +477,56 @@ python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
     --out 05_full.udf
 ```
 
+#### `gen_for_udf` は引数なしで何を読んでいるか
+
+引数を渡していないのに動くのは、**ディレクトリの中身から読むファイルを決めて
+いる**からです。仕組みを知っておくと、別の計算に流用するときに迷いません。
+
+まず `*.tpr` を列挙し、**同じ名前の `.edr` / `.xtc` / `.trr` が 1 つでもある**
+ものを stage 候補にします (`.tpr` だけの grompp 残骸は無視)。候補が 1 つなら
+それを使い、複数なら `05_npt_final` → `prod` → `production` の順で優先します。
+それでも決まらなければ、**候補を並べて止まります** —— 黙って 1 つ選ぶと、
+違う stage を後処理したことに気付けないからです。
+
+stage が決まったら `<stage>.edr`(エネルギー)、`<stage>.trr` または `.xtc`
+(軌跡)、`<stage>.tpr`(軌跡の reference)を読みます。`.trr` と `.xtc` が
+両方あれば、速度も持つ `.trr` を使います。index file は
+`../build/system.ndx` → `system.ndx` の順に自動で探し、無ければ使いません。
+
+**どの stage を選んだかは必ず出力に出ます。** ここを見れば、意図と合って
+いるか一目で分かります:
+
+`python gen_for_udf.py` の場合:
+
+```
+UDF export complete (stage: 05_npt_final):
+  /path/to/md/05_npt_final_energy.xvg   (gmx energy)
+  /path/to/md/05_npt_final_nojump.gro   (gmx trjconv -pbc nojump)
+```
+
+module を直接呼んだ場合 (`python -m abmptools.trajectory gen_for_udf`):
+
+```
+stage: 05_npt_final
+index: /path/to/build/system.ndx
+  /path/to/md/05_npt_final_energy.xvg  (gmx energy, 0.3 MB)
+  /path/to/md/05_npt_final_nojump.gro  (trjconv -pbc nojump, 4.3 MB)
+```
+
+`.edr` しか無い stage なら energy だけ出して軌跡は `(skipped: ...)` と明示し、
+どちらも作れなければ RC 1 で止まります(何も作らずに「完了」と言わないため)。
+
+上の例に出てくる `--no-ndx` は、**index file を使わない**指定です。`.ndx` は
+原子を group にまとめた定義ファイルで、有無で group 番号の意味が変わります ——
+`.ndx` なしなら group 0 は System ですが、`.ndx` があると group 0 は
+**その `.ndx` の最初の group** です。`gen_for_udf` は group 0 を出力するので、
+**別の系のために作った `.ndx` が同じ場所にあると、一部の原子だけを切り出した
+`.gro` がエラーなしで出来てしまいます**。Tg 計算のように index を使わない run
+では `--no-ndx` を付けておくと確実です。特定の group を出したい場合は
+`--ndx <file> --group <名前か番号>` を明示します。
+
+オプションの一覧は [`trajectory.md`](trajectory.md) にあります。
+
 こうすると topology + 全フレーム + エネルギープロットが 1 ファイルに入るので、
 **OCTA viewer (GOURMET) だけで再生**できます。
 

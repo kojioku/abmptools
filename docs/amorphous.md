@@ -309,8 +309,54 @@ python gen_for_udf.py prod            # stage を名指し (例: Tg 計算の pr
 python -m abmptools.trajectory gen_for_udf --stage prod --no-ndx
 ```
 
-stage の候補が複数あって決められないときは、候補を列挙して停止します
-(黙って 1 つ選ぶと、意図しない stage を後処理したことに気付けないため)。
+**引数なしのとき何が読まれるか。** カレント (module の場合は `--dir`) の中で
+`*.tpr` を列挙し、**同じ basename の `.edr` / `.xtc` / `.trr` が 1 つでもある**
+ものだけを stage 候補にします (`.tpr` だけの grompp 残骸は無視)。候補が 1 つなら
+それを使い、複数なら `05_npt_final` → `prod` → `production` の順で優先、それでも
+決まらなければ**候補を列挙して RC 1 で停止**します (黙って 1 つ選ぶと、意図しない
+stage を後処理したことに気付けないため)。
+
+決まった stage から読むのは次の 3 つです。
+
+| 読むもの | 用途 | 無い場合 |
+|---|---|---|
+| `<stage>.edr` | `gmx energy` → `<stage>_energy.xvg` | energy をスキップ (明示表示) |
+| `<stage>.trr` or `.xtc` | `gmx trjconv -pbc nojump` の入力 | 軌跡をスキップ (明示表示) |
+| `<stage>.tpr` | 上の reference 構造 | 軌跡をスキップ |
+
+`.trr` と `.xtc` が両方あれば、速度も持つ `.trr` を優先します。両方ともスキップに
+なれば RC 1 です。index file は `../build/system.ndx` → `system.ndx` の順に自動で
+探し、無ければ使いません。出力は読んだファイルと同じディレクトリに置かれます。
+
+**どの stage を選んだかは必ず出力に出ます。** 実行後にそこを見れば、意図と
+合っているか確認できます:
+
+`python gen_for_udf.py` の場合:
+
+```
+UDF export complete (stage: 05_npt_final):
+  /path/to/md/05_npt_final_energy.xvg   (gmx energy)
+  /path/to/md/05_npt_final_nojump.gro   (gmx trjconv -pbc nojump)
+```
+
+module を直接呼んだ場合 (`python -m abmptools.trajectory gen_for_udf`):
+
+```
+stage: 05_npt_final
+index: /path/to/build/system.ndx
+  /path/to/md/05_npt_final_energy.xvg  (gmx energy, 0.3 MB)
+  /path/to/md/05_npt_final_nojump.gro  (trjconv -pbc nojump, 4.3 MB)
+```
+
+**`--no-ndx` は index file を使わない指定です。** group 番号の意味が `.ndx` の
+有無で変わる —— `.ndx` なしなら group 0 は tpr 既定の System ですが、`.ndx` が
+あると group 0 は**その `.ndx` の最初の group** になります。`gen_for_udf` は
+group 0 を出力するので、隣に別の系・別の目的で作った `.ndx` が置いてあると、
+一部の原子だけを切り出した `.gro` が**エラーなしで**出来てしまいます。index を
+使わない run のディレクトリに `system.ndx` が同居しているときに付けてください。
+特定の group を出したい場合は `--ndx <file> --group <名前か番号>` を明示します。
+
+オプションの一覧は [`trajectory.md`](trajectory.md) を参照してください。
 
 `gmx trjconv -pbc nojump` は、`-pbc mol` (`wrap_pbc.py`) と違って **分子を box
 内に wrap せず、PBC を跨いで連続的に追跡**します。OCTA viewer (GOURMET) で軌跡を
