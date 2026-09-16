@@ -6,7 +6,7 @@
 
     UnicodeDecodeError: 'cp932' codec can't decode byte 0x87 in position 2874
 
-`.top` にコメントで日本語を書くのは普通にあることで、J-OCTA の 11.1 / 12.0
+`.top` にコメントで日本語を書くのは普通にあることで、受け取る側の importer 2 版
 どちらでも再現した (2026-09-13、実機)。**`moldeck.hbond` の `.top` 経路は
 このパーサを通る**ので、機能ごと使えなくなる。
 

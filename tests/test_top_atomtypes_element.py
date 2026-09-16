@@ -6,8 +6,8 @@ but an importer does. The names in the column are force field types ("c3",
 "os", "hc"), which mean nothing outside that force field, and the atom names
 in `[ atoms ]` are derived from them. Without an atomic number the only clue
 left is the mass, and a reader that does not guess from mass has no way to
-distinguish an all-atom system from coarse-grained beads: J-OCTA's
-import_gromacs read a converted all-atom system as CG (2026-09-15, J-OCTA
+distinguish an all-atom system from coarse-grained beads: the importer
+on the other side read a converted all-atom system as CG (2026-09-15,
 11.0).
 
 A coarse-grained bead genuinely has no element, and 0 — GROMACS' own value
@@ -54,7 +54,7 @@ def test_atoms_carry_the_mass_column():
     """`[ atoms ]` の 8 列目に質量を出すこと。
 
     GROMACS では省略可 —— 無ければ `[ atomtypes ]` から引く、という規約。
-    **J-OCTA の importer はその規約を実装していない。**
+    **受け取る側の importer はその規約を実装していない。**
     `convert_gromacs_udf.py:238-246` は
 
         if len(stmp) > 7:
@@ -63,7 +63,7 @@ def test_atoms_carry_the_mass_column():
 
     と**この列だけ**を見ており、無ければ力場の型名 (`hc1`) がそのまま
     原子名になる。結果、**全原子系が粗視化として読まれる** (2026-09-15、
-    J-OCTA 11.1 / 12.0 の実機で両方向を確認)。
+    その importer の 2 つの版で両方向を確認)。
 
     `[ atomtypes ]` の `at.num` は同じ importer の中で**コメントアウト
     されている**ので、そちらを足しても解決しない —— 最初にそう直して

@@ -189,7 +189,7 @@ def export_gromacs(
 
     # Interchange は SMIRNOFF に atom type の概念が無いので **原子 1 個に
     # つき 1 型** を書く (MOL0_0 … MOL0_74)。中身が同じでも別名になるため、
-    # 受け取る側 (J-OCTA の import_gromacs、gro2udf) が壊れる。
+    # 受け取る側 (``.top`` を読む外部ツール、gro2udf) が壊れる。
     # パラメータが完全一致する型だけを畳む。畳めない形 (型名で引く
     # セクションがある top) なら触らない。
     from ..core.top_atomtypes import fold_atomtypes_in_file

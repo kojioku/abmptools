@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-"""UDF の原子まわりを J-OCTA の流儀に合わせる 2 点。
+"""UDF の原子まわりを、受け取る側の流儀に合わせる 2 点。
 
 1. **atom type を畳む** —— openff-interchange は SMIRNOFF に atom type の
    概念が無いため原子 1 個につき 1 型を書く。 PVA 10-mer では 75 型出るが
-   中身は 5 種類。 そのまま UDF に持ち込むと J-OCTA が扱えない。
+   中身は 5 種類。 そのまま UDF に持ち込むと受け取る側が扱えない。
    2.16 以降は ``.top`` を書く時点で畳むが、 **それ以前に組んだ ``.top``
    が手元にある**ので、 読み込み時にも畳む。
 
-2. **Atom_ID を全系の通し番号にする** —— J-OCTA 自身が書いた UDF では、
+2. **Atom_ID を全系の通し番号にする** —— 外部ツールが書いた UDF では、
    354 原子の分子で molecule 0 が 0、 1 が 354、 2 が 708 から始まる。
    分子ごとに 0 から振り直すと ID が分子の数だけ重複する。
 """
@@ -84,7 +84,7 @@ class TestAtomIdIsGlobal:
             f"Atom_ID が重複している: {len(ids)} 原子に対し {len(set(ids))} 通り"
 
     def test_ids_are_a_single_running_count(self, udf_text):
-        """J-OCTA と同じく、 全系で 0 から連番。"""
+        """外部ツールの書き方と同じく、 全系で 0 から連番。"""
         ids = self._atom_ids(udf_text)
         assert ids == list(range(len(ids))), ids[:5] + ["..."] + ids[-3:]
 

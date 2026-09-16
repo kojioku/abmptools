@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Everything that can reach a console must encode in cp932.
 
-A Japanese Windows console is cp932 by default, and that is where J-OCTA
+A Japanese Windows console is cp932 by default, and that is where the downstream tooling
 runs. A single character outside it — an em dash in a help string is
 enough — turns `--help` into
 
@@ -10,7 +10,7 @@ enough — turns `--help` into
 with a traceback and exit code 1. The Japanese text itself is fine in
 cp932; it is the punctuation that is not, so the fix is ASCII punctuation
 rather than forcing the stream to UTF-8, which would only move the
-breakage onto the Japanese (2026-09-15, found on J-OCTA 11.1 and 12.0;
+breakage onto the Japanese (2026-09-15, found on two releases of it;
 `amorphous --help` and `udf2gro --help` both died, in 2.14.1 as well).
 
 Checked over the source rather than the output: a string only has to be

@@ -65,9 +65,9 @@ export PATH=~/.local/share/mamba/envs/abmptoolsenv/bin:$PATH
 `FileNotFoundError` で止まる。**詰める工程を飛ばす経路は無い。**
 
 したがって Windows で組むなら WSL か Linux 機を使う。**組んだ後の解析は
-Windows で動く** —— 出来上がった UDF / xtc を渡せば、`moldeck.hbond` は
-J-OCTA のコンソールから `.bat` で回せる (`<moldeck>/sample/amorphous/` に
-対になったスクリプトがある)。
+Windows で動く** —— 出来上がった UDF / xtc を渡せば、`moldeck.hbond` を
+Windows 側から `.bat` で回せる (`<moldeck>/sample/amorphous/` に対になった
+スクリプトがある)。
 
 > conda-forge の状況は 2026-09 に `micromamba search --platform win-64` で
 > 確認した。`linux-64` では packmol / ambertools とも見つかるので、

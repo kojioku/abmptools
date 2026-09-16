@@ -30,7 +30,7 @@ frames: 17 (--max-frames 20, skip 6)
 
 ### Fixed — `residuetypes.dat not found` に GMXLIB の指し先を添えた
 
-J-OCTA 同梱の gmx は `share/top` を持っているのに `GMXLIB` を設定しないので、
+MD 環境付属の gmx は `share/top` を持っていても `GMXLIB` を設定しないことがあり、
 `-s` に `.gro` を渡したとたんここで止まる (`.tpr` はデータを自分で持っている
 ので出ない)。gmx のメッセージは `GMXLIB` に触れるが、**どこを指せばよいかは
 書いていない**。cmd と sh 両方の書き方で添えるようにした。
@@ -42,7 +42,7 @@ J-OCTA 同梱の gmx は `share/top` を持っているのに `GMXLIB` を設定
 `.xtc` の float32 の表現差。どちらも刻みは 0.001 nm なので丸め誤差の半分)。
 
 既定は `gro` のまま。**`.xtc` を UDF にするには MDAnalysis が要る** (`.gro` は
-不要) が、これは abmptools の依存ではなく、J-OCTA 同梱の Python にも入って
+不要) が、これは abmptools の依存ではなく、MD 環境付属の Python にも入って
 いないため。
 
 **`nojump` 自体は省けない。** あれは入れ物の話ではなく分子を PBC 境界で
@@ -50,7 +50,7 @@ J-OCTA 同梱の gmx は `share/top` を持っているのに `GMXLIB` を設定
 
 ### Fixed — 古い gmx が新しい `.tpr` を読めないときに詰んでいた
 
-J-OCTA 12.0 が同梱する gmx は **GROMACS 2020.4 (tpx v119)** で、GROMACS 2026 が
+古い gmx (**GROMACS 2020.x = tpx v119**) は、GROMACS 2026 が
 書いた **v138** の tpr を読めない:
 
 ```
@@ -67,7 +67,7 @@ reading tpx file (prod.tpr) version 138 with version 119 program
 gro 参照とも 13.58 Å (箱 22.6 Å) で一致した。
 
 **数値は gmx の版には依存しない。** 同じ `.gro` を reference にして
-GROMACS 2026.3 と J-OCTA 同梱 2020.4 で処理した結果は**完全一致** (最大差 0)。
+GROMACS 2026.3 と 2020.4 で処理した結果は**完全一致** (最大差 0)。
 
 ### Fixed — `gmx` が見つからないときのメッセージが答えになっていなかった
 
@@ -75,17 +75,16 @@ GROMACS 2026.3 と J-OCTA 同梱 2020.4 で処理した結果は**完全一致**
 conda env 名で、受け取る側には何のことか分からない。`gmx=...` は Python API の
 書き方で、CLI では `--gmx`。**答えを書いているつもりで、答えになっていなかった。**
 
-CLI と API の両方の書き方、PATH に通す手、そして Windows では J-OCTA が
-GROMACS を同梱していること (`C:\J-OCTA-12.0\additional\GROMACS\bin\gmx.exe`)
-を出すようにした。
+CLI と API の両方の書き方、PATH に通す手、そして MD 環境が自前の gmx を
+持っていて PATH に出していないことがある旨を出すようにした。
 
 ## [2.16.0] - 2026-09-16
 
-### Fixed — J-OCTA に渡せない UDF: 原子タイプ 75 個と、重複する Atom_ID
+### Fixed — 外部ツールに渡せない UDF: 原子タイプ 75 個と、重複する Atom_ID
 
 **openff-interchange は原子 1 個につき 1 つの atomtype を書く。** SMIRNOFF に
 atom type の概念が無いためで、PVA 10-mer では `[ atomtypes ]` が **75 型**に
-なる。中身は **5 種類**しかない。これをそのまま持っていくと J-OCTA は原子
+なる。中身は **5 種類**しかない。これをそのまま持っていくと受け取る側は原子
 タイプ欄が意味のない名前で埋まり、扱えない。GUI で力場を取り直せば通るが、
 それでは OpenFF のパラメータが捨てられる。
 
@@ -94,7 +93,7 @@ atom type の概念が無いためで、PVA 10-mer では `[ atomtypes ]` が **
 元素記号 + 連番 (`C1` / `O1` / `H1` …)。SMIRNOFF から本物の GAFF 型は復元
 できないので、GAFF 風の名前は騙らない。
 
-- `amorphous` は **`.top` を書く時点**で畳む。J-OCTA の `import_gromacs.py` は
+- `amorphous` は **`.top` を書く時点**で畳む。外部ツールの `.top` 取り込みは
   `.top` を直接読むので、UDF 変換側だけ直しても救えない。`moldeck.tg` も
   同じ書き出し口を通るため同時に直る
 - `gro2udf` は **読み込み時**にも畳む。既に組んである `.top` を作り直さずに
@@ -122,7 +121,7 @@ Kinetic / Total の **全 12 項で最大絶対差 0**。
 
 ### Fixed — `Atom_ID` が分子ごとに 0 から振り直されていた
 
-30 分子あれば同じ ID が 30 回出る。**J-OCTA 自身が書いた UDF を見ると**、
+30 分子あれば同じ ID が 30 回出る。**外部ツールが書いた UDF を見ると**、
 354 原子の分子で molecule 0 が 0、1 が 354、2 が 708 から始まる —— 全系の
 通し番号である。これに合わせた。
 

@@ -107,7 +107,7 @@ def _fake_gmx(tmp_path, stdout="", stderr="", rc=0):
     return str(p)
 
 
-# GROMACS 2020.4 (J-OCTA 同梱) と 2026.3 で同じ書式であることを実機で確認済み。
+# GROMACS 2020.4 と 2026.3 で同じ書式であることを実機で確認済み。
 # 版が変わって書式が動いたらここで落ちる。
 _CHECK_OUTPUT = """Item        #frames Timestep (ps)
 Step           101    2

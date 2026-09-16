@@ -42,18 +42,19 @@ def _hint_for(stderr: str, stdout: str) -> str:
     """gmx の失敗に、 直し方が分かる一言を添える。
 
     ``residuetypes.dat not found`` は「壊れている」のではなく **GMXLIB が
-    設定されていない**だけ。 J-OCTA が同梱する gmx は share/ を持っている
-    のに環境変数を設定してくれないので、 ``.gro`` を ``-s`` に渡した
-    とたんここで止まる。 メッセージ自体は GMXLIB に触れているが、 どこを
-    指せばよいかは書いていない。
+    設定されていない**だけ。 MD 環境に付属する gmx は share/ を持っていても
+    環境変数まで設定しないことがあり、 ``.gro`` を ``-s`` に渡したとたん
+    ここで止まる。 メッセージ自体は GMXLIB に触れているが、 どこを指せば
+    よいかは書いていない。
     """
     text = (stderr or "") + (stdout or "")
     if "residuetypes.dat" in text:
         return (
             "\n--- hint ---\n"
-            "gmx could not find its share/top data. Point GMXLIB at it:\n"
-            "  cmd : set \"GMXLIB=C:\\J-OCTA-12.0\\additional\\GROMACS\\share\\top\"\n"
-            "  sh  : export GMXLIB=/path/to/gromacs/share/top\n"
+            "gmx could not find its share/top data. Point GMXLIB at the\n"
+            "share/top directory of the GROMACS install you are using:\n"
+            "  cmd : set \"GMXLIB=<gromacs>\\share\\top\"\n"
+            "  sh  : export GMXLIB=<gromacs>/share/top\n"
             "This bites when -s is a .gro (a .tpr carries the data itself)."
         )
     return ""
@@ -68,15 +69,15 @@ def _resolve_gmx(gmx: str) -> str:
     found = shutil.which(gmx)
     if found is None:
         # 「見つからない」だけ言って終わらない。 どう指すかを、 その人が
-        # 使っている呼び方 (CLI か API か) で書く。 Windows では J-OCTA に
-        # GROMACS が同梱されているので、 その場所も挙げる。
+        # 使っている呼び方 (CLI か API か) で書く。 MD 環境が自前の gmx を
+        # 持っていて PATH に出していないことがあるので、 それにも触れる。
         raise FileNotFoundError(
             f"'{gmx}' not found in PATH.\n"
             "  CLI: --gmx <path to gmx>\n"
             "  API: gmx=\"<path to gmx>\"\n"
             "  or put the directory holding gmx on PATH.\n"
-            "  On Windows, J-OCTA ships one:\n"
-            "    C:\\J-OCTA-12.0\\additional\\GROMACS\\bin\\gmx.exe"
+            "  Some MD environments install their own gmx rather than"
+            " putting one on PATH; point --gmx at that one."
         )
     return found
 
@@ -437,7 +438,7 @@ def count_frames(trajectory: PathLike, *, gmx: str = "gmx") -> int:
     ``--max-frames`` のように「合計何枚にするか」を指定されたとき、 skip を
     決めるには総数が要る。 MDAnalysis を使えば読めるが、 **gmx だけで完結
     する道を残す** ためにここでは ``gmx check`` を使う
-    (MDAnalysis は abmptools の依存ではなく、 J-OCTA 同梱 Python にも
+    (MDAnalysis は abmptools の依存ではなく、 MD 環境付属の Python にも
     入っていない -- ``docs/INSTALL.md`` 参照)。
 
     ``gmx check`` は集計を stderr に出す。 ``Step`` 行の 1 列目が frame 数。
@@ -518,7 +519,7 @@ def gen_for_udf(
 
         中身は同じで、 入れ物だけが違う。 ``.xtc`` は 10 倍ほど小さい
         (実測 4.27 MB → 0.41 MB) が、 **下流で読むのに MDAnalysis が要る**
-        (``.gro`` は不要)。 J-OCTA 同梱の Python には MDAnalysis が入って
+        (``.gro`` は不要)。 MD 環境付属の Python には MDAnalysis が入って
         いないので、 Windows では既定の ``"gro"`` が安全。
 
         どちらを選んでも ``-pbc nojump`` は通す。 あれは入れ物の話ではなく
@@ -527,9 +528,9 @@ def gen_for_udf(
     reference
         ``trjconv -s`` に渡す構造。 default では ``<stage>.tpr``。
 
-        **古い gmx は新しい ``.tpr`` を読めない** (J-OCTA 12.0 同梱は
-        GROMACS 2020.4 = tpx v119 までで、 GROMACS 2026 が書いた v138 で
-        ``reading tpx file ... with version 119 program`` と落ちる)。 その
+        **古い gmx は新しい ``.tpr`` を読めない** (例えば GROMACS 2020.x は
+        tpx v119 までで、 2026 系が書いた v138 を
+        ``reading tpx file ... with version 119 program`` で拒否する)。 その
         ときは ``<stage>.gro`` に自動で切り替えて警告を出す。 明示したい
         ときはここで指定する。
     gmx

@@ -128,8 +128,8 @@ def _dedup_dihedrals(dihedrals):
 #: to anyone outside that force field -- so the mass is the only thing left
 #: to go on. GROMACS itself does not need the atomic number, but importers
 #: do: without it a reader has no way to tell carbon from a coarse-grained
-#: bead, and J-OCTA's import_gromacs takes an all-atom system for a CG one
-#: (2026-09-15, reported from a J-OCTA 11.0 import).
+#: bead, and the importer on the other side takes an all-atom system for a
+#: CG one (2026-09-15, reported from the field).
 _MASS_TO_Z = {
     1.008: 1, 4.003: 2, 6.941: 3, 9.012: 4, 10.811: 5, 12.011: 6,
     14.007: 7, 15.999: 8, 18.998: 9, 20.180: 10, 22.990: 11, 24.305: 12,
@@ -268,15 +268,15 @@ class TopWriter:
         s += "\n"
         f.write(s)
 
-        # The mass column is optional in GROMACS -- left out, it is looked up
-        # in [ atomtypes ]. J-OCTA's importer does not do that lookup: it
-        # decides the element from this column alone, and falls back to the
-        # force field type name ("hc1") when the column is absent, which
-        # leaves an all-atom system looking coarse-grained. Writing it costs
-        # nothing and is the only thing that importer reads (verified on
-        # J-OCTA 11.1 and 12.0: convert_gromacs_udf.py:238-246 keys on
-        # len(stmp) > 7, while the at.num column in [ atomtypes ] is
-        # commented out in its parser).
+        # The mass column is optional in GROMACS -- left out, it is looked
+        # up in [ atomtypes ]. The importer on the other side does not do
+        # that lookup: it decides the element from this column alone, and
+        # falls back to the force field type name ("hc1") when the column is
+        # absent, which leaves an all-atom system looking coarse-grained.
+        # Writing it costs nothing and is the only thing that importer reads
+        # -- checked against two of its releases, which both key on
+        # len(stmp) > 7 while the at.num column in [ atomtypes ] is commented
+        # out in their parser.
         mass_of = {a.name: a.mass for a in model.atom_types}
         for atom in topo.atoms:
             s = ""

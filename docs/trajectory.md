@@ -181,10 +181,8 @@ out = thin_and_nojump(trajectory="prod/prod.xtc", tpr="prod/prod.tpr", skip=10)
   reading tpx file (prod.tpr) version 138 with version 119 program
   ```
 
-  **Windows で J-OCTA 同梱の gmx を使うときに、これを踏みます。**
-  J-OCTA 12.0 が同梱するのは `C:\J-OCTA-12.0\additional\GROMACS\bin\gmx.exe`
-  (GROMACS **2020.4** = tpx v119) で、新しい GROMACS で流した MD の tpr は
-  読めません。
+  **MD 環境が自前の GROMACS を持っている場合に、これを踏みます。** 手元の
+  MD を新しい GROMACS で流していると、付属の古い `gmx` では tpr を読めません。
 
   `-pbc nojump` は結合情報を使わないので、**reference を `.gro` に替えれば
   通ります**。`gen_for_udf` は上のエラーを検出したとき `<stage>.gro` に自動で
@@ -196,18 +194,20 @@ out = thin_and_nojump(trajectory="prod/prod.xtc", tpr="prod/prod.tpr", skip=10)
   最大の広がりは tpr 参照・gro 参照とも 13.58 Å(箱は 22.6 Å)で一致しました。
 
   なお**数値そのものは gmx の版に依存しません**。同じ `.gro` を reference に
-  して GROMACS 2026.3 と J-OCTA 同梱 2020.4 で処理した結果は**完全に一致**
+  して GROMACS 2026.3 と 2020.4 で処理した結果は**完全に一致**
   (最大差 0.000e+00 Å)しました。`.edr` も 2020.4 で問題なく読めます。
 
-- **J-OCTA 同梱 gmx に `.gro` を渡すときは `GMXLIB` が要る**。設定しないと
-  `residuetypes.dat not found`(存在しない `C:\Program Files (x86)\Gromacs`
-  を探しに行く)で止まります。
+- **`.gro` を `-s` に渡すときは `GMXLIB` が要ることがある**。設定しないと
+  `residuetypes.dat not found` で止まります(`.tpr` はこのデータを自分で
+  持っているので出ません)。使っている GROMACS の `share/top` を指します。
 
   ```cmd
-  set "GMXLIB=C:\J-OCTA-12.0\additional\GROMACS\share\top"
+  set "GMXLIB=<gromacs>\share\top"
   ```
-- グループ選択は `--group`(既定 `System`)。溶質だけ等にしたい場合は `--ndx` +
-  グループ名を指定。
+
+  ```bash
+  export GMXLIB=<gromacs>/share/top
+  ```
 
 ## 関連
 

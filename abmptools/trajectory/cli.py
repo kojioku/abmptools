@@ -131,7 +131,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_gu.add_argument("--nojump-format", default="gro", choices=["gro", "xtc"],
                       help="nojump trajectory の形式 (default: gro)。 xtc は "
                            "10 倍ほど小さいが、 読むのに MDAnalysis が要る "
-                           "(J-OCTA 同梱 Python には入っていない)")
+                           "(MD 環境付属の Python には無いことがある)")
     p_gu.add_argument("--max-frames", dest="max_frames", type=int, default=None,
                       help="出力 trajectory の **合計 frame 数**の上限 "
                            "(default: 間引かない)。 「何本に 1 本か」ではなく "
