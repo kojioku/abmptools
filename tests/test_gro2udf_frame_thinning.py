@@ -88,3 +88,59 @@ def test_skip_math_matches_the_thinner():
             n_gmx = -(-total // skip_for_max_frames(total, want))
             n_read = len(_thin(_frames(total), max_frames=want))
             assert n_gmx == n_read, (total, want, n_gmx, n_read)
+
+
+# --- gmx check の出力解析 (版で書式が変わりうる) ---------------------------
+
+def _fake_gmx(tmp_path, stdout="", stderr="", rc=0):
+    """`gmx check` の代わりに決め打ちの出力を返す実行ファイルを作る。"""
+    import os
+    import stat
+    p = tmp_path / "fake_gmx"
+    p.write_text(
+        "#!/bin/sh\n"
+        "cat <<'OUT'\n%s\nOUT\n"
+        "cat <<'ERR' >&2\n%s\nERR\n"
+        "exit %d\n" % (stdout, stderr, rc)
+    )
+    p.chmod(p.stat().st_mode | stat.S_IEXEC)
+    return str(p)
+
+
+# GROMACS 2020.4 (J-OCTA 同梱) と 2026.3 で同じ書式であることを実機で確認済み。
+# 版が変わって書式が動いたらここで落ちる。
+_CHECK_OUTPUT = """Item        #frames Timestep (ps)
+Step           101    2
+Time           101    2
+Lambda           0
+Coords         101    2
+Velocities       0
+Forces           0
+Box            101    2"""
+
+
+def test_frame_count_is_read_from_gmx_check(tmp_path):
+    from abmptools.trajectory.postprocess import count_frames
+    # 集計は stderr に出る版と stdout に出る版がある。両方拾えること。
+    for kw in ("stdout", "stderr"):
+        gmx = _fake_gmx(tmp_path, **{kw: _CHECK_OUTPUT})
+        assert count_frames(tmp_path / "x.xtc", gmx=gmx) == 101, kw
+
+
+def test_unparseable_output_raises_instead_of_guessing(tmp_path):
+    """**黙って 1 枚にしない。**
+
+    書式が変わって読めなくなったとき、既定値で続けると「間引いたつもりが
+    1 枚だった」に後から気付けない。止めて、何を叩いたかを見せる。
+    """
+    from abmptools.trajectory.postprocess import count_frames
+    gmx = _fake_gmx(tmp_path, stdout="GROMACS reminds you: nothing useful here")
+    with pytest.raises(RuntimeError) as e:
+        count_frames(tmp_path / "x.xtc", gmx=gmx)
+    assert "gmx check" in str(e.value)
+
+
+def test_zero_or_tiny_totals_do_not_break_the_skip(tmp_path):
+    """総数が 0 / 1 でも skip は 1 以上 (0 除算や 0 skip を作らない)。"""
+    for total, want in ((0, 10), (1, 10), (1, 1)):
+        assert skip_for_max_frames(total, want) >= 1
