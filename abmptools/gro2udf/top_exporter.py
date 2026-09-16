@@ -160,7 +160,7 @@ def _load_trajectory_frames(trajectory_path: str, gro_path: str,
                                    step=1 if frame_step is None else frame_step,
                                    max_frames=max_frames)
         except ImportError as exc:
-            # MDAnalysis は abmptools の依存ではなく、J-OCTA 同梱 Python にも
+            # MDAnalysis は abmptools の依存ではなく、MD 環境付属の Python にも
             # 入っていない (docs/INSTALL.md)。**何を入れれば動くか**まで言う。
             raise RuntimeError(
                 "reading a .xtc needs MDAnalysis, which is not installed "
@@ -765,10 +765,10 @@ class TopExporter:
                 #
                 # This was per-molecule local until 2.16, on the impression
                 # that a global counter made the OCTA viewer's atom table
-                # "look off". J-OCTA's own writer settles it: in a UDF it
-                # generated for 354-atom molecules, molecule 0 starts at 0,
-                # molecule 1 at 354 and molecule 2 at 708 -- a single running
-                # number. Per-molecule numbering repeats every ID in every
+                # "look off". A UDF written by the tool that consumes
+                # these files settles it: in one generated for 354-atom
+                # molecules, molecule 0 starts at 0, molecule 1 at 354 and
+                # molecule 2 at 708 -- a single running number. Per-molecule numbering repeats every ID in every
                 # molecule, which is not what a reader of this file expects.
                 #
                 # Nothing references Atom_ID, so this is a label change only:

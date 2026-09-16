@@ -236,7 +236,7 @@ class TestNojumpFormatAndReference:
 class TestTpxVersionFallback:
     """新しい tpr を読めない gmx では .gro に退避する。
 
-    J-OCTA 12.0 が同梱する gmx は GROMACS 2020.4 (tpx v119) で、
+    MD 環境に付属する古い gmx (GROMACS 2020.x = tpx v119) は、
     GROMACS 2026 が書いた v138 の tpr を読めない。 入力が壊れているわけでは
     ないので、 ``-pbc nojump`` の reference を ``.gro`` に差し替えれば通る
     (nojump は結合情報を使わない)。

@@ -198,7 +198,7 @@ def test_integration_methane_systemmodel_shape(_methane_system, _p):
     assert m.ensemble_family == "gromacs_ok"
     # 畳み込み前は 5 だった (Interchange が原子 1 個につき 1 型を書くので
     # CH4 の 5 原子 = 5 型)。export_gromacs がパラメータの同じ型を畳むように
-    # なったので C + H の 2 型になる。**これは意図した変更**で、J-OCTA の
+    # なったので C + H の 2 型になる。**これは意図した変更**で、外部の
     # import_gromacs と gro2udf が 1 原子 1 型で壊れるのを直したもの。
     # 詳細は abmptools/core/top_atomtypes.py。
     assert len(m.atom_types) == 2           # C + H (folded; was 5 per-atom)

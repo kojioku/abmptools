@@ -232,7 +232,7 @@ def test_udf2gro(tmp_path):
     The reference is pre-refactor output, kept to prove the refactor changed
     nothing. It has been edited once since, deliberately: `[ atomtypes ]`
     gained the atomic number column, because without it an importer cannot
-    tell an all-atom system from coarse-grained beads and J-OCTA read one as
+    tell an all-atom system from coarse-grained beads and the importer read one as
     the other. Any further edit to this file needs the same kind of reason.
     """
     udf_src = os.path.join(SAMPLE_DIR, "udf2gro", "input", "test.udf")
