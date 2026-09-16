@@ -60,7 +60,7 @@ python -m abmptools.trajectory gen_for_udf
 > 渡された軌跡に自分で `-pbc nojump` を掛けるので、生の `.xtc` を直接渡せます
 > ([`gro2udf.md`](./gro2udf.md))。`gen_for_udf` の値打ちは **energy.xvg と
 > 軌跡を stage 判定込みで揃えて出す**ところにあります。ここを通したものを
-> `gro2udf` に渡すときは `--already-nojump` を付けると gmx を呼ばずに済みます
+> `gro2udf` に渡すときは `--skip-nojump` を付けると gmx を呼ばずに済みます
 > (付けなくても結果は同じ)。
 
 **stage 名は決め打ちしません。** カレント(または `--dir`)の中で

@@ -550,11 +550,11 @@ python gen_for_udf.py
 # → md/05_npt_final_energy.xvg  (gmx energy 全 term)
 
 # 2. gro2udf で全部入りの UDF を生成
-#    gen_for_udf.py の出力は既に nojump 済みなので --already-nojump
+#    gen_for_udf.py の出力は既に nojump 済みなので --skip-nojump
 #    (付けなくても結果は同じ。付けると gmx を呼ばない)
 python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
     --mdp md/05_npt_final.mdp \
-    --trajectory md/05_npt_final_nojump.gro --already-nojump \
+    --trajectory md/05_npt_final_nojump.gro --skip-nojump \
     --energy md/05_npt_final_energy.xvg \
     --out 05_full.udf
 
@@ -590,32 +590,34 @@ python -m abmptools.gro2udf --from-top build/system.top md/prod.gro \
 
 # 既に nojump 済みの軌跡を渡すとき (gmx は要らない)
 python -m abmptools.gro2udf --from-top build/system.top md/prod.gro \
-    --trajectory md/prod_nojump.gro --already-nojump --out prod.udf
+    --trajectory md/prod_nojump.gro --skip-nojump --out prod.udf
 ```
 
 | 指定 | `-pbc nojump` | gmx |
 |---|---|---|
 | `--trajectory` のみ (既定) | **走る** | **要る** |
-| `--trajectory` + `--already-nojump` | 走らない | 要らない |
+| `--trajectory` + `--skip-nojump` | 走らない | 要らない |
 | `--trajectory` 無し (topology だけ) | 走らない | 要らない |
 
 - **`nojump` は冪等。** 既に nojump 済みの軌跡に掛け直しても座標は変わらない。
   PVA 30 分子 (2250 原子 × 6 frame、箱 27.07 Å) で実測したところ **max |Δr| =
   0.0000 Å / 移動した原子 0 個**。だから `gen_for_udf` が書く `*_nojump.gro`
-  をそのまま渡しても結果は同じで、`--already-nojump` は「gmx を呼ばせない」
+  をそのまま渡しても結果は同じで、`--skip-nojump` は「gmx を呼ばせない」
   ためのもの
   (**ファイルは byte 一致にはならない。** 同じ実測で 13500 行のうち 5 行が
   `-0.000` と `0.000` の符号だけ違った。`.gro` の 3 桁表記でのゼロの書き方の
   差で、数値は同じ)
-- フラグが「準備するかどうか」ではなく**利用者の状況**を述べる形なのは、
-  利用者が知っているのは自分の軌跡が既に nojump 済みかどうかであって、
-  こちらが内部で何をするかではないため
+- フラグが `--skip-nojump` (**動作だけ**を述べる) なのは、**nojump 済みで
+  なくても意図して飛ばすこと**があるため —— gmx が無い、別の後処理で通す、
+  割れたままの座標を見たい。「もう nojump 済みです」と言わせる名前だと、
+  そのとき嘘を書かせることになる
 - reference は `--tpr` があればそれ、無ければ位置引数の `.gro`。`-pbc nojump`
   は結合情報を読まないので `.gro` で成立する。古い gmx が新しい `.tpr` を
   読めないとき (tpx の版違い) は `.gro` に退避し、そう表示する
 - gmx が PATH に無いときは `--gmx /path/to/gmx` で指す
-- `--trajectory` を渡していないのに `--already-nojump` と書くとエラーになる。
-  軌跡の性質を述べるフラグなので、軌跡が無いのは `--trajectory` の書き忘れ
+- `--trajectory` を渡していないのに `--skip-nojump` と書くとエラーになる。
+  `--trajectory` に対する指定なので、軌跡が無いのは `--trajectory` の書き忘れ
+  で、黙って通すと **topology だけの UDF が「成功」として出る**
 
 `--energy` 指定時の挙動:
 

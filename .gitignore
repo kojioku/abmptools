@@ -34,3 +34,7 @@ sample/crystal/*/*.run.stdout
 
 # セッション作業用スクラッチ (コミット対象外)
 work_rebuild/
+
+# `sample/gro2udf/run.sh` の書き出し先。各モードの output/ に置いてある UDF は
+# 参照用のスナップショットなので、run.sh はそちらを触らずここへ出す。
+sample/gro2udf/run_out/

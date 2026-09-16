@@ -113,7 +113,9 @@ The `sample/` directory contains working examples:
 | `sample/log2cpf/` | Log to CPF conversion | `bash run.sh` |
 | `sample/rmsd/` | RMSD analysis | `bash run.sh` |
 | `sample/amorphous/` | 非晶質系の構築 (複数例) | `bash run_sample.sh` |
-| `sample/gro2udf/`, `sample/udf2gro/`, `sample/udfcharge/` | GROMACS ⇄ COGNAC UDF | `bash run.sh` |
+| `sample/gro2udf/` | GROMACS → COGNAC UDF (座標差し替え / `--from-top` / 軌跡+エネルギー) | `bash run.sh` |
+| `sample/udfcharge/` | UDF の per-atom 電荷の転写・復元 | `python make_example_udfs.py` / `restore_example.py` ([README](../sample/udfcharge/README.md)) |
+| `sample/udf2gro/` | COGNAC UDF → GROMACS | 入出力のみ (スクリプトは無し)。使い方は [`udf2gro.md`](udf2gro.md) |
 
 ## How do I use CPFManager programmatically?
 

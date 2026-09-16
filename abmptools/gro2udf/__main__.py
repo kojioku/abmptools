@@ -8,7 +8,13 @@ from .cli import main
 
 if __name__ == "__main__":
     try:
-        main(sys.argv)
+        # **返り値を捨てないこと。** udf-and-gro モードの Exporter.export()
+        # は失敗を例外ではなく 1 で返すので、 捨てると
+        # `No module named 'UDFManager'` と表示しながら **RC 0 で終わる**。
+        # 呼んだ側 (sample/gro2udf/run.sh や後続のパイプライン) は成功と
+        # 読み、 UDF が書かれていないことに後から気付く。
+        # --from-top モードは None を返すので or 0 で 0 に落とす。
+        sys.exit(main(sys.argv) or 0)
     except SystemExit:
         raise
     except Exception as exc:

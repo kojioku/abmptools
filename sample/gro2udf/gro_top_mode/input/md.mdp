@@ -1,0 +1,48 @@
+; How sample/gro2udf/gro_top_mode/input/md.{edr,xtc} were produced.
+;
+; Deliberately different output frequencies:
+;   nstenergy            = 100   -> 51 energy frames
+;   nstxout-compressed   = 500   -> 11 trajectory frames
+; The 5:1 ratio is what a real run looks like (the amorphous protocol uses
+; 1000 / 5000), and it is the case gro2udf has to get right: every frame
+; picks the nearest energy row in time, it does not assume one row per frame.
+;
+; Thermostat settings match test.mdp, so the Nose-Hoover Q and the Ewald
+; cutoff gro2udf derives are the same from either file.
+integrator            = md
+nsteps                = 5000
+dt                    = 0.001
+; The first frame of output.gro is liquid benzene (20 molecules, 1.48 nm
+; box, about 0.8 g/cm^3). No barostat: NVT is enough to make a trajectory,
+; and it keeps the box -- and with it the cutoff below -- valid throughout.
+pcoupl                = no
+tcoupl                = nose-hoover
+nsttcouple            = 1
+nh-chain-length       = 1
+tc_grps               = system
+tau_t                 = 1.5373204281117965
+ref_t                 = 299.99818870865
+gen_vel               = yes
+gen_temp              = 299.99818870865
+gen_seed              = 20260917
+nstlist               = 10
+nstlog                = 500
+nstenergy             = 100
+nstxout-compressed    = 500
+compressed-x-precision = 1000
+constraints           = none
+cutoff-scheme         = verlet
+coulombtype           = PME
+fourier-spacing       = 0.1
+coulomb-modifier      = None
+;
+; 0.7 nm, not the 0.85 nm in test.mdp: half the 1.48 nm box is 0.74 nm, and
+; grompp refuses a longer cut-off. test.mdp describes the *expanded* box the
+; last frame of output.gro has (6.17 nm), where 0.85 nm fits.
+rlist                 = 0.7
+rcoulomb              = 0.7
+rvdw                  = 0.7
+vdwtype               = Cut-off
+vdw-modifier          = Potential-shift
+dispcorr              = EnerPres
+pbc                   = xyz

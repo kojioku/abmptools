@@ -476,13 +476,13 @@ cd run1   # build / md / input/ がある directory
 # 全部入り UDF: topology + 101 frame trajectory + xvg energy + mdp Time params
 python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
     --mdp md/05_npt_final.mdp \
-    --trajectory md/05_npt_final_nojump.gro --already-nojump \
+    --trajectory md/05_npt_final_nojump.gro --skip-nojump \
     --energy md/05_npt_final_energy.xvg \
     --out 05_full.udf
 ```
 
 > `gen_for_udf` の出力は既に `-pbc nojump` を通してあるので
-> `--already-nojump` を付けています。**付けなくても結果は同じ** (nojump は
+> `--skip-nojump` を付けています。**付けなくても結果は同じ** (nojump は
 > 冪等) で、違いは gmx を呼ぶかどうかだけです。生の `.xtc` を直接渡す場合は
 > 付けないでください —— `gro2udf` が自分で nojump を通します
 > ([docs/gro2udf.md](gro2udf.md))。
@@ -533,7 +533,7 @@ default 出力 (cognac11.2 schema 要求) は読めません。`--cognac-version
 ```bash
 python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
     --mdp md/05_npt_final.mdp --cognac-version 101 \
-    --trajectory md/05_npt_final_nojump.gro --already-nojump \
+    --trajectory md/05_npt_final_nojump.gro --skip-nojump \
     --energy md/05_npt_final_energy.xvg \
     --out 05_full.udf
 ```
