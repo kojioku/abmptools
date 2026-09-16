@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+### Fixed — J-OCTA に渡せない UDF: 原子タイプ 75 個と、重複する Atom_ID
+
+**openff-interchange は原子 1 個につき 1 つの atomtype を書く。** SMIRNOFF に
+atom type の概念が無いためで、PVA 10-mer では `[ atomtypes ]` が **75 型**に
+なる。中身は **5 種類**しかない。これをそのまま持っていくと J-OCTA は原子
+タイプ欄が意味のない名前で埋まり、扱えない。GUI で力場を取り直せば通るが、
+それでは OpenFF のパラメータが捨てられる。
+
+`abmptools.core.top_atomtypes.fold_atomtypes()` で、**パラメータ列が完全に
+一致する型だけ**を 1 つに畳む (電荷は `[ atoms ]` 側なので畳んでよい)。名前は
+元素記号 + 連番 (`C1` / `O1` / `H1` …)。SMIRNOFF から本物の GAFF 型は復元
+できないので、GAFF 風の名前は騙らない。
+
+- `amorphous` は **`.top` を書く時点**で畳む。J-OCTA の `import_gromacs.py` は
+  `.top` を直接読むので、UDF 変換側だけ直しても救えない。`moldeck.tg` も
+  同じ書き出し口を通るため同時に直る
+- `gro2udf` は **読み込み時**にも畳む。既に組んである `.top` を作り直さずに
+  UDF 化できる (AM1-BCC に 20〜40 分かかる)。畳み済みなら no-op
+- **型名で引くセクション (`bondtypes` 等) がある `.top` は畳まない。** 畳むと
+  引き先が変わり、**エラーを出さずに力場が変わる**
+
+等価性は grompp + 0 step で確認済み。Bond / Angle / Proper Dih. / LJ-14 /
+Coulomb-14 / LJ (SR) / Disper. corr. / Coulomb (SR) / Coul. recip. / Potential /
+Kinetic / Total の **全 12 項で最大絶対差 0**。
+
+### Fixed — `Atom_ID` が分子ごとに 0 から振り直されていた
+
+30 分子あれば同じ ID が 30 回出る。**J-OCTA 自身が書いた UDF を見ると**、
+354 原子の分子で molecule 0 が 0、1 が 354、2 が 708 から始まる —— 全系の
+通し番号である。これに合わせた。
+
+以前これを local に戻したのは「OCTA viewer の原子テーブルの表示が変に見えた」
+という印象が根拠だったが、生成元の実物が反証になった。
+
+cognac のスキーマ上、bond / angle / torsion と 2 つの site 配列はいずれも
+`"Index of array"` であって `Atom_ID` を参照しない (`Atom_ID:ID "ID. Arbitrary
+integer"`)。よってこれはラベルの変更のみで、参照整合性には影響しない。
+
 ### Added — `trajectory gen_for_udf`: `05_npt_final` 決め打ちをやめた
 
 **`gen_for_udf` が amorphous の production stage を前提にしていた。**

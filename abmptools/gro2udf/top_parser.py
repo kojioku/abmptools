@@ -17,6 +17,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
+from ..core.top_atomtypes import fold_atomtypes
 from .guard import scan_dihedral_functs, scan_sections
 
 logger = logging.getLogger(__name__)
@@ -166,6 +167,7 @@ class TopParser:
     def parse(self, top_path: str) -> TopRawData:
         """Parse *top_path* and return a :class:`TopRawData`."""
         lines = self._resolve_includes(top_path)
+        lines = self._fold_atomtypes(lines)
         raw = TopRawData()
         raw.sections = scan_sections(lines)
         raw.dihedral_functs = scan_dihedral_functs(lines)
@@ -203,6 +205,35 @@ class TopParser:
         with open(top_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
         return self._inline_includes(lines, dirpath)
+
+    def _fold_atomtypes(self, lines: List[str]) -> List[str]:
+        """Interchange が原子ごとに吐く atomtype を、 読み込み時に畳む。
+
+        SMIRNOFF には atom type の概念が無いので、 openff-interchange は
+        **原子 1 個につき 1 型** (``MOL0_0``, ``MOL0_1``, ...) を書く。
+        パラメータが同じものまで別型になるため、 PVA 10-mer では 75 型が
+        出るが中身は 5 種類しかない。 これをそのまま UDF に持ち込むと
+        J-OCTA が扱えない (原子タイプ欄が意味のない名前で埋まる)。
+
+        2.16 以降の :mod:`abmptools.amorphous` は ``.top`` を書く時点で
+        畳むが、 **それ以前に組んだ ``.top`` が既に手元にある**。 ここで
+        読み込み時にも畳んで、 作り直さずに UDF 化できるようにする。
+        既に畳まれた ``.top`` では何も起きない (no-op)。
+
+        畳み込み自体は :func:`abmptools.core.top_atomtypes.fold_atomtypes`
+        が行う。 型名で引くセクション (``bondtypes`` 等) を持つ ``.top``
+        は、 引き先が変わって**エラーを出さずに力場が変わる**ため、
+        向こう側で素通しされる。
+        """
+        text, mapping = fold_atomtypes("".join(lines))
+        if mapping:
+            logger.info(
+                "atomtypes folded on read: %d names -> %d types "
+                "(openff-interchange writes one type per atom)",
+                len(mapping), len(set(mapping.values())),
+            )
+            return text.splitlines(keepends=True)
+        return lines
 
     def _inline_includes(self, lines: List[str], dirpath: str) -> List[str]:
         result: List[str] = []
