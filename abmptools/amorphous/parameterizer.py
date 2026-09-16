@@ -187,6 +187,17 @@ def export_gromacs(
     interchange.to_gro(gro_path)
     interchange.to_top(top_path)
 
+    # Interchange は SMIRNOFF に atom type の概念が無いので **原子 1 個に
+    # つき 1 型** を書く (MOL0_0 … MOL0_74)。中身が同じでも別名になるため、
+    # 受け取る側 (J-OCTA の import_gromacs、gro2udf) が壊れる。
+    # パラメータが完全一致する型だけを畳む。畳めない形 (型名で引く
+    # セクションがある top) なら触らない。
+    from ..core.top_atomtypes import fold_atomtypes_in_file
+    mapping = fold_atomtypes_in_file(top_path)
+    if mapping:
+        logger.info("Folded %d atomtypes into %d in %s",
+                    len(mapping), len(set(mapping.values())), top_path)
+
     logger.info("Wrote GROMACS files: %s, %s", gro_path, top_path)
     return {
         "gro": str(Path(gro_path).resolve()),
