@@ -330,7 +330,7 @@ class TestGmxFailureHints:
 class TestNojumpWithFallbackHelper:
     """`nojump_with_fallback` —— 退避の判断を 1 か所に持つ。
 
-    `gen_for_udf` と `gro2udf --prepare-nojump` の両方がこれを使う。
+    `gen_for_udf` と `gro2udf --trajectory` の両方がこれを使う。
     2 か所に書くと、 片方だけ直して**古い gmx で片方だけ詰む**ことになる。
     """
 
@@ -402,6 +402,138 @@ class TestGro2udfPrepareNojumpOptions:
         """--tpr 無しでも通る (位置引数の .gro を reference にする)。"""
         from abmptools.gro2udf.cli import _from_top_parser
 
-        args = _from_top_parser().parse_args(
-            ["a.top", "b.gro", "--prepare-nojump"])
-        assert args.prepare_nojump and args.tpr_path is None
+        args = _from_top_parser().parse_args(["a.top", "b.gro"])
+        assert args.tpr_path is None
+
+    def test_the_flag_states_the_users_situation(self):
+        """フラグは 1 本 `--already-nojump` だけ。 既定は「走らせる」。
+
+        既定 ON にすると実際に打たれるのは否定形になる。 そこで
+        `--no-prepare-nojump` と書かせると「nojump の準備をしないで」と
+        回りくどく、 しかも**利用者が知っているのは自分の軌跡が既に
+        nojump 済みかどうか**であって、 こちらが内部で何を準備するかでは
+        ない。 だからフラグは利用者の状況を述べる形にしてある。
+
+        `--prepare-nojump` / `--no-prepare-nojump` は未リリースのまま
+        置き換えたので、 alias は残していない。
+        """
+        from abmptools.gro2udf.cli import _from_top_parser
+
+        parser = _from_top_parser()
+        assert parser.parse_args(["a.top", "b.gro"]).already_nojump is False
+        assert parser.parse_args(
+            ["a.top", "b.gro", "--already-nojump"]).already_nojump is True
+
+        for gone in ("--prepare-nojump", "--no-prepare-nojump"):
+            with pytest.raises(SystemExit):
+                _from_top_parser().parse_args(["a.top", "b.gro", gone])
+
+
+class TestGro2udfRunsNojumpByDefault:
+    """`--trajectory` を渡したら、 既定で `-pbc nojump` を通す。
+
+    **生の `.xtc` をそのまま渡した人が、何も指定せずに正しい UDF を得る**
+    ためのもの。 割れた分子は OCTA viewer で開いて初めて分かるので、
+    既定が OFF だと「気付ける人しか気付けない」形になっていた。
+
+    既定 ON にできるのは **nojump が冪等**だから —— 既に nojump 済みの
+    軌跡に掛け直しても座標は変わらない (PVA 30 分子 2250 原子 x 6 frame で
+    実測、 max |dr| = 0.0000 A)。 `gen_for_udf` の出力を渡す既存の流れは
+    壊れない。
+
+    引き換えに **`--trajectory` を使うと gmx が要る**ようになった。
+    gro2udf はそれまで gmx を一切呼ばない変換器だったので、 前提が変わる。
+    `--trajectory` が無いときは今までどおり gmx に触れない。
+    """
+
+    @pytest.fixture
+    def spy(self, tmp_path, monkeypatch):
+        """nojump と書き出しを差し替えて、 呼ばれ方だけを見る。"""
+        from abmptools.gro2udf import top_exporter
+
+        calls = {"nojump": [], "export": []}
+
+        def _nojump_with_fallback(*, trajectory, reference, fallback=None,
+                                  gmx="gmx", **kw):
+            calls["nojump"].append({"trajectory": str(trajectory),
+                                    "reference": str(reference),
+                                    "gmx": gmx})
+            return tmp_path / "nojump.xtc", None
+
+        class _Exporter:
+            def export(self, top_path, gro_path, template_path, out_path, **kw):
+                calls["export"].append(kw)
+
+        monkeypatch.setattr(pp, "nojump_with_fallback", _nojump_with_fallback)
+        monkeypatch.setattr(top_exporter, "TopExporter", _Exporter)
+        monkeypatch.chdir(tmp_path)
+        return calls
+
+    @staticmethod
+    def _run(*extra):
+        from abmptools.gro2udf.cli import _run_from_top
+
+        _run_from_top(["gro2udf", "--from-top", "a.top", "b.gro", *extra])
+
+    def test_a_trajectory_goes_through_nojump_without_being_asked(self, spy):
+        self._run("--trajectory", "md.xtc")
+        assert len(spy["nojump"]) == 1
+        assert spy["nojump"][0]["trajectory"] == "md.xtc"
+        # --tpr 省略時の reference は位置引数の .gro。
+        assert spy["nojump"][0]["reference"] == "b.gro"
+        # 変換に渡るのは nojump 後の軌跡であること。
+        assert spy["export"][0]["trajectory_path"].endswith("nojump.xtc")
+
+    def test_already_nojump_skips_it(self, spy):
+        """既に nojump 済みの軌跡を渡すとき、 gmx を要求しない。"""
+        self._run("--trajectory", "md.xtc", "--already-nojump")
+        assert spy["nojump"] == []
+        assert spy["export"][0]["trajectory_path"] == "md.xtc"
+
+    def test_without_a_trajectory_gmx_is_never_touched(self, spy):
+        """topology だけの変換に gmx を要求しない。"""
+        self._run()
+        assert spy["nojump"] == []
+        assert spy["export"][0]["trajectory_path"] is None
+
+    def test_already_nojump_without_a_trajectory_stops(self, spy):
+        """軌跡の性質を述べるフラグなので、 軌跡が無いのは書き間違い。
+
+        黙って通すと、 **`--trajectory` を書き忘れた人に topology だけの
+        UDF が出て**、 しかも成功して見える。
+        """
+        with pytest.raises(RuntimeError, match="--already-nojump"):
+            self._run("--already-nojump")
+        assert spy["nojump"] == []
+
+    def test_gmx_option_reaches_the_default_run(self, spy):
+        self._run("--trajectory", "md.xtc", "--gmx", "/opt/gmx")
+        assert spy["nojump"][0]["gmx"] == "/opt/gmx"
+
+    def test_a_missing_gmx_says_which_flag_turns_it_off(self, tmp_path,
+                                                        monkeypatch):
+        """gmx が無い機で、 **何を止めれば通るのか**を言うこと。
+
+        既定で走るようになった段なので、 「gro2udf は gmx を呼ばない
+        変換器」という以前の理解のままだと、 エラーを読んでも次の手が
+        分からない。
+        """
+        from abmptools.gro2udf import top_exporter
+
+        def _boom(**kw):
+            raise FileNotFoundError("gmx executable not found: gmx")
+
+        class _Exporter:
+            def export(self, *a, **kw):                     # pragma: no cover
+                raise AssertionError("変換まで進んではいけない")
+
+        monkeypatch.setattr(pp, "nojump_with_fallback", _boom)
+        monkeypatch.setattr(top_exporter, "TopExporter", _Exporter)
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(RuntimeError) as exc:
+            self._run("--trajectory", "md.xtc")
+        text = str(exc.value)
+        assert "--already-nojump" in text
+        assert "--gmx" in text
+        assert "gmx executable not found" in text       # 元の理由も残す
