@@ -405,26 +405,33 @@ class TestGro2udfPrepareNojumpOptions:
         args = _from_top_parser().parse_args(["a.top", "b.gro"])
         assert args.tpr_path is None
 
-    def test_the_flag_states_the_users_situation(self):
-        """フラグは 1 本 `--already-nojump` だけ。 既定は「走らせる」。
+    def test_the_flag_names_the_action_not_the_input(self):
+        """フラグは 1 本 `--skip-nojump` だけ。 既定は「走らせる」。
 
-        既定 ON にすると実際に打たれるのは否定形になる。 そこで
-        `--no-prepare-nojump` と書かせると「nojump の準備をしないで」と
-        回りくどく、 しかも**利用者が知っているのは自分の軌跡が既に
-        nojump 済みかどうか**であって、 こちらが内部で何を準備するかでは
-        ない。 だからフラグは利用者の状況を述べる形にしてある。
+        ここは 2 度名前を変えている。 残す名前の条件は
+        **どの場面で打っても嘘にならないこと**:
 
-        `--prepare-nojump` / `--no-prepare-nojump` は未リリースのまま
-        置き換えたので、 alias は残していない。
+        - `--no-prepare-nojump`: 既定 ON だと実際に打たれるのは否定形で、
+          「nojump の準備をしないで」は回りくどい
+        - `--already-nojump`: 「入力はもう nojump 済みだ」と**入力の性質を
+          主張**してしまう。 **済んでいなくても意図して飛ばすこと**は
+          ある (gmx が無い / 別の後処理で通す / 割れたままを見たい)。
+          そのときこれを書かせるのは嘘を書かせることになる
+        - `--skip-nojump`: **動作だけ**を述べるので、 どちらの場合も正しい
+
+        いずれも未リリースのまま置き換えたので alias は残していない。
+        3 つとも受け付けないことをここで固定する —— 残っていると
+        「通ったのに効いていない」という一番たちの悪い形になる。
         """
         from abmptools.gro2udf.cli import _from_top_parser
 
         parser = _from_top_parser()
-        assert parser.parse_args(["a.top", "b.gro"]).already_nojump is False
+        assert parser.parse_args(["a.top", "b.gro"]).skip_nojump is False
         assert parser.parse_args(
-            ["a.top", "b.gro", "--already-nojump"]).already_nojump is True
+            ["a.top", "b.gro", "--skip-nojump"]).skip_nojump is True
 
-        for gone in ("--prepare-nojump", "--no-prepare-nojump"):
+        for gone in ("--prepare-nojump", "--no-prepare-nojump",
+                     "--already-nojump"):
             with pytest.raises(SystemExit):
                 _from_top_parser().parse_args(["a.top", "b.gro", gone])
 
@@ -484,9 +491,9 @@ class TestGro2udfRunsNojumpByDefault:
         # 変換に渡るのは nojump 後の軌跡であること。
         assert spy["export"][0]["trajectory_path"].endswith("nojump.xtc")
 
-    def test_already_nojump_skips_it(self, spy):
-        """既に nojump 済みの軌跡を渡すとき、 gmx を要求しない。"""
-        self._run("--trajectory", "md.xtc", "--already-nojump")
+    def test_skip_nojump_skips_it(self, spy):
+        """飛ばすと言われたら飛ばす。 gmx を要求しない。"""
+        self._run("--trajectory", "md.xtc", "--skip-nojump")
         assert spy["nojump"] == []
         assert spy["export"][0]["trajectory_path"] == "md.xtc"
 
@@ -496,14 +503,14 @@ class TestGro2udfRunsNojumpByDefault:
         assert spy["nojump"] == []
         assert spy["export"][0]["trajectory_path"] is None
 
-    def test_already_nojump_without_a_trajectory_stops(self, spy):
-        """軌跡の性質を述べるフラグなので、 軌跡が無いのは書き間違い。
+    def test_skip_nojump_without_a_trajectory_stops(self, spy):
+        """`--trajectory` に対する指定なので、 軌跡が無いのは書き間違い。
 
         黙って通すと、 **`--trajectory` を書き忘れた人に topology だけの
         UDF が出て**、 しかも成功して見える。
         """
-        with pytest.raises(RuntimeError, match="--already-nojump"):
-            self._run("--already-nojump")
+        with pytest.raises(RuntimeError, match="--skip-nojump"):
+            self._run("--skip-nojump")
         assert spy["nojump"] == []
 
     def test_gmx_option_reaches_the_default_run(self, spy):
@@ -534,6 +541,6 @@ class TestGro2udfRunsNojumpByDefault:
         with pytest.raises(RuntimeError) as exc:
             self._run("--trajectory", "md.xtc")
         text = str(exc.value)
-        assert "--already-nojump" in text
+        assert "--skip-nojump" in text
         assert "--gmx" in text
         assert "gmx executable not found" in text       # 元の理由も残す

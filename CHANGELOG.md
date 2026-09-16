@@ -2,6 +2,63 @@
 
 ## [Unreleased]
 
+### Changed — `--already-nojump` を `--skip-nojump` に改名 (alias 無し)
+
+**残す名前の条件は、どの場面で打っても嘘にならないこと。** ここは 2 度
+名前を変えている。
+
+| 名前 | 何が問題だったか |
+|---|---|
+| `--prepare-nojump` / `--no-prepare-nojump` | 既定 ON だと実際に打たれるのは否定形。「nojump の準備をしないで」は回りくどい |
+| `--already-nojump` | 「入力はもう nojump 済みだ」と**入力の性質を主張**する。**済んでいなくても意図して飛ばすこと**はある (gmx が無い / 別の後処理で通す / 割れたままを見たい)。そのとき**嘘を書かせる**ことになる |
+| **`--skip-nojump`** | **動作だけ**を述べるので、どちらの場合も正しい |
+
+いずれも未公開のまま置き換えたので **alias は残していない**。3 つとも
+受け付けないことをテストで固定した —— 残っていると「通ったのに効いて
+いない」という一番たちの悪い形になる。
+
+### Fixed — udf-and-gro モードの失敗が **RC 0** で返っていた
+
+```
+$ python -m abmptools.gro2udf test.udf output.gro
+No module named 'UDFManager'
+$ echo $?
+0
+```
+
+`Exporter.export()` は失敗を**例外ではなく 1 で返す**のに、`__main__` が
+その返り値を捨てていた。**メッセージは出るのに成功扱い**なので、呼んだ側は
+次へ進み、UDF が書かれていないことに後から気付く。`--help` は 0 のまま。
+
+### Added — `sample/gro2udf` に `.edr` と `.xtc` を足した (エネルギー込みの変換)
+
+これまで `sample/gro2udf/gro_top_mode/input/` には `.top` / `.gro` / `.mdp` /
+template しか無く、**エネルギーを入れた変換を一度も試せなかった**。
+
+`md.mdp` / `md.edr` / `md.xtc` を足した (合計 25 KB)。ベンゼン 20 分子 /
+240 原子を 5 ps。**出力の頻度をわざと変えてある**:
+
+| | 値 | 結果 |
+|---|---|---|
+| `nstenergy` | 100 | **51** rows |
+| `nstxout-compressed` | 500 | **11** frames |
+
+**5:1 が実際の姿**で、amorphous の本番設定 (`1000` / `5000`) と同じ比。
+1:1 のサンプルを置くと、**必ず起きる対応付けを一度も確かめられない**。
+
+`sample/gro2udf/README.md` と `run.sh` を新設し、frame と xvg 行の対応
+(`Instantaneous` / `Batch_Average` / `Total_Average`) を実測値で載せた。
+最後の frame の `Total_Average` 488.470 は `gmx energy` の全区間平均
+488.47 kJ/mol と一致する。書き込み先が
+`Statistics_Data.<Class>.<Avg>.<項目>` (平均の種類が項目より**上**) である
+ことと、UDF の中では native 単位 (kcal/mol) なので 4.184 分の 1 になることも
+書いた —— 実際に書き出した UDF を `UDFManager` で読んで確かめた値。
+
+`run.sh` は 3 本走る。1 と 2 は gmx を使わず、3 だけが `--edr` と
+`--trajectory` のために gmx を呼ぶ。`.xtc` を読むには MDAnalysis が要るが、
+無ければ gmx で `.gro` に直してから渡すので、**gmx さえあれば走る**。
+
+
 ## [2.16.0] - 2026-09-16
 
 ### Changed — `gro2udf --trajectory` は `-pbc nojump` を自分で通す
@@ -30,14 +87,11 @@ python -m abmptools.gro2udf --from-top system.top md/prod.gro \
 (同じ軌跡を nojump していない状態と比べると 3139 原子・最大 38.3 Å 動くので、
 入力が本当に nojump を要していたことも確かめてある)。`gen_for_udf` の出力を
 渡す流れはそのまま通り、`--already-nojump` は「gmx を呼ばせない」ための
-ものになる。
+ものになる。`--trajectory` を渡していないのに `--already-nojump` と書くと
+エラーになる。
 
-フラグが「準備するかどうか」ではなく**利用者の状況**を述べる形なのは、
-利用者が知っているのは自分の軌跡が既に nojump 済みかどうかであって、
-こちらが内部で何をするかではないため。`--trajectory` を渡していないのに
-`--already-nojump` と書くとエラーになる —— 軌跡の性質を述べるフラグなので、
-軌跡が無いのは `--trajectory` の書き忘れで、黙って通すと **topology だけの
-UDF が成功として出る**。
+> **このフラグは `[Unreleased]` で `--skip-nojump` に改名した。** 理由は
+> 下の節を参照。
 
 ### Fixed — `gro2udf` の `-pbc nojump` に tpr の退避と `--gmx` が無かった
 
@@ -76,7 +130,7 @@ frames: 17 (--max-frames 20, skip 6)
 |---|---|
 | `gro2udf --max-frames N` / `--frame-step N` | **不要** (読み込み時に間引く) |
 | `gro2udf --edr <file>` | 要。energy.xvg を作って埋め込む。**省略すれば energy は読まない** |
-| `gro2udf --trajectory <file>` | 要。`-pbc nojump` をその場で通す。`--already-nojump` で止められる |
+| `gro2udf --trajectory <file>` | 要。`-pbc nojump` をその場で通す。`--already-nojump` (現 `--skip-nojump`) で止められる |
 
 どちらも `abmptools.trajectory` を in-process import で呼ぶ。**gro2udf が
 gmx を触るのはこの 2 か所だけ**で、どちらも渡さなければ従来どおり純粋な

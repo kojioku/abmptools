@@ -6,9 +6,11 @@ UDF の大きさが効くのは枚数なので、そちらを指定できるよ�
 
 gro2udf は本来 gmx を呼ばないファイル変換器で、**間引きそのものは gmx を
 呼ばない** (読み込み時に落とす) ことを押さえる。gmx が要るのは ``--edr`` と、
-``--trajectory`` に対して既定で走る ``-pbc nojump`` (``--already-nojump``
+``--trajectory`` に対して既定で走る ``-pbc nojump`` (``--skip-nojump``
 で止められる)。
 """
+import pathlib
+
 import pytest
 
 from abmptools.gro2udf.top_exporter import _thin
@@ -146,3 +148,49 @@ def test_zero_or_tiny_totals_do_not_break_the_skip(tmp_path):
     """総数が 0 / 1 でも skip は 1 以上 (0 除算や 0 skip を作らない)。"""
     for total, want in ((0, 10), (1, 10), (1, 1)):
         assert skip_for_max_frames(total, want) >= 1
+
+
+# --- 失敗が RC に出ること -------------------------------------------------
+def test_a_failed_conversion_does_not_exit_zero(tmp_path):
+    r"""udf-and-gro モードの失敗を **RC 0 で返さない**こと。
+
+    `Exporter.export()` は失敗を**例外ではなく 1 で返す**。 `__main__` が
+    その返り値を捨てていたので、
+
+        $ python -m abmptools.gro2udf test.udf output.gro
+        No module named 'UDFManager'
+        $ echo $?
+        0
+
+    となっていた。 **メッセージは出るのに成功扱い**なので、 呼んだ側
+    (`sample/gro2udf/run.sh` や後続のパイプライン) は次へ進み、 UDF が
+    書かれていないことに後から気付く。
+
+    ここでは存在しない入力で必ず失敗させて、 RC を見る。
+    """
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "-m", "abmptools.gro2udf",
+         str(tmp_path / "nope.udf"), str(tmp_path / "nope.gro")],
+        capture_output=True, text=True,
+        cwd=str(pathlib.Path(__file__).resolve().parent.parent),
+    )
+    assert result.returncode != 0, (
+        "失敗したのに RC 0 で返っている:\n"
+        f"stdout={result.stdout!r}\nstderr={result.stderr!r}")
+
+
+def test_asking_for_the_usage_still_exits_zero():
+    """`--help` は 0 のまま。 使い方を出すのは失敗ではない。"""
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "-m", "abmptools.gro2udf", "--help"],
+        capture_output=True, text=True,
+        cwd=str(pathlib.Path(__file__).resolve().parent.parent),
+    )
+    assert result.returncode == 0, result.stderr
+    assert "--skip-nojump" in result.stdout

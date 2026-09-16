@@ -118,7 +118,7 @@ def _from_top_parser():
                              "through `gmx trjconv -pbc nojump` first**, so a "
                              "raw trajectory gives whole molecules without "
                              "being asked -- which is the one thing here that "
-                             "needs gmx. See --already-nojump.")
+                             "needs gmx. See --skip-nojump.")
     parser.add_argument("--energy", dest="energy_path", default=None,
                         help="Path to an .xvg file (e.g. output of `gmx "
                              "energy`). Each frame's row is written to the "
@@ -156,20 +156,24 @@ def _from_top_parser():
     # PVA 30 分子で実測して max |dr| = 0.0000 A / 移動した原子 0 個) なので、
     # gen_for_udf の出力を渡す流れも既定のまま通る。
     #
-    # フラグは**利用者の状況**を述べる形にしてある。 既定が ON だと実際に
-    # 打たれるのは否定形で、 利用者が知っているのは「自分の軌跡が既に
-    # nojump 済みかどうか」であって、 こちらが内部で何を準備するかではない。
-    parser.add_argument("--already-nojump", dest="already_nojump",
+    # フラグは**この段を飛ばす**とだけ言う。 一度 --already-nojump にして
+    # みたが、 あれは「入力はもう nojump 済みだ」と**入力の性質を主張**する。
+    # 済んでいなくても意図して飛ばすこと (gmx が無い、 別の後処理で通す、
+    # 割れたままの座標を見たい) はあるので、 そのときに --already-nojump と
+    # 書かせるのは**嘘を書かせる**ことになる。 動作だけを述べればどちらでも
+    # 正しい。
+    parser.add_argument("--skip-nojump", dest="skip_nojump",
                         action="store_true",
-                        help="Say that --trajectory has already been through "
-                             "`gmx trjconv -pbc nojump`, so this does not run "
-                             "it again. Without it a trajectory is put "
+                        help="Do not run `gmx trjconv -pbc nojump` on "
+                             "--trajectory. Without it a trajectory is put "
                              "through nojump first -- molecules that are "
                              "split across the periodic boundary show up "
                              "broken in the OCTA viewer and downstream, and a "
-                             "raw .xtc is split. Running it twice changes "
-                             "nothing, so this flag is about not needing gmx: "
-                             "**--trajectory needs gmx unless you pass it.**")
+                             "raw .xtc is split. Skip it when the trajectory "
+                             "has already been through nojump (running it "
+                             "twice changes nothing, so this is about not "
+                             "needing gmx), or when there is no gmx here: "
+                             "**--trajectory needs gmx unless you pass this.**")
     parser.add_argument("--tpr", dest="tpr_path", default=None,
                         help="Reference for the -pbc nojump step. Optional: "
                              "without it the .gro argument is used, which "
@@ -261,14 +265,14 @@ def _run_from_top(argv: list) -> None:
     energy_path = args.energy_path
 
     # --trajectory があるときだけ走る。 topology だけの変換に gmx を
-    # 要求しない。 --already-nojump は渡した軌跡の性質を述べるものなので、
+    # 要求しない。 --skip-nojump は --trajectory に対する指定なので、
     # 軌跡が無いのに書いてあるのは書き間違い -- 黙って通すと
     # **--trajectory を書き忘れた人に topology だけの UDF が出る**。
-    if args.already_nojump and not trajectory_path:
+    if args.skip_nojump and not trajectory_path:
         raise RuntimeError(
-            "--already-nojump describes --trajectory, which was not given")
+            "--skip-nojump applies to --trajectory, which was not given")
 
-    if trajectory_path and not args.already_nojump:
+    if trajectory_path and not args.skip_nojump:
         from ..trajectory.postprocess import nojump_with_fallback
         # --tpr が無ければ、 位置引数の .gro をそのまま reference にする。
         # -pbc nojump は結合情報を使わないので .gro で成立する。
@@ -291,10 +295,10 @@ def _run_from_top(argv: list) -> None:
             raise RuntimeError(
                 "{}\n"
                 "-pbc nojump runs whenever --trajectory is given, so gmx is "
-                "needed here. Point --gmx at it, or pass --already-nojump "
-                "when the trajectory has already been through -pbc nojump "
-                "(for example the .gro that `abmptools.trajectory "
-                "gen_for_udf` writes)."
+                "needed here. Point --gmx at it, or pass --skip-nojump to "
+                "leave the trajectory alone -- which is what you want when it "
+                "has already been through -pbc nojump (for example the .gro "
+                "that `abmptools.trajectory gen_for_udf` writes)."
                 .format(exc)) from exc
         trajectory_path = str(trajectory_path)
         if used is not None:
@@ -363,7 +367,7 @@ def _usage(argv) -> None:
     print()
     print("--trajectory runs `gmx trjconv -pbc nojump` on it first, so a raw")
     print(".xtc gives whole molecules without being asked. That is the only")
-    print("place this needs gmx; --already-nojump says it is not needed.")
+    print("place this needs gmx; --skip-nojump leaves the trajectory alone.")
     print()
     print(_from_top_parser().format_help())
 

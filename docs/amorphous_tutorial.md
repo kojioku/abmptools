@@ -472,13 +472,13 @@ cd md && python gen_for_udf.py && cd ..
 
 python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
     --mdp md/05_npt_final.mdp \
-    --trajectory md/05_npt_final_nojump.gro --already-nojump \
+    --trajectory md/05_npt_final_nojump.gro --skip-nojump \
     --energy md/05_npt_final_energy.xvg \
     --out 05_full.udf
 ```
 
-> **`--already-nojump` は「この軌跡は既に `-pbc nojump` 済みです」という
-> 申告**です。`gen_for_udf` の出力がまさにそれなので付けています。付けないと
+> **`--skip-nojump` は「この軌跡に `-pbc nojump` を掛けないで」という指定**
+> です。`gen_for_udf` の出力は既に通してあるので付けています。付けないと
 > `gro2udf` が自分で `gmx trjconv -pbc nojump` を掛けます —— 生の `.xtc` を
 > 直接渡すときはそれが正しい動作なので、付けないでください。nojump は冪等
 > なので、どちらでも座標は同じです。違いは gmx を呼ぶかどうかだけです。
