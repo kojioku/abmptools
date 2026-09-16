@@ -39,6 +39,26 @@ PVA Tg 計算 (`prod`) の実データで、旧 `.sh` (inline `gmx`) の出力�
 
 `tests/test_trajectory_gen_for_udf.py` に 17 件。
 
+### Changed — `gen_for_udf` / `wrap_pbc` は index file を既定で使わない
+
+**index を渡すと `trjconv` の group 0 の意味が変わる。** index 無しなら group 0
+は tpr の `System` (全原子) だが、index を渡すと**その index file の最初の
+group** になる。系全体を写すのが目的の後処理でこれを自動で拾うと、無関係な
+`.ndx` が隣にあるだけで**原子の一部だけの `.gro` が無警告で出る**。
+
+**そもそも効果が無かった。** `build/system.ndx` は `run_all.sh` が
+`grompp -n` に渡すためのもので、mdp の `tc-grps` が成分ごとの group を参照する
+から要る。軌跡の切り出しとは無関係で、abmptools の `write_ndx` は先頭に必ず
+`[ System ]` を書くため、渡しても渡さなくても出力は同じ —— 実データ
+(imc amorphous `05_npt_final`) で `.xvg` / `.gro` とも一致を確認した。
+`gmx energy` は index を一切見ない。
+
+- `gen_for_udf` の自動探索を廃止。`--no-ndx` は不要になったので削除し、
+  `--ndx` は「系の一部だけを UDF にしたいときに `--group` とセットで指定する」
+  ものになった
+- `write_udf_export_script` / `write_wrap_script` の `ndx` 既定を `None` に。
+  `write_run_script` は `system.ndx` のまま (grompp に必要)
+
 ### Fixed — `--charges` がファイルを読まずに AM1-BCC を走らせていた
 
 **オプションは受け取るが、`ComponentSpec` に渡していなかった。**

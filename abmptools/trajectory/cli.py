@@ -21,7 +21,7 @@ Examples
     # OCTA / gro2udf 用の 2 点セット。 stage 名はディレクトリから決まるので、
     # amorphous の md/ でも Tg 計算の出力先でも同じ 1 行で通る。
     python -m abmptools.trajectory gen_for_udf
-    python -m abmptools.trajectory gen_for_udf --stage prod --no-ndx
+    python -m abmptools.trajectory gen_for_udf --stage prod
 """
 
 from __future__ import annotations
@@ -117,10 +117,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p_gu.add_argument("--dir", dest="directory", default=".",
                       help="stage ファイルのあるディレクトリ (default: cwd)")
     p_gu.add_argument("--ndx", default=None,
-                      help="index file (default: ../build/system.ndx か "
-                           "system.ndx を自動検出)")
-    p_gu.add_argument("--no-ndx", action="store_true",
-                      help="index file を使わない (自動検出も止める)")
+                      help="index file (default: 使わない = group 0 は tpr の "
+                           "System)。 系の一部だけを UDF にするとき --group と "
+                           "セットで指定")
     p_gu.add_argument("--terms-max", type=int, default=50,
                       help="energy term 番号の上限 (1..N、 default: 50)")
     p_gu.add_argument("--group", default="0",
@@ -140,7 +139,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 stage=args.stage,
                 directory=args.directory,
                 ndx=args.ndx,
-                auto_ndx=not args.no_ndx,
                 n_energy_terms=args.terms_max,
                 group=args.group,
                 gmx=args.gmx,

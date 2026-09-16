@@ -66,8 +66,7 @@ python -m abmptools.trajectory gen_for_udf
 |---|---|---|
 | `--stage` | 自動判定 | `<stage>.edr` / `.tpr` / `.xtc` の basename |
 | `--dir` | カレント | stage ファイルのあるディレクトリ |
-| `--ndx` | 自動探索 | index file。既定は `../build/system.ndx` → `system.ndx` の順に探す |
-| `--no-ndx` | — | index を使わない(自動探索も止める) |
+| `--ndx` | 使わない | index file。系の一部だけを UDF にするときだけ `--group` とセットで指定 |
 | `--terms-max` | 50 | energy term 番号の上限 |
 | `--group` | `0` | trjconv の group(0 = System) |
 
@@ -75,8 +74,8 @@ python -m abmptools.trajectory gen_for_udf
 # amorphous の md/ で (stage も index も自動)
 python -m abmptools.trajectory gen_for_udf
 
-# Tg 計算の出力 (index file が無い run)
-python -m abmptools.trajectory gen_for_udf --stage prod --no-ndx
+# stage を名指し (例: Tg 計算の出力)
+python -m abmptools.trajectory gen_for_udf --stage prod
 
 # 別ディレクトリを指定して
 python -m abmptools.trajectory gen_for_udf --dir run1/md
@@ -106,8 +105,7 @@ grompp 残骸は無視)。
 `.trr` と `.xtc` が両方あれば、**速度も持つ `.trr` を優先**します。
 両方ともスキップになれば RC 1 です(何も作らずに「完了」と言わないため)。
 
-**3. index file** —— `../build/system.ndx` → `system.ndx` の順に探し、
-見つかれば使い、無ければ使いません。
+**3. index file** —— 既定では使いません (理由は次節)。
 
 出力は**読んだファイルと同じディレクトリ**に置かれます。
 どの stage を選んだかは必ず 1 行目に出るので、実行後にそこを見れば
@@ -115,32 +113,37 @@ grompp 残骸は無視)。
 
 ```
 stage: 05_npt_final
-index: /path/to/build/system.ndx
   /path/to/md/05_npt_final_energy.xvg  (gmx energy, 0.3 MB)
   /path/to/md/05_npt_final_nojump.gro  (trjconv -pbc nojump, 4.3 MB)
 ```
 
-#### `--no-ndx` を使うとき
+#### index file (`.ndx`) が要るのはどんなときか
 
-index file (`.ndx`) は原子を group にまとめた定義で、`gmx trjconv` の `-n`
-に渡すものです。`--no-ndx` は**自動探索ごと止めて `-n` を付けずに実行**します。
+**既定では使いません。** `gen_for_udf` が作るのは系全体を写したものなので、
+group 0 = tpr の System (全原子) がそのまま欲しいものです。
 
-なぜ要るかというと、**group 番号の意味が `.ndx` の有無で変わる**からです。
+`--ndx` を渡すと **group 0 の意味が変わります**。
 
 | | group 0 の中身 |
 |---|---|
-| `.ndx` なし | tpr の既定 group。**0 = System** |
-| `.ndx` あり | **その `.ndx` の最初の group** (System とは限らない) |
+| index なし (既定) | tpr の System = **全原子** |
+| index あり | **その index file の最初の group** (System とは限らない) |
 
-`gen_for_udf` は group 0 を出力するので、隣に**別の系・別の目的で作った
-`.ndx`** が置いてあると、意図せず一部の原子だけを切り出した `.gro` が
-**エラーなしで**出来てしまいます。Tg 計算のように index を使わない run の
-ディレクトリで、たまたま `system.ndx` が同居しているようなときに付けて
-ください。
+つまり無関係な `.ndx` を渡すと、**原子の一部だけを切り出した `.gro` が
+エラーなしで**出来ます。`gmx energy` のほうは index を一切使いません。
 
-逆に「別の `.ndx` の、特定の group を出したい」場合は
-`--ndx <file> --group <名前か番号>` を明示します。index が元から無い run
-では、付けても付けなくても結果は同じです。
+**`build/system.ndx` は grompp のためのものです。** amorphous の
+`run_all.sh` が `grompp -n ../build/system.ndx` として使うのは、mdp の
+`tc-grps` が成分ごとの group (`IMC` など) を参照するからで、**軌跡の
+切り出し用ではありません**。abmptools が書く `system.ndx` は先頭が必ず
+`[ System ]` なので、渡しても渡さなくても結果は同じでした (実測で
+`.xvg` / `.gro` とも一致)。効果が無い一方で、先頭 group が System でない
+`.ndx` を拾うと黙って壊れます。既定で使わないのはこのためです。
+
+要るのは **「系の一部だけを UDF にしたい」場合だけ**です。その場合は
+`--ndx <file> --group <名前か番号>` を明示し、**下流の `.top` も同じ部分系に
+揃えてください** —— `gro2udf --from-top` は `.top` と軌跡が同じ系である前提で
+組み立てます。
 
 ## Python API
 

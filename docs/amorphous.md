@@ -306,7 +306,7 @@ python gen_for_udf.py                 # このディレクトリの stage を自
 python gen_for_udf.py prod            # stage を名指し (例: Tg 計算の prod)
 
 # gen_for_udf.py を置いていない場所でも、module を直接呼べば同じことができます
-python -m abmptools.trajectory gen_for_udf --stage prod --no-ndx
+python -m abmptools.trajectory gen_for_udf --stage prod
 ```
 
 **引数なしのとき何が読まれるか。** カレント (module の場合は `--dir`) の中で
@@ -325,8 +325,8 @@ stage を後処理したことに気付けないため)。
 | `<stage>.tpr` | 上の reference 構造 | 軌跡をスキップ |
 
 `.trr` と `.xtc` が両方あれば、速度も持つ `.trr` を優先します。両方ともスキップに
-なれば RC 1 です。index file は `../build/system.ndx` → `system.ndx` の順に自動で
-探し、無ければ使いません。出力は読んだファイルと同じディレクトリに置かれます。
+なれば RC 1 です。**index file は既定では使いません** (後述)。出力は読んだファイルと
+同じディレクトリに置かれます。
 
 **どの stage を選んだかは必ず出力に出ます。** 実行後にそこを見れば、意図と
 合っているか確認できます:
@@ -343,18 +343,25 @@ module を直接呼んだ場合 (`python -m abmptools.trajectory gen_for_udf`):
 
 ```
 stage: 05_npt_final
-index: /path/to/build/system.ndx
   /path/to/md/05_npt_final_energy.xvg  (gmx energy, 0.3 MB)
   /path/to/md/05_npt_final_nojump.gro  (trjconv -pbc nojump, 4.3 MB)
 ```
 
-**`--no-ndx` は index file を使わない指定です。** group 番号の意味が `.ndx` の
-有無で変わる —— `.ndx` なしなら group 0 は tpr 既定の System ですが、`.ndx` が
-あると group 0 は**その `.ndx` の最初の group** になります。`gen_for_udf` は
-group 0 を出力するので、隣に別の系・別の目的で作った `.ndx` が置いてあると、
-一部の原子だけを切り出した `.gro` が**エラーなしで**出来てしまいます。index を
-使わない run のディレクトリに `system.ndx` が同居しているときに付けてください。
-特定の group を出したい場合は `--ndx <file> --group <名前か番号>` を明示します。
+**index file (`.ndx`) は既定では使いません。** `gen_for_udf` が作るのは系全体を
+写したものなので、group 0 = tpr の System (全原子) がそのまま欲しいものだからです。
+`--ndx` を渡すと group 0 の意味が「tpr の System」から「**その index file の最初の
+group**」に変わるため、無関係な `.ndx` を渡すと、原子の一部だけを切り出した `.gro`
+が**エラーなしで**出来てしまいます (`gmx energy` のほうは index を一切使いません)。
+
+**`build/system.ndx` は grompp のためのものです。** `run_all.sh` が
+`grompp -n ../build/system.ndx` として使うのは mdp の `tc-grps` が成分ごとの group
+を参照するからで、軌跡の切り出し用ではありません。abmptools が書く `system.ndx` は
+先頭が必ず `[ System ]` なので、渡しても渡さなくても結果は同じでした (実測で
+`.xvg` / `.gro` とも一致)。
+
+index が要るのは **「系の一部だけを UDF にしたい」場合だけ**です。その場合は
+`--ndx <file> --group <名前か番号>` を明示し、下流の `.top` も同じ部分系に
+揃えてください。
 
 オプションの一覧は [`trajectory.md`](trajectory.md) を参照してください。
 

@@ -468,7 +468,7 @@ cd md && python gen_for_udf.py && cd ..
 #
 # 別 stage (Tg 計算の出力など) を後処理したいときは stage 名を渡します。
 # gen_for_udf.py を置いていない場所では module を直接呼べます:
-#   python -m abmptools.trajectory gen_for_udf --stage prod --no-ndx
+#   python -m abmptools.trajectory gen_for_udf --stage prod
 
 python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
     --mdp md/05_npt_final.mdp \
@@ -490,8 +490,8 @@ python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
 
 stage が決まったら `<stage>.edr`(エネルギー)、`<stage>.trr` または `.xtc`
 (軌跡)、`<stage>.tpr`(軌跡の reference)を読みます。`.trr` と `.xtc` が
-両方あれば、速度も持つ `.trr` を使います。index file は
-`../build/system.ndx` → `system.ndx` の順に自動で探し、無ければ使いません。
+両方あれば、速度も持つ `.trr` を使います。index file (`.ndx`) は
+**既定では使いません**(後述)。
 
 **どの stage を選んだかは必ず出力に出ます。** ここを見れば、意図と合って
 いるか一目で分かります:
@@ -508,7 +508,6 @@ module を直接呼んだ場合 (`python -m abmptools.trajectory gen_for_udf`):
 
 ```
 stage: 05_npt_final
-index: /path/to/build/system.ndx
   /path/to/md/05_npt_final_energy.xvg  (gmx energy, 0.3 MB)
   /path/to/md/05_npt_final_nojump.gro  (trjconv -pbc nojump, 4.3 MB)
 ```
@@ -516,14 +515,21 @@ index: /path/to/build/system.ndx
 `.edr` しか無い stage なら energy だけ出して軌跡は `(skipped: ...)` と明示し、
 どちらも作れなければ RC 1 で止まります(何も作らずに「完了」と言わないため)。
 
-上の例に出てくる `--no-ndx` は、**index file を使わない**指定です。`.ndx` は
-原子を group にまとめた定義ファイルで、有無で group 番号の意味が変わります ——
-`.ndx` なしなら group 0 は System ですが、`.ndx` があると group 0 は
-**その `.ndx` の最初の group** です。`gen_for_udf` は group 0 を出力するので、
-**別の系のために作った `.ndx` が同じ場所にあると、一部の原子だけを切り出した
-`.gro` がエラーなしで出来てしまいます**。Tg 計算のように index を使わない run
-では `--no-ndx` を付けておくと確実です。特定の group を出したい場合は
-`--ndx <file> --group <名前か番号>` を明示します。
+**index file (`.ndx`) は既定では使いません。** `.ndx` は原子を group にまとめた
+定義ファイルですが、`gen_for_udf` が作るのは系全体を写したものなので、
+group 0 = tpr の System (全原子) がそのまま欲しいものです。`--ndx` を渡すと
+group 0 の意味が「tpr の System」から「**その index file の最初の group**」に
+変わるので、**別の系のために作った `.ndx` を渡すと、一部の原子だけを切り出した
+`.gro` がエラーなしで出来てしまいます**。
+
+`build/system.ndx` を見て「これは要らないのか」と思うかもしれませんが、
+**あれは `grompp` のためのものです**。mdp の `tc-grps` が成分ごとの group を
+参照するので `run_all.sh` が `-n` で渡しているだけで、軌跡の切り出しには
+関係ありません (実測でも、渡す・渡さないで出力は一致しました)。
+
+index が要るのは **「系の一部だけを UDF にしたい」場合だけ**です。その場合は
+`--ndx <file> --group <名前か番号>` を明示し、下流の `.top` も同じ部分系に
+揃えてください。
 
 オプションの一覧は [`trajectory.md`](trajectory.md) にあります。
 

@@ -368,7 +368,7 @@ _DEFAULT_OPENFF_FINAL_STAGE = "05_npt_final"
 
 
 def write_wrap_script(output_dir: str,
-                      ndx: Optional[str] = "system.ndx",
+                      ndx: Optional[str] = None,
                       stages: Optional[List[str]] = None,
                       final_stage: Optional[str] = None) -> str:
     """Write a PBC-wrap Python script (``wrap_pbc.py``) for VMD-friendly trajectories.
@@ -386,7 +386,14 @@ def write_wrap_script(output_dir: str,
         Directory to write the script into (typically the md/ directory).
     ndx : str or None
         Relative path (from md/ perspective) to the system index file.
-        If ``None``, no index file is used; group 0 (System) is selected.
+        Default ``None`` uses no index: group 0 is the tpr's System, i.e.
+        every atom -- which is what the whole-system export wants.
+
+        Passing an index changes what group 0 *means* (it becomes that
+        file's first group), so an unrelated ``.ndx`` silently yields a
+        partial trajectory. ``build/system.ndx`` is written for grompp's
+        ``tc-grps``, not for trajectory export; only pass it here when you
+        deliberately want a subset, together with ``group``.
     stages : list of str, optional
         Stage basenames (each yielding ``<stage>.tpr/.xtc``) to wrap.
         Defaults to the OpenFF amorphous protocol stages
@@ -468,7 +475,7 @@ def write_wrap_script(output_dir: str,
 
 
 def write_udf_export_script(output_dir: str,
-                            ndx: Optional[str] = "system.ndx",
+                            ndx: Optional[str] = None,
                             stage: Optional[str] = None,
                             n_energy_terms: int = 50) -> str:
     """Write a UDF export Python script (``gen_for_udf.py``).
@@ -496,7 +503,14 @@ def write_udf_export_script(output_dir: str,
         Directory to write the script into (typically the md/ directory).
     ndx : str or None
         Relative path (from md/ perspective) to the system index file.
-        If ``None``, no index file is used; group 0 (System) is selected.
+        Default ``None`` uses no index: group 0 is the tpr's System, i.e.
+        every atom -- which is what the whole-system export wants.
+
+        Passing an index changes what group 0 *means* (it becomes that
+        file's first group), so an unrelated ``.ndx`` silently yields a
+        partial trajectory. ``build/system.ndx`` is written for grompp's
+        ``tc-grps``, not for trajectory export; only pass it here when you
+        deliberately want a subset, together with ``group``.
     stage : str, optional
         Stage basename whose ``.edr`` / ``.trr`` / ``.tpr`` are exported.
         Defaults to ``05_npt_final`` (the OpenFF production stage).

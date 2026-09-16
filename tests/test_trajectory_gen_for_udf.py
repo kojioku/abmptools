@@ -137,7 +137,13 @@ def test_gen_for_udf_nothing_to_do_raises(tmp_path, fake_gmx):
         pp.gen_for_udf(stage="prod", directory=tmp_path)
 
 
-def test_gen_for_udf_auto_ndx(tmp_path, fake_gmx):
+def test_gen_for_udf_does_not_pick_up_a_neighbouring_ndx(tmp_path, fake_gmx):
+    """隣に system.ndx があっても勝手に使わない。
+
+    index を渡すと group 0 の意味が「tpr の System」から「その index の
+    最初の group」に変わる。 別の系の .ndx を拾うと、 原子の一部だけの
+    .gro が無警告で出る。 build/system.ndx は grompp の tc-grps 用。
+    """
     md = tmp_path / "md"
     md.mkdir()
     build = tmp_path / "build"
@@ -145,21 +151,21 @@ def test_gen_for_udf_auto_ndx(tmp_path, fake_gmx):
     (build / "system.ndx").write_text("")
     _stage_files(md, "05_npt_final")
     res = pp.gen_for_udf(directory=md)
-    assert res["ndx"] == (build / "system.ndx").resolve()
-    assert fake_gmx["nojump"]["ndx"].endswith("system.ndx")
-
-
-def test_gen_for_udf_no_ndx_disables_lookup(tmp_path, fake_gmx):
-    """index を持たない run 用に、 自動検出を止められる。"""
-    md = tmp_path / "md"
-    md.mkdir()
-    build = tmp_path / "build"
-    build.mkdir()
-    (build / "system.ndx").write_text("")
-    _stage_files(md, "05_npt_final")
-    res = pp.gen_for_udf(directory=md, auto_ndx=False)
     assert res["ndx"] is None
     assert fake_gmx["nojump"]["ndx"] is None
+
+
+def test_gen_for_udf_explicit_ndx_is_passed_through(tmp_path, fake_gmx):
+    """部分系を出したいときは明示する -- そのときだけ trjconv に渡る。"""
+    md = tmp_path / "md"
+    md.mkdir()
+    ndx = tmp_path / "solute.ndx"
+    ndx.write_text("")
+    _stage_files(md, "05_npt_final")
+    res = pp.gen_for_udf(directory=md, ndx=ndx, group="Solute")
+    assert res["ndx"] == ndx
+    assert fake_gmx["nojump"]["ndx"].endswith("solute.ndx")
+    assert fake_gmx["nojump"]["group"] == "Solute"
 
 
 def test_gen_for_udf_terms_range(tmp_path, fake_gmx):

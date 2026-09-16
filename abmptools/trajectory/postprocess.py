@@ -368,11 +368,17 @@ def find_stage(directory: PathLike = ".") -> str:
 
 
 def find_ndx(directory: PathLike = ".") -> Optional[Path]:
-    """``directory`` から使える index file を探す (無ければ ``None``).
+    """``directory`` の近くにある index file を探す (無ければ ``None``).
 
     amorphous の md/ からは ``../build/system.ndx``、 単独ディレクトリに置いた
-    run なら ``system.ndx``。 index が無い run (Tg など) は ``None`` のままで
-    正常に動く -- group 0 = System が選ばれる。
+    run なら ``system.ndx``。
+
+    **:func:`gen_for_udf` はこれを自動では呼ばない。** index を渡すと
+    ``trjconv`` の group 番号の意味が変わる (group 0 が tpr の System では
+    なく、 その index file の最初の group になる) ため、 隣に置かれた無関係な
+    ``.ndx`` を拾うと、 原子の一部だけを切り出した ``.gro`` が無警告で
+    出来てしまう。 index が要るのは「系の一部だけを UDF にする」場合だけで、
+    そのときは呼ぶ側が明示する。
     """
     d = Path(directory)
     for candidate in (d / ".." / "build" / "system.ndx", d / "system.ndx"):
@@ -386,7 +392,6 @@ def gen_for_udf(
     stage: Optional[str] = None,
     directory: PathLike = ".",
     ndx: Optional[PathLike] = None,
-    auto_ndx: bool = True,
     n_energy_terms: int = 50,
     group: str = "0",
     gmx: str = "gmx",
@@ -406,11 +411,11 @@ def gen_for_udf(
     directory
         stage ファイルが置かれたディレクトリ (default: cwd)。
     ndx
-        index file を明示する。 ``None`` かつ ``auto_ndx`` なら
-        :func:`find_ndx` が探す。
-    auto_ndx
-        ``ndx`` 未指定時に index file を自動で探すか (default: True)。
-        index を使いたくない run では ``False``。
+        index file。 default の ``None`` では index を使わず、 group 0 =
+        tpr の System (= 全原子) が出力される。 **自動探索はしない** --
+        理由は :func:`find_ndx` を参照。 系の一部だけを UDF にしたいときだけ
+        ``ndx`` と ``group`` を明示する (その場合、 下流の ``.top`` も同じ
+        部分系である必要がある)。
     n_energy_terms
         ``gmx energy`` に渡す term 番号の上限。
     group
@@ -433,8 +438,6 @@ def gen_for_udf(
     d = Path(directory)
     if stage is None:
         stage = find_stage(d)
-    if ndx is None and auto_ndx:
-        ndx = find_ndx(d)
 
     result = {"stage": stage, "energy": None, "trajectory": None,
               "ndx": Path(ndx) if ndx else None}
