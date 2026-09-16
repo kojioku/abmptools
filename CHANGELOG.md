@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.16.0] - 2026-09-16
+
 ### Added — 枚数を指定して間引く (`--max-frames`) と、一気通貫の gro2udf
 
 **`gen_for_udf` は frame を間引いていなかった。** 1 frame = 1 record で素通し
@@ -78,7 +80,29 @@ conda env 名で、受け取る側には何のことか分からない。`gmx=..
 CLI と API の両方の書き方、PATH に通す手、そして MD 環境が自前の gmx を
 持っていて PATH に出していないことがある旨を出すようにした。
 
-## [2.16.0] - 2026-09-16
+
+### Fixed — `&ANALYSIS ` の末尾空白で Ver.2 Rev.8 が節ごと無視する
+
+`generateajf` は節見出しを `&ANALYSIS ` と**末尾に空白を付けて**出力していた。
+ajf→inp 変換の節の探し方がバージョンで違う:
+
+```
+V1DD2024      line.find("&ANALYSIS")              部分一致  -> 通る
+Ver.2 Rev.8   re.search("&ANALYSIS$", line, I)    行末固定  -> 一致しない
+```
+
+Rev.8 では節が認識されず、**中の指定が全部捨てられる**。ジョブは普通に走り、
+`.inp` の `&ANALYSIS` は空、ログには ajf で `'YES'` と書いたはずの
+`ES_RESP = NO` が出る。**エラーも警告も無い。**
+
+富岳の BRD4 18 ジョブで踏んだ。`PIEDA` は Rev.8 の既定で有効なため表自体は出ており、
+欠けたのは `ES(RESP)` 列だけだったので気づきにくい。V1DD2024 では変換側が
+部分一致なので表面化しない。
+
+- `abmptools/abinit_io.py`: `&ANALYSIS` の末尾空白を削除
+- `tests/test_ajf_section_headers.py`: 節見出しに末尾空白が無いことを検査する。
+  **インストール済みの abmptools ではなくファイルパスでソースを読む**
+  (editable install が作業ツリーを隠すため)
 
 ### Fixed — 外部ツールに渡せない UDF: 原子タイプ 75 個と、重複する Atom_ID
 
