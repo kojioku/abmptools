@@ -2,20 +2,22 @@
 
 ## [Unreleased]
 
-### Changed — `--already-nojump` を `--skip-nojump` に改名 (alias 無し)
+## [2.16.0] - 2026-09-16
 
-**残す名前の条件は、どの場面で打っても嘘にならないこと。** ここは 2 度
-名前を変えている。
+### Changed — `--skip-nojump`: 名前は「どの場面で打っても嘘にならない」ものにした
 
-| 名前 | 何が問題だったか |
+この 1 つのフラグは公開前に 2 度名前を変えている。**残す名前の条件は、
+どの場面で打っても嘘にならないこと。**
+
+| 候補 | 何が問題だったか |
 |---|---|
 | `--prepare-nojump` / `--no-prepare-nojump` | 既定 ON だと実際に打たれるのは否定形。「nojump の準備をしないで」は回りくどい |
-| `--already-nojump` | 「入力はもう nojump 済みだ」と**入力の性質を主張**する。**済んでいなくても意図して飛ばすこと**はある (gmx が無い / 別の後処理で通す / 割れたままを見たい)。そのとき**嘘を書かせる**ことになる |
+| `--already-nojump` | 「入力はもう nojump 済みだ」と**入力の性質を主張**する。**済んでいなくても意図して飛ばすこと**はある (gmx が無い / 別の後処理で通す / 割れたままを見たい)。そのとき**嘘を書かせる** |
 | **`--skip-nojump`** | **動作だけ**を述べるので、どちらの場合も正しい |
 
-いずれも未公開のまま置き換えたので **alias は残していない**。3 つとも
-受け付けないことをテストで固定した —— 残っていると「通ったのに効いて
-いない」という一番たちの悪い形になる。
+いずれも未公開のまま置き換えたので **alias は無い**。3 つとも受け付けない
+ことをテストで固定した —— 残っていると「通ったのに効いていない」という
+一番たちの悪い形になる。
 
 ### Fixed — udf-and-gro モードの失敗が **RC 0** で返っていた
 
@@ -59,8 +61,6 @@ template しか無く、**エネルギーを入れた変換を一度も試せな
 無ければ gmx で `.gro` に直してから渡すので、**gmx さえあれば走る**。
 
 
-## [2.16.0] - 2026-09-16
-
 ### Changed — `gro2udf --trajectory` は `-pbc nojump` を自分で通す
 
 **生の `.xtc` をそのまま渡して、正しい UDF が出るようにした。** 周期境界を
@@ -75,7 +75,7 @@ python -m abmptools.gro2udf --from-top system.top md/prod.gro \
 
 # 既に nojump 済みの軌跡を渡すとき (gmx は要らない)
 python -m abmptools.gro2udf --from-top system.top md/prod.gro \
-    --trajectory md/prod_nojump.gro --already-nojump --out prod.udf
+    --trajectory md/prod_nojump.gro --skip-nojump --out prod.udf
 ```
 
 **`--trajectory` を使うと gmx が要る。** `gro2udf` はこれまで gmx を一切
@@ -86,8 +86,8 @@ python -m abmptools.gro2udf --from-top system.top md/prod.gro \
 6 frame、箱 27.07 Å) で実測して **max |Δr| = 0.0000 Å / 移動した原子 0 個**
 (同じ軌跡を nojump していない状態と比べると 3139 原子・最大 38.3 Å 動くので、
 入力が本当に nojump を要していたことも確かめてある)。`gen_for_udf` の出力を
-渡す流れはそのまま通り、`--already-nojump` は「gmx を呼ばせない」ための
-ものになる。`--trajectory` を渡していないのに `--already-nojump` と書くと
+渡す流れはそのまま通り、`--skip-nojump` は「gmx を呼ばせない」ための
+ものになる。`--trajectory` を渡していないのに `--skip-nojump` と書くと
 エラーになる。
 
 > **このフラグは `[Unreleased]` で `--skip-nojump` に改名した。** 理由は
@@ -130,7 +130,7 @@ frames: 17 (--max-frames 20, skip 6)
 |---|---|
 | `gro2udf --max-frames N` / `--frame-step N` | **不要** (読み込み時に間引く) |
 | `gro2udf --edr <file>` | 要。energy.xvg を作って埋め込む。**省略すれば energy は読まない** |
-| `gro2udf --trajectory <file>` | 要。`-pbc nojump` をその場で通す。`--already-nojump` (現 `--skip-nojump`) で止められる |
+| `gro2udf --trajectory <file>` | 要。`-pbc nojump` をその場で通す。`--skip-nojump` で止められる |
 
 どちらも `abmptools.trajectory` を in-process import で呼ぶ。**gro2udf が
 gmx を触るのはこの 2 か所だけ**で、どちらも渡さなければ従来どおり純粋な
