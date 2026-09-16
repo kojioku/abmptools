@@ -299,3 +299,29 @@ class TestTpxVersionFallback:
         ref.write_text("")
         with pytest.raises(pp.GmxError):
             pp.gen_for_udf(directory=tmp_path, reference=ref)
+
+
+class TestGmxFailureHints:
+    """gmx の失敗に、 直し方が分かる一言を添える。"""
+
+    def test_residuetypes_failure_names_gmxlib(self):
+        err = pp.GmxError(
+            cmd=["gmx", "trjconv"], returncode=1, stdout="",
+            stderr="Library file 'residuetypes.dat' not found in current dir")
+        text = str(err)
+        assert "GMXLIB" in text
+        # cmd と sh の両方の書き方を出す (受け取る側がどちらか分からない)
+        assert "set \"GMXLIB=" in text and "export GMXLIB=" in text
+
+    def test_unrelated_failure_gets_no_hint(self):
+        err = pp.GmxError(cmd=["gmx"], returncode=1, stdout="",
+                          stderr="Fatal error:\nAtom C not found in residue")
+        assert "--- hint ---" not in str(err)
+
+    def test_gmx_not_found_names_the_cli_flag_not_an_env_name(self):
+        """開発機の conda env 名を出さない。 CLI の書き方を出す。"""
+        with pytest.raises(FileNotFoundError) as exc:
+            pp._resolve_gmx("definitely-not-gmx")
+        text = str(exc.value)
+        assert "--gmx" in text
+        assert "gmxcudaenv" not in text

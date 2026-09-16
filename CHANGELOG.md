@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+### Added — 枚数を指定して間引く (`--max-frames`) と、一気通貫の gro2udf
+
+**`gen_for_udf` は frame を間引いていなかった。** 1 frame = 1 record で素通し
+なので、本番の長い trajectory では `.gro` も UDF も破綻する (101 frame で
+nojump.gro が 4.3 MB なので、1 万 frame なら 400 MB 超)。
+
+`--max-frames N` は **「合計何枚にするか」**。既存の `--skip` (「何本に 1 本か」)
+とは別物なので、同時指定はエラーにした。**実際に何枚になったかを必ず表示**する
+(割り切れないので指定値ちょうどにはならない)。
+
+```
+frames: 17 (--max-frames 20, skip 6)
+```
+
+`gro2udf` 側にも通しの経路を足した:
+
+| | gmx |
+|---|---|
+| `gro2udf --max-frames N` / `--frame-step N` | **不要** (読み込み時に間引く) |
+| `gro2udf --edr <file>` | 要。energy.xvg を作って埋め込む。**省略すれば energy は読まない** |
+| `gro2udf --prepare-nojump --tpr <file>` | 要。`-pbc nojump` をその場で通す |
+
+`--edr` / `--prepare-nojump` は `abmptools.trajectory` を in-process import で
+呼ぶ。**gro2udf は従来どおり純粋なファイル変換器**で、この 2 つを頼まれた
+ときだけ gmx を触る。`nojump` は省略可能にしていない。
+
+### Fixed — `residuetypes.dat not found` に GMXLIB の指し先を添えた
+
+J-OCTA 同梱の gmx は `share/top` を持っているのに `GMXLIB` を設定しないので、
+`-s` に `.gro` を渡したとたんここで止まる (`.tpr` はデータを自分で持っている
+ので出ない)。gmx のメッセージは `GMXLIB` に触れるが、**どこを指せばよいかは
+書いていない**。cmd と sh 両方の書き方で添えるようにした。
+
 ### Added — nojump を `.xtc` で出せるようにした (`--nojump-format`)
 
 `.gro` は嵩む。実測で **4.27 MB → 0.41 MB (10 分の 1)**。UDF は同じものが

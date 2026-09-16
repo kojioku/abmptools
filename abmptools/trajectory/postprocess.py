@@ -34,7 +34,29 @@ class GmxError(RuntimeError):
         super().__init__(
             f"gmx command failed (exit {returncode}): {' '.join(cmd)}\n"
             f"--- stderr ---\n{stderr}\n--- stdout ---\n{stdout}"
+            f"{_hint_for(stderr, stdout)}"
         )
+
+
+def _hint_for(stderr: str, stdout: str) -> str:
+    """gmx の失敗に、 直し方が分かる一言を添える。
+
+    ``residuetypes.dat not found`` は「壊れている」のではなく **GMXLIB が
+    設定されていない**だけ。 J-OCTA が同梱する gmx は share/ を持っている
+    のに環境変数を設定してくれないので、 ``.gro`` を ``-s`` に渡した
+    とたんここで止まる。 メッセージ自体は GMXLIB に触れているが、 どこを
+    指せばよいかは書いていない。
+    """
+    text = (stderr or "") + (stdout or "")
+    if "residuetypes.dat" in text:
+        return (
+            "\n--- hint ---\n"
+            "gmx could not find its share/top data. Point GMXLIB at it:\n"
+            "  cmd : set \"GMXLIB=C:\\J-OCTA-12.0\\additional\\GROMACS\\share\\top\"\n"
+            "  sh  : export GMXLIB=/path/to/gromacs/share/top\n"
+            "This bites when -s is a .gro (a .tpr carries the data itself)."
+        )
+    return ""
 
 
 def _resolve_gmx(gmx: str) -> str:
