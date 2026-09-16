@@ -124,6 +124,14 @@ def _build_parser() -> argparse.ArgumentParser:
                       help="energy term 番号の上限 (1..N、 default: 50)")
     p_gu.add_argument("--group", default="0",
                       help="trjconv の group (default: 0 = System)")
+    p_gu.add_argument("--ref", default=None,
+                      help="trjconv -s に渡す構造 (default: <stage>.tpr)。 "
+                           "古い gmx が新しい tpr を読めないときは "
+                           "<stage>.gro に自動で退避する")
+    p_gu.add_argument("--nojump-format", default="gro", choices=["gro", "xtc"],
+                      help="nojump trajectory の形式 (default: gro)。 xtc は "
+                           "10 倍ほど小さいが、 読むのに MDAnalysis が要る "
+                           "(J-OCTA 同梱 Python には入っていない)")
     p_gu.add_argument("--gmx", default="gmx",
                       help="gmx 実行 path (default: PATH 解決)")
     return p
@@ -141,11 +149,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 ndx=args.ndx,
                 n_energy_terms=args.terms_max,
                 group=args.group,
+                nojump_format=args.nojump_format,
+                reference=args.ref,
                 gmx=args.gmx,
             )
             print(f"stage: {res['stage']}")
             if res["ndx"]:
                 print(f"index: {res['ndx']}")
+            if res.get("reference_fallback"):
+                print(f"reference: {res['reference_fallback']} "
+                      "(tpr をこの gmx が読めなかったため)")
             for key, label in (("energy", "gmx energy"),
                                ("trajectory", "trjconv -pbc nojump")):
                 if res[key] is None:

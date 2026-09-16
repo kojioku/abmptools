@@ -67,6 +67,8 @@ python -m abmptools.trajectory gen_for_udf
 | `--stage` | 自動判定 | `<stage>.edr` / `.tpr` / `.xtc` の basename |
 | `--dir` | カレント | stage ファイルのあるディレクトリ |
 | `--ndx` | 使わない | index file。系の一部だけを UDF にするときだけ `--group` とセットで指定 |
+| `--ref` | `<stage>.tpr` | `trjconv -s` に渡す構造。古い gmx が tpr を読めないときは `<stage>.gro` へ自動退避 |
+| `--nojump-format` | `gro` | `gro` か `xtc`。`xtc` は 10 倍ほど小さいが、読むのに MDAnalysis が要る |
 | `--terms-max` | 50 | energy term 番号の上限 |
 | `--group` | `0` | trjconv の group(0 = System) |
 
@@ -173,6 +175,37 @@ out = thin_and_nojump(trajectory="prod/prod.xtc", tpr="prod/prod.tpr", skip=10)
 - **tpr の版と gmx の版が合わないと失敗する**。新しい GROMACS で書いた `.tpr`
   (例: 2026 系の tpr v138)は古い `gmx` では読めない。使いたい `gmx` を
   **`--gmx /path/to/gmx` で明示**して、tpr を書いた版と揃える。
+
+  ```
+  Fatal error:
+  reading tpx file (prod.tpr) version 138 with version 119 program
+  ```
+
+  **Windows で J-OCTA 同梱の gmx を使うときに、これを踏みます。**
+  J-OCTA 12.0 が同梱するのは `C:\J-OCTA-12.0\additional\GROMACS\bin\gmx.exe`
+  (GROMACS **2020.4** = tpx v119) で、新しい GROMACS で流した MD の tpr は
+  読めません。
+
+  `-pbc nojump` は結合情報を使わないので、**reference を `.gro` に替えれば
+  通ります**。`gen_for_udf` は上のエラーを検出したとき `<stage>.gro` に自動で
+  退避し、警告を出します(`--ref` で明示も可)。
+
+  ただし**同じ結果にはなりません**。nojump は reference から積み上げるので、
+  **分子まるごとが別の周期イメージに置かれることがあります**(実測で最大
+  23 Å = 約 1 箱の差)。**分子が割れることはありません** — 同じ系で 1 分子の
+  最大の広がりは tpr 参照・gro 参照とも 13.58 Å(箱は 22.6 Å)で一致しました。
+
+  なお**数値そのものは gmx の版に依存しません**。同じ `.gro` を reference に
+  して GROMACS 2026.3 と J-OCTA 同梱 2020.4 で処理した結果は**完全に一致**
+  (最大差 0.000e+00 Å)しました。`.edr` も 2020.4 で問題なく読めます。
+
+- **J-OCTA 同梱 gmx に `.gro` を渡すときは `GMXLIB` が要る**。設定しないと
+  `residuetypes.dat not found`(存在しない `C:\Program Files (x86)\Gromacs`
+  を探しに行く)で止まります。
+
+  ```cmd
+  set "GMXLIB=C:\J-OCTA-12.0\additional\GROMACS\share\top"
+  ```
 - グループ選択は `--group`(既定 `System`)。溶質だけ等にしたい場合は `--ndx` +
   グループ名を指定。
 

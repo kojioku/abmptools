@@ -2,6 +2,50 @@
 
 ## [Unreleased]
 
+### Added — nojump を `.xtc` で出せるようにした (`--nojump-format`)
+
+`.gro` は嵩む。実測で **4.27 MB → 0.41 MB (10 分の 1)**。UDF は同じものが
+できる (101 records、座標の最大差 **4.99e-05 nm** = `.gro` の 3 桁表記と
+`.xtc` の float32 の表現差。どちらも刻みは 0.001 nm なので丸め誤差の半分)。
+
+既定は `gro` のまま。**`.xtc` を UDF にするには MDAnalysis が要る** (`.gro` は
+不要) が、これは abmptools の依存ではなく、J-OCTA 同梱の Python にも入って
+いないため。
+
+**`nojump` 自体は省けない。** あれは入れ物の話ではなく分子を PBC 境界で
+分断させない処理で、省くと OCTA viewer でも下流の切り出しでも分子が割れる。
+
+### Fixed — 古い gmx が新しい `.tpr` を読めないときに詰んでいた
+
+J-OCTA 12.0 が同梱する gmx は **GROMACS 2020.4 (tpx v119)** で、GROMACS 2026 が
+書いた **v138** の tpr を読めない:
+
+```
+reading tpx file (prod.tpr) version 138 with version 119 program
+```
+
+`-pbc nojump` は結合情報を使わないので、reference を `<stage>.gro` に替えれば
+通る。`gen_for_udf` はこのエラーだけを検出して自動で退避し、**警告を出す**
+(`--ref` で明示も可)。他の失敗は退避せずそのまま上げる。
+
+**同じ結果にはならない**ことを警告に明記した。nojump は reference から積み
+上げるので、分子まるごとが別の周期イメージに置かれることがある (実測で最大
+23 Å = 約 1 箱)。**分子が割れることはない** —— 1 分子の最大の広がりは tpr 参照・
+gro 参照とも 13.58 Å (箱 22.6 Å) で一致した。
+
+**数値は gmx の版には依存しない。** 同じ `.gro` を reference にして
+GROMACS 2026.3 と J-OCTA 同梱 2020.4 で処理した結果は**完全一致** (最大差 0)。
+
+### Fixed — `gmx` が見つからないときのメッセージが答えになっていなかった
+
+`Activate gmxcudaenv or specify gmx=...` と出していた。`gmxcudaenv` は開発機の
+conda env 名で、受け取る側には何のことか分からない。`gmx=...` は Python API の
+書き方で、CLI では `--gmx`。**答えを書いているつもりで、答えになっていなかった。**
+
+CLI と API の両方の書き方、PATH に通す手、そして Windows では J-OCTA が
+GROMACS を同梱していること (`C:\J-OCTA-12.0\additional\GROMACS\bin\gmx.exe`)
+を出すようにした。
+
 ## [2.16.0] - 2026-09-16
 
 ### Fixed — J-OCTA に渡せない UDF: 原子タイプ 75 個と、重複する Atom_ID
