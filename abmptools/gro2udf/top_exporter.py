@@ -720,11 +720,21 @@ class TopExporter:
             uobj.put(mol_name, "Set_of_Molecules.molecule[].Mol_Name", [imol])
 
             for iatom, atom in enumerate(spec.atoms):
-                # Atom_ID is per-molecule local 0-indexed (matches the COGNAC
-                # convention used by cognac-shipped sample BDFs; using a
-                # global counter here made OCTA viewer's atom-table display the
-                # last molecule's offset (1617..1649) which looked off).
-                uobj.put(iatom,
+                # Atom_ID runs across the whole system, not per molecule.
+                #
+                # This was per-molecule local until 2.16, on the impression
+                # that a global counter made the OCTA viewer's atom table
+                # "look off". J-OCTA's own writer settles it: in a UDF it
+                # generated for 354-atom molecules, molecule 0 starts at 0,
+                # molecule 1 at 354 and molecule 2 at 708 -- a single running
+                # number. Per-molecule numbering repeats every ID in every
+                # molecule, which is not what a reader of this file expects.
+                #
+                # Nothing references Atom_ID, so this is a label change only:
+                # the cognac schema has bonds, angles, torsions and the two
+                # site arrays all carry "Index of array" ints, which stay
+                # local to the molecule (see `iatom` below).
+                uobj.put(ncount,
                          "Set_of_Molecules.molecule[].atom[].Atom_ID",
                          [imol, iatom])
                 # Atom_Name と Atom_Type_Name の役割分担 (2026-05-27 最終):
