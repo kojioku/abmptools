@@ -205,3 +205,97 @@ def test_cli_gen_for_udf_ambiguous_is_message_not_traceback(tmp_path, capsys):
     err = capsys.readouterr().err
     assert rc == 1
     assert "runA" in err and "--stage" in err
+
+
+class TestNojumpFormatAndReference:
+    """入れ物の選択と、 古い gmx が tpr を読めないときの退避。"""
+
+    def test_nojump_format_picks_the_extension(self, tmp_path, fake_gmx):
+        _stage_files(tmp_path, "prod")
+        res = pp.gen_for_udf(directory=tmp_path, nojump_format="xtc")
+        assert res["trajectory"].name == "prod_nojump.xtc"
+
+    def test_nojump_format_defaults_to_gro(self, tmp_path, fake_gmx):
+        _stage_files(tmp_path, "prod")
+        assert pp.gen_for_udf(directory=tmp_path)["trajectory"].name == \
+            "prod_nojump.gro"
+
+    def test_bad_nojump_format_is_rejected(self, tmp_path, fake_gmx):
+        _stage_files(tmp_path, "prod")
+        with pytest.raises(ValueError):
+            pp.gen_for_udf(directory=tmp_path, nojump_format="pdb")
+
+    def test_explicit_reference_is_used(self, tmp_path, fake_gmx):
+        _stage_files(tmp_path, "prod")
+        ref = tmp_path / "start.gro"
+        ref.write_text("")
+        pp.gen_for_udf(directory=tmp_path, reference=ref)
+        assert fake_gmx["nojump"]["tpr"].endswith("start.gro")
+
+
+class TestTpxVersionFallback:
+    """新しい tpr を読めない gmx では .gro に退避する。
+
+    J-OCTA 12.0 が同梱する gmx は GROMACS 2020.4 (tpx v119) で、
+    GROMACS 2026 が書いた v138 の tpr を読めない。 入力が壊れているわけでは
+    ないので、 ``-pbc nojump`` の reference を ``.gro`` に差し替えれば通る
+    (nojump は結合情報を使わない)。
+    """
+
+    TPX_ERR = ("Fatal error:\n"
+               "reading tpx file (prod.tpr) version 138 with version 119 program")
+
+    def test_detects_the_tpx_message(self):
+        err = pp.GmxError(cmd=["gmx"], returncode=1, stdout="",
+                          stderr=self.TPX_ERR)
+        assert pp._is_tpx_version_error(err)
+
+    def test_other_failures_are_not_mistaken_for_it(self):
+        err = pp.GmxError(cmd=["gmx"], returncode=1, stdout="",
+                          stderr="Fatal error:\nAtom C not found in residue")
+        assert not pp._is_tpx_version_error(err)
+
+    @pytest.fixture
+    def gmx_that_refuses_tpr(self, monkeypatch):
+        """tpr を渡されたときだけ tpx エラーを出す nojump。"""
+        calls = []
+
+        def _nojump(*, trajectory, tpr, output, group="System", ndx=None,
+                    gmx="gmx"):
+            calls.append(str(tpr))
+            if str(tpr).endswith(".tpr"):
+                raise pp.GmxError(cmd=["gmx", "trjconv"], returncode=1,
+                                  stdout="",
+                                  stderr=TestTpxVersionFallback.TPX_ERR)
+            return output
+
+        monkeypatch.setattr(pp, "nojump", _nojump)
+        monkeypatch.setattr(pp, "gmx_energy",
+                            lambda **kw: kw["output"])
+        return calls
+
+    def test_falls_back_to_the_gro(self, tmp_path, gmx_that_refuses_tpr):
+        _stage_files(tmp_path, "prod")
+        (tmp_path / "prod.gro").write_text("")
+        res = pp.gen_for_udf(directory=tmp_path)
+        assert [c.rsplit("/", 1)[-1] for c in gmx_that_refuses_tpr] == \
+            ["prod.tpr", "prod.gro"]
+        assert res["reference_fallback"].name == "prod.gro"
+        assert res["trajectory"] is not None
+
+    def test_no_gro_means_the_error_still_surfaces(self, tmp_path,
+                                                   gmx_that_refuses_tpr):
+        """退避先が無ければ黙って成功にしない。"""
+        _stage_files(tmp_path, "prod", exts=("tpr", "edr", "xtc"))
+        with pytest.raises(pp.GmxError):
+            pp.gen_for_udf(directory=tmp_path)
+
+    def test_explicit_reference_is_not_second_guessed(self, tmp_path,
+                                                      gmx_that_refuses_tpr):
+        """--ref で明示されたものが失敗したら、 勝手に別のものを使わない。"""
+        _stage_files(tmp_path, "prod")
+        (tmp_path / "prod.gro").write_text("")
+        ref = tmp_path / "chosen.tpr"
+        ref.write_text("")
+        with pytest.raises(pp.GmxError):
+            pp.gen_for_udf(directory=tmp_path, reference=ref)

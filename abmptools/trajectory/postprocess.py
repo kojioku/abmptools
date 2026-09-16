@@ -12,12 +12,15 @@ trajectory、 VMD 向け wrap、 OCTA UDF 向け nojump gro) の基本セット�
 
 from __future__ import annotations
 
+import logging
 import shutil
 import subprocess
 from pathlib import Path
 from typing import Optional, Sequence, Union
 
 PathLike = Union[str, Path]
+
+logger = logging.getLogger(__name__)
 
 
 class GmxError(RuntimeError):
@@ -42,8 +45,16 @@ def _resolve_gmx(gmx: str) -> str:
         return gmx
     found = shutil.which(gmx)
     if found is None:
+        # 「見つからない」だけ言って終わらない。 どう指すかを、 その人が
+        # 使っている呼び方 (CLI か API か) で書く。 Windows では J-OCTA に
+        # GROMACS が同梱されているので、 その場所も挙げる。
         raise FileNotFoundError(
-            f"'{gmx}' not found in PATH. Activate gmxcudaenv or specify gmx=... explicitly."
+            f"'{gmx}' not found in PATH.\n"
+            "  CLI: --gmx <path to gmx>\n"
+            "  API: gmx=\"<path to gmx>\"\n"
+            "  or put the directory holding gmx on PATH.\n"
+            "  On Windows, J-OCTA ships one:\n"
+            "    C:\\J-OCTA-12.0\\additional\\GROMACS\\bin\\gmx.exe"
         )
     return found
 
@@ -330,6 +341,17 @@ def wrap_pbc(
 PREFERRED_STAGES = ("05_npt_final", "prod", "production")
 
 
+def _is_tpx_version_error(exc: "GmxError") -> bool:
+    """``.tpr`` の版が gmx より新しくて読めなかったか。
+
+    gmx は ``reading tpx file (x.tpr) version 138 with version 119 program``
+    と言う。 これは入力が壊れているのではなく、 **この gmx が新しすぎる
+    tpr を読めない**というだけなので、 reference を差し替えれば先へ進める。
+    """
+    text = (exc.stderr or "") + (exc.stdout or "")
+    return "reading tpx file" in text and "with version" in text
+
+
 def find_stage(directory: PathLike = ".") -> str:
     """``directory`` から post-process 対象の stage 名を 1 つ決める.
 
@@ -394,6 +416,8 @@ def gen_for_udf(
     ndx: Optional[PathLike] = None,
     n_energy_terms: int = 50,
     group: str = "0",
+    nojump_format: str = "gro",
+    reference: Optional[PathLike] = None,
     gmx: str = "gmx",
 ) -> dict:
     """OCTA viewer / gro2udf 用の ``.xvg`` + nojump ``.gro`` を書き出す.
@@ -420,6 +444,25 @@ def gen_for_udf(
         ``gmx energy`` に渡す term 番号の上限。
     group
         ``trjconv`` の group (default ``"0"`` = System)。
+    nojump_format
+        nojump trajectory の出力形式。 ``"gro"`` (default) か ``"xtc"``。
+
+        中身は同じで、 入れ物だけが違う。 ``.xtc`` は 10 倍ほど小さい
+        (実測 4.27 MB → 0.41 MB) が、 **下流で読むのに MDAnalysis が要る**
+        (``.gro`` は不要)。 J-OCTA 同梱の Python には MDAnalysis が入って
+        いないので、 Windows では既定の ``"gro"`` が安全。
+
+        どちらを選んでも ``-pbc nojump`` は通す。 あれは入れ物の話ではなく
+        **分子を PBC 境界で分断させない**ための処理で、 省くと OCTA viewer
+        でも下流の切り出しでも分子が割れる。
+    reference
+        ``trjconv -s`` に渡す構造。 default では ``<stage>.tpr``。
+
+        **古い gmx は新しい ``.tpr`` を読めない** (J-OCTA 12.0 同梱は
+        GROMACS 2020.4 = tpx v119 までで、 GROMACS 2026 が書いた v138 で
+        ``reading tpx file ... with version 119 program`` と落ちる)。 その
+        ときは ``<stage>.gro`` に自動で切り替えて警告を出す。 明示したい
+        ときはここで指定する。
     gmx
         ``gmx`` 実行 path。
 
@@ -427,7 +470,8 @@ def gen_for_udf(
     -------
     dict
         ``{"stage": str, "energy": Path|None, "trajectory": Path|None,
-        "ndx": Path|None}``。
+        "ndx": Path|None}``。 tpr が読めず ``.gro`` に退避した場合は
+        ``"reference_fallback"`` にその path が入る。
 
     Raises
     ------
@@ -458,13 +502,41 @@ def gen_for_udf(
         if candidate.is_file():
             traj = candidate
             break
+    if nojump_format not in ("gro", "xtc"):
+        raise ValueError(
+            f"nojump_format must be 'gro' or 'xtc', got {nojump_format!r}")
     tpr = d / f"{stage}.tpr"
-    if traj is not None and tpr.is_file():
-        result["trajectory"] = nojump(
-            trajectory=traj, tpr=tpr,
-            output=d / f"{stage}_nojump.gro",
-            group=group, ndx=ndx, gmx=gmx,
-        )
+    out_traj = d / f"{stage}_nojump.{nojump_format}"
+    if traj is not None and (reference is not None or tpr.is_file()):
+        ref = Path(reference) if reference is not None else tpr
+        try:
+            result["trajectory"] = nojump(
+                trajectory=traj, tpr=ref, output=out_traj,
+                group=group, ndx=ndx, gmx=gmx,
+            )
+        except GmxError as exc:
+            fallback = d / f"{stage}.gro"
+            if (reference is not None or not _is_tpx_version_error(exc)
+                    or not fallback.is_file()):
+                raise
+            # gmx が古くて tpr を読めないだけなら、 .gro を reference に
+            # 回せば通る。 -pbc nojump は結合情報を使わないので代用できる。
+            # ただし**同じ結果にはならない**: nojump は reference から積み
+            # 上げるので、 分子まるごとが別の周期イメージに置かれることが
+            # ある (分子が割れることはない)。
+            logger.warning(
+                "%s could not be read by this gmx (tpx version mismatch); "
+                "falling back to %s as the trjconv reference. Molecules stay "
+                "whole, but a molecule may sit in a different periodic image "
+                "than the tpr route would put it in. Pass reference=... "
+                "(CLI: --ref) to choose explicitly.",
+                tpr.name, fallback.name,
+            )
+            result["reference_fallback"] = fallback
+            result["trajectory"] = nojump(
+                trajectory=traj, tpr=fallback, output=out_traj,
+                group=group, ndx=ndx, gmx=gmx,
+            )
 
     if result["energy"] is None and result["trajectory"] is None:
         raise FileNotFoundError(
