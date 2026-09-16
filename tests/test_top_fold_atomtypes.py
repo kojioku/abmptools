@@ -168,7 +168,20 @@ def test_energy_is_unchanged(tmp_path):
         energies[tag] = [float(v) for v in rows[0][1:]]
 
     assert energies["orig"], "エネルギーが読めていない"
-    diffs = [abs(a - b) for a, b in zip(energies["orig"], energies["folded"])]
-    assert max(diffs) == 0.0, (
-        "畳んだら力場が変わった (最大差 %.6g)。**エラーは出ないので、"
-        "この検査でしか捕まらない**" % max(diffs))
+
+    # 相対で見る。 **完全一致は保証できない** —— 畳むと atom type の並びが
+    # 変わり、 非結合項の足し込む順序が変わる。 GROMACS は単精度で足すので、
+    # 最後のビットがずれる。 実際に 1.7e6 kJ/mol の項で 1.2e-4 (相対 7e-11)
+    # の差を観測した。 これを == 0.0 で見ていると、 環境や版で揺れて赤に
+    # なり、 本物の変化と区別できなくなる。
+    #
+    # 一方、 畳み方を間違えて力場が変われば、 項は**パーセント単位**で動く。
+    # 1e-6 はその間に十分な幅で入る。
+    TOL = 1e-6
+    worst = 0.0
+    for a, b in zip(energies["orig"], energies["folded"]):
+        scale = max(abs(a), abs(b), 1.0)
+        worst = max(worst, abs(a - b) / scale)
+    assert worst < TOL, (
+        "畳んだら力場が変わった (最大相対差 %.3g)。**エラーは出ないので、"
+        "この検査でしか捕まらない**" % worst)
