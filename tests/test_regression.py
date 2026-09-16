@@ -437,6 +437,7 @@ def test_pdbmodify_CyD(tmp_path):
     result = subprocess.run(
         ["bash", "run.sh"], cwd=str(tmp_path),
         capture_output=True, text=True, timeout=120,
+        env=_repo_env(),
     )
     assert result.returncode == 0, f"run.sh failed:\n{result.stderr}"
     _compare_output_dir(str(tmp_path), os.path.join(REF_MAIN, "pdbmodify_CyD"))
@@ -453,6 +454,7 @@ def test_addsolvfrag_covneu(tmp_path):
     result = subprocess.run(
         ["bash", "run.sh"], cwd=str(tmp_path),
         capture_output=True, text=True, timeout=300,
+        env=_repo_env(),
     )
     assert result.returncode == 0, f"run.sh failed:\n{result.stderr}"
     _compare_output_dir(
@@ -499,6 +501,7 @@ def test_pdb2fmo_cd7(tmp_path):
     result = subprocess.run(
         ["bash", "run.sh"], cwd=str(tmp_path),
         capture_output=True, text=True, timeout=300,
+        env=_repo_env(),
     )
     assert result.returncode == 0, f"run.sh failed:\n{result.stderr}"
     _compare_output_dir(
@@ -517,6 +520,7 @@ def test_pdb2fmo_cbz(tmp_path):
     result = subprocess.run(
         ["bash", "run.sh"], cwd=str(tmp_path),
         capture_output=True, text=True, timeout=300,
+        env=_repo_env(),
     )
     assert result.returncode == 0, f"run.sh failed:\n{result.stderr}"
     _compare_output_dir(
@@ -601,6 +605,7 @@ def test_udf2fmo_nafion(tmp_path):
     result = subprocess.run(
         ["bash", "run.sh"], cwd=str(tmp_path),
         capture_output=True, text=True, timeout=600,
+        env=_repo_env(),
     )
     assert result.returncode == 0, f"run.sh failed:\n{result.stderr}"
     _compare_ajf_only(
@@ -618,6 +623,7 @@ def test_udf2fmo_membrane(tmp_path):
     result = subprocess.run(
         ["bash", "run.sh"], cwd=str(tmp_path),
         capture_output=True, text=True, timeout=600,
+        env=_repo_env(),
     )
     assert result.returncode == 0, f"run.sh failed:\n{result.stderr}"
     _compare_ajf_only(
@@ -636,6 +642,7 @@ def test_udf2fmo_membrane_cholesterol(tmp_path):
     result = subprocess.run(
         ["bash", "run.sh"], cwd=str(tmp_path),
         capture_output=True, text=True, timeout=600,
+        env=_repo_env(),
     )
     assert result.returncode == 0, f"run.sh failed:\n{result.stderr}"
     _compare_ajf_only(
