@@ -17,6 +17,11 @@ Examples
     python -m abmptools.trajectory nojump \\
         --traj 05_npt_final.xtc --tpr 05_npt_final.tpr \\
         --out 05_npt_final_nojump.gro --group System
+
+    # OCTA / gro2udf 用の 2 点セット。 stage 名はディレクトリから決まるので、
+    # amorphous の md/ でも Tg 計算の出力先でも同じ 1 行で通る。
+    python -m abmptools.trajectory gen_for_udf
+    python -m abmptools.trajectory gen_for_udf --stage prod --no-ndx
 """
 
 from __future__ import annotations
@@ -26,7 +31,8 @@ import sys
 from pathlib import Path
 from typing import Optional, Sequence
 
-from .postprocess import GmxError, gmx_energy, nojump, thin, thin_and_nojump, wrap_pbc
+from .postprocess import (GmxError, gen_for_udf, gmx_energy, nojump, thin,
+                          thin_and_nojump, wrap_pbc)
 
 
 def _add_common_args(p: argparse.ArgumentParser) -> None:
@@ -98,6 +104,29 @@ def _build_parser() -> argparse.ArgumentParser:
                       help="energy term 番号の上限 (1..N、 default: 50)")
     p_en.add_argument("--gmx", default="gmx",
                       help="gmx 実行 path (default: PATH 解決)")
+
+    # gen_for_udf (energy + nojump をまとめて)
+    p_gu = sub.add_parser(
+        "gen_for_udf",
+        help="OCTA / gro2udf 用に <stage>_energy.xvg と <stage>_nojump.gro を "
+             "まとめて出力 (stage は自動検出)",
+    )
+    p_gu.add_argument("--stage", default=None,
+                      help="<stage>.edr/.tpr/.xtc の basename "
+                           "(default: ディレクトリから自動検出)")
+    p_gu.add_argument("--dir", dest="directory", default=".",
+                      help="stage ファイルのあるディレクトリ (default: cwd)")
+    p_gu.add_argument("--ndx", default=None,
+                      help="index file (default: ../build/system.ndx か "
+                           "system.ndx を自動検出)")
+    p_gu.add_argument("--no-ndx", action="store_true",
+                      help="index file を使わない (自動検出も止める)")
+    p_gu.add_argument("--terms-max", type=int, default=50,
+                      help="energy term 番号の上限 (1..N、 default: 50)")
+    p_gu.add_argument("--group", default="0",
+                      help="trjconv の group (default: 0 = System)")
+    p_gu.add_argument("--gmx", default="gmx",
+                      help="gmx 実行 path (default: PATH 解決)")
     return p
 
 
@@ -106,6 +135,28 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        if args.cmd == "gen_for_udf":
+            res = gen_for_udf(
+                stage=args.stage,
+                directory=args.directory,
+                ndx=args.ndx,
+                auto_ndx=not args.no_ndx,
+                n_energy_terms=args.terms_max,
+                group=args.group,
+                gmx=args.gmx,
+            )
+            print(f"stage: {res['stage']}")
+            if res["ndx"]:
+                print(f"index: {res['ndx']}")
+            for key, label in (("energy", "gmx energy"),
+                               ("trajectory", "trjconv -pbc nojump")):
+                if res[key] is None:
+                    print(f"  (skipped: {label} -- input missing)")
+                    continue
+                path = Path(res[key])
+                size_mb = path.stat().st_size / 1024 / 1024
+                print(f"  {path}  ({label}, {size_mb:.1f} MB)")
+            return 0
         if args.cmd == "energy":
             out = gmx_energy(
                 edr=args.edr,
@@ -133,7 +184,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             else:  # pragma: no cover - argparse enforces choices
                 parser.error(f"unknown command: {args.cmd}")
                 return 2
-    except FileNotFoundError as e:
+    except (FileNotFoundError, ValueError) as e:
+        # ValueError は gen_for_udf の stage 曖昧エラー。 traceback を出すと
+        # 「どの stage か言って」という指示が埋もれる。
         print(f"ERROR: {e}", file=sys.stderr)
         return 1
     except GmxError as e:

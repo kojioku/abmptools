@@ -1,38 +1,22 @@
 #!/bin/bash
-# Post-processing: export UDF / J-OCTA compatible inputs from MD outputs.
+# Export what OCTA viewer (GOURMET) / gro2udf need from a finished GROMACS run:
 #
-#   gmx energy             : dump every energy term (1..N) to <stage>_energy.xvg
-#   gmx trjconv -pbc nojump: keep molecules continuous across PBC for OCTA
-#                            / J-OCTA Viewer and downstream UDF conversion
-#                            (in contrast to wrap_pbc.sh, which uses -pbc mol
-#                            for VMD-compatible compact unit-cell rendering)
+#   <stage>_energy.xvg   gmx energy, every term
+#   <stage>_nojump.gro   gmx trjconv -pbc nojump (molecules stay continuous
+#                        across the boundary; wrap_pbc uses -pbc mol instead,
+#                        for VMD's compact cell)
 #
-# Run this after run_all.sh finishes.
+# This is a thin wrapper. The work is in abmptools.trajectory, which is not
+# tied to the amorphous protocol -- the stage is detected from the directory,
+# so a Tg run's output works the same way. The Windows-compatible equivalent
+# is gen_for_udf.py (same module, no bash needed).
+#
+#   bash gen_for_udf.sh                 # detect the stage here
+#   bash gen_for_udf.sh prod            # a named stage, e.g. after Tg
+#   python -m abmptools.trajectory gen_for_udf --help   # every option
 set -e
 
-STAGE="05_npt_final"
-N_ENERGY_TERMS=50
-
-# 1. All energy terms -> <stage>_energy.xvg
-if [ -f "${STAGE}.edr" ]; then
-    echo "Exporting energy terms to ${STAGE}_energy.xvg ..."
-    seq "${N_ENERGY_TERMS}" | gmx energy -f "${STAGE}.edr" -o "${STAGE}_energy.xvg"
+if [ -n "$1" ]; then
+    set -- --stage "$1"
 fi
-
-# 2. Trajectory with -pbc nojump -> <stage>_nojump.gro
-#    Prefer .trr (positions + velocities) when available, fall back to .xtc.
-INPUT=""
-if [ -f "${STAGE}.trr" ]; then
-    INPUT="${STAGE}.trr"
-elif [ -f "${STAGE}.xtc" ]; then
-    INPUT="${STAGE}.xtc"
-fi
-if [ -n "${INPUT}" ] && [ -f "${STAGE}.tpr" ]; then
-    echo "Exporting nojump trajectory to ${STAGE}_nojump.gro (from ${INPUT}) ..."
-    echo 0 | gmx trjconv -f "${INPUT}" -s "${STAGE}.tpr" -pbc nojump -o "${STAGE}_nojump.gro" -n "../build/system.ndx"
-fi
-
-echo ""
-echo "UDF / J-OCTA export complete:"
-echo "  ${STAGE}_energy.xvg   (gmx energy)"
-echo "  ${STAGE}_nojump.gro   (gmx trjconv -pbc nojump)"
+exec "${PYTHON:-python}" -m abmptools.trajectory gen_for_udf "$@"

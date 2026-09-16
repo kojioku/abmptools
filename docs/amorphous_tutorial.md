@@ -465,6 +465,10 @@ OCTA viewer 用のファイルを作ります (**MD を回しただけでは生�
 cd md && python gen_for_udf.py && cd ..
 # → md/05_npt_final_nojump.gro (PBC を跨いで連続な軌跡)
 #   md/05_npt_final_energy.xvg (全エネルギー term)
+#
+# 別 stage (Tg 計算の出力など) を後処理したいときは stage 名を渡します。
+# gen_for_udf.py を置いていない場所では module を直接呼べます:
+#   python -m abmptools.trajectory gen_for_udf --stage prod --no-ndx
 
 python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
     --mdp md/05_npt_final.mdp \

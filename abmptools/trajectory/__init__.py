@@ -22,6 +22,9 @@ CLI:
 
 from .postprocess import (
     GmxError,
+    find_ndx,
+    find_stage,
+    gen_for_udf,
     gmx_energy,
     nojump,
     run_trjconv,
@@ -32,6 +35,9 @@ from .postprocess import (
 
 __all__ = [
     "GmxError",
+    "find_ndx",
+    "find_stage",
+    "gen_for_udf",
     "gmx_energy",
     "nojump",
     "run_trjconv",

@@ -222,8 +222,10 @@ def test_write_udf_export_script_default(tmp_path):
     assert 'STAGE = "05_npt_final"' in text
     # gmx energy term range (default 50)
     assert "N_ENERGY_TERMS = 50" in text
-    # abmptools.trajectory の gmx_energy + nojump を import
-    assert "from abmptools.trajectory import gmx_energy, nojump" in text
+    # 実体は abmptools.trajectory.gen_for_udf (amorphous 非依存)
+    assert "from abmptools.trajectory import gen_for_udf" in text
+    # stage は第 1 引数で上書きできる -- 05_npt_final 決め打ちにしない
+    assert "sys.argv[1]" in text
     # default で ndx 文字列 path が入る
     assert 'NDX = "../build/system.ndx"' in text
 

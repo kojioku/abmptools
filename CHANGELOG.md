@@ -2,6 +2,43 @@
 
 ## [Unreleased]
 
+### Added — `trajectory gen_for_udf`: `05_npt_final` 決め打ちをやめた
+
+**`gen_for_udf` が amorphous の production stage を前提にしていた。**
+`md/gen_for_udf.py` は生成時に `STAGE = "05_npt_final"` を焼き込み、sample の
+`gen_for_udf.sh` 4 本 (byte 単位で同一のコピー) も同じ文字列と
+`../build/system.ndx` を直書きしていた。**Tg 計算の後の構造に使おうとすると、
+stage 名を書き換えるほか無い。**
+
+`abmptools.trajectory` に **`gen_for_udf` subcommand と同名の API** を足した。
+stage 名は決め打ちせず、ディレクトリの中で `<name>.tpr` と
+`<name>.edr` / `.xtc` / `.trr` が揃っているものを拾う:
+
+```bash
+python -m abmptools.trajectory gen_for_udf                      # stage 自動判定
+python -m abmptools.trajectory gen_for_udf --stage prod --no-ndx  # Tg の出力
+```
+
+- 候補が複数なら `05_npt_final` / `prod` / `production` を優先。それでも決まら
+  なければ**候補を列挙して停止**する。黙って 1 つ選ぶと、意図しない stage を
+  後処理したことに気付けない。
+- index file は `../build/system.ndx` → `system.ndx` の順に自動で探し、無ければ
+  group 0 = System。`--no-ndx` で自動探索ごと止められる。
+- **何も作れなければ RC 1。** 旧 `.sh` は入力が 1 つも無い空ディレクトリでも
+  `Done:` と 2 ファイル名を並べて RC 0 で終わっていた。
+- `.trr` と `.xtc` が両方あれば `.trr` (速度を持つ)。`.edr` しか無い stage は
+  energy だけ出し、軌跡は `(skipped: ...)` と明示する。
+
+`md/gen_for_udf.py` (生成物) は `gen_for_udf()` を呼ぶだけの wrapper になり、
+`python gen_for_udf.py prod` で stage を上書きできる。sample の `.sh` 4 本も
+同じ subcommand を呼ぶだけになった (56 行 → 20 行)。
+
+**実機で等価性を確認** —— imc 系 amorphous (`05_npt_final`, 501 frame) と
+PVA Tg 計算 (`prod`) の実データで、旧 `.sh` (inline `gmx`) の出力と
+新 module 経路の出力が `.xvg` 501 行 / `.gro` 99,687 行までデータ部一致。
+
+`tests/test_trajectory_gen_for_udf.py` に 17 件。
+
 ### Fixed — `--charges` がファイルを読まずに AM1-BCC を走らせていた
 
 **オプションは受け取るが、`ComponentSpec` に渡していなかった。**

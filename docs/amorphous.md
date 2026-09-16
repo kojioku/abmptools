@@ -275,6 +275,7 @@ cells` を回避するため。override したい場合は
     ├── run_all.sh          # GROMACS実行スクリプト (5-stage 順次)
     ├── wrap_pbc.py         # PBC ラップ後処理 (VMD 向け, 1.15.2+)
     └── gen_for_udf.py    # OCTA viewer 用 energy.xvg + nojump gro 抽出 (1.30+)
+                            # 実体は abmptools.trajectory.gen_for_udf (stage 自動判定)
 ```
 
 ビルド後に MD を走らせ、`wrap_pbc.py` を実行すると以下も生成されます:
@@ -295,6 +296,21 @@ md/
 ├── 05_npt_final_energy.xvg  # gmx energy: 全エネルギー term (seq 50 で 1-50 番選択)
 └── 05_npt_final_nojump.gro  # gmx trjconv -pbc nojump: 分子を分断せず連続軌跡
 ```
+
+`gen_for_udf.py` は薄い wrapper で、中身は `abmptools.trajectory.gen_for_udf`
+です。**amorphous 専用ではありません** — stage 名はディレクトリの中身から決まる
+ので、Tg 計算など別のプロトコルの出力にもそのまま使えます:
+
+```bash
+python gen_for_udf.py                 # このディレクトリの stage を自動判定
+python gen_for_udf.py prod            # stage を名指し (例: Tg 計算の prod)
+
+# gen_for_udf.py を置いていない場所でも、module を直接呼べば同じことができます
+python -m abmptools.trajectory gen_for_udf --stage prod --no-ndx
+```
+
+stage の候補が複数あって決められないときは、候補を列挙して停止します
+(黙って 1 つ選ぶと、意図しない stage を後処理したことに気付けないため)。
 
 `gmx trjconv -pbc nojump` は、`-pbc mol` (`wrap_pbc.py`) と違って **分子を box
 内に wrap せず、PBC を跨いで連続的に追跡**します。OCTA viewer (GOURMET) で軌跡を
@@ -388,6 +404,10 @@ python gen_for_udf.py
 - `<stage>_nojump.gro` : `echo 0 | gmx trjconv -f <stage>.{trr,xtc} -s <stage>.tpr
   -pbc nojump -o <stage>_nojump.gro` で分子を box 内に wrap せず、PBC を
   跨いで連続的に追跡した multi-frame gro
+
+`<stage>` は既定では `05_npt_final` ですが、引数で別 stage を指定できます
+(`python gen_for_udf.py prod`)。index file (`../build/system.ndx`) は在れば
+自動で使い、無ければ group 0 = System で処理します。
 
 ## OCTA UDF/BDF への変換 (`abmptools.gro2udf`)
 
