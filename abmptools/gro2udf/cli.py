@@ -125,6 +125,36 @@ def _from_top_parser():
                              "Electrostatic terms mapped from xvg legend "
                              "names). Times in the .xvg are matched to "
                              "frame times via nearest-neighbour interpolation.")
+    parser.add_argument("--max-frames", dest="max_frames", type=int, default=None,
+                        help="Keep at most this many trajectory frames **in "
+                             "total**, thinning on read. This is a count, not "
+                             "a stride: --max-frames 100 on a 10000-frame xtc "
+                             "keeps every 100th. The count is what the UDF "
+                             "size tracks, so it is the knob to reach for. "
+                             "Does not need gmx. Cannot be combined with "
+                             "--frame-step.")
+    parser.add_argument("--frame-step", dest="frame_step", type=int, default=None,
+                        help="Keep every Nth trajectory frame (a stride). Use "
+                             "--max-frames when you care about the total "
+                             "instead. Does not need gmx.")
+    parser.add_argument("--edr", dest="edr_path", default=None,
+                        help="GROMACS .edr. The .xvg is produced on the spot "
+                             "(via abmptools.trajectory) and embedded, so you "
+                             "do not have to run `gmx energy` yourself. "
+                             "**Needs gmx.** Without this flag no energy is "
+                             "read at all -- pass --energy instead if you "
+                             "already have the .xvg.")
+    parser.add_argument("--prepare-nojump", dest="prepare_nojump",
+                        action="store_true",
+                        help="Run `gmx trjconv -pbc nojump` on --trajectory "
+                             "first, so molecules are not split across the "
+                             "periodic boundary. **Needs gmx and --tpr.** "
+                             "Skip it only when the trajectory is already "
+                             "nojump-processed; a trajectory that is neither "
+                             "shows broken molecules in the OCTA viewer and "
+                             "downstream.")
+    parser.add_argument("--tpr", dest="tpr_path", default=None,
+                        help="Reference .tpr for --prepare-nojump.")
     parser.add_argument("--allow-unsupported", dest="allow_unsupported",
                         action="store_true",
                         help="Convert even when the .top contains terms "
@@ -188,14 +218,55 @@ def _run_from_top(argv: list) -> None:
         gro_stem = os.path.splitext(os.path.basename(gro_path))[0]
         out_path = gro_stem + "_fromtop.udf"
 
+    # --- 間引きの指定は 2 通りあるが、意味が違うので同時には受けない ---
+    if args.max_frames is not None and args.frame_step is not None:
+        raise RuntimeError(
+            "--max-frames and --frame-step do different things and cannot be "
+            "combined: --max-frames is a total count, --frame-step is a stride."
+        )
+    if args.max_frames is not None and args.max_frames < 1:
+        raise RuntimeError("--max-frames must be >= 1")
+    if args.frame_step is not None and args.frame_step < 1:
+        raise RuntimeError("--frame-step must be >= 1")
+
+    # --- gmx が要るのはここだけ。ファイル変換そのものは gmx を呼ばない ---
+    trajectory_path = args.trajectory_path
+    energy_path = args.energy_path
+
+    if args.prepare_nojump:
+        if not trajectory_path:
+            raise RuntimeError("--prepare-nojump needs --trajectory")
+        if not args.tpr_path:
+            raise RuntimeError(
+                "--prepare-nojump needs --tpr (the reference the trajectory "
+                "was produced against)")
+        from ..trajectory.postprocess import nojump
+        trajectory_path = str(nojump(trajectory=trajectory_path,
+                                     tpr=args.tpr_path))
+        print("Prepared (-pbc nojump): {}".format(trajectory_path))
+
+    if args.edr_path:
+        if energy_path:
+            raise RuntimeError(
+                "--edr and --energy both give the energy; pass only one "
+                "(--edr makes the .xvg here, --energy takes one you have)")
+        from ..trajectory.postprocess import gmx_energy
+        energy_path = str(gmx_energy(edr=args.edr_path,
+                                     output=os.path.splitext(args.edr_path)[0]
+                                     + "_energy.xvg",
+                                     terms=range(1, 51)))
+        print("Energy dumped: {}".format(energy_path))
+
     from .top_exporter import TopExporter
     TopExporter().export(top_path, gro_path, template_path, out_path,
                          mdp_path=args.mdp_path,
                          cognac_version=args.cognac_version,
                          topology_only=args.topology_only,
                          initial_gro_path=args.initial_gro_path,
-                         trajectory_path=args.trajectory_path,
-                         energy_path=args.energy_path,
+                         trajectory_path=trajectory_path,
+                         energy_path=energy_path,
+                         max_frames=args.max_frames,
+                         frame_step=args.frame_step,
                          allow_unsupported=args.allow_unsupported,
                          force_field=args.force_field,
                          nh_dof=args.nh_dof)

@@ -134,6 +134,8 @@ def frames_from_xtc(
     start: int = 0,
     end: Optional[int] = None,
     top_path: Optional[str] = None,
+    step: int = 1,
+    max_frames: Optional[int] = None,
 ) -> List[GROFrameData]:
     """Read a GROMACS trajectory into :class:`GROFrameData` records.
 
@@ -149,6 +151,16 @@ def frames_from_xtc(
     start, end : int, optional
         Inclusive frame range. ``start`` defaults to 0 (first frame);
         ``end`` defaults to the last frame.
+    step : int, optional
+        Keep every ``step``-th frame within ``[start, end]`` (default 1 =
+        every frame). Reading is still sequential -- the trajectory is
+        decompressed frame by frame -- but only the kept frames are
+        converted and held in memory.
+    max_frames : int, optional
+        Keep at most this many frames **in total**, choosing ``step``
+        automatically. Overrides ``step``. This is the knob a caller wants
+        when the question is "how big may the UDF get", because the frame
+        count, not the stride, is what the downstream file size tracks.
     top_path : str, optional
         Path to the GROMACS ``.top``. When provided we parse the
         ``[ bonds ]`` section to populate Universe bonds and then apply
@@ -214,9 +226,21 @@ def frames_from_xtc(
     last = total - 1 if end is None else min(end, total - 1)
     first = max(0, start)
 
+    if max_frames is not None:
+        if max_frames < 1:
+            raise ValueError("max_frames must be >= 1, got %r" % (max_frames,))
+        span = last - first + 1
+        # ceil division: with stride S the kept count is ceil(span / S), so the
+        # smallest S that fits inside max_frames is ceil(span / max_frames).
+        step = max(1, -(-span // max_frames))
+    if step < 1:
+        raise ValueError("step must be >= 1, got %r" % (step,))
+
     frames: List[GROFrameData] = []
     for i, ts in enumerate(universe.trajectory):
         if i < first or i > last:
+            continue
+        if (i - first) % step:
             continue
         if apply_make_whole:
             for fragment in universe.atoms.fragments:

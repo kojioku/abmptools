@@ -124,6 +124,11 @@ def _build_parser() -> argparse.ArgumentParser:
                       help="energy term 番号の上限 (1..N、 default: 50)")
     p_gu.add_argument("--group", default="0",
                       help="trjconv の group (default: 0 = System)")
+    p_gu.add_argument("--max-frames", dest="max_frames", type=int, default=None,
+                      help="出力 trajectory の **合計 frame 数**の上限 "
+                           "(default: 間引かない)。 「何本に 1 本か」ではなく "
+                           "「合計何枚か」。 割り切れないので実際の枚数は "
+                           "これ以下の別の数になり、 実行時に表示する")
     p_gu.add_argument("--gmx", default="gmx",
                       help="gmx 実行 path (default: PATH 解決)")
     return p
@@ -142,6 +147,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 n_energy_terms=args.terms_max,
                 group=args.group,
                 gmx=args.gmx,
+                max_frames=args.max_frames,
             )
             print(f"stage: {res['stage']}")
             if res["ndx"]:
@@ -154,6 +160,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 path = Path(res[key])
                 size_mb = path.stat().st_size / 1024 / 1024
                 print(f"  {path}  ({label}, {size_mb:.1f} MB)")
+            # **実際に何枚になったかを必ず出す。** --max-frames は割り切れない
+            # ので、 黙っていると「87 枚だった」に後から気付けない。
+            if res.get("n_frames") is not None:
+                got, want, skip = res["n_frames"], args.max_frames, res["skip"]
+                print(f"  frames: {got} "
+                      f"(--max-frames {want}, skip {skip})")
+                # skip は整数なので枚数は ceil(total/skip) しか取れない。
+                # total が want をわずかに超えているだけだと skip=2 に跳ね、
+                # 半分近くまで減る (101 枚に --max-frames 100 で 51 枚)。
+                # 黙っていると「減りすぎ」に気付けないので、そこだけ言う。
+                if want and got * 3 < want * 2:
+                    print(f"  note: 指定 {want} に対して {got} 枚。 skip は整数しか"
+                          f"取れないため ({skip} で ceil)、 総数が {want} を"
+                          f"わずかに超えるときは大きく減る。 全部残すなら "
+                          f"--max-frames を外す")
             return 0
         if args.cmd == "energy":
             out = gmx_energy(
