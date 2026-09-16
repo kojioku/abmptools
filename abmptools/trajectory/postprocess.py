@@ -409,6 +409,52 @@ def find_ndx(directory: PathLike = ".") -> Optional[Path]:
     return None
 
 
+def count_frames(trajectory: PathLike, *, gmx: str = "gmx") -> int:
+    """``gmx check`` で trajectory の frame 数を数える.
+
+    ``--max-frames`` のように「合計何枚にするか」を指定されたとき、 skip を
+    決めるには総数が要る。 MDAnalysis を使えば読めるが、 **gmx だけで完結
+    する道を残す** ためにここでは ``gmx check`` を使う
+    (MDAnalysis は abmptools の依存ではなく、 J-OCTA 同梱 Python にも
+    入っていない -- ``docs/INSTALL.md`` 参照)。
+
+    ``gmx check`` は集計を stderr に出す。 ``Step`` 行の 1 列目が frame 数。
+    """
+    exe = _resolve_gmx(gmx)
+    proc = subprocess.run(
+        [exe, "check", "-f", str(trajectory)],
+        capture_output=True, text=True,
+    )
+    # gmx check は読み終えたあと非ゼロで終わることがあるので、 returncode では
+    # なく出力で判断する。
+    for line in (proc.stderr + proc.stdout).splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[0] == "Step":
+            try:
+                return int(parts[1])
+            except ValueError:
+                pass
+    raise RuntimeError(
+        "could not read a frame count out of 'gmx check -f %s'.\n"
+        "stderr tail: %s" % (trajectory, "\n".join(
+            (proc.stderr or "").splitlines()[-5:]))
+    )
+
+
+def skip_for_max_frames(total: int, max_frames: int) -> int:
+    """合計 ``max_frames`` 枚以内に収まる最小の skip を返す.
+
+    ``gmx trjconv -skip S`` は 0, S, 2S, ... を残すので枚数は
+    ``ceil(total / S)``。 これを ``max_frames`` 以下にする最小の ``S`` は
+    ``ceil(total / max_frames)``。
+    """
+    if max_frames < 1:
+        raise ValueError("max_frames must be >= 1, got %r" % (max_frames,))
+    if total < 1:
+        return 1
+    return max(1, -(-total // max_frames))
+
+
 def gen_for_udf(
     *,
     stage: Optional[str] = None,
@@ -419,6 +465,7 @@ def gen_for_udf(
     nojump_format: str = "gro",
     reference: Optional[PathLike] = None,
     gmx: str = "gmx",
+    max_frames: Optional[int] = None,
 ) -> dict:
     """OCTA viewer / gro2udf 用の ``.xvg`` + nojump ``.gro`` を書き出す.
 
@@ -465,13 +512,22 @@ def gen_for_udf(
         ときはここで指定する。
     gmx
         ``gmx`` 実行 path。
+    max_frames
+        出力する trajectory の **合計 frame 数**の上限。 ``None`` (default) なら
+        間引かない。 skip は :func:`skip_for_max_frames` が決める。
+
+        「何本に 1 本か」ではなく「合計何枚か」を指定する点に注意。 下流の
+        UDF の大きさが効くのは枚数のほうなので、 こちらを渡せるようにしてある。
+        割り切れないので **実際の枚数は指定値以下の別の数になる**。 返り値の
+        ``n_frames`` に入れてあり、 CLI は必ず表示する。
 
     Returns
     -------
     dict
         ``{"stage": str, "energy": Path|None, "trajectory": Path|None,
-        "ndx": Path|None}``。 tpr が読めず ``.gro`` に退避した場合は
-        ``"reference_fallback"`` にその path が入る。
+        "ndx": Path|None, "n_frames": int|None, "skip": int|None}``。
+        tpr が読めず ``.gro`` に退避した場合は ``"reference_fallback"`` に
+        その path が入る。
 
     Raises
     ------
@@ -484,7 +540,8 @@ def gen_for_udf(
         stage = find_stage(d)
 
     result = {"stage": stage, "energy": None, "trajectory": None,
-              "ndx": Path(ndx) if ndx else None}
+              "ndx": Path(ndx) if ndx else None,
+              "n_frames": None, "skip": None}
 
     edr = d / f"{stage}.edr"
     if edr.is_file():
@@ -507,13 +564,27 @@ def gen_for_udf(
             f"nojump_format must be 'gro' or 'xtc', got {nojump_format!r}")
     tpr = d / f"{stage}.tpr"
     out_traj = d / f"{stage}_nojump.{nojump_format}"
-    if traj is not None and (reference is not None or tpr.is_file()):
-        ref = Path(reference) if reference is not None else tpr
-        try:
-            result["trajectory"] = nojump(
+
+    def _write(ref):
+        """reference を決め打ちで 1 回書き出す (間引きの有無はここで吸収)。"""
+        if max_frames is None:
+            return nojump(
                 trajectory=traj, tpr=ref, output=out_traj,
                 group=group, ndx=ndx, gmx=gmx,
             )
+        total = count_frames(traj, gmx=gmx)
+        skip = skip_for_max_frames(total, max_frames)
+        result["skip"] = skip
+        result["n_frames"] = -(-total // skip)      # ceil(total / skip)
+        return thin_and_nojump(
+            trajectory=traj, tpr=ref, output=out_traj,
+            skip=skip, group=group, ndx=ndx, gmx=gmx,
+        )
+
+    if traj is not None and (reference is not None or tpr.is_file()):
+        ref = Path(reference) if reference is not None else tpr
+        try:
+            result["trajectory"] = _write(ref)
         except GmxError as exc:
             fallback = d / f"{stage}.gro"
             if (reference is not None or not _is_tpx_version_error(exc)
@@ -533,10 +604,7 @@ def gen_for_udf(
                 tpr.name, fallback.name,
             )
             result["reference_fallback"] = fallback
-            result["trajectory"] = nojump(
-                trajectory=traj, tpr=fallback, output=out_traj,
-                group=group, ndx=ndx, gmx=gmx,
-            )
+            result["trajectory"] = _write(fallback)
 
     if result["energy"] is None and result["trajectory"] is None:
         raise FileNotFoundError(

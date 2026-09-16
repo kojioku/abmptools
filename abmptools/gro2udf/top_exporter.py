@@ -114,25 +114,63 @@ def _static_structure_mol_count(uobj) -> int:
 _OPENFF_TYPE_RE = __import__("re").compile(r"^MOL\d+_(\d+)$")
 
 
-def _load_trajectory_frames(trajectory_path: str, gro_path: str):
+def _thin(frames, max_frames=None, frame_step=None):
+    """Keep every ``frame_step``-th frame, or at most ``max_frames`` in total."""
+    if not frames:
+        return frames
+    # `frame_step or 1` にすると **0 が黙って 1 になる**。明示的に 0 を
+    # 渡されたらエラーにしたいので、None と 0 を区別する。
+    if frame_step is not None and frame_step < 1:
+        raise ValueError("frame_step must be >= 1, got %r" % (frame_step,))
+    step = 1 if frame_step is None else frame_step
+    if max_frames is not None:
+        if max_frames < 1:
+            raise ValueError("max_frames must be >= 1, got %r" % (max_frames,))
+        step = max(1, -(-len(frames) // max_frames))
+    return frames[::step] if step > 1 else frames
+
+
+def _load_trajectory_frames(trajectory_path: str, gro_path: str,
+                            max_frames=None, frame_step=None):
     """Load multi-frame coordinates from a .gro (multi-frame) or .xtc.
 
     The single-frame .gro at *gro_path* is only used to provide the atom
     count expected by the topology (for sanity-checking the trajectory).
+
+    ``max_frames`` keeps at most that many frames **in total** (the stride is
+    worked out here); ``frame_step`` keeps every Nth. Thinning happens while
+    reading, so a long trajectory never has to fit in memory whole. Neither
+    needs gmx.
     """
     ext = os.path.splitext(trajectory_path)[1].lower()
     if ext == ".gro":
         from .trajectory_io import frames_from_multi_gro
-        return frames_from_multi_gro(trajectory_path)
+        frames = frames_from_multi_gro(trajectory_path)
+        return _thin(frames, max_frames, frame_step)
     if ext == ".xtc":
         # Reuse the existing MDAnalysis-backed loader from abmptools.amorphous.
         from ..amorphous.trajectory_ingest import frames_from_xtc
         # frames_from_xtc requires the topology + xtc + the GROMACS .top.
         # The .top path is reachable via the caller's TopExporter.export
         # invocation; here we pass gro_path (= topology .gro) only.
-        return frames_from_xtc(topology_path=gro_path,
-                               xtc_path=trajectory_path,
-                               top_path=None)
+        try:
+            return frames_from_xtc(topology_path=gro_path,
+                                   xtc_path=trajectory_path,
+                                   top_path=None,
+                                   step=1 if frame_step is None else frame_step,
+                                   max_frames=max_frames)
+        except ImportError as exc:
+            # MDAnalysis は abmptools の依存ではなく、J-OCTA 同梱 Python にも
+            # 入っていない (docs/INSTALL.md)。**何を入れれば動くか**まで言う。
+            raise RuntimeError(
+                "reading a .xtc needs MDAnalysis, which is not installed "
+                "(%s).\n"
+                "  Install it:            pip install MDAnalysis\n"
+                "  Or avoid it entirely:  pass a multi-frame .gro instead of "
+                "the .xtc\n"
+                "      gmx trjconv -f md.xtc -s md.tpr -pbc nojump -o traj.gro"
+                % (exc,)
+            ) from exc
     raise ValueError(
         f"Unsupported --trajectory extension {ext!r}; expected .gro or .xtc"
     )
@@ -504,6 +542,8 @@ class TopExporter:
         allow_unsupported: bool = False,
         force_field: Optional[str] = "gaff",
         nh_dof: str = "3N-3",
+        max_frames: Optional[int] = None,
+        frame_step: Optional[int] = None,
     ) -> None:
         """
         Parse *top_path* + *gro_path*, build :class:`TopModel`, write to *out_path*.
@@ -548,7 +588,8 @@ class TopExporter:
         #                                           (already in model.frames)
         if trajectory_path is not None:
             frames: Optional[List[GROFrameData]] = _load_trajectory_frames(
-                trajectory_path, gro_path)
+                trajectory_path, gro_path,
+                max_frames=max_frames, frame_step=frame_step)
             energy_times, energy_series = (
                 _load_energy_series(energy_path) if energy_path else (None, None)
             )
