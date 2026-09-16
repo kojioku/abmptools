@@ -56,6 +56,13 @@ python -m abmptools.trajectory gen_for_udf
 連続な軌跡)を 1 コマンドで作ります。amorphous の `md/gen_for_udf.py` の中身は
 これです。
 
+> **軌跡だけなら、これを通さなくても構いません。** `gro2udf --trajectory` は
+> 渡された軌跡に自分で `-pbc nojump` を掛けるので、生の `.xtc` を直接渡せます
+> ([`gro2udf.md`](./gro2udf.md))。`gen_for_udf` の値打ちは **energy.xvg と
+> 軌跡を stage 判定込みで揃えて出す**ところにあります。ここを通したものを
+> `gro2udf` に渡すときは `--already-nojump` を付けると gmx を呼ばずに済みます
+> (付けなくても結果は同じ)。
+
 **stage 名は決め打ちしません。** カレント(または `--dir`)の中で
 `<name>.tpr` と `<name>.edr` / `.xtc` / `.trr` が揃っているものを stage として
 拾うので、amorphous の `05_npt_final` でも **Tg 計算後の構造でも同じ呼び方**で

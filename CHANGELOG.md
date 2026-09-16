@@ -4,11 +4,46 @@
 
 ## [2.16.0] - 2026-09-16
 
-### Fixed — `gro2udf --prepare-nojump` に tpr の退避と `--gmx` が無かった
+### Changed — `gro2udf --trajectory` は `-pbc nojump` を自分で通す
+
+**生の `.xtc` をそのまま渡して、正しい UDF が出るようにした。** 周期境界を
+またいだ分子は `.xtc` の中では割れていて、それが UDF に入ると **OCTA viewer で
+開いて初めて分かる**。以前は `-pbc nojump` を明示的に頼む必要があったので、
+「気付ける人しか気付けない」形だった。
+
+```bash
+# 生の xtc をそのまま渡してよい
+python -m abmptools.gro2udf --from-top system.top md/prod.gro \
+    --trajectory md/prod.xtc --out prod.udf
+
+# 既に nojump 済みの軌跡を渡すとき (gmx は要らない)
+python -m abmptools.gro2udf --from-top system.top md/prod.gro \
+    --trajectory md/prod_nojump.gro --already-nojump --out prod.udf
+```
+
+**`--trajectory` を使うと gmx が要る。** `gro2udf` はこれまで gmx を一切
+呼ばないファイル変換器だったので、ここだけ前提が変わる (`--trajectory` が
+無ければ従来どおり触らない)。gmx が PATH に無ければ `--gmx` で指す。
+
+既定 ON にできるのは **`nojump` が冪等**だから。PVA 30 分子 (2250 原子 ×
+6 frame、箱 27.07 Å) で実測して **max |Δr| = 0.0000 Å / 移動した原子 0 個**
+(同じ軌跡を nojump していない状態と比べると 3139 原子・最大 38.3 Å 動くので、
+入力が本当に nojump を要していたことも確かめてある)。`gen_for_udf` の出力を
+渡す流れはそのまま通り、`--already-nojump` は「gmx を呼ばせない」ための
+ものになる。
+
+フラグが「準備するかどうか」ではなく**利用者の状況**を述べる形なのは、
+利用者が知っているのは自分の軌跡が既に nojump 済みかどうかであって、
+こちらが内部で何をするかではないため。`--trajectory` を渡していないのに
+`--already-nojump` と書くとエラーになる —— 軌跡の性質を述べるフラグなので、
+軌跡が無いのは `--trajectory` の書き忘れで、黙って通すと **topology だけの
+UDF が成功として出る**。
+
+### Fixed — `gro2udf` の `-pbc nojump` に tpr の退避と `--gmx` が無かった
 
 `gen_for_udf` には入れた「古い gmx が新しい `.tpr` を読めないときは `.gro` に
-退避する」が、**`gro2udf --prepare-nojump` には入っていなかった**。同じ環境で
-片方は通り、もう片方は `reading tpx file ... with version 119 program` で止まる。
+退避する」が、**`gro2udf` 側には入っていなかった**。同じ環境で片方は通り、
+もう片方は `reading tpx file ... with version 119 program` で止まる。
 
 判断を `abmptools.trajectory.nojump_with_fallback()` **1 か所**に出し、両方が
 それを使うようにした。2 か所に書いていると、片方だけ直して**古い gmx で片方
@@ -17,7 +52,7 @@
 - `gro2udf` の `--tpr` は**任意**になった。省けば位置引数の `.gro` を
   reference に使う (`-pbc nojump` は結合情報を読まないので成立する)
 - `--tpr` を渡してこの gmx が読めなければ、その `.gro` に退避して**そう言う**
-- **`gro2udf` に `--gmx` を足した。** `--prepare-nojump` と `--edr` は gmx を
+- **`gro2udf` に `--gmx` を足した。** `-pbc nojump` と `--edr` は gmx を
   使うのに、**指す手段が無かった**。gmx を PATH に出せない環境では、この 2 つは
   指定のしようがなかった
 
@@ -41,11 +76,11 @@ frames: 17 (--max-frames 20, skip 6)
 |---|---|
 | `gro2udf --max-frames N` / `--frame-step N` | **不要** (読み込み時に間引く) |
 | `gro2udf --edr <file>` | 要。energy.xvg を作って埋め込む。**省略すれば energy は読まない** |
-| `gro2udf --prepare-nojump --tpr <file>` | 要。`-pbc nojump` をその場で通す |
+| `gro2udf --trajectory <file>` | 要。`-pbc nojump` をその場で通す。`--already-nojump` で止められる |
 
-`--edr` / `--prepare-nojump` は `abmptools.trajectory` を in-process import で
-呼ぶ。**gro2udf は従来どおり純粋なファイル変換器**で、この 2 つを頼まれた
-ときだけ gmx を触る。`nojump` は省略可能にしていない。
+どちらも `abmptools.trajectory` を in-process import で呼ぶ。**gro2udf が
+gmx を触るのはこの 2 か所だけ**で、どちらも渡さなければ従来どおり純粋な
+ファイル変換器として動く。
 
 ### Fixed — `residuetypes.dat not found` に GMXLIB の指し先を添えた
 
