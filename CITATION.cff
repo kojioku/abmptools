@@ -33,6 +33,6 @@ keywords:
   - molecular dynamics
   - Python
 # Replace with the actual release version and Zenodo DOI when published.
-version: "2.15.0"
+version: "2.16.0"
 date-released: "2026-09-15"
 # doi: "10.5281/zenodo.XXXXXXX"   # Zenodo DOI to be added on first GitHub release tag.

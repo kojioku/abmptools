@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.16.0] - 2026-09-16
+
 ### Fixed — J-OCTA に渡せない UDF: 原子タイプ 75 個と、重複する Atom_ID
 
 **openff-interchange は原子 1 個につき 1 つの atomtype を書く。** SMIRNOFF に
