@@ -325,3 +325,83 @@ class TestGmxFailureHints:
         text = str(exc.value)
         assert "--gmx" in text
         assert "gmxcudaenv" not in text
+
+
+class TestNojumpWithFallbackHelper:
+    """`nojump_with_fallback` —— 退避の判断を 1 か所に持つ。
+
+    `gen_for_udf` と `gro2udf --prepare-nojump` の両方がこれを使う。
+    2 か所に書くと、 片方だけ直して**古い gmx で片方だけ詰む**ことになる。
+    """
+
+    TPX = ("Fatal error:\n"
+           "reading tpx file (x.tpr) version 138 with version 119 program")
+
+    @pytest.fixture
+    def refusing_gmx(self, monkeypatch):
+        seen = []
+
+        def _nojump(*, trajectory, tpr, output=None, group="System", ndx=None,
+                    gmx="gmx"):
+            seen.append((str(tpr), gmx))
+            if str(tpr).endswith(".tpr"):
+                raise pp.GmxError(cmd=["gmx"], returncode=1, stdout="",
+                                  stderr=TestNojumpWithFallbackHelper.TPX)
+            return output or "out.xtc"
+
+        monkeypatch.setattr(pp, "nojump", _nojump)
+        return seen
+
+    def test_falls_back_and_reports_it(self, tmp_path, refusing_gmx):
+        gro = tmp_path / "x.gro"
+        gro.write_text("")
+        out, used = pp.nojump_with_fallback(
+            trajectory="t.xtc", reference=tmp_path / "x.tpr", fallback=gro)
+        assert used == gro
+        assert [r.rsplit("/", 1)[-1] for r, _ in refusing_gmx] == \
+            ["x.tpr", "x.gro"]
+
+    def test_no_fallback_offered_means_the_error_stands(self, tmp_path,
+                                                        refusing_gmx):
+        with pytest.raises(pp.GmxError):
+            pp.nojump_with_fallback(trajectory="t.xtc",
+                                    reference=tmp_path / "x.tpr")
+
+    def test_other_errors_are_not_swallowed(self, tmp_path, monkeypatch):
+        """退避条件は tpx の版違いだけ。 壊れた入力を成功にしない。"""
+        def _nojump(**kw):
+            raise pp.GmxError(cmd=["gmx"], returncode=1, stdout="",
+                              stderr="Fatal error:\nAtom C not found")
+        monkeypatch.setattr(pp, "nojump", _nojump)
+        gro = tmp_path / "x.gro"
+        gro.write_text("")
+        with pytest.raises(pp.GmxError):
+            pp.nojump_with_fallback(trajectory="t.xtc",
+                                    reference=tmp_path / "x.tpr", fallback=gro)
+
+    def test_gmx_path_is_passed_through(self, tmp_path, refusing_gmx):
+        gro = tmp_path / "x.gro"
+        gro.write_text("")
+        pp.nojump_with_fallback(trajectory="t.xtc", reference=gro,
+                                gmx="/opt/gmx")
+        assert refusing_gmx[0][1] == "/opt/gmx"
+
+
+class TestGro2udfPrepareNojumpOptions:
+    def test_gmx_option_exists_and_defaults(self):
+        """gmx を PATH に出せない環境のために --gmx が要る。"""
+        from abmptools.gro2udf.cli import _from_top_parser
+
+        args = _from_top_parser().parse_args(["a.top", "b.gro"])
+        assert args.gmx == "gmx"
+        args = _from_top_parser().parse_args(
+            ["a.top", "b.gro", "--gmx", "/opt/gmx"])
+        assert args.gmx == "/opt/gmx"
+
+    def test_tpr_is_optional(self):
+        """--tpr 無しでも通る (位置引数の .gro を reference にする)。"""
+        from abmptools.gro2udf.cli import _from_top_parser
+
+        args = _from_top_parser().parse_args(
+            ["a.top", "b.gro", "--prepare-nojump"])
+        assert args.prepare_nojump and args.tpr_path is None

@@ -478,6 +478,63 @@ def skip_for_max_frames(total: int, max_frames: int) -> int:
     return max(1, -(-total // max_frames))
 
 
+def nojump_with_fallback(
+    *,
+    trajectory: PathLike,
+    reference: PathLike,
+    fallback: Optional[PathLike] = None,
+    output: Optional[PathLike] = None,
+    group: str = "0",
+    ndx: Optional[PathLike] = None,
+    skip: Optional[int] = None,
+    gmx: str = "gmx",
+) -> Tuple[Path, Optional[Path]]:
+    """``-pbc nojump``。 reference が読めなければ ``fallback`` で通す。
+
+    **古い gmx は新しい ``.tpr`` を読めない** (例えば GROMACS 2020.x は
+    tpx v119 までで、 2026 系が書いた v138 を
+    ``reading tpx file ... with version 119 program`` で拒否する)。
+    ``-pbc nojump`` は結合情報を使わないので、 ``-s`` は ``.gro`` でも
+    成立する -- だから **tpr が読めないというだけで詰む必要はない**。
+
+    **この 1 つのエラーだけを退避の条件にする。** 他の失敗をここで
+    握り潰すと、 本当に壊れた入力が「成功」として通る。
+
+    **結果は同じにならない。** nojump は reference から積み上げるので、
+    分子まるごとが別の周期イメージに置かれることがある (実測で最大
+    23 A ≒ 1 箱)。 **分子が割れることはない** -- 同じ系で 1 分子の最大の
+    広がりは tpr 参照・gro 参照とも 13.58 A (箱 22.6 A) で一致した。
+
+    Returns
+    -------
+    (path, used_fallback)
+        ``used_fallback`` は退避したときだけ その path。 通常は ``None``。
+    """
+    def _run(ref):
+        if skip is None:
+            return nojump(trajectory=trajectory, tpr=ref, output=output,
+                          group=group, ndx=ndx, gmx=gmx)
+        return thin_and_nojump(trajectory=trajectory, tpr=ref, output=output,
+                               skip=skip, group=group, ndx=ndx, gmx=gmx)
+
+    try:
+        return _run(reference), None
+    except GmxError as exc:
+        if fallback is None or not _is_tpx_version_error(exc):
+            raise
+        fb = Path(fallback)
+        if not fb.is_file():
+            raise
+        logger.warning(
+            "%s could not be read by this gmx (tpx version mismatch); "
+            "falling back to %s as the trjconv reference. Molecules stay "
+            "whole, but a molecule may sit in a different periodic image "
+            "than the tpr route would put it in.",
+            Path(reference).name, fb.name,
+        )
+        return _run(fb), fb
+
+
 def gen_for_udf(
     *,
     stage: Optional[str] = None,
@@ -588,46 +645,24 @@ def gen_for_udf(
     tpr = d / f"{stage}.tpr"
     out_traj = d / f"{stage}_nojump.{nojump_format}"
 
-    def _write(ref):
-        """reference を決め打ちで 1 回書き出す (間引きの有無はここで吸収)。"""
-        if max_frames is None:
-            return nojump(
-                trajectory=traj, tpr=ref, output=out_traj,
-                group=group, ndx=ndx, gmx=gmx,
-            )
-        total = count_frames(traj, gmx=gmx)
-        skip = skip_for_max_frames(total, max_frames)
-        result["skip"] = skip
-        result["n_frames"] = -(-total // skip)      # ceil(total / skip)
-        return thin_and_nojump(
-            trajectory=traj, tpr=ref, output=out_traj,
-            skip=skip, group=group, ndx=ndx, gmx=gmx,
-        )
-
     if traj is not None and (reference is not None or tpr.is_file()):
         ref = Path(reference) if reference is not None else tpr
-        try:
-            result["trajectory"] = _write(ref)
-        except GmxError as exc:
-            fallback = d / f"{stage}.gro"
-            if (reference is not None or not _is_tpx_version_error(exc)
-                    or not fallback.is_file()):
-                raise
-            # gmx が古くて tpr を読めないだけなら、 .gro を reference に
-            # 回せば通る。 -pbc nojump は結合情報を使わないので代用できる。
-            # ただし**同じ結果にはならない**: nojump は reference から積み
-            # 上げるので、 分子まるごとが別の周期イメージに置かれることが
-            # ある (分子が割れることはない)。
-            logger.warning(
-                "%s could not be read by this gmx (tpx version mismatch); "
-                "falling back to %s as the trjconv reference. Molecules stay "
-                "whole, but a molecule may sit in a different periodic image "
-                "than the tpr route would put it in. Pass reference=... "
-                "(CLI: --ref) to choose explicitly.",
-                tpr.name, fallback.name,
-            )
-            result["reference_fallback"] = fallback
-            result["trajectory"] = _write(fallback)
+        skip = None
+        if max_frames is not None:
+            total = count_frames(traj, gmx=gmx)
+            skip = skip_for_max_frames(total, max_frames)
+            result["skip"] = skip
+            result["n_frames"] = -(-total // skip)   # ceil(total / skip)
+        # reference を明示されたときは退避しない (選んだものが失敗したら、
+        # 勝手に別のものへ替えない)。
+        fallback = None if reference is not None else d / f"{stage}.gro"
+        out, used = nojump_with_fallback(
+            trajectory=traj, reference=ref, fallback=fallback,
+            output=out_traj, group=group, ndx=ndx, skip=skip, gmx=gmx,
+        )
+        result["trajectory"] = out
+        if used is not None:
+            result["reference_fallback"] = used
 
     if result["energy"] is None and result["trajectory"] is None:
         raise FileNotFoundError(
