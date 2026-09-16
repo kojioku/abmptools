@@ -222,10 +222,14 @@ def test_write_udf_export_script_default(tmp_path):
     assert 'STAGE = "05_npt_final"' in text
     # gmx energy term range (default 50)
     assert "N_ENERGY_TERMS = 50" in text
-    # abmptools.trajectory の gmx_energy + nojump を import
-    assert "from abmptools.trajectory import gmx_energy, nojump" in text
-    # default で ndx 文字列 path が入る
-    assert 'NDX = "../build/system.ndx"' in text
+    # 実体は abmptools.trajectory.gen_for_udf (amorphous 非依存)
+    assert "from abmptools.trajectory import gen_for_udf" in text
+    # stage は第 1 引数で上書きできる -- 05_npt_final 決め打ちにしない
+    assert "sys.argv[1]" in text
+    # default では index を使わない (group 0 = tpr の System = 全原子)。
+    # build/system.ndx は grompp の tc-grps 用であって、 軌跡の切り出し用では
+    # ない -- 拾うと group 0 の意味が変わり、 部分系が無警告で出る
+    assert "NDX = None" in text
 
 
 def test_write_udf_export_script_custom_stage(tmp_path):

@@ -69,7 +69,7 @@ Windows native 動作を明示的に保証している module。 設計選択:
 | `shutil.which(gmx)` で実行 path 解決 | PATH 解決を OS-agnostic に |
 | bash 依存ゼロ | Windows native cmd / PowerShell でも実行可 |
 
-旧 sample `wrap_pbc.sh` / `gen_for_udf.sh` は **deprecated**、 生成物は **`wrap_pbc.py` / `gen_for_udf.py`** に統一済 (`amorphous.mdp_protocol.write_wrap_script` / `write_udf_export_script` が Python script を出力)。
+旧 sample `wrap_pbc.sh` / `gen_for_udf.sh` は **deprecated**、 生成物は **`wrap_pbc.py` / `gen_for_udf.py`** に統一済 (`amorphous.mdp_protocol.write_wrap_script` / `write_udf_export_script` が Python script を出力)。 sample の `gen_for_udf.sh` は `python -m abmptools.trajectory gen_for_udf` を呼ぶだけの wrapper として残してあります (bash が要らない環境では `.py` 側か module を直接使ってください)。
 
 ## 関連 docs
 

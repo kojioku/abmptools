@@ -368,7 +368,7 @@ _DEFAULT_OPENFF_FINAL_STAGE = "05_npt_final"
 
 
 def write_wrap_script(output_dir: str,
-                      ndx: Optional[str] = "system.ndx",
+                      ndx: Optional[str] = None,
                       stages: Optional[List[str]] = None,
                       final_stage: Optional[str] = None) -> str:
     """Write a PBC-wrap Python script (``wrap_pbc.py``) for VMD-friendly trajectories.
@@ -386,7 +386,14 @@ def write_wrap_script(output_dir: str,
         Directory to write the script into (typically the md/ directory).
     ndx : str or None
         Relative path (from md/ perspective) to the system index file.
-        If ``None``, no index file is used; group 0 (System) is selected.
+        Default ``None`` uses no index: group 0 is the tpr's System, i.e.
+        every atom -- which is what the whole-system export wants.
+
+        Passing an index changes what group 0 *means* (it becomes that
+        file's first group), so an unrelated ``.ndx`` silently yields a
+        partial trajectory. ``build/system.ndx`` is written for grompp's
+        ``tc-grps``, not for trajectory export; only pass it here when you
+        deliberately want a subset, together with ``group``.
     stages : list of str, optional
         Stage basenames (each yielding ``<stage>.tpr/.xtc``) to wrap.
         Defaults to the OpenFF amorphous protocol stages
@@ -468,7 +475,7 @@ def write_wrap_script(output_dir: str,
 
 
 def write_udf_export_script(output_dir: str,
-                            ndx: Optional[str] = "system.ndx",
+                            ndx: Optional[str] = None,
                             stage: Optional[str] = None,
                             n_energy_terms: int = 50) -> str:
     """Write a UDF export Python script (``gen_for_udf.py``).
@@ -486,13 +493,24 @@ def write_udf_export_script(output_dir: str,
 
     旧 ``gen_for_udf.sh`` (bash 専用) の Windows-compatible 置換。
 
+    生成される script は :func:`abmptools.trajectory.gen_for_udf` を呼ぶ
+    だけの薄い wrapper で、 stage 名を第 1 引数で上書きできる。 amorphous
+    protocol 以外 (Tg 計算の出力など) にもそのまま使える。
+
     Parameters
     ----------
     output_dir : str
         Directory to write the script into (typically the md/ directory).
     ndx : str or None
         Relative path (from md/ perspective) to the system index file.
-        If ``None``, no index file is used; group 0 (System) is selected.
+        Default ``None`` uses no index: group 0 is the tpr's System, i.e.
+        every atom -- which is what the whole-system export wants.
+
+        Passing an index changes what group 0 *means* (it becomes that
+        file's first group), so an unrelated ``.ndx`` silently yields a
+        partial trajectory. ``build/system.ndx`` is written for grompp's
+        ``tc-grps``, not for trajectory export; only pass it here when you
+        deliberately want a subset, together with ``group``.
     stage : str, optional
         Stage basename whose ``.edr`` / ``.trr`` / ``.tpr`` are exported.
         Defaults to ``05_npt_final`` (the OpenFF production stage).
@@ -522,49 +540,46 @@ def write_udf_export_script(output_dir: str,
         "                              (in contrast to wrap_pbc.py, which uses -pbc mol",
         "                              for VMD-compatible compact unit-cell rendering)",
         "",
-        "Run after run_all.sh (mdrun pipeline) finishes:",
-        "    python gen_for_udf.py",
+        "The constants below are what this directory was built with. They are",
+        "only defaults -- the work is done by abmptools.trajectory.gen_for_udf,",
+        "which is not tied to the amorphous protocol. Pass another stage to run",
+        "it on any finished GROMACS stage, a Tg trajectory included:",
+        "",
+        "    python gen_for_udf.py              # this directory\'s stage",
+        "    python gen_for_udf.py prod         # some other stage",
+        "",
+        "Equivalently, without this file:",
+        "",
+        "    python -m abmptools.trajectory gen_for_udf --stage prod",
         '"""',
+        "import sys",
         "from pathlib import Path",
         "",
-        "from abmptools.trajectory import gmx_energy, nojump",
+        "from abmptools.trajectory import gen_for_udf",
         "",
         f'STAGE = "{stage}"',
         f"N_ENERGY_TERMS = {n_energy_terms}",
         f"NDX = {ndx_repr}",
         "",
-        "# 1. All energy terms -> <stage>_energy.xvg",
-        'edr = Path(f"{STAGE}.edr")',
-        "if edr.is_file():",
-        '    print(f"Exporting energy terms to {STAGE}_energy.xvg ...")',
-        "    gmx_energy(",
-        "        edr=edr,",
-        '        output=Path(f"{STAGE}_energy.xvg"),',
-        "        terms=range(1, N_ENERGY_TERMS + 1),",
-        "    )",
+        "stage = sys.argv[1] if len(sys.argv) > 1 else STAGE",
+        "# NDX belongs to the stage this directory was built for; if the user",
+        "# points us elsewhere, let gen_for_udf look for an index itself.",
+        "ndx = NDX if (NDX and Path(NDX).is_file() and stage == STAGE) else None",
         "",
-        "# 2. Trajectory with -pbc nojump -> <stage>_nojump.gro",
-        "#    Prefer .trr (positions + velocities) when available, fall back to .xtc.",
-        "input_path = None",
-        'for ext in ("trr", "xtc"):',
-        '    candidate = Path(f"{STAGE}.{ext}")',
-        "    if candidate.is_file():",
-        "        input_path = candidate",
-        "        break",
-        'tpr = Path(f"{STAGE}.tpr")',
-        "if input_path is not None and tpr.is_file():",
-        '    print(f"Exporting nojump trajectory to {STAGE}_nojump.gro (from {input_path.name}) ...")',
-        "    nojump(",
-        "        trajectory=input_path, tpr=tpr,",
-        '        output=Path(f"{STAGE}_nojump.gro"),',
-        '        group="0",  # System (group index 0)',
-        "        ndx=NDX,",
-        "    )",
+        "result = gen_for_udf(",
+        "    stage=stage,",
+        "    ndx=ndx,",
+        "    n_energy_terms=N_ENERGY_TERMS,",
+        ")",
         "",
-        'print()',
-        'print("UDF export complete:")',
-        'print(f"  {STAGE}_energy.xvg   (gmx energy)")',
-        'print(f"  {STAGE}_nojump.gro   (gmx trjconv -pbc nojump)")',
+        "print()",
+        'print(f"UDF export complete (stage: {result[\'stage\']}):")',
+        'for key, how in (("energy", "gmx energy"),',
+        '                 ("trajectory", "gmx trjconv -pbc nojump")):',
+        "    if result[key] is None:",
+        '        print(f"  (skipped: {how} -- input missing)")',
+        "    else:",
+        '        print(f"  {result[key]}   ({how})")',
     ]
     script_path = os.path.join(output_dir, "gen_for_udf.py")
     Path(script_path).write_text("\n".join(lines) + "\n")

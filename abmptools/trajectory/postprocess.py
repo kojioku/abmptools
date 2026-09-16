@@ -320,3 +320,155 @@ def wrap_pbc(
         extra_args=tuple(extra),
         gmx=gmx,
     )
+
+
+# ---------------------------------------------------------------------------
+# gen_for_udf: OCTA / UDF に渡す 2 点セットを 1 呼び出しで作る
+# ---------------------------------------------------------------------------
+
+#: stage 自動検出で優先する名前 (amorphous 5-stage protocol の production)。
+PREFERRED_STAGES = ("05_npt_final", "prod", "production")
+
+
+def find_stage(directory: PathLike = ".") -> str:
+    """``directory`` から post-process 対象の stage 名を 1 つ決める.
+
+    stage とは ``<stage>.tpr`` / ``<stage>.edr`` / ``<stage>.xtc`` の共通
+    basename のこと。 amorphous protocol なら ``05_npt_final`` だが、 Tg 計算
+    でも aggregation でも名前は違うだけで構造は同じなので、 ここでは名前を
+    決め打ちせずディレクトリの中身から決める。
+
+    候補が複数あって :data:`PREFERRED_STAGES` でも決まらない場合は、
+    ``ValueError`` で候補を列挙する (黙って 1 つ選ぶと、 意図しない stage を
+    後処理して気付けない)。
+    """
+    d = Path(directory)
+    if not d.is_dir():
+        raise FileNotFoundError(f"directory not found: {d}")
+    stems = sorted(
+        p.stem for p in d.glob("*.tpr")
+        if (d / f"{p.stem}.edr").is_file()
+        or (d / f"{p.stem}.xtc").is_file()
+        or (d / f"{p.stem}.trr").is_file()
+    )
+    if not stems:
+        raise FileNotFoundError(
+            f"no MD stage found in {d} "
+            "(a stage needs <name>.tpr plus <name>.edr / .xtc / .trr)"
+        )
+    if len(stems) == 1:
+        return stems[0]
+    for preferred in PREFERRED_STAGES:
+        if preferred in stems:
+            return preferred
+    raise ValueError(
+        f"several stages found in {d}: {', '.join(stems)}. "
+        "Pass stage=... (CLI: --stage) to say which one."
+    )
+
+
+def find_ndx(directory: PathLike = ".") -> Optional[Path]:
+    """``directory`` の近くにある index file を探す (無ければ ``None``).
+
+    amorphous の md/ からは ``../build/system.ndx``、 単独ディレクトリに置いた
+    run なら ``system.ndx``。
+
+    **:func:`gen_for_udf` はこれを自動では呼ばない。** index を渡すと
+    ``trjconv`` の group 番号の意味が変わる (group 0 が tpr の System では
+    なく、 その index file の最初の group になる) ため、 隣に置かれた無関係な
+    ``.ndx`` を拾うと、 原子の一部だけを切り出した ``.gro`` が無警告で
+    出来てしまう。 index が要るのは「系の一部だけを UDF にする」場合だけで、
+    そのときは呼ぶ側が明示する。
+    """
+    d = Path(directory)
+    for candidate in (d / ".." / "build" / "system.ndx", d / "system.ndx"):
+        if candidate.is_file():
+            return candidate.resolve()
+    return None
+
+
+def gen_for_udf(
+    *,
+    stage: Optional[str] = None,
+    directory: PathLike = ".",
+    ndx: Optional[PathLike] = None,
+    n_energy_terms: int = 50,
+    group: str = "0",
+    gmx: str = "gmx",
+) -> dict:
+    """OCTA viewer / gro2udf 用の ``.xvg`` + nojump ``.gro`` を書き出す.
+
+    amorphous の ``md/gen_for_udf.py`` が行っていた 2 工程をライブラリ側に
+    持ってきたもの。 ``stage`` を与えなければ :func:`find_stage` が
+    ディレクトリの中身から決めるので、 amorphous の ``05_npt_final`` でも
+    Tg 計算後の構造でも同じ呼び方で通る。
+
+    Parameters
+    ----------
+    stage
+        ``<stage>.edr`` / ``<stage>.tpr`` / ``<stage>.xtc`` の basename。
+        ``None`` なら :func:`find_stage` で自動検出。
+    directory
+        stage ファイルが置かれたディレクトリ (default: cwd)。
+    ndx
+        index file。 default の ``None`` では index を使わず、 group 0 =
+        tpr の System (= 全原子) が出力される。 **自動探索はしない** --
+        理由は :func:`find_ndx` を参照。 系の一部だけを UDF にしたいときだけ
+        ``ndx`` と ``group`` を明示する (その場合、 下流の ``.top`` も同じ
+        部分系である必要がある)。
+    n_energy_terms
+        ``gmx energy`` に渡す term 番号の上限。
+    group
+        ``trjconv`` の group (default ``"0"`` = System)。
+    gmx
+        ``gmx`` 実行 path。
+
+    Returns
+    -------
+    dict
+        ``{"stage": str, "energy": Path|None, "trajectory": Path|None,
+        "ndx": Path|None}``。
+
+    Raises
+    ------
+    FileNotFoundError
+        stage が見つからない、 または energy も trajectory も作れなかった
+        (= 後処理として何も成立していない)。
+    """
+    d = Path(directory)
+    if stage is None:
+        stage = find_stage(d)
+
+    result = {"stage": stage, "energy": None, "trajectory": None,
+              "ndx": Path(ndx) if ndx else None}
+
+    edr = d / f"{stage}.edr"
+    if edr.is_file():
+        result["energy"] = gmx_energy(
+            edr=edr,
+            output=d / f"{stage}_energy.xvg",
+            terms=range(1, n_energy_terms + 1),
+            gmx=gmx,
+        )
+
+    # .trr を優先 (座標 + 速度)、 無ければ .xtc。
+    traj = None
+    for ext in ("trr", "xtc"):
+        candidate = d / f"{stage}.{ext}"
+        if candidate.is_file():
+            traj = candidate
+            break
+    tpr = d / f"{stage}.tpr"
+    if traj is not None and tpr.is_file():
+        result["trajectory"] = nojump(
+            trajectory=traj, tpr=tpr,
+            output=d / f"{stage}_nojump.gro",
+            group=group, ndx=ndx, gmx=gmx,
+        )
+
+    if result["energy"] is None and result["trajectory"] is None:
+        raise FileNotFoundError(
+            f"nothing to export for stage '{stage}' in {d}: "
+            f"need {stage}.edr, or {stage}.tpr plus {stage}.xtc/.trr"
+        )
+    return result

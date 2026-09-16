@@ -16,8 +16,9 @@ python -m abmptools.trajectory <subcommand> --traj <xtc> --tpr <tpr> [options]
 | `thin_nojump` | `--skip N` で間引き + `-pbc nojump`(分子を割らない連続座標) | `trjconv -skip N -pbc nojump` |
 | `nojump` | `-pbc nojump` のみ | `trjconv -pbc nojump` |
 | `thin` | `--skip N` で間引きのみ | `trjconv -skip N` |
-| `wrap` | `-pbc mol -ur compact`(+ 任意 `--center`)。VMD 向け compact 表示 | `trjconv -pbc mol -ur compact` |
+| `wrap_pbc` | `-pbc mol -ur compact`(+ 任意 `--center`)。VMD 向け compact 表示 | `trjconv -pbc mol -ur compact` |
 | `energy` | `.edr` → `.xvg`(エネルギー項抽出) | `energy` |
+| `gen_for_udf` | OCTA / gro2udf 用に `energy` + `nojump` をまとめて実行。stage は自動判定 | `energy` + `trjconv -pbc nojump` |
 
 ### 共通オプション(座標系サブコマンド)
 
@@ -39,18 +40,117 @@ python -m abmptools.trajectory <subcommand> --traj <xtc> --tpr <tpr> [options]
 python -m abmptools.trajectory thin_nojump --traj prod/prod.xtc --tpr prod/prod.tpr --skip 10
 
 # VMD 向け compact wrap
-python -m abmptools.trajectory wrap --traj 05_npt_final.xtc --tpr 05_npt_final.tpr \
+python -m abmptools.trajectory wrap_pbc --traj 05_npt_final.xtc --tpr 05_npt_final.tpr \
     --out 05_npt_final_pbc.xtc --ur compact
 
 # エネルギー項を xvg に
 python -m abmptools.trajectory energy --edr prod/prod.edr --out prod_energy.xvg
+
+# OCTA / gro2udf に渡す 2 点セット (energy.xvg + nojump.gro) をまとめて
+python -m abmptools.trajectory gen_for_udf
 ```
+
+### `gen_for_udf` — OCTA へ渡す 2 点セット
+
+`<stage>_energy.xvg`(全エネルギー項)と `<stage>_nojump.gro`(PBC を跨いで
+連続な軌跡)を 1 コマンドで作ります。amorphous の `md/gen_for_udf.py` の中身は
+これです。
+
+**stage 名は決め打ちしません。** カレント(または `--dir`)の中で
+`<name>.tpr` と `<name>.edr` / `.xtc` / `.trr` が揃っているものを stage として
+拾うので、amorphous の `05_npt_final` でも **Tg 計算後の構造でも同じ呼び方**で
+通ります。候補が複数あるときは `05_npt_final` / `prod` / `production` を優先し、
+それでも決まらなければ候補を列挙して停止します(黙って 1 つ選ばない)。
+
+| オプション | 既定 | 内容 |
+|---|---|---|
+| `--stage` | 自動判定 | `<stage>.edr` / `.tpr` / `.xtc` の basename |
+| `--dir` | カレント | stage ファイルのあるディレクトリ |
+| `--ndx` | 使わない | index file。系の一部だけを UDF にするときだけ `--group` とセットで指定 |
+| `--terms-max` | 50 | energy term 番号の上限 |
+| `--group` | `0` | trjconv の group(0 = System) |
+
+```bash
+# amorphous の md/ で (stage も index も自動)
+python -m abmptools.trajectory gen_for_udf
+
+# stage を名指し (例: Tg 計算の出力)
+python -m abmptools.trajectory gen_for_udf --stage prod
+
+# 別ディレクトリを指定して
+python -m abmptools.trajectory gen_for_udf --dir run1/md
+```
+
+#### 引数なしのとき、何が読まれるか
+
+`gen_for_udf` は必須引数がありません。引数なしで実行すると、カレント
+ディレクトリ(`--dir` があればそちら)の中身から読むファイルを決めます。
+
+**1. どの stage か** —— `*.tpr` を列挙し、**同じ basename の `.edr` /
+`.xtc` / `.trr` が 1 つでもある**ものだけを候補にします(`.tpr` だけの
+grompp 残骸は無視)。
+
+- 候補が 1 つ → それを使う(名前は何でもよい)
+- 複数 → `05_npt_final` → `prod` → `production` の順で優先
+- それでも決まらない → **候補を列挙して RC 1 で停止**
+
+**2. 決まった stage から読むファイル**
+
+| 読むもの | 用途 | 無い場合 |
+|---|---|---|
+| `<stage>.edr` | `gmx energy` → `<stage>_energy.xvg` | energy をスキップ (明示表示) |
+| `<stage>.trr` or `.xtc` | `gmx trjconv -pbc nojump` の入力 | 軌跡をスキップ (明示表示) |
+| `<stage>.tpr` | 上の reference 構造 | 軌跡をスキップ |
+
+`.trr` と `.xtc` が両方あれば、**速度も持つ `.trr` を優先**します。
+両方ともスキップになれば RC 1 です(何も作らずに「完了」と言わないため)。
+
+**3. index file** —— 既定では使いません (理由は次節)。
+
+出力は**読んだファイルと同じディレクトリ**に置かれます。
+どの stage を選んだかは必ず 1 行目に出るので、実行後にそこを見れば
+意図と合っているか確認できます:
+
+```
+stage: 05_npt_final
+  /path/to/md/05_npt_final_energy.xvg  (gmx energy, 0.3 MB)
+  /path/to/md/05_npt_final_nojump.gro  (trjconv -pbc nojump, 4.3 MB)
+```
+
+#### index file (`.ndx`) が要るのはどんなときか
+
+**既定では使いません。** `gen_for_udf` が作るのは系全体を写したものなので、
+group 0 = tpr の System (全原子) がそのまま欲しいものです。
+
+`--ndx` を渡すと **group 0 の意味が変わります**。
+
+| | group 0 の中身 |
+|---|---|
+| index なし (既定) | tpr の System = **全原子** |
+| index あり | **その index file の最初の group** (System とは限らない) |
+
+つまり無関係な `.ndx` を渡すと、**原子の一部だけを切り出した `.gro` が
+エラーなしで**出来ます。`gmx energy` のほうは index を一切使いません。
+
+**`build/system.ndx` は grompp のためのものです。** amorphous の
+`run_all.sh` が `grompp -n ../build/system.ndx` として使うのは、mdp の
+`tc-grps` が成分ごとの group (`IMC` など) を参照するからで、**軌跡の
+切り出し用ではありません**。abmptools が書く `system.ndx` は先頭が必ず
+`[ System ]` なので、渡しても渡さなくても結果は同じでした (実測で
+`.xvg` / `.gro` とも一致)。効果が無い一方で、先頭 group が System でない
+`.ndx` を拾うと黙って壊れます。既定で使わないのはこのためです。
+
+要るのは **「系の一部だけを UDF にしたい」場合だけ**です。その場合は
+`--ndx <file> --group <名前か番号>` を明示し、**下流の `.top` も同じ部分系に
+揃えてください** —— `gro2udf --from-top` は `.top` と軌跡が同じ系である前提で
+組み立てます。
 
 ## Python API
 
 ```python
 from abmptools.trajectory import (
-    thin_and_nojump, nojump, thin, wrap_pbc, gmx_energy, run_trjconv, GmxError,
+    thin_and_nojump, nojump, thin, wrap_pbc, gmx_energy, gen_for_udf,
+    find_stage, find_ndx, run_trjconv, GmxError,
 )
 
 out = thin_and_nojump(trajectory="prod/prod.xtc", tpr="prod/prod.tpr", skip=10)
@@ -63,6 +163,8 @@ out = thin_and_nojump(trajectory="prod/prod.xtc", tpr="prod/prod.tpr", skip=10)
 | `nojump(...)` / `thin(...)` | それぞれ単独 |
 | `wrap_pbc(..., ur="compact", center=None)` | `-pbc mol -ur compact` |
 | `gmx_energy(edr, out, terms_max=50, gmx="gmx")` | `.edr` → `.xvg` |
+| `gen_for_udf(stage=None, directory=".", ndx=None, ...)` | energy + nojump をまとめて実行。`{"stage", "energy", "trajectory", "ndx"}` の dict を返す |
+| `find_stage(directory)` / `find_ndx(directory)` | stage 名 / index file の自動判定(単体でも使える) |
 | `run_trjconv(...)` | 低レベル `trjconv` ラッパー(任意フラグ) |
 | `GmxError` | gmx 実行失敗時に送出される例外 |
 
