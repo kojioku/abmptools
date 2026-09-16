@@ -4,6 +4,23 @@
 
 ## [2.16.0] - 2026-09-16
 
+### Fixed — `gro2udf --prepare-nojump` に tpr の退避と `--gmx` が無かった
+
+`gen_for_udf` には入れた「古い gmx が新しい `.tpr` を読めないときは `.gro` に
+退避する」が、**`gro2udf --prepare-nojump` には入っていなかった**。同じ環境で
+片方は通り、もう片方は `reading tpx file ... with version 119 program` で止まる。
+
+判断を `abmptools.trajectory.nojump_with_fallback()` **1 か所**に出し、両方が
+それを使うようにした。2 か所に書いていると、片方だけ直して**古い gmx で片方
+だけ詰む**ことになる。
+
+- `gro2udf` の `--tpr` は**任意**になった。省けば位置引数の `.gro` を
+  reference に使う (`-pbc nojump` は結合情報を読まないので成立する)
+- `--tpr` を渡してこの gmx が読めなければ、その `.gro` に退避して**そう言う**
+- **`gro2udf` に `--gmx` を足した。** `--prepare-nojump` と `--edr` は gmx を
+  使うのに、**指す手段が無かった**。gmx を PATH に出せない環境では、この 2 つは
+  指定のしようがなかった
+
 ### Added — 枚数を指定して間引く (`--max-frames`) と、一気通貫の gro2udf
 
 **`gen_for_udf` は frame を間引いていなかった。** 1 frame = 1 record で素通し

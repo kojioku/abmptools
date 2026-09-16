@@ -154,7 +154,17 @@ def _from_top_parser():
                              "shows broken molecules in the OCTA viewer and "
                              "downstream.")
     parser.add_argument("--tpr", dest="tpr_path", default=None,
-                        help="Reference .tpr for --prepare-nojump.")
+                        help="Reference for --prepare-nojump. Optional: "
+                             "without it the .gro argument is used, which "
+                             "works because -pbc nojump reads no bonded "
+                             "information. Given one that this gmx cannot "
+                             "read (a newer tpx version), it falls back to "
+                             "the .gro and says so.")
+    parser.add_argument("--gmx", dest="gmx", default="gmx",
+                        help="gmx executable to use for --prepare-nojump and "
+                             "--edr (default: resolved on PATH). Point it at "
+                             "your MD environment's gmx when that one is not "
+                             "on PATH.")
     parser.add_argument("--allow-unsupported", dest="allow_unsupported",
                         action="store_true",
                         help="Convert even when the .top contains terms "
@@ -236,14 +246,26 @@ def _run_from_top(argv: list) -> None:
     if args.prepare_nojump:
         if not trajectory_path:
             raise RuntimeError("--prepare-nojump needs --trajectory")
-        if not args.tpr_path:
-            raise RuntimeError(
-                "--prepare-nojump needs --tpr (the reference the trajectory "
-                "was produced against)")
-        from ..trajectory.postprocess import nojump
-        trajectory_path = str(nojump(trajectory=trajectory_path,
-                                     tpr=args.tpr_path))
-        print("Prepared (-pbc nojump): {}".format(trajectory_path))
+        from ..trajectory.postprocess import nojump_with_fallback
+        # --tpr が無ければ、 位置引数の .gro をそのまま reference にする。
+        # -pbc nojump は結合情報を使わないので .gro で成立する。
+        reference = args.tpr_path or gro_path
+        # 古い gmx は新しい .tpr を読めない (tpx の版違い)。 そのときは
+        # .gro へ退避する。 ここでは位置引数の .gro が必ずあるので、
+        # 利用者が別途用意する必要はない。
+        fallback = gro_path if args.tpr_path else None
+        trajectory_path, used = nojump_with_fallback(
+            trajectory=trajectory_path, reference=reference,
+            fallback=fallback, gmx=args.gmx,
+        )
+        trajectory_path = str(trajectory_path)
+        if used is not None:
+            print("Prepared (-pbc nojump): {}\n"
+                  "  reference: {} (this gmx could not read {})"
+                  .format(trajectory_path, used, args.tpr_path))
+        else:
+            print("Prepared (-pbc nojump): {}\n  reference: {}"
+                  .format(trajectory_path, reference))
 
     if args.edr_path:
         if energy_path:
@@ -254,7 +276,8 @@ def _run_from_top(argv: list) -> None:
         energy_path = str(gmx_energy(edr=args.edr_path,
                                      output=os.path.splitext(args.edr_path)[0]
                                      + "_energy.xvg",
-                                     terms=range(1, 51)))
+                                     terms=range(1, 51),
+                                     gmx=args.gmx))
         print("Energy dumped: {}".format(energy_path))
 
     from .top_exporter import TopExporter
