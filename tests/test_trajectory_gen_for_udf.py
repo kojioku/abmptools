@@ -544,3 +544,23 @@ class TestGro2udfRunsNojumpByDefault:
         assert "--skip-nojump" in text
         assert "--gmx" in text
         assert "gmx executable not found" in text       # 元の理由も残す
+
+
+def test_the_public_surface_matches_what_the_docs_send_people_to():
+    """`docs/gro2udf.md` が案内する名前は `abmptools.trajectory` から入ること。
+
+    `gro2udf` の CLI は `--edr` と `-pbc nojump` を
+    `abmptools.trajectory` に委譲している。API から同じことをしたい人には
+    docs がその 2 つを案内するので、**`.postprocess` を直に触らせない**。
+    `nojump_with_fallback` は「tpr の退避をどう判断するか」を 1 か所に
+    置いた関数で、そこへ案内しておきながら import できない状態だった。
+    """
+    import abmptools.trajectory as tr
+
+    for name in ("gmx_energy", "nojump", "nojump_with_fallback",
+                 "count_frames", "skip_for_max_frames", "gen_for_udf"):
+        assert name in tr.__all__, f"{name} が __all__ に無い"
+        assert hasattr(tr, name), f"{name} を import していない"
+
+    missing = [n for n in tr.__all__ if not hasattr(tr, n)]
+    assert not missing, f"__all__ にあるのに存在しない: {missing}"

@@ -22,25 +22,37 @@ CLI:
 
 from .postprocess import (
     GmxError,
+    count_frames,
     find_ndx,
     find_stage,
     gen_for_udf,
     gmx_energy,
     nojump,
+    nojump_with_fallback,
     run_trjconv,
+    skip_for_max_frames,
     thin,
     thin_and_nojump,
     wrap_pbc,
 )
 
+#: ``abmptools.trajectory`` から直接 import できるもの。
+#:
+#: ``nojump_with_fallback`` / ``count_frames`` / ``skip_for_max_frames`` は
+#: **gro2udf の CLI が使っているのに、ここに出ていなかった**。docs が
+#: 「API から同じことをしたいならこれを呼ぶ」と案内する先なので、
+#: ``.postprocess`` を直に触らせずに済むよう並べてある。
 __all__ = [
     "GmxError",
+    "count_frames",
     "find_ndx",
     "find_stage",
     "gen_for_udf",
     "gmx_energy",
     "nojump",
+    "nojump_with_fallback",
     "run_trjconv",
+    "skip_for_max_frames",
     "thin",
     "thin_and_nojump",
     "wrap_pbc",

@@ -7,6 +7,23 @@ COGNAC-UDF の Structure レコードに書き戻すパッケージです。
 
 逆方向（UDF → GRO）の変換は `abmptools.udf2gro` が担います。
 
+### まず動かしてみたい人へ
+
+**入力が一式そろったサンプルが同梱してあります。** 読む前に 1 回通すのが
+早いです。
+
+```bash
+cd sample/gro2udf
+bash run.sh
+```
+
+3 本走ります —— 座標の差し替え、`.top` からの新規作成、そして
+**軌跡 + エネルギー込み**の変換。`.edr` と `.xtc` も同梱してあるので、
+エネルギーを入れた変換もそのまま試せます。詳しくは
+[`sample/gro2udf/README.md`](../sample/gro2udf/README.md)。
+
+自分の系で打つコマンドは **§ 使い方** にあります。
+
 ---
 
 ## 2 つの使い方 — どちらを選ぶか
@@ -339,90 +356,319 @@ GROMACS 自身もその mdp に対し `degrees of freedom ... is 9150.00`
 
 ## 使い方
 
+### ★ どれを打てばよいか — 3 段階
+
+想定は「GROMACS で回し終えて、その結果を OCTA viewer (GOURMET) で見たい」人。
+**下に行くほど 1 つずつ足すだけ**で、前の段を打ち直す必要はありません。
+
+#### 1. 構造だけ (gmx は要らない)
+
+```bash
+python -m abmptools.gro2udf --from-top system.top md/prod.gro \
+    --mdp md/prod.mdp \
+    --out prod.udf
+```
+
+`--mdp` は任意ですが、**渡すと Nose-Hoover の `Q` と Ewald カットオフが
+その `.mdp` の値から決まります**。渡さないと既定値が入るので、下流で
+GROMACS に戻す予定があるなら渡してください (**§ Nose-Hoover 熱浴質量 Q**)。
+
+#### 2. + 軌跡 (gmx が要る)
+
+```bash
+python -m abmptools.gro2udf --from-top system.top md/prod.gro \
+    --mdp md/prod.mdp \
+    --trajectory md/prod.xtc \
+    --max-frames 100 \
+    --out prod.udf
+```
+
+- `--trajectory` は **生の `.xtc` をそのまま渡して構いません**。`gro2udf` が
+  先に `gmx trjconv -pbc nojump` を通すので、周期境界で割れた分子が
+  そのまま UDF に入ることはありません (下の **§ `--trajectory` は gmx を呼ぶ**)
+- **`--max-frames` は付けてください。** 付けないと**全フレーム**が入ります
+  (下の **§ `--max-frames` と `--frame-step`**)
+- `.xtc` を読むには `MDAnalysis` が要ります。多フレーム `.gro` なら不要
+
+#### 3. + エネルギー (gmx が要る)
+
+```bash
+python -m abmptools.gro2udf --from-top system.top md/prod.gro \
+    --mdp md/prod.mdp \
+    --trajectory md/prod.xtc \
+    --max-frames 100 \
+    --edr md/prod.edr \
+    --out prod.udf
+```
+
+`--edr` を渡すと `gmx energy` がその場で走り、全エネルギー項が各フレームの
+`Statistics_Data` に入ります。OCTA viewer で開けば**軌跡とエネルギープロットが
+同じ UDF から再生されます**。
+
+> **`.edr` は軌跡と同じ run のものを使ってください。** エネルギーは
+> **フレームの時刻に最も近い行**を割り当てる仕組みなので、別の run の `.edr`
+> を当てても**それらしい値が入り、出力を見ても気付けません**。
+
+---
+
+### `--from-top` のオプション
+
+| オプション | 既定 | 何をするか | gmx |
+|---|---|---|---|
+| `--out PATH` | `<gro の stem>_fromtop.udf` | 出力先 | |
+| `--mdp PATH` | 使わない | `ref_t` / `tau_t` / `rcoulomb` から `Q` と Ewald を決める | |
+| `--template PATH` | 同梱テンプレート | スキーマの元にする UDF | |
+| `--cognac-version N` | `112` | テンプレートの `cognac<N>.udf` include を差し替える (OCTA8.4 なら `101`) | |
+| `--ff NAME` | `gaff` | `Unit_Parameter.Comment` に書く力場 ID | |
+| `--nh-dof {3N,3N-3}` | `3N-3` | `Q` の自由度の数え方 | |
+| `--topology-only` | off | Structure レコードを**書かない** (骨格だけ) | |
+| `--initial-gro PATH` | — | `--topology-only` に 1 フレームだけ足す | |
+| `--trajectory PATH` | — | 軌跡 (`.xtc` / 多フレーム `.gro`) を全フレーム埋め込む | **要** |
+| `--max-frames N` | 全部 | **合計 N 枚**まで間引く | |
+| `--frame-step N` | 1 | N 本に 1 本 (ストライド) | |
+| `--edr PATH` | — | `.edr` から xvg をその場で作って埋め込む | **要** |
+| `--energy PATH` | — | **既にある** `.xvg` を埋め込む | |
+| `--skip-nojump` | off | `--trajectory` に `-pbc nojump` を掛けない | |
+| `--tpr PATH` | 位置引数の `.gro` | `-pbc nojump` の参照構造 | |
+| `--gmx PATH` | `gmx` | 使う gmx の実行ファイル | |
+| `--allow-unsupported` | off | 書き出しが正しくない項があっても続行する | |
+
+`--help` で同じ一覧が出ます。
+
+```bash
+python -m abmptools.gro2udf --from-top --help
+```
+
+### ★ `--trajectory` は gmx を呼ぶ (`-pbc nojump` が既定)
+
+**`--trajectory` を渡すと、変換の前に `gmx trjconv -pbc nojump` が走ります。**
+`gro2udf` はもともと gmx を一切呼ばないファイル変換器なので、**ここだけ前提が
+変わります**。
+
+そうしてあるのは、**生の `.xtc` をそのまま渡した人が、何も指定せずに正しい
+UDF を得られるようにする**ためです。周期境界をまたいだ分子は `.xtc` の中では
+割れていて、それが UDF に入ると **OCTA viewer で開いて初めて分かります**。
+
+| 指定 | `-pbc nojump` | gmx |
+|---|---|---|
+| `--trajectory` のみ (既定) | **走る** | **要る** |
+| `--trajectory` + `--skip-nojump` | 走らない | 要らない |
+| `--trajectory` 無し | 走らない | **要らない** |
+
+- **`nojump` は冪等**です。既に nojump 済みの軌跡に掛け直しても座標は
+  変わりません (PVA 30 分子 2250 原子 × 6 frame で実測、max |Δr| = 0.0000 Å /
+  移動した原子 0 個)。ですから `--skip-nojump` は「結果を変えるため」ではなく
+  **「gmx を呼ばせないため」**のものです。
+  (**ファイルは byte 一致にはなりません。** 同じ実測で 13500 行のうち 5 行が
+  `-0.000` と `0.000` の符号だけ違いました。`.gro` の 3 桁表記でのゼロの
+  書き方の差で、数値は同じです)
+- フラグが `--skip-nojump` (**動作だけ**を述べる) なのは、**nojump 済みでなくても
+  意図して飛ばすこと**があるためです —— gmx が無い、別の後処理で通す、
+  割れたままの座標を見たい
+- 参照構造は `--tpr` があればそれ、無ければ位置引数の `.gro`。`-pbc nojump` は
+  結合情報を読まないので `.gro` で成立します。古い gmx が新しい `.tpr` を
+  読めないとき (tpx の版違い) は `.gro` に退避して、そう表示します
+- `--trajectory` を渡していないのに `--skip-nojump` と書くとエラーになります
+  (`--trajectory` の書き忘れを黙って通すと、**topology だけの UDF が「成功」と
+  して出ます**)
+
+### `--edr` と `--energy` の違い
+
+**どちらも省けば、エネルギーは一切読みません。** 軌跡だけの UDF になります。
+
+| | 何を渡すか | gmx | いつ使うか |
+|---|---|---|---|
+| `--edr md.edr` | GROMACS の `.edr` | **要る** | 普通はこちら。`gmx energy` をその場で回して xvg を作る |
+| `--energy e.xvg` | `gmx energy` が出した `.xvg` | 要らない | 既に xvg がある / 項を自分で選びたい |
+
+```bash
+# --edr: 1 コマンドで済む
+python -m abmptools.gro2udf --from-top system.top md/prod.gro \
+    --trajectory md/prod.xtc --edr md/prod.edr --out prod.udf
+
+# --energy: gmx energy を自分で呼ぶ形。上と同じ結果になる
+gmx energy -f md/prod.edr -o energy.xvg
+python -m abmptools.gro2udf --from-top system.top md/prod.gro \
+    --trajectory md/prod.xtc --energy energy.xvg --out prod.udf
+```
+
+両方渡すとエラーです (どちらがエネルギーの出どころか決められないため)。
+
+> **`--edr` が作る `.xvg` は `.edr` の隣に出ます** (`<edr の stem>_energy.xvg`)。
+> 出力先は選べないので、入力ディレクトリを汚したくなければ `.edr` を作業用の
+> 場所へ写してから渡してください。
+
+エネルギーがどのフィールドに入るかは
+**§ Multi-frame trajectory + energy を 1 UDF に embed** を参照。
+
+### ★ `--max-frames` と `--frame-step` — 間引き
+
+**意味が違います。** 同時には渡せません (エラー)。
+
+| | 意味 | 例 (10000 フレームの `.xtc`) |
+|---|---|---|
+| `--max-frames 100` | **合計 100 枚**にする | 100 本に 1 本 → 100 枚 |
+| `--frame-step 100` | **100 本に 1 本**にする | 100 枚 |
+
+下流で効くのは**枚数**なので、普段は `--max-frames` を使ってください。
+どちらも **gmx を必要としません** (読み込み時に落とすだけ)。
+
+**付けないと全フレームが入ります。** UDF はテキストなので素直に効きます ——
+実測 (240 原子、同梱サンプル):
+
+| フレーム数 | UDF |
+|---|---|
+| 0 (`--topology-only`) | 75 KB |
+| 1 | 89 KB |
+| 11 | 227 KB |
+
+**1 フレームあたり約 13.8 KB = 原子 1 個あたり約 57 バイト**。この比例は
+系が大きくなっても変わらず、2250 原子 × 101 フレームの UDF は **12.3 MB**
+でした (原子あたり 56.6 バイト)。したがって:
+
+| 系 | フレーム数 | UDF |
+|---|---|---|
+| 2250 原子 | 101 | **12.3 MB** (実測) |
+| 2250 原子 | 10001 (100 ns を 10 ps ごと) | **約 1.3 GB** |
+| 2250 原子 | 100 (`--max-frames 100`) | **約 12 MB** |
+
+**目安は 100 フレーム前後**です。それ以上は OCTA viewer 側でも重くなるので、
+`--topology-only` で骨格だけ作って軌跡は viewer に読ませる手もあります。
+
+### gmx が PATH に無いとき
+
+`--gmx` で実行ファイルを直接指します。
+
+```bash
+python -m abmptools.gro2udf --from-top system.top md/prod.gro \
+    --trajectory md/prod.xtc --edr md/prod.edr \
+    --gmx /opt/gromacs/bin/gmx --out prod.udf
+```
+
+- **MD 環境付属の gmx** (conda 環境、J-OCTA 同梱など) は PATH に出ていない
+  ことが多いので、そのときはここで指してください
+- **Windows** は J-OCTA 同梱の GROMACS が使えます
+  (`C:\J-OCTA-<版>\additional\GROMACS\bin\gmx.exe`)。`-s` に `.gro` を
+  渡す経路では `GMXLIB` も要るので、同じ木の `share\top` を指してください ——
+  指していないと `residuetypes.dat not found` で止まります
+
+  ```bat
+  set "PATH=C:\J-OCTA-12.0\additional\GROMACS\bin;%PATH%"
+  set "GMXLIB=C:\J-OCTA-12.0\additional\GROMACS\share\top"
+  ```
+
+- gmx が見つからないときのメッセージには、**`--skip-nojump` で止められる**
+  ことも併記されます
+
+### テンプレートの決まり方
+
+`--template` を渡さなければ、**同梱の `default_template.udf` を使います**。
+
+```
+abmptools/gro2udf/default_template.udf              (cognac11.2 / OCTA85)
+abmptools/gro2udf/default_template_cognac101.udf    (--cognac-version 100/101/102)
+```
+
+> **`.top` と同名の `.udf` が隣にあっても、自動では使いません。**
+> 存在すれば「ある。ただし使っていない」と表示するだけです。そこにあるのは
+> たいてい **MD 前の UDF** で、テンプレートは静的構造と箱を供給するため、
+> 黙って採ると**MD 前の箱を引き継いだ UDF**ができてしまいます。使いたいなら
+> `--template` で明示してください。
+
 ### udf-and-gro モード（後方互換）
 
-```bash
-# gro2udf リポジトリの既存スクリプト経由（後方互換）
-python gro2udf.py test.udf output.gro
-# → test_groout.udf が生成される（カレントディレクトリ）
+既にある UDF の**座標とセルだけ**を `.gro` で差し替えます。
 
-# abmptools パッケージ経由
+```bash
 python -m abmptools.gro2udf test.udf output.gro
+# -> test_groout.udf  (カレントディレクトリ。名前と場所は選べません)
 ```
 
-### --from-top モード
-
-GROMACS TOP + GRO ファイルから COGNAC UDF を新規生成します。
-
-```bash
-# 最小構成（デフォルトテンプレートを使用）
-python -m abmptools.gro2udf --from-top system.top output.gro
-
-# テンプレートを明示指定
-python -m abmptools.gro2udf --from-top system.top output.gro \
-    --template template.udf
-
-# MDP ファイルを与えて NH-Q・Ewald カットオフを自動計算
-python -m abmptools.gro2udf --from-top system.top output.gro \
-    --mdp system.mdp
-
-# 全オプション
-python -m abmptools.gro2udf --from-top system.top output.gro \
-    --template template.udf --mdp system.mdp --out result.udf
-```
-
-#### テンプレート解決順序
-
-`--template` 未指定時、以下の優先順位でテンプレートを選択します。
-
-1. `<top_stem>.udf`（TOP ファイルと同じディレクトリ・同じ stem）
-2. パッケージ同梱の `default_template.udf`
-   （`abmptools/abmptools/gro2udf/default_template.udf`）
+`.top` は要りません。力場もトポロジもテンプレート UDF のものがそのまま残ります。
 
 ### Python API
 
 ```python
+import os.path
+import abmptools.gro2udf
 from abmptools.gro2udf import Exporter, TopExporter
 
 # udf-and-gro モード
 Exporter().export("test.udf", "output.gro")
 
-# --from-top モード（MDP なし）
-TopExporter().export("system.top", "output.gro",
-                     template_path="template.udf",
-                     out_path="result.udf")
+# --from-top モード
+#
+# ★ template_path は必須です (None は通りません)。CLI が既定で使うのと
+#   同じものを渡すなら、同梱テンプレートのパスを自分で組みます。
+template = os.path.join(os.path.dirname(abmptools.gro2udf.__file__),
+                        "default_template.udf")
 
-# --from-top モード（MDP あり → Q・Ewald カットオフ自動計算）
-TopExporter().export("system.top", "output.gro",
-                     template_path="template.udf",
-                     out_path="result.udf",
-                     mdp_path="system.mdp")
+TopExporter().export(
+    "system.top", "md/prod.gro",
+    template_path=template,
+    out_path="prod.udf",
+    mdp_path="md/prod.mdp",
+    trajectory_path="md/prod_nojump.xtc",
+    energy_path="energy.xvg",
+    max_frames=100,
+)
 ```
+
+`max_frames` / `frame_step` / `topology_only` / `initial_gro_path` /
+`cognac_version` / `force_field` / `nh_dof` / `allow_unsupported` も
+同名の引数で受けます。**CLI のオプションとほぼ 1 対 1** です。
+
+**ただし `TopExporter` は gmx を呼びません。** CLI の `--edr` と
+`-pbc nojump` は `cli.py` が `abmptools.trajectory` に委譲しているので、
+API から同じことをしたいときは自分で呼んでください。
+
+```python
+from abmptools.trajectory import gmx_energy, nojump_with_fallback
+
+# -pbc nojump。tpr が古い gmx で読めなければ fallback の .gro に退避する
+traj, used_fallback = nojump_with_fallback(
+    trajectory="md/prod.xtc",
+    reference="md/prod.tpr",
+    fallback="md/prod.gro",
+)
+
+# .edr -> .xvg (CLI の --edr と同じもの)
+xvg = gmx_energy(edr="md/prod.edr", output="energy.xvg", terms=range(1, 51))
+```
+
+つまり **API 側は「gmx を呼ぶかどうか」を呼び出し側が決める**構造で、CLI は
+その組み合わせを 1 コマンドにまとめたものです。
 
 ---
 
-## テスト手順
+## 動かして確かめる
 
-### udf-and-gro モード
-
-```bash
-cd gro2udf/test/input
-python -m abmptools.gro2udf test.udf output.gro
-diff test_groout.udf ../output/test_groout.udf
-```
-
-### --from-top モード
+### サンプルを通す
 
 ```bash
-cd abmptools/sample/gro2udf/gro_top_mode/input
-
-# テンプレートなし（デフォルトテンプレート使用）
-python -m abmptools.gro2udf --from-top test.top output.gro \
-    --mdp test.mdp --out output_fromtop.udf
-
-diff <(sed 's/\r//g' output_fromtop.udf | grep -v "^$") \
-     <(sed 's/\r//g' ../output/output_fromtop_ref.udf | grep -v "^$")
+cd sample/gro2udf
+bash run.sh
 ```
+
+3 本とも通れば環境は揃っています (UDFManager / MDAnalysis / gmx)。
+結果は `run_out/` に出ます —— 詳しくは
+[`sample/gro2udf/README.md`](../sample/gro2udf/README.md)。
+
+### 回帰テスト
+
+出力が以前と変わっていないことは pytest が見ます。
+
+```bash
+python -m pytest tests/test_regression.py -k gro2udf
+```
+
+**UDFManager が無い環境では skip されます** (`importorskip`)。2 件とも通る
+ことが「両モードの出力が参照値と一致している」ことの確認です。
+
+> **`sample/gro2udf/*/output/*.udf` を比較対象にしないでください。**
+> あれは古い版で作られたスナップショットで、**現在の出力とは一致しません**
+> (Nose-Hoover まわりの field が当時のまま)。回帰の参照値はテストが別に
+> 持っています。`run.sh` がそれらを上書きしないのもこのためです。
 
 ---
 
@@ -572,52 +818,9 @@ python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
 - `.xtc` 拡張子: 既存の MDAnalysis 経由 `frames_from_xtc()` 経路 (要
   `MDAnalysis` install)
 
-### ★ `--trajectory` は gmx を呼ぶ (`-pbc nojump` が既定)
-
-**`--trajectory` を渡すと、変換の前に `gmx trjconv -pbc nojump` が走る。**
-`gro2udf` はこれまで gmx を一切呼ばないファイル変換器だったので、**ここだけ
-前提が変わる** —— `--trajectory` を使うなら gmx が要る。
-
-そうしてあるのは、**生の `.xtc` をそのまま渡した人が、何も指定せずに正しい
-UDF を得られるようにする**ため。周期境界をまたいだ分子は `.xtc` の中では
-割れていて、それが UDF に入ると OCTA viewer で開いて初めて分かる。既定が
-OFF だと「気付ける人しか気付けない」形になっていた。
-
-```bash
-# 生の xtc をそのまま渡してよい (nojump は勝手に通る)
-python -m abmptools.gro2udf --from-top build/system.top md/prod.gro \
-    --trajectory md/prod.xtc --out prod.udf
-
-# 既に nojump 済みの軌跡を渡すとき (gmx は要らない)
-python -m abmptools.gro2udf --from-top build/system.top md/prod.gro \
-    --trajectory md/prod_nojump.gro --skip-nojump --out prod.udf
-```
-
-| 指定 | `-pbc nojump` | gmx |
-|---|---|---|
-| `--trajectory` のみ (既定) | **走る** | **要る** |
-| `--trajectory` + `--skip-nojump` | 走らない | 要らない |
-| `--trajectory` 無し (topology だけ) | 走らない | 要らない |
-
-- **`nojump` は冪等。** 既に nojump 済みの軌跡に掛け直しても座標は変わらない。
-  PVA 30 分子 (2250 原子 × 6 frame、箱 27.07 Å) で実測したところ **max |Δr| =
-  0.0000 Å / 移動した原子 0 個**。だから `gen_for_udf` が書く `*_nojump.gro`
-  をそのまま渡しても結果は同じで、`--skip-nojump` は「gmx を呼ばせない」
-  ためのもの
-  (**ファイルは byte 一致にはならない。** 同じ実測で 13500 行のうち 5 行が
-  `-0.000` と `0.000` の符号だけ違った。`.gro` の 3 桁表記でのゼロの書き方の
-  差で、数値は同じ)
-- フラグが `--skip-nojump` (**動作だけ**を述べる) なのは、**nojump 済みで
-  なくても意図して飛ばすこと**があるため —— gmx が無い、別の後処理で通す、
-  割れたままの座標を見たい。「もう nojump 済みです」と言わせる名前だと、
-  そのとき嘘を書かせることになる
-- reference は `--tpr` があればそれ、無ければ位置引数の `.gro`。`-pbc nojump`
-  は結合情報を読まないので `.gro` で成立する。古い gmx が新しい `.tpr` を
-  読めないとき (tpx の版違い) は `.gro` に退避し、そう表示する
-- gmx が PATH に無いときは `--gmx /path/to/gmx` で指す
-- `--trajectory` を渡していないのに `--skip-nojump` と書くとエラーになる。
-  `--trajectory` に対する指定なので、軌跡が無いのは `--trajectory` の書き忘れ
-  で、黙って通すと **topology だけの UDF が「成功」として出る**
+> **`--trajectory` は `gmx trjconv -pbc nojump` を先に通します** (既定)。
+> 止めるのは `--skip-nojump`、参照は `--tpr`、gmx の場所は `--gmx`。
+> 詳しくは **§ 使い方 → `--trajectory` は gmx を呼ぶ**。
 
 `--energy` 指定時の挙動:
 

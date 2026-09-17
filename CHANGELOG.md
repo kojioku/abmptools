@@ -2,6 +2,55 @@
 
 ## [Unreleased]
 
+### Docs — `gro2udf` の使い方を、今の CLI に合わせて書き直した
+
+`docs/gro2udf.md` の `## 使い方` が **`--template` / `--mdp` / `--out` の 3 つ
+しか載せておらず**、それを「全オプション」と称していた。`--trajectory` /
+`--edr` / `--energy` / `--max-frames` / `--frame-step` / `--skip-nojump` /
+`--tpr` / `--gmx` / `--topology-only` / `--initial-gro` が 1 つも出てこない
+状態だった。
+
+**オプション一覧からではなく「どれを打てばよいか」から始める形にした** ——
+構造だけ / + 軌跡 / + エネルギーの 3 段で、**そのまま打てるコマンド**を
+載せている (省略記号なし。3 つとも実際に走らせて確認した)。
+
+書き足したもの:
+
+- `--edr` と `--energy` の違い (前者は `gmx energy` をその場で回す、後者は
+  既にある xvg)。**どちらも省けばエネルギーを読まない**
+- `--trajectory` を渡すと `-pbc nojump` が走り **gmx が要る**こと。
+  `--trajectory` が無ければ gmx に触れないこと
+- `--max-frames` (合計何枚) と `--frame-step` (何本に 1 本) の違い。
+  **付けないと全フレーム入る** —— 実測で **1 フレーム = 原子 1 個あたり
+  約 57 バイト**なので、2250 原子 × 10001 フレームなら **約 1.3 GB**
+- gmx が PATH に無いときの `--gmx`、Windows での `GMXLIB`
+- 冒頭に **サンプルへの導線** (`sample/gro2udf/` を `bash run.sh`)
+
+直したもの:
+
+- **`### テンプレート解決順序` が本文と矛盾していた。** 「1. `<top_stem>.udf`、
+  2. 同梱テンプレート」と書いてあったが、**`<top_stem>.udf` は自動では
+  採らない** (存在すれば「あるが使っていない」と表示するだけ)。同じ文書の
+  `### 静的セルとテンプレート` は正しく書いてあったので、節同士が食い違って
+  いた
+- **`## テスト手順` が存在しないパスを指していた** (`gro2udf/test/input`)。
+  さらに比較先の `sample/gro2udf/*/output/*.udf` は**古いスナップショットで
+  現在の出力と一致しない**ため、手順どおりに実行すると差分が出る。
+  `sample/gro2udf/run.sh` と `pytest tests/test_regression.py -k gro2udf` に
+  差し替えた
+- **Python API の例が通らなかった。** `TopExporter.export` の `template_path`
+  は必須で `None` を受けない。同梱テンプレートのパスの組み方を示した。
+  `max_frames` などが API 側にもあることも書いた
+
+### Fixed — `abmptools.trajectory` が docs の案内先を export していなかった
+
+`nojump_with_fallback` / `count_frames` / `skip_for_max_frames` は
+**`gro2udf` の CLI が使っているのに `abmptools.trajectory` から import
+できなかった**。docs が「API から同じことをしたいならこれを呼ぶ」と案内する
+先なので、`.postprocess` を直に触らせずに済むよう `__all__` に並べた。
+`__all__` の名前が全部解決することもテストで見る。
+
+
 ## [2.16.0] - 2026-09-16
 
 ### Changed — `--skip-nojump`: 名前は「どの場面で打っても嘘にならない」ものにした
