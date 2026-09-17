@@ -38,3 +38,8 @@ work_rebuild/
 # `sample/gro2udf/run.sh` の書き出し先。各モードの output/ に置いてある UDF は
 # 参照用のスナップショットなので、run.sh はそちらを触らずここへ出す。
 sample/gro2udf/run_out/
+# docs/gro2udf.md のコマンドを input/ で直に叩いたときに出る中間物。
+# gro2udf は中間生成物を**渡した入力の隣**に書き、場所を選べない
+# (`-pbc nojump` -> <軌跡>_nojump.xtc、`--edr` -> <edr>_energy.xvg)。
+sample/gro2udf/gro_top_mode/input/md_nojump.*
+sample/gro2udf/gro_top_mode/input/md_energy.xvg
