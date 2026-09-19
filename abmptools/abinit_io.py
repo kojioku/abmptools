@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ast
 import sys
+import io
 import os
 import math
 import re
@@ -622,6 +623,39 @@ MD='OFF'
 
         return frag
 
+    def _unpack_out_if_packed(self, target_dir: str) -> bool:
+        """``.out`` が無く ``out_files.tar`` だけなら展開する。
+
+        Returns:
+            展開したなら True。呼び出し側が読み終わったあとに
+            :meth:`_cleanup_out` へ渡して後片付けさせる。
+        """
+        out_tar = os.path.join(target_dir, 'out_files.tar')
+        if not os.path.exists(out_tar):
+            return False
+        present = len([
+            fn for fn in glob.glob(os.path.join(target_dir, '*.out'))
+            if 'zz_submit' not in os.path.basename(fn)])
+        if present >= self.total_num:
+            return False
+        self.unpack_tar(target_dir, self.total_num)
+        return True
+
+    def _cleanup_out(self, target_dir: str, packed_here: bool) -> None:
+        """このペアのために展開した ``.out`` を消す。
+
+        399 ペア x 5000 本を展開したままにすると inode が枯渇するので、
+        ペア単位で読み終えるたびに戻す。``out_files.tar`` が健在なことを
+        確認してからでないと消さない。
+        """
+        if not packed_here:
+            return
+        out_tar = os.path.join(target_dir, 'out_files.tar')
+        if not os.path.exists(out_tar) or os.path.getsize(out_tar) == 0:
+            logger.warning("keep .out: %s is missing or empty", out_tar)
+            return
+        self.del_out(target_dir)
+
     def getifie(self, target_dir: str, frag: list[list[int]], skipbsse: bool = False) -> None:
         """ABINIT-MP出力ファイル群からIFIEを読み取り、集計結果をファイルに書き出す。
 
@@ -631,6 +665,11 @@ MD='OFF'
             skipbsse: TrueならBSSE補正をスキップする。
         """
         ielist = []
+        # -m pack 後は .out が out_files.tar にまとめられている。getTE と同じく
+        # ここで展開しておく (IFIE 経路には従来これが配線されておらず、tar だけの
+        # ディレクトリに post をかけると read_ifie が黙って空を返し ielist が
+        # 全ゼロになっていた)。読み終わったら packed_here を見て後片付けする。
+        packed_here = self._unpack_out_if_packed(target_dir)
         if not self.pbflag:
             # print "**** 1.get ifie running*****"
             for i in range(1, self.total_num+1):
@@ -653,6 +692,7 @@ MD='OFF'
                 # print ielist
                 for i in range(len(ielist)):
                     print(ielist[i][0] + ielist[i][1], file=f)
+            self._cleanup_out(target_dir, packed_here)
 
         if self.pbflag:
             # print("*** 1.get ifie-pb running ***")
@@ -680,6 +720,7 @@ MD='OFF'
                 for i in range(len(ielist)):
                     print(ielist[i][0][0] + ielist[i][0][1] + \
                             ielist[i][1][0] + ielist[i][1][1], file=f)
+            self._cleanup_out(target_dir, packed_here)
 
     def getifiesum(self, energy: list[list[Any]], frag: list[list[int]]) -> list[float]:
         """IFIEエネルギーのHFおよびMP2成分を合計し、kcal/mol単位で返す。
@@ -736,6 +777,35 @@ MD='OFF'
         return [pb_es * 627.5095, pb_np * 627.5095]
 
 
+    @staticmethod
+    def _read_out_from_tar(fname: str) -> list[str] | None:
+        """``.out`` が無い場合に同ディレクトリの out_files.tar から読む。
+
+        ``-m pack`` 後のディレクトリでは個々の ``.out`` が削除され
+        ``out_files.tar`` だけが残る。展開すると 1 ペアあたり数千 inode を
+        消費するため、tar から member を直接読み出す。
+
+        Args:
+            fname: 本来読みたい ``.out`` のパス。
+
+        Returns:
+            行のリスト。tar も member も無ければ None。
+        """
+        out_tar = os.path.join(os.path.dirname(fname), 'out_files.tar')
+        if not os.path.exists(out_tar):
+            return None
+        member_name = os.path.basename(fname)
+        try:
+            with tarfile.open(out_tar, 'r') as tar:
+                fobj = tar.extractfile(tar.getmember(member_name))
+                if fobj is None:
+                    return None
+                return io.TextIOWrapper(
+                    fobj, encoding='latin-1').read().splitlines(keepends=True)
+        except (KeyError, OSError, tarfile.TarError) as e:
+            logger.warning("can't read %s from %s: %s", member_name, out_tar, e)
+            return None
+
     def read_ifie(self, fname: str, skipbsse: bool = False, debug: bool = False) -> list[list[Any]]:
         '''
         read ifie from abinitmp output file
@@ -758,16 +828,20 @@ MD='OFF'
         bssecount = 0
         bsse = []
         readflag = False
+        # ABINIT-MP occasionally emits non-UTF8 bytes (e.g. a stray
+        # NBSP 0xA0 from memory/time printouts on some builds). Use
+        # latin-1 which accepts any byte and preserves ASCII, since
+        # read_ifie only cares about numeric + ASCII label tokens.
         try:
-            # ABINIT-MP occasionally emits non-UTF8 bytes (e.g. a stray
-            # NBSP 0xA0 from memory/time printouts on some builds). Use
-            # latin-1 which accepts any byte and preserves ASCII, since
-            # read_ifie only cares about numeric + ASCII label tokens.
             with open(fname, "r", encoding="latin-1") as f:
                 text = f.readlines()
         except IOError:
-            logger.error("can't open %s", fname)
-            return ifie
+            # -m pack 後は .out が out_files.tar にまとめられている。
+            # 展開せずに tar から直接読む (展開すると inode を大量に消費する)。
+            text = self._read_out_from_tar(fname)
+            if text is None:
+                logger.error("can't open %s", fname)
+                return ifie
 
         # One-pass scan: prefer ``## MP2-IFIE``. If not present, fall back
         # to ``## HF-IFIE`` and rewrite columns so downstream code (which

@@ -595,3 +595,80 @@ class TestGetifiesum:
     def test_empty_energy_returns_zeros(self, aio):
         result = aio.getifiesum([], [[1], [2]])
         assert result == [0, 0]
+
+
+# --------------------------------------------------------------------------- #
+#  IFIE 経路の自動 unpack / ペア単位の後片付け
+#
+#  -m pack 後は .out が out_files.tar にまとめられる。IFIE 経路には従来
+#  unpack が配線されておらず、tar だけのディレクトリに post をかけると
+#  read_ifie が黙って空を返し ielist が全ゼロになっていた。
+# --------------------------------------------------------------------------- #
+class TestUnpackOutForIfie:
+
+    OUT = (
+        "     ## MP2-IFIE\n"
+        "\n"
+        "                 IJ-PAIR    DIST     DIMER-ES   HF-IFIE    MP2-IFIE\n"
+        "                            / A      APPROX.   / Hartree  / Hartree\n"
+        "         1         2     3.500     0.0    -0.0010000   -0.0020000\n"
+        "     ## Mulliken\n"
+    )
+
+    def _dir(self, tmp_path, n=3, packed=False):
+        import tarfile
+        d = tmp_path / 'pair'
+        d.mkdir(parents=True)
+        names = []
+        for i in range(1, n + 1):
+            p = d / f'{i:05d}.out'
+            p.write_text(self.OUT)
+            names.append(p)
+        if packed:
+            with tarfile.open(d / 'out_files.tar', 'w') as t:
+                for p in names:
+                    t.add(str(p), arcname=p.name)
+            for p in names:
+                p.unlink()
+        return d
+
+    def _aio(self, n):
+        a = abinit_io()
+        a.total_num = n
+        a.pbflag = False
+        a.mp2temp = ''
+        a.solvtype = 'gas'
+        a.PR_flag = False
+        a.mp2fac = 1.0
+        return a
+
+    def test_reads_from_tar_when_out_is_packed(self, tmp_path):
+        """tar だけでも展開済みと同じ ielist になる。"""
+        plain = self._dir(tmp_path / 'a', n=3)
+        a = self._aio(3)
+        a.getifie(str(plain), [[1], [2]])
+        ref = (plain / 'ielist_ifiegas').read_text()
+
+        packed = self._dir(tmp_path / 'b', n=3, packed=True)
+        a.getifie(str(packed), [[1], [2]])
+        assert (packed / 'ielist_ifiegas').read_text() == ref
+
+    def test_cleans_up_what_it_unpacked(self, tmp_path):
+        """展開した .out はペアを読み終えた時点で消す (inode 対策)。"""
+        d = self._dir(tmp_path / 'a', n=3, packed=True)
+        self._aio(3).getifie(str(d), [[1], [2]])
+        assert list(d.glob('0*.out')) == []
+        assert (d / 'out_files.tar').exists()
+
+    def test_keeps_out_that_was_already_there(self, tmp_path):
+        """自分で展開していない .out は消さない。"""
+        d = self._dir(tmp_path / 'a', n=3)
+        self._aio(3).getifie(str(d), [[1], [2]])
+        assert len(list(d.glob('0*.out'))) == 3
+
+    def test_keeps_out_when_tar_is_broken(self, tmp_path):
+        """tar が空/壊れているときは戻せないので .out を残す。"""
+        d = self._dir(tmp_path / 'a', n=3)
+        (d / 'out_files.tar').write_text('')
+        self._aio(3).getifie(str(d), [[1], [2]])
+        assert len(list(d.glob('0*.out'))) == 3
