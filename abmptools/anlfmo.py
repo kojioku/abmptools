@@ -1975,6 +1975,14 @@ class anlfmo(pdio):
                 # for pieda
                 if pflag:
                     pcount += 1
+                # pcount 1 is the header: take the column layout from it, as
+                # read_pieda does. Ver.2 Rev.8's enhanced PIEDA carries two
+                # extra columns, and a fixed layout reads every value one slot
+                # out -- or, when the widths disagree, fails in getpiedadf with
+                # "7 columns passed, passed data had 8 columns".
+                if pflag and pcount == 1:
+                    self.pcolumn = pieda_columns_from_header(' '.join(itemList))
+                    continue
                 if pflag and pcount > 2:
                     pieda.append(itemList)
 

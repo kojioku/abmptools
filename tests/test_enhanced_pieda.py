@@ -132,3 +132,23 @@ class TestEnhancedPiedaAjf:
     def test_es_resp_version_gate(self, ver, expected):
         obj = self._obj(ver=ver, es_resp=True)
         assert (obj.es_resp and obj.abinit_ver in ("v2rev4", "v2rev8")) is expected
+
+
+class TestReadIfiePiedaEnhanced:
+    """read_ifiepieda is a third parser, used by moldeck.ifie. It must take the
+    PIEDA layout from the header too, or an enhanced log fails in getpiedadf
+    with "7 columns passed, passed data had 8 columns"."""
+
+    def test_layout_is_taken_from_the_header(self):
+        from abmptools.anlfmo import _icolumn_for
+        obj = anlfmo()
+        obj.logMethod = "MP2"
+        obj.tgt1frag = [1]
+        obj.icolumn = _icolumn_for("MP2")
+        ifie, pieda = obj.read_ifiepieda(EXCERPT)[:2]
+        assert obj.pcolumn == ["I", "J", "ES(RESP)", "ES", "EX", "CT-mix",
+                               "DI(LRD)", "Erest", "q(I=>J)"]
+        df = obj.getpiedadf(pieda)
+        row = df[(df["I"] == 2) & (df["J"] == 1)].iloc[0]
+        assert row["DI(LRD)"] == pytest.approx(-7.363263)
+        assert row["Erest"] == pytest.approx(-1.692311)
