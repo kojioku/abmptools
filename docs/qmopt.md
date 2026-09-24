@@ -29,6 +29,46 @@ D3 を効かせたい場合は次のどちらかで確認してください。
 `simple-dftd3` を入れる場合、abmptools が使う入口は `dftd3.pyscf.energy` です
 （`DFTD3Model` という名前のクラスは存在しません）。
 
+## 溶媒中の最適化
+
+`solvent` に `"pcm"` / `"cpcm"` / `"iefpcm"` / `"ddcosmo"` / `"smd"` を渡すと
+PySCF の対応する連続誘電体モデルを被せます（既定は `"none"` = 気相）。
+誘電率は `solvent_eps` に**数値**または**溶媒名**（`water`, `methanol`,
+`ethanol`, `acetone`, `dichloromethane`, `thf`, `chloroform`, `toluene`,
+`benzene`, `cyclohexane`, `hexane`）で指定します。省略するとモデル既定値です。
+
+```python
+opt = QMOptimizerPySCF(functional="B3LYP", basis="def2-SVP",
+                       dispersion="d3bj",
+                       solvent="cpcm", solvent_eps="water")
+```
+
+**イオン・双性イオンでは気相最適化が構造を壊します。** 実測（B3LYP-D3BJ/def2-SVP）
+では、グリシン双性イオンを気相で最適化すると N から O へ陽子が移り、
+最短 O–H が 1.640 Å → **0.991 Å**（O–H 結合が生成）になって中性型へ崩壊しました。
+CPCM(water) では 1.712 Å で双性イオンのまま保たれます。多価アルコールが
+分子内水素結合で折り畳む問題も同じ性質のものです。
+
+分散補正と同じく、**モデルを付けられなかった場合は警告を出して気相で続行します**。
+結果の `solvent_applied` と、出力 xyz の 2 行目（付いたときだけ
+`B3LYP-D3BJ/def2-SVP [CPCM,eps=78.3553]` のように角括弧が付く）で確認できます。
+
+## 構造ごとの電荷・スピン
+
+断片集合は電荷が揃わないことが多く（脂質の頭部なら choline が +1、
+リン酸ジエステルが −1、アルキル鎖が 0）、バッチ全体で 1 つの `charge` では
+足りません。**入力 xyz のコメント行に `charge=-1` や `spin=2` と書くと、
+その構造だけインスタンス既定値を上書きします。**
+
+```
+13
+@@E_diMe-Pho@@ C2H6O4P | charge=-1
+P   1.234567  ...
+```
+
+`spin` は不対電子数（2S）で、コンストラクタの引数と同じ意味です。
+実際に使われた値は結果の `charge` / `spin` に入ります。
+
 ライセンス詳細・互換性の考察は [licenses_third_party.md](./licenses_third_party.md) を参照してください。
 
 ## 基本的な使い方

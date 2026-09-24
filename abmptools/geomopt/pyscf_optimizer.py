@@ -53,6 +53,14 @@ _BOHR_TO_ANG: float = 0.529177210903  # 1 Bohr in Angstrom
 
 _SUPPORTED_SOLVERS = ("geometric", "berny")
 _SUPPORTED_DISPERSIONS = ("d3bj", "d3", "none")
+_SUPPORTED_SOLVENTS = ("none", "pcm", "cpcm", "iefpcm", "ddcosmo", "smd")
+# Dielectric constants at 298 K for the names accepted by ``solvent_eps``.
+_SOLVENT_EPS = {
+    "water": 78.3553, "methanol": 32.613, "ethanol": 24.852,
+    "acetone": 20.493, "dichloromethane": 8.93, "thf": 7.4257,
+    "chloroform": 4.7113, "toluene": 2.3741, "benzene": 2.2706,
+    "cyclohexane": 2.0165, "hexane": 1.8819,
+}
 
 # ---------------------------------------------------------------------------
 # Known two-letter chemical element symbols (for PDB atom-name fallback)
@@ -76,6 +84,46 @@ _TWO_LETTER_ELEMENTS: frozenset = frozenset({
 # ---------------------------------------------------------------------------
 # Standalone xyz / pdb parsers and xyz writer
 # ---------------------------------------------------------------------------
+
+
+def _resolve_eps(value: "Union[str, float, None]") -> Optional[float]:
+    """Turn a solvent name or a number into a dielectric constant.
+
+    ``None`` means "let the solvent model use its own default".
+    """
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    key = str(value).strip().lower()
+    if key in _SOLVENT_EPS:
+        return _SOLVENT_EPS[key]
+    try:
+        return float(key)
+    except ValueError:
+        raise ValueError(
+            "solvent_eps must be a number or one of "
+            f"{sorted(_SOLVENT_EPS)!r}, got {value!r}"
+        ) from None
+
+
+_CHARGE_RE = re.compile(r"\bcharge\s*=\s*([+-]?\d+)", re.I)
+_SPIN_RE = re.compile(r"\bspin\s*=\s*(\d+)", re.I)
+
+
+def _charge_spin_from_comment(comment: str) -> "Tuple[Optional[int], Optional[int]]":
+    """Pick ``charge=`` / ``spin=`` out of an xyz comment line.
+
+    A fragment set is rarely all-neutral -- a lipid head group set carries
+    ``+1`` (choline, ammonium) and ``-1`` (phosphodiester) alongside neutral
+    pieces -- so the charge has to travel with each structure rather than being
+    one setting for the whole batch.  ``spin`` is the number of unpaired
+    electrons (2S), matching this class's constructor.
+    """
+    c = _CHARGE_RE.search(comment or "")
+    sp = _SPIN_RE.search(comment or "")
+    return (int(c.group(1)) if c else None,
+            int(sp.group(1)) if sp else None)
 
 
 def _read_xyz_comment(path: Path) -> str:
@@ -308,6 +356,8 @@ class QMOptimizerPySCF:
         functional: str = "B3LYP",
         basis: str = "def2-SVP",
         dispersion: str = "d3bj",
+        solvent: str = "none",
+        solvent_eps: "Union[str, float, None]" = None,
         charge: int = 0,
         spin: int = 0,
         max_steps: int = 100,
@@ -326,11 +376,22 @@ class QMOptimizerPySCF:
                 f"dispersion must be one of {_SUPPORTED_DISPERSIONS!r}, "
                 f"got {dispersion!r}"
             )
+        if solvent.lower() not in _SUPPORTED_SOLVENTS:
+            raise ValueError(
+                f"solvent must be one of {_SUPPORTED_SOLVENTS!r}, "
+                f"got {solvent!r}"
+            )
         self.functional = functional
         self.basis = basis
         self.dispersion = dispersion.lower()
+        self.solvent = solvent.lower()
+        self.solvent_eps = _resolve_eps(solvent_eps)
         self.charge = charge
         self.spin = spin
+        # Per-structure effective values; optimize() resets these from the
+        # input's comment line before building anything.
+        self._charge = charge
+        self._spin = spin
         self.max_steps = max_steps
         self.solver = solver
         self.conv_params: dict = dict(conv_params) if conv_params else {}
@@ -339,6 +400,8 @@ class QMOptimizerPySCF:
         # Set by _apply_dispersion on every run: False means the requested D3
         # correction could not be attached and the numbers are plain DFT.
         self.dispersion_applied = False
+        # Set by _apply_solvent on every run, for the same reason.
+        self.solvent_applied = False
 
     # ------------------------------------------------------------------
     # Dependency checks
@@ -455,6 +518,53 @@ class QMOptimizerPySCF:
         )
         return mf
 
+    def _apply_solvent(self, mf):
+        """Wrap *mf* with an implicit solvent model if one was requested.
+
+        The solvent model must sit OUTSIDE the dispersion wrapper: PySCF's PCM
+        gradient asserts that its base method is a ``_Solvation`` instance, and
+        a dispersion object wrapped around it fails that check.
+
+        Sets :attr:`solvent_applied`, which is ``False`` when the model could
+        not be attached -- the optimisation then runs in the gas phase, which
+        is not a small difference for ions and zwitterions (a gas-phase glycine
+        zwitterion transfers its proton and collapses to the neutral form).
+        """
+        self.solvent_applied = False
+        if self.solvent == "none":
+            return mf
+
+        try:
+            if self.solvent == "smd":
+                mf_solv = mf.SMD()
+            elif self.solvent == "ddcosmo":
+                mf_solv = mf.ddCOSMO()
+            else:
+                mf_solv = mf.PCM()
+                # "pcm" keeps PySCF's own default; the rest name a variant.
+                variant = {"cpcm": "C-PCM", "iefpcm": "IEF-PCM"}.get(self.solvent)
+                if variant is not None:
+                    mf_solv.with_solvent.method = variant
+        except AttributeError as exc:
+            logger.warning(
+                "Solvent model %r is not available in this PySCF build "
+                "(%s).  Running in the GAS PHASE instead.",
+                self.solvent, exc,
+            )
+            return mf
+
+        if self.solvent_eps is not None:
+            try:
+                mf_solv.with_solvent.eps = self.solvent_eps
+            except Exception as exc:  # pragma: no cover - model-specific
+                logger.warning(
+                    "Could not set eps=%s on the %s model: %s",
+                    self.solvent_eps, self.solvent, exc,
+                )
+        self.solvent_applied = True
+        logger.debug("Solvent via %s (eps=%s)", self.solvent, self.solvent_eps)
+        return mf_solv
+
     def _level_of_theory(self) -> str:
         """Return the level of theory that was *actually* used.
 
@@ -462,8 +572,14 @@ class QMOptimizerPySCF:
         could not be attached is not labelled as a D3 run.
         """
         if self.dispersion == "none" or not self.dispersion_applied:
-            return f"{self.functional}/{self.basis}"
-        return f"{self.functional}-{self.dispersion.upper()}/{self.basis}"
+            level = f"{self.functional}/{self.basis}"
+        else:
+            level = f"{self.functional}-{self.dispersion.upper()}/{self.basis}"
+        if self.solvent != "none" and self.solvent_applied:
+            eps = ("" if self.solvent_eps is None
+                   else f",eps={self.solvent_eps:g}")
+            level += f" [{self.solvent.upper()}{eps}]"
+        return level
 
     # ------------------------------------------------------------------
     # PySCF mol / mf builders
@@ -476,8 +592,8 @@ class QMOptimizerPySCF:
         mol = gto.Mole()
         mol.atom = _atoms_to_pyscf_spec(atoms)
         mol.basis = self.basis
-        mol.charge = self.charge
-        mol.spin = self.spin
+        mol.charge = self._charge
+        mol.spin = self._spin
         mol.verbose = self.verbose
         mol.build()
         return mol
@@ -486,12 +602,13 @@ class QMOptimizerPySCF:
         """Build a DFT mean-field object (RKS or UKS) with dispersion applied."""
         from pyscf import dft
 
-        if self.spin == 0:
+        if self._spin == 0:
             mf = dft.RKS(mol)
         else:
             mf = dft.UKS(mol)
         mf.xc = self.functional
         mf = self._apply_dispersion(mf)
+        mf = self._apply_solvent(mf)
         return mf
 
     def _single_point_energy(self, mol_eq) -> float:
@@ -505,12 +622,13 @@ class QMOptimizerPySCF:
 
         mol_sp = mol_eq.copy()
         mol_sp.verbose = 0  # suppress output for the energy evaluation
-        if self.spin == 0:
+        if self._spin == 0:
             mf_sp = dft.RKS(mol_sp)
         else:
             mf_sp = dft.UKS(mol_sp)
         mf_sp.xc = self.functional
         mf_sp = self._apply_dispersion(mf_sp)
+        mf_sp = self._apply_solvent(mf_sp)
         return float(mf_sp.kernel())
 
     # ------------------------------------------------------------------
@@ -529,7 +647,9 @@ class QMOptimizerPySCF:
         Parameters
         ----------
         in_file : str or Path
-            Input structure file (``.xyz`` or ``.pdb``).
+            Input structure file (``.xyz`` or ``.pdb``).  An xyz comment line
+            containing ``charge=-1`` or ``spin=2`` overrides the instance
+            defaults for that structure alone.
         out_xyz : str or Path
             Output xyz file path.  Must differ from *in_file*.
         write_traj : bool
@@ -541,10 +661,11 @@ class QMOptimizerPySCF:
             ``"energy"`` (float, eV), ``"energy_hartree"`` (float, Ha),
             ``"steps"`` (int), ``"converged"`` (bool),
             ``"out_xyz"`` (str, absolute path),
-            ``"dispersion"`` (str, as requested) and
-            ``"dispersion_applied"`` (bool).  The latter is ``False`` when the
-            requested D3 correction could not be attached, which otherwise
-            only shows up as a log warning.
+            ``"dispersion"`` / ``"dispersion_applied"``,
+            ``"solvent"`` / ``"solvent_applied"``, and the ``"charge"`` and
+            ``"spin"`` actually used.  The ``*_applied`` flags are ``False``
+            when the requested correction could not be attached, which
+            otherwise only shows up as a log warning.
 
         Raises
         ------
@@ -584,6 +705,17 @@ class QMOptimizerPySCF:
                 "Supported formats: .xyz, .pdb"
             )
 
+        # --- Per-structure charge / spin ---
+        src_comment = _read_xyz_comment(in_file)
+        c_ovr, s_ovr = _charge_spin_from_comment(src_comment)
+        self._charge = self.charge if c_ovr is None else c_ovr
+        self._spin = self.spin if s_ovr is None else s_ovr
+        if c_ovr is not None or s_ovr is not None:
+            logger.info(
+                "%s: comment line sets charge=%d spin=%d",
+                in_file.name, self._charge, self._spin,
+            )
+
         logger.info(
             "QM optimize: %s -> %s  (%d atoms)",
             in_file.name,
@@ -596,8 +728,8 @@ class QMOptimizerPySCF:
             self.functional,
             self.basis,
             self.dispersion,
-            self.charge,
-            self.spin,
+            self._charge,
+            self._spin,
             self.solver,
             self.max_steps,
         )
@@ -720,7 +852,6 @@ class QMOptimizerPySCF:
             f"E={energy_ha:.8f} Ha"
         )
         # Keep the input's own comment (identifier tags, metadata) in front.
-        src_comment = _read_xyz_comment(in_file)
         if src_comment:
             comment = f"{src_comment} | {comment}"
         _write_xyz(out_xyz, opt_atoms, comment=comment)
@@ -734,4 +865,8 @@ class QMOptimizerPySCF:
             "out_xyz": str(out_xyz),
             "dispersion": self.dispersion,
             "dispersion_applied": self.dispersion_applied,
+            "solvent": self.solvent,
+            "solvent_applied": self.solvent_applied,
+            "charge": self._charge,
+            "spin": self._spin,
         }

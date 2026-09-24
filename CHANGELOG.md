@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Added — `qmopt` を溶媒中で回せるようにした / 構造ごとの電荷
+
+`QMOptimizerPySCF` に `solvent`（`pcm` / `cpcm` / `iefpcm` / `ddcosmo` / `smd`）と
+`solvent_eps`（数値または溶媒名）を追加した。既定は従来どおり気相。
+
+**イオン・双性イオンでは気相最適化が構造を壊す**のが動機。実測
+（B3LYP-D3BJ/def2-SVP）で、グリシン双性イオンを気相最適化すると N から O へ
+陽子が移り、最短 O–H が 1.640 Å → **0.991 Å**（O–H 結合が生成）になって中性型へ
+崩壊した。CPCM(water) では 1.712 Å で保たれる。
+
+実装上の注意として、**溶媒モデルは分散補正の外側に被せる**必要がある。PySCF の
+PCM 勾配は base method が `_Solvation` であることを assert するので、順序を
+逆にすると `AssertionError` で落ちる。
+
+あわせて**構造ごとの電荷・スピン**に対応した。断片集合は電荷が揃わない
+（脂質頭部なら choline +1 / リン酸ジエステル −1 / アルキル鎖 0）ため、バッチ
+全体で 1 つの `charge` では足りない。入力 xyz のコメント行に `charge=-1` や
+`spin=2` と書くとその構造だけ既定値を上書きする。コメント行は最適化後も
+保持されるので、電荷が構造と一緒に動く。
+
+D3 と同様、**溶媒モデルを付けられなかった場合は警告を出して気相で続行する**。
+`solvent_applied` を結果と `opt_results.jsonl` に出し、出力 xyz の水準表記も
+付いたときだけ `B3LYP-D3BJ/def2-SVP [CPCM,eps=78.3553]` のように角括弧を足す。
+
 ### Fixed — `qmopt` が D3 分散補正を黙って外していた
 
 `QMOptimizerPySCF._apply_dispersion` は simple-dftd3 を
