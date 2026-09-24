@@ -17,7 +17,17 @@ MACE・OpenFF optimizer と同等のインターフェースで使えます。
 既知の問題があります（2026-02 確認）。`geometric` を推奨します。
 
 pyscf と geometric（または pyberny）は必須です。
+
 分散補正ライブラリが入っていない場合は警告を出して dispersion なしで実行されます。
+**この分岐は結果の見た目を変えません**（計算は最後まで走り、終了コードも 0 です）ので、
+D3 を効かせたい場合は次のどちらかで確認してください。
+
+- `opt_results.jsonl` の **`dispersion_applied`** —— `false` なら D3 は付いていません
+- 出力 xyz の 2 行目 —— D3 が付いたときだけ `B3LYP-D3BJ/def2-SVP` のように
+  汎関数名にハイフンで続きます。付かなかったときは `B3LYP/def2-SVP` と素のまま出ます
+
+`simple-dftd3` を入れる場合、abmptools が使う入口は `dftd3.pyscf.energy` です
+（`DFTD3Model` という名前のクラスは存在しません）。
 
 ライセンス詳細・互換性の考察は [licenses_third_party.md](./licenses_third_party.md) を参照してください。
 

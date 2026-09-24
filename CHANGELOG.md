@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+### Fixed — `qmopt` が D3 分散補正を黙って外していた
+
+`QMOptimizerPySCF._apply_dispersion` は simple-dftd3 を
+**`dftd3.pyscf.DFTD3Model`** という名前で探していた。この名前は同パッケージに
+**存在しない**（公開されているのは `energy` / `grad` と `DFTD3Dispersion`）。
+そのため simple-dftd3 が入っていても検出に失敗し、`dispersion="d3bj"` を
+指定した実行が**素の B3LYP として最後まで完走**していた。
+
+見つけにくかった理由は、失敗しても止まらないうえ **出力ファイルが D3 を
+名乗っていた**こと —— 書き出される xyz のコメント行は要求された設定をそのまま
+`B3LYP/def2-SVP (d3bj)` と書くので、中身が素の B3LYP でも区別が付かなかった。
+
+影響は小さくない。手元の実測（B3LYP/def2-SVP）では
+
+| 分子 | D3 なし | D3BJ あり | 差 |
+|---|---|---|---|
+| CCl₄ | −1878.31347 Ha | −1878.32827 Ha | −9.3 kcal/mol |
+| スチレン単位 | −310.65858 Ha | −310.68814 Ha | −18.6 kcal/mol |
+
+直したもの:
+
+- **入口を `dftd3.pyscf.energy` に変更**。`pyscf.dftd3`（旧 PySCF 拡張）は
+  第 2 候補として残した
+- `except (ImportError, TypeError, Exception)` で全例外を握り潰していたのを
+  やめ、どの provider がなぜ落ちたかを debug ログに出すようにした
+- **`dispersion_applied` を新設**。`optimize()` の戻り値と
+  `opt_results.jsonl` に入るので、後からでも D3 の有無を判定できる
+- 出力 xyz のコメント行は**実際に適用された水準**を名乗るようにした
+  （付いたときだけ `B3LYP-D3BJ/def2-SVP`、付かなければ `B3LYP/def2-SVP`）
+
+### Fixed — `qmopt` が入力 xyz のコメント行を捨てていた
+
+最適化後の xyz はコメント行（2 行目）を
+`Optimized by QMOptimizerPySCF: ...` で**上書き**していた。上流が識別子や
+物性値をここに載せている場合（例: `@@S_CCl4@@ ClC(Cl)(Cl)Cl | delta=17.8 V=97.1`）、
+最適化を通した時点で分子の素性が失われ、後段が名前で引けなくなる。
+
+元のコメントを保持し、その後ろに ` | ` 区切りで最適化情報を足す形にした。
+
 ### Docs — `gro2udf` の使い方を、今の CLI に合わせて書き直した
 
 `docs/gro2udf.md` の `## 使い方` が **`--template` / `--mdp` / `--out` の 3 つ

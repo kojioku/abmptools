@@ -33,6 +33,8 @@ Usage::
     #     "steps":           int,    # number of optimisation steps taken
     #     "converged":       bool,
     #     "out_xyz":         str,    # absolute path to output xyz
+    #     "dispersion":         str,   # as requested ("d3bj" / "d3" / "none")
+    #     "dispersion_applied": bool,  # False = no D3 library was found
     # }
 """
 import logging
@@ -74,6 +76,22 @@ _TWO_LETTER_ELEMENTS: frozenset = frozenset({
 # ---------------------------------------------------------------------------
 # Standalone xyz / pdb parsers and xyz writer
 # ---------------------------------------------------------------------------
+
+
+def _read_xyz_comment(path: Path) -> str:
+    """Return the comment line (line 2) of an xyz file, or "" for non-xyz.
+
+    Upstream tools tag the comment line with identifiers and metadata (e.g.
+    ``@@S_CCl4@@ ClC(Cl)(Cl)Cl | delta=17.8 V=97.1``) that later stages parse.
+    Overwriting it loses the molecule's identity, so it is carried through.
+    """
+    if path.suffix.lower() != ".xyz":
+        return ""
+    try:
+        lines = path.read_text().splitlines()
+    except OSError:
+        return ""
+    return lines[1].strip() if len(lines) >= 2 else ""
 
 
 def _parse_xyz(path: Path) -> List[Tuple[str, float, float, float]]:
@@ -318,6 +336,9 @@ class QMOptimizerPySCF:
         self.conv_params: dict = dict(conv_params) if conv_params else {}
         self.verbose = verbose
         self.seed = seed  # reserved
+        # Set by _apply_dispersion on every run: False means the requested D3
+        # correction could not be attached and the numbers are plain DFT.
+        self.dispersion_applied = False
 
     # ------------------------------------------------------------------
     # Dependency checks
@@ -367,13 +388,16 @@ class QMOptimizerPySCF:
     def _apply_dispersion(self, mf):
         """Wrap *mf* with D3 dispersion if requested.
 
-        Three strategies are tried in order; if none are available a warning
-        is emitted and the uncorrected *mf* is returned.
+        Two providers are tried in order.  If neither is available the
+        uncorrected *mf* is returned and :attr:`dispersion_applied` is left
+        ``False`` so that callers can tell a D3 run from a plain one.
 
-        Strategy 1: ``pyscf.dftd3`` (requires the ``dftd3`` Python package).
-        Strategy 2: ``dftd3.pyscf`` from ``simple-dftd3`` (s-dftd3).
-        Strategy 3: No correction (with warning).
+        Provider 1: ``dftd3.pyscf`` from ``simple-dftd3`` (s-dftd3).  Its
+            entry point is the ``energy`` helper, which returns a new SCF
+            object carrying a ``with_dftd3`` attribute.
+        Provider 2: ``pyscf.dftd3`` (the older PySCF extension module).
         """
+        self.dispersion_applied = False
         if self.dispersion == "none":
             return mf
 
@@ -381,44 +405,65 @@ class QMOptimizerPySCF:
             self.dispersion, "d3bj"
         )
 
-        # --- Strategy 1: pyscf.dftd3 ---
+        # --- Provider 1: simple-dftd3 Python bindings (s-dftd3) ---
+        # NOTE: the public API is ``energy`` / ``grad`` (plus the
+        # ``DFTD3Dispersion`` class).  There has never been a ``DFTD3Model``;
+        # asking for one silently produced dispersion-free runs.
         try:
-            from pyscf import dftd3 as _pyscf_dftd3  # type: ignore
+            from dftd3.pyscf import energy as _d3_energy  # type: ignore
 
-            mf_disp = _pyscf_dftd3.DFTD3(mf)
-            logger.debug(
-                "Dispersion via pyscf.dftd3 (%s)", self.dispersion
-            )
-            return mf_disp
-        except (ImportError, AttributeError, Exception):
-            pass
-
-        # --- Strategy 2: simple-dftd3 Python bindings (s-dftd3) ---
-        try:
-            from dftd3.pyscf import DFTD3Model  # type: ignore
-
-            mf_disp = DFTD3Model(
+            mf_disp = _d3_energy(
                 mf,
                 method=self.functional,
                 version=d3_sdftd3_version,
             )
+            self.dispersion_applied = True
             logger.debug(
                 "Dispersion via simple-dftd3/dftd3.pyscf (%s)",
                 self.dispersion,
             )
             return mf_disp
-        except (ImportError, TypeError, Exception):
-            pass
+        except ImportError:
+            logger.debug("simple-dftd3 (dftd3.pyscf) not importable")
+        except Exception as exc:  # pragma: no cover - provider-specific
+            logger.debug("simple-dftd3 failed to attach: %s", exc)
+
+        # --- Provider 2: pyscf.dftd3 ---
+        try:
+            from pyscf import dftd3 as _pyscf_dftd3  # type: ignore
+
+            mf_disp = _pyscf_dftd3.DFTD3(mf)
+            self.dispersion_applied = True
+            logger.debug(
+                "Dispersion via pyscf.dftd3 (%s)", self.dispersion
+            )
+            return mf_disp
+        except ImportError:
+            logger.debug("pyscf.dftd3 not importable")
+        except Exception as exc:  # pragma: no cover - provider-specific
+            logger.debug("pyscf.dftd3 failed to attach: %s", exc)
 
         # --- Fallback: no dispersion ---
         logger.warning(
             "D3 dispersion (%s) requested but no dispersion library is "
-            "available.  Running without dispersion correction.\n"
+            "available.  Running WITHOUT dispersion correction -- the "
+            "energies and geometries below are plain %s.\n"
             "To enable D3: pip install simple-dftd3  (recommended)\n"
             "         or:  pip install dftd3",
             self.dispersion,
+            self.functional,
         )
         return mf
+
+    def _level_of_theory(self) -> str:
+        """Return the level of theory that was *actually* used.
+
+        Reflects :attr:`dispersion_applied`, so a run whose D3 correction
+        could not be attached is not labelled as a D3 run.
+        """
+        if self.dispersion == "none" or not self.dispersion_applied:
+            return f"{self.functional}/{self.basis}"
+        return f"{self.functional}-{self.dispersion.upper()}/{self.basis}"
 
     # ------------------------------------------------------------------
     # PySCF mol / mf builders
@@ -495,7 +540,11 @@ class QMOptimizerPySCF:
         dict
             ``"energy"`` (float, eV), ``"energy_hartree"`` (float, Ha),
             ``"steps"`` (int), ``"converged"`` (bool),
-            ``"out_xyz"`` (str, absolute path).
+            ``"out_xyz"`` (str, absolute path),
+            ``"dispersion"`` (str, as requested) and
+            ``"dispersion_applied"`` (bool).  The latter is ``False`` when the
+            requested D3 correction could not be attached, which otherwise
+            only shows up as a log warning.
 
         Raises
         ------
@@ -662,11 +711,18 @@ class QMOptimizerPySCF:
 
         # --- Write output xyz ---
         opt_atoms = _mol_to_atoms(mol_eq)
+        # Name the level of theory by what was actually applied, not by what
+        # was asked for: a file labelled "(d3bj)" whose energy carries no
+        # dispersion is worse than one labelled plainly.
+        level = self._level_of_theory()
         comment = (
-            f"Optimized by QMOptimizerPySCF: "
-            f"{self.functional}/{self.basis} ({self.dispersion})  "
+            f"Optimized by QMOptimizerPySCF: {level}  "
             f"E={energy_ha:.8f} Ha"
         )
+        # Keep the input's own comment (identifier tags, metadata) in front.
+        src_comment = _read_xyz_comment(in_file)
+        if src_comment:
+            comment = f"{src_comment} | {comment}"
         _write_xyz(out_xyz, opt_atoms, comment=comment)
         logger.info("Written: %s", out_xyz)
 
@@ -676,4 +732,6 @@ class QMOptimizerPySCF:
             "steps": n_steps,
             "converged": converged,
             "out_xyz": str(out_xyz),
+            "dispersion": self.dispersion,
+            "dispersion_applied": self.dispersion_applied,
         }
