@@ -623,38 +623,85 @@ MD='OFF'
 
         return frag
 
-    def _unpack_out_if_packed(self, target_dir: str) -> bool:
-        """``.out`` が無く ``out_files.tar`` だけなら展開する。
+    # ------------------------------------------------------------------
+    # 出力 (.out) の読み出し口
+    #
+    # -m pack 後のディレクトリでは .out が out_files.tar にまとめられている。
+    # 以前はここで tar を展開し、読み終わったら *.out を消していたが、
+    # それは 2 つの点でデータを壊す:
+    #   - extractall は既存の .out を上書きする。pack 後に計算し直した
+    #     新しい .out が tar の古い版に置き換わり、古い版で集計される
+    #   - 後片付けの del_out はディレクトリの *.out を全部消す。展開前から
+    #     在った (tar に入っていない) .out も消え、戻せない
+    # どちらもエラーを出さない。そこで展開も削除もやめ、ディスクにあれば
+    # ディスクを、無ければ tar の member を直接読む。何も書かず何も消さない。
+    # ------------------------------------------------------------------
+
+    def _read_out_lines(self, fname: str,
+                        encoding: str | None = None) -> list[str] | None:
+        """``.out`` の行を返す。ディスクにあればディスク、無ければ tar から。
+
+        ディスクの版を常に優先する: pack 後に計算し直した ``.out`` は
+        tar に入っている版より新しい。
+
+        Args:
+            fname: 読みたい ``.out`` のパス。
+            encoding: ディスクから読むときの文字コード。``None`` は ``open``
+                の既定 (従来の各リーダの挙動をそのまま保つ)。
 
         Returns:
-            展開したなら True。呼び出し側が読み終わったあとに
-            :meth:`_cleanup_out` へ渡して後片付けさせる。
+            行のリスト。ディスクにも tar にも無ければ None。
         """
-        out_tar = os.path.join(target_dir, 'out_files.tar')
-        if not os.path.exists(out_tar):
-            return False
-        present = len([
-            fn for fn in glob.glob(os.path.join(target_dir, '*.out'))
-            if 'zz_submit' not in os.path.basename(fn)])
-        if present >= self.total_num:
-            return False
-        self.unpack_tar(target_dir, self.total_num)
-        return True
+        try:
+            with open(fname, "r", encoding=encoding) as f:
+                return f.readlines()
+        except OSError:
+            return self._tar_member_lines(fname, encoding)
 
-    def _cleanup_out(self, target_dir: str, packed_here: bool) -> None:
-        """このペアのために展開した ``.out`` を消す。
+    def _tar_member_lines(self, fname: str,
+                          encoding: str | None = None) -> list[str] | None:
+        """同じディレクトリの ``out_files.tar`` から ``fname`` の member を読む。
 
-        399 ペア x 5000 本を展開したままにすると inode が枯渇するので、
-        ペア単位で読み終えるたびに戻す。``out_files.tar`` が健在なことを
-        確認してからでないと消さない。
+        tar は 1 ディレクトリにつき 1 回だけ開いて索引を作り、そのディレクトリを
+        読み終えるまで使い回す (:meth:`_close_out_tar`)。1 本ごとに開き直すと
+        tar の先頭から member を探すことになり、5000 本で O(N^2) になる。
         """
-        if not packed_here:
-            return
-        out_tar = os.path.join(target_dir, 'out_files.tar')
-        if not os.path.exists(out_tar) or os.path.getsize(out_tar) == 0:
-            logger.warning("keep .out: %s is missing or empty", out_tar)
-            return
-        self.del_out(target_dir)
+        out_tar = os.path.join(os.path.dirname(fname) or '.', 'out_files.tar')
+        cache = getattr(self, '_out_tar_cache', None)
+        if cache is None or cache[0] != out_tar:
+            self._close_out_tar()
+            if not os.path.exists(out_tar):
+                self._out_tar_cache = (out_tar, None, {})
+                return None
+            try:
+                tar = tarfile.open(out_tar, 'r')
+                index = {os.path.basename(m.name): m
+                         for m in tar.getmembers() if m.isfile()}
+            except (OSError, tarfile.TarError) as e:
+                logger.warning("can't open %s: %s", out_tar, e)
+                self._out_tar_cache = (out_tar, None, {})
+                return None
+            self._out_tar_cache = (out_tar, tar, index)
+        _, tar, index = self._out_tar_cache
+        member = index.get(os.path.basename(fname))
+        if tar is None or member is None:
+            return None
+        try:
+            fobj = tar.extractfile(member)
+            if fobj is None:
+                return None
+            return io.TextIOWrapper(fobj, encoding=encoding).read() \
+                .splitlines(keepends=True)
+        except (OSError, tarfile.TarError, UnicodeDecodeError) as e:
+            logger.warning("can't read %s from %s: %s", member.name, out_tar, e)
+            return None
+
+    def _close_out_tar(self) -> None:
+        """:meth:`_tar_member_lines` が開いたままにしている tar を閉じる。"""
+        cache = getattr(self, '_out_tar_cache', None)
+        if cache is not None and cache[1] is not None:
+            cache[1].close()
+        self._out_tar_cache = None
 
     def getifie(self, target_dir: str, frag: list[list[int]], skipbsse: bool = False) -> None:
         """ABINIT-MP出力ファイル群からIFIEを読み取り、集計結果をファイルに書き出す。
@@ -665,11 +712,18 @@ MD='OFF'
             skipbsse: TrueならBSSE補正をスキップする。
         """
         ielist = []
-        # -m pack 後は .out が out_files.tar にまとめられている。getTE と同じく
-        # ここで展開しておく (IFIE 経路には従来これが配線されておらず、tar だけの
-        # ディレクトリに post をかけると read_ifie が黙って空を返し ielist が
-        # 全ゼロになっていた)。読み終わったら packed_here を見て後片付けする。
-        packed_here = self._unpack_out_if_packed(target_dir)
+        # -m pack 後の .out は out_files.tar の中にある。read_ifie / read_ifiepb
+        # は _read_out_lines 経由でディスク優先・無ければ tar から読むので、
+        # ここで展開はしない (展開は既存の .out を上書きし、後片付けは tar に
+        # 無い .out まで消していた)。
+        try:
+            self._getifie_body(target_dir, frag, skipbsse, ielist)
+        finally:
+            self._close_out_tar()
+
+    def _getifie_body(self, target_dir: str, frag: list[list[int]],
+                      skipbsse: bool, ielist: list[Any]) -> None:
+        """:meth:`getifie` の本体。tar の後始末を呼び出し側に任せるため分けた。"""
         if not self.pbflag:
             # print "**** 1.get ifie running*****"
             for i in range(1, self.total_num+1):
@@ -692,7 +746,6 @@ MD='OFF'
                 # print ielist
                 for i in range(len(ielist)):
                     print(ielist[i][0] + ielist[i][1], file=f)
-            self._cleanup_out(target_dir, packed_here)
 
         if self.pbflag:
             # print("*** 1.get ifie-pb running ***")
@@ -720,7 +773,6 @@ MD='OFF'
                 for i in range(len(ielist)):
                     print(ielist[i][0][0] + ielist[i][0][1] + \
                             ielist[i][1][0] + ielist[i][1][1], file=f)
-            self._cleanup_out(target_dir, packed_here)
 
     def getifiesum(self, energy: list[list[Any]], frag: list[list[int]]) -> list[float]:
         """IFIEエネルギーのHFおよびMP2成分を合計し、kcal/mol単位で返す。
@@ -832,16 +884,11 @@ MD='OFF'
         # NBSP 0xA0 from memory/time printouts on some builds). Use
         # latin-1 which accepts any byte and preserves ASCII, since
         # read_ifie only cares about numeric + ASCII label tokens.
-        try:
-            with open(fname, "r", encoding="latin-1") as f:
-                text = f.readlines()
-        except IOError:
-            # -m pack 後は .out が out_files.tar にまとめられている。
-            # 展開せずに tar から直接読む (展開すると inode を大量に消費する)。
-            text = self._read_out_from_tar(fname)
-            if text is None:
-                logger.error("can't open %s", fname)
-                return ifie
+        # ディスクにあればディスク、無ければ out_files.tar から直接読む。
+        text = self._read_out_lines(fname, encoding="latin-1")
+        if text is None:
+            logger.error("can't open %s", fname)
+            return ifie
 
         # One-pass scan: prefer ``## MP2-IFIE``. If not present, fall back
         # to ``## HF-IFIE`` and rewrite columns so downstream code (which
@@ -951,10 +998,8 @@ MD='OFF'
         count = 0
         count2 = 0
         hit = 0
-        try:
-            with open(fname, "r") as f:
-                text = f.readlines()
-        except (IOError, OSError):
+        text = self._read_out_lines(fname)
+        if text is None:
             logger.error("can't open %s", fname)
             return [ifie, pbterm]
         flag = False
@@ -1006,33 +1051,46 @@ MD='OFF'
         return [ifie, pbterm]
 
     @staticmethod
-    def unpack_tar(target_dir: str, total_num: int) -> None:
-        """ディレクトリ内のout_files.tarを展開する。
+    def unpack_tar(target_dir: str, total_num: int) -> list[str]:
+        """``out_files.tar`` のうち、ディスクに**無い** member だけを取り出す。
 
-        出力ファイル数が期待値の90%未満の場合のみ展開を実行する。
+        post の読み取り経路はもうこれを呼ばない (tar から直接読む)。明示的に
+        ``.out`` をディスクへ戻したいとき用に残してある。
+
+        既にディスクにある ``.out`` は**上書きしない**: pack 後に計算し直した
+        ``.out`` は tar の版より新しいので、上書きすると古い結果で集計される。
+        以前は ``extractall`` で丸ごと上書きしていた。
 
         Args:
             target_dir: tarファイルが格納されたディレクトリパス。
-            total_num: 期待される出力ファイルの総数。
+            total_num: 期待される出力ファイルの総数 (ログ用)。
+
+        Returns:
+            実際に取り出した member の basename のリスト。
         """
-        # (前) target_dir 内の out_files.tar を展開
         out_tar = os.path.join(target_dir, 'out_files.tar')
-        # outfile = os.path.join(target_dir, '*sh*.out')
-
-        outfile = [
-            fn for fn in glob.glob(os.path.join(target_dir, '*.out'))
-            if 'zz_submit' not in os.path.basename(fn)
-        ]
-
-        logger.info("Checking for %s in %s", os.path.basename(out_tar), target_dir)
-        logger.info("Total number of expected output files: %s", total_num)
-        num_outfile = len(outfile)
-        logger.info("num of outfile %s", num_outfile)
-        if os.path.exists(out_tar) and num_outfile/total_num < 0.9:
-            with tarfile.open(out_tar, 'r') as tar:
-                tar.extractall(path=target_dir)
-            logger.info("Extracted %s into %s", os.path.basename(out_tar), target_dir)
-        return
+        extracted: list[str] = []
+        if not os.path.exists(out_tar):
+            return extracted
+        logger.info("Checking for %s in %s (expected %s outputs)",
+                    os.path.basename(out_tar), target_dir, total_num)
+        with tarfile.open(out_tar, 'r') as tar:
+            for m in tar.getmembers():
+                if not m.isfile():
+                    continue
+                name = os.path.basename(m.name)
+                dest = os.path.join(target_dir, name)
+                if os.path.exists(dest):
+                    continue
+                fobj = tar.extractfile(m)
+                if fobj is None:
+                    continue
+                with open(dest, 'wb') as out:
+                    out.write(fobj.read())
+                extracted.append(name)
+        logger.info("Extracted %d missing member(s) from %s",
+                    len(extracted), os.path.basename(out_tar))
+        return extracted
 
     @staticmethod
     def del_out(target_dir: str) -> None:
@@ -1068,12 +1126,21 @@ MD='OFF'
             fzcflag: Trueの場合nofzcディレクトリから読み込む。
         """
         elistname = target_dir + "/energylist_" + self.solvtype
+        try:
+            self._getTE_body(target_dir, molname, mode, fzcflag, elistname)
+        finally:
+            self._close_out_tar()
+
+    def _getTE_body(self, target_dir: str, molname: str, mode: str,
+                    fzcflag: bool, elistname: str) -> None:
+        """:meth:`getTE` の本体。tar の後始末を呼び出し側に任せるため分けた。"""
         if mode == "batch":
             energies = []
             if not self.pbflag:
                 logger.info("**** 1.capt te running ****")
 
-                self.unpack_tar(target_dir, self.total_num)
+                # 展開はしない。captfmomp2e がディスク優先・無ければ tar から読む
+                # (展開は pack 後に計算し直した新しい .out を古い版で上書きしていた)。
 
                 # 処理
                 for i in range(1, self.total_num+1):
@@ -1095,7 +1162,7 @@ MD='OFF'
             if self.pbflag:
                 logger.info("*** 1.capt bepb running ***")
 
-                self.unpack_tar(target_dir, self.total_num)
+                # 展開はしない (上と同じ理由)。getfmopbenergy が tar から読む。
 
                 # 本処理
                 for i in range(1, self.total_num+1):
@@ -1194,8 +1261,9 @@ MD='OFF'
         mp2 = 0
         hf = 0
         try:
-            with open(target, "r") as f:
-                text = f.readlines()
+            text = self._read_out_lines(target)
+            if text is None:
+                raise OSError("no such output on disk or in out_files.tar")
             for i in range(len(text)):
                 itemList = text[i][:-1].split()
                 if itemList == ['##', 'FMO', 'TOTAL', 'ENERGY']:
@@ -1402,10 +1470,8 @@ MD='OFF'
             tuple: (気相エネルギー, 溶液中エネルギー, 溶媒和自由エネルギー, ES項, NP項)。
                    取得失敗時は (0, 0, 0, 0, 0)。
         """
-        try:
-            with open(target, "r") as f:
-                text = f.readlines()
-        except (IOError, OSError):
+        text = self._read_out_lines(target)
+        if text is None:
             logger.error("can't open %s", target)
             return 0, 0, 0, 0, 0
         if self.abinit_ver in ['rev11', 'rev15', 'mizuho']:

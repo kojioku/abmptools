@@ -598,77 +598,208 @@ class TestGetifiesum:
 
 
 # --------------------------------------------------------------------------- #
-#  IFIE 経路の自動 unpack / ペア単位の後片付け
+#  pack 後の .out の読み出し (IFIE / BE の両経路)
 #
-#  -m pack 後は .out が out_files.tar にまとめられる。IFIE 経路には従来
-#  unpack が配線されておらず、tar だけのディレクトリに post をかけると
-#  read_ifie が黙って空を返し ielist が全ゼロになっていた。
+#  -m pack 後は .out が out_files.tar にまとめられる。読み取りは
+#  「ディスクにあればディスク、無ければ tar の member を直接」で、
+#  **何も展開せず、何も消さない**。以前の実装は
+#    - extractall で既存の .out を tar の古い版で上書きし (pack 後に計算し
+#      直した新しい結果が古い結果で集計される)
+#    - 後片付けで *.out を全部消し、tar に無い .out まで失っていた
+#  どちらもエラーを出さない。ここではその 3 シナリオと、90-100% の帯を固定する。
 # --------------------------------------------------------------------------- #
-class TestUnpackOutForIfie:
+import hashlib
+import tarfile as _tarfile
 
-    OUT = (
-        "     ## MP2-IFIE\n"
+
+def _ifie_out(v):
+    """IJ-PAIR (2, 1) の HF / MP2 が v になる ABINIT-MP 出力。"""
+    return (
+        " header\n"
+        " ## MP2-IFIE\n"
         "\n"
-        "                 IJ-PAIR    DIST     DIMER-ES   HF-IFIE    MP2-IFIE\n"
-        "                            / A      APPROX.   / Hartree  / Hartree\n"
-        "         1         2     3.500     0.0    -0.0010000   -0.0020000\n"
-        "     ## Mulliken\n"
+        "           IJ-PAIR    DIST     DIMER-ES   HF-IFIE    MP2-IFIE\n"
+        "                      / A      APPROX.   / Hartree  / Hartree\n"
+        "        -----------------------------------------------------\n"
+        f"    2    1    0.001000   F      {v:.6f}  {v:.6f}  {v:.6f}"
+        "  -0.010000  -0.005000  -0.002000\n"
+        " ## Mulliken\n"
     )
 
-    def _dir(self, tmp_path, n=3, packed=False):
-        import tarfile
-        d = tmp_path / 'pair'
-        d.mkdir(parents=True)
-        names = []
-        for i in range(1, n + 1):
-            p = d / f'{i:05d}.out'
-            p.write_text(self.OUT)
-            names.append(p)
-        if packed:
-            with tarfile.open(d / 'out_files.tar', 'w') as t:
-                for p in names:
-                    t.add(str(p), arcname=p.name)
-            for p in names:
-                p.unlink()
-        return d
 
-    def _aio(self, n):
-        a = abinit_io()
-        a.total_num = n
-        a.pbflag = False
-        a.mp2temp = ''
-        a.solvtype = 'gas'
-        a.PR_flag = False
-        a.mp2fac = 1.0
-        return a
+def _te_out(hf, mp2):
+    """captfmomp2e が [hf, mp2] を返す FMO TOTAL ENERGY 節。"""
+    return (
+        " ## FMO TOTAL ENERGY\n"
+        " line1\n line2\n line3\n line4\n line5\n"
+        f" Total HF energy   {hf:.8f}\n"          # i+6, split()[3]
+        " line7\n"
+        f" MP2 correction {mp2:.8f}\n"              # i+8, split()[2]
+    )
 
-    def test_reads_from_tar_when_out_is_packed(self, tmp_path):
-        """tar だけでも展開済みと同じ ielist になる。"""
-        plain = self._dir(tmp_path / 'a', n=3)
-        a = self._aio(3)
-        a.getifie(str(plain), [[1], [2]])
-        ref = (plain / 'ielist_ifiegas').read_text()
 
-        packed = self._dir(tmp_path / 'b', n=3, packed=True)
-        a.getifie(str(packed), [[1], [2]])
-        assert (packed / 'ielist_ifiegas').read_text() == ref
+class _PairDir:
+    """ペアディレクトリを組み立て、読み取りの前後で中身を比べる。"""
 
-    def test_cleans_up_what_it_unpacked(self, tmp_path):
-        """展開した .out はペアを読み終えた時点で消す (inode 対策)。"""
-        d = self._dir(tmp_path / 'a', n=3, packed=True)
-        self._aio(3).getifie(str(d), [[1], [2]])
-        assert list(d.glob('0*.out')) == []
-        assert (d / 'out_files.tar').exists()
+    def __init__(self, root, n):
+        self.d = root / 'pair'
+        self.d.mkdir(parents=True)
+        self.n = n
 
-    def test_keeps_out_that_was_already_there(self, tmp_path):
-        """自分で展開していない .out は消さない。"""
-        d = self._dir(tmp_path / 'a', n=3)
-        self._aio(3).getifie(str(d), [[1], [2]])
-        assert len(list(d.glob('0*.out'))) == 3
+    def write(self, ids, text_of):
+        for i in ids:
+            (self.d / f'{i:05d}.out').write_text(text_of(i))
 
-    def test_keeps_out_when_tar_is_broken(self, tmp_path):
-        """tar が空/壊れているときは戻せないので .out を残す。"""
-        d = self._dir(tmp_path / 'a', n=3)
-        (d / 'out_files.tar').write_text('')
-        self._aio(3).getifie(str(d), [[1], [2]])
-        assert len(list(d.glob('0*.out'))) == 3
+    def pack(self, ids, text_of):
+        """ids の .out を text_of で作って tar に入れ、ディスクからは消す。"""
+        tmp = self.d / '_stage'
+        tmp.mkdir()
+        with _tarfile.open(self.d / 'out_files.tar', 'w') as t:
+            for i in ids:
+                p = tmp / f'{i:05d}.out'
+                p.write_text(text_of(i))
+                t.add(str(p), arcname=p.name)
+        for p in tmp.iterdir():
+            p.unlink()
+        tmp.rmdir()
+
+    def snapshot(self):
+        """ielist 以外の全ファイルの中身ハッシュ。"""
+        return {p.name: hashlib.sha1(p.read_bytes()).hexdigest()
+                for p in self.d.iterdir()
+                if p.is_file() and not p.name.startswith(('ielist', 'energylist'))}
+
+
+def _aio(n, pb=False):
+    a = abinit_io()
+    a.total_num = n
+    a.pbflag = pb
+    a.mp2temp = ''
+    a.solvtype = 'gas'
+    a.PR_flag = False
+    a.mp2fac = 1.0
+    return a
+
+
+def _ielist(d):
+    return [float(x) for x in (d / 'ielist_ifiegas').read_text().split()]
+
+
+HARTREE = 627.5095
+OLD, NEW = -0.001, -0.004       # tar の古い版 / pack 後に計算し直した新しい版
+
+
+class TestPackedOutIsReadNotExtracted:
+
+    def test_all_packed_reads_from_tar_and_leaves_disk_as_is(self, tmp_path):
+        """[通常] tar に 20 本、ディスクに 0 本。"""
+        pd = _PairDir(tmp_path, 20)
+        pd.pack(range(1, 21), lambda i: _ifie_out(OLD))
+        before = pd.snapshot()
+        _aio(20).getifie(str(pd.d), [[1], [2]])
+        assert _ielist(pd.d) == pytest.approx([2 * OLD * HARTREE] * 20)
+        assert pd.snapshot() == before, '何も展開せず何も消さない'
+
+    def test_recomputed_after_pack_disk_wins(self, tmp_path):
+        """[pack 後に 2 本を再計算] ディスクの新しい版で集計し、上書きしない。"""
+        pd = _PairDir(tmp_path, 20)
+        pd.pack(range(1, 21), lambda i: _ifie_out(OLD))
+        pd.write([3, 7], lambda i: _ifie_out(NEW))
+        before = pd.snapshot()
+        _aio(20).getifie(str(pd.d), [[1], [2]])
+        got = _ielist(pd.d)
+        for i in range(1, 21):
+            want = NEW if i in (3, 7) else OLD
+            assert got[i - 1] == pytest.approx(2 * want * HARTREE), i
+        assert pd.snapshot() == before, '再計算した .out が tar の古い版で上書きされた'
+
+    def test_out_missing_from_tar_is_kept(self, tmp_path):
+        """[tar は 15 本、残り 5 本は pack 後に出た] tar に無い .out を消さない。"""
+        pd = _PairDir(tmp_path, 20)
+        pd.pack(range(1, 16), lambda i: _ifie_out(OLD))
+        pd.write(range(16, 21), lambda i: _ifie_out(NEW))
+        before = pd.snapshot()
+        _aio(20).getifie(str(pd.d), [[1], [2]])
+        got = _ielist(pd.d)
+        assert got[:15] == pytest.approx([2 * OLD * HARTREE] * 15)
+        assert got[15:] == pytest.approx([2 * NEW * HARTREE] * 5)
+        assert pd.snapshot() == before, 'tar に無い .out が消えた'
+
+    def test_between_90_and_100_percent_on_disk(self, tmp_path):
+        """[ディスクに 19/20] 以前は何も展開せずに全部消していた帯。"""
+        pd = _PairDir(tmp_path, 20)
+        pd.pack(range(1, 21), lambda i: _ifie_out(OLD))
+        pd.write(range(1, 20), lambda i: _ifie_out(NEW))
+        before = pd.snapshot()
+        _aio(20).getifie(str(pd.d), [[1], [2]])
+        got = _ielist(pd.d)
+        assert got[:19] == pytest.approx([2 * NEW * HARTREE] * 19)
+        assert got[19] == pytest.approx(2 * OLD * HARTREE)
+        assert pd.snapshot() == before
+
+    def test_broken_tar_reads_disk_and_deletes_nothing(self, tmp_path):
+        pd = _PairDir(tmp_path, 3)
+        pd.write(range(1, 4), lambda i: _ifie_out(NEW))
+        (pd.d / 'out_files.tar').write_text('')
+        before = pd.snapshot()
+        _aio(3).getifie(str(pd.d), [[1], [2]])
+        assert _ielist(pd.d) == pytest.approx([2 * NEW * HARTREE] * 3)
+        assert pd.snapshot() == before
+
+    def test_tar_is_opened_once_per_pair(self, tmp_path, monkeypatch):
+        """1 本ごとに開き直すと 5000 本で O(N^2) になる。"""
+        pd = _PairDir(tmp_path, 20)
+        pd.pack(range(1, 21), lambda i: _ifie_out(OLD))
+        calls = []
+        real_open = _tarfile.open
+
+        def counting_open(*a, **k):
+            calls.append(a[0] if a else k.get('name'))
+            return real_open(*a, **k)
+
+        # パッケージ側でクラス名 abinit_io がモジュール名を覆っているので、
+        # モジュール本体は sys.modules から取る
+        import sys as _sys
+        monkeypatch.setattr(_sys.modules['abmptools.abinit_io'].tarfile,
+                            'open', counting_open)
+        _aio(20).getifie(str(pd.d), [[1], [2]])
+        assert len(calls) == 1
+
+    def test_tar_is_closed_after_the_pair(self, tmp_path):
+        pd = _PairDir(tmp_path, 3)
+        pd.pack(range(1, 4), lambda i: _ifie_out(OLD))
+        a = _aio(3)
+        a.getifie(str(pd.d), [[1], [2]])
+        assert getattr(a, '_out_tar_cache', None) is None
+
+
+class TestBEPathReadsPackedOut:
+    """getTE (ietype='be') も同じ読み出し口を通る。以前は unpack_tar で上書きしていた。"""
+
+    def test_recomputed_after_pack_disk_wins(self, tmp_path):
+        pd = _PairDir(tmp_path, 4)
+        pd.pack(range(1, 5), lambda i: _te_out(-100.0, -1.0))
+        pd.write([2], lambda i: _te_out(-200.0, -2.0))
+        before = pd.snapshot()
+        _aio(4).getTE(str(pd.d), 'x', 'batch', False)
+        rows = [r.split() for r in (pd.d / 'energylist_gas').read_text().splitlines()]
+        assert [float(v) for v in rows[1]] == [-200.0, -2.0], 'ディスクの新しい版が勝つ'
+        assert [float(v) for v in rows[0]] == [-100.0, -1.0], '無い分は tar から'
+        assert pd.snapshot() == before, 'BE 経路で .out が上書き/展開された'
+
+
+class TestUnpackTarDoesNotOverwrite:
+    """明示的に呼ばれる unpack_tar も、既存の .out を上書きしない。"""
+
+    def test_only_missing_members_are_extracted(self, tmp_path):
+        pd = _PairDir(tmp_path, 3)
+        pd.pack(range(1, 4), lambda i: _ifie_out(OLD))
+        pd.write([2], lambda i: _ifie_out(NEW))
+        extracted = abinit_io.unpack_tar(str(pd.d), 3)
+        assert sorted(extracted) == ['00001.out', '00003.out']
+        assert (pd.d / '00002.out').read_text() == _ifie_out(NEW)
+        assert (pd.d / '00001.out').read_text() == _ifie_out(OLD)
+
+    def test_no_tar_is_a_no_op(self, tmp_path):
+        pd = _PairDir(tmp_path, 1)
+        assert abinit_io.unpack_tar(str(pd.d), 1) == []
