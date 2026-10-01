@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.17.0] - 2026-10-01
+
 ### Fixed — `-m pack` 後の `-m post` が IFIE を全部 0 にしていた / 読み直しでデータを上書き・削除していた
 
 **`getifie` は `out_files.tar` を開いていなかった。** `-m pack` 後のディレクトリで
