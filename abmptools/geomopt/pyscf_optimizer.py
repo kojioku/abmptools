@@ -372,7 +372,8 @@ class QMOptimizerPySCF:
 
         Strategy 1: ``pyscf.dftd3`` (requires the ``dftd3`` Python package).
         Strategy 2: ``dftd3.pyscf`` from ``simple-dftd3`` (s-dftd3).
-        Strategy 3: No correction (with warning).
+        Strategy 3: ``dftd3.pyscf.energy`` (dftd3 >= 1.0 の関数 API).
+        Strategy 4: No correction (with warning).
         """
         if self.dispersion == "none":
             return mf
@@ -408,6 +409,20 @@ class QMOptimizerPySCF:
             )
             return mf_disp
         except (ImportError, TypeError, Exception):
+            pass
+
+        # --- Strategy 3: dftd3 >= 1.0 の関数 API ---
+        # dftd3 1.6 では DFTD3Model クラスが無く、mf を包む energy() が入口。
+        # Strategy 2 の DFTD3Model は古い s-dftd3 の名前で ImportError になる。
+        try:
+            import dftd3.pyscf as _d3
+
+            mf_disp = _d3.energy(mf, method=self.functional,
+                                 version=d3_sdftd3_version)
+            logger.debug("Dispersion via dftd3.pyscf.energy (%s)",
+                         self.dispersion)
+            return mf_disp
+        except Exception:
             pass
 
         # --- Fallback: no dispersion ---
