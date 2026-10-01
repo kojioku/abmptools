@@ -55,6 +55,9 @@ class TestParserFoldsAtomTypes:
 class TestAtomIdIsGlobal:
     @pytest.fixture(scope="class")
     def udf_text(self, tmp_path_factory):
+        # 変換は UDFManager (OCTA 同梱) を使う。無い環境 (GitHub CI) では
+        # 検証できないので飛ばす。子プロセスも同じ sys.executable を使う。
+        pytest.importorskip("UDFManager")
         out = tmp_path_factory.mktemp("udf") / "out.udf"
         rc = subprocess.run(
             [sys.executable, "-m", "abmptools.gro2udf", "--from-top",
