@@ -28,6 +28,8 @@ from .top_parser import TopParser
 from .guard import raise_if_unsupported
 from .top_adapter import TopAdapter
 
+from .molecule_select import select_molecules, subset_frames
+
 logger = logging.getLogger(__name__)
 
 
@@ -544,6 +546,8 @@ class TopExporter:
         nh_dof: str = "3N-3",
         max_frames: Optional[int] = None,
         frame_step: Optional[int] = None,
+        constraints_as_bonds: Optional[float] = None,
+        keep_molecules: Optional[List[str]] = None,
     ) -> None:
         """
         Parse *top_path* + *gro_path*, build :class:`TopModel`, write to *out_path*.
@@ -564,17 +568,45 @@ class TopExporter:
                         gro2udf writes incorrectly (see :mod:`.guard`).
                         Off by default: such a conversion reports success and
                         produces a UDF that is quietly wrong.
+        constraints_as_bonds : force constant (kJ/mol/nm^2) with which to
+                        read ``[ constraints ]`` as harmonic bonds of the
+                        constrained length. ``None`` (default) leaves them
+                        unread, which the guard reports as fatal.
+        keep_molecules : molecule type names to keep (e.g. the solute);
+                        every other instance is left out of the UDF. The
+                        .top / .gro / trajectory are the full originals: the
+                        [ molecules ] order picks the atoms of each frame.
+                        ``None`` (default) keeps everything.
         topology_only : when True, the resulting UDF contains the topology
                         (Set_of_Molecules / Molecular_Attributes / Interactions)
                         but **no** Structure record. Useful when the user
                         loads coordinates from a separate .gro/.xtc and energy
                         from a .xvg directly in OCTA viewer (GOURMET).
         """
-        raw = TopParser().parse(top_path)
+        raw = TopParser(constraints_as_bonds=constraints_as_bonds).parse(top_path)
+        if raw.n_constraints_as_bonds:
+            logger.warning(
+                "%d [ constraints ] read as harmonic bonds (k = %g kJ/mol/nm^2). "
+                "Connectivity and lengths are exact; the force constant is a "
+                "stand-in, since a constraint has none",
+                raw.n_constraints_as_bonds, constraints_as_bonds)
         raise_if_unsupported(raw, raw.sections,
                              allow_unsupported=allow_unsupported,
                              dihedral_functs=raw.dihedral_functs)
+        keep_idx = None
+        n_atoms_full = None
+        if keep_molecules:
+            n_atoms_full = sum(len(raw.atomlist[raw.mol_types.index(m)])
+                               for m in raw.mol_instance_list)
+            n_mols_full = len(raw.mol_instance_list)
+            raw, keep_idx = select_molecules(raw, keep_molecules)
+            logger.warning(
+                "--keep-molecules %s: %d of %d molecules, %d of %d atoms kept",
+                " ".join(keep_molecules), len(raw.mol_instance_list),
+                n_mols_full, len(keep_idx), n_atoms_full)
         model = TopAdapter().build(raw, gro_path, mdp_path=mdp_path)
+        if keep_idx is not None:
+            model.frames = subset_frames(model.frames, keep_idx, n_atoms_full)
 
         # Resolve frames:
         #   --trajectory                          : multi-frame trajectory
@@ -590,6 +622,8 @@ class TopExporter:
             frames: Optional[List[GROFrameData]] = _load_trajectory_frames(
                 trajectory_path, gro_path,
                 max_frames=max_frames, frame_step=frame_step)
+            if keep_idx is not None:
+                frames = subset_frames(frames, keep_idx, n_atoms_full)
             energy_times, energy_series = (
                 _load_energy_series(energy_path) if energy_path else (None, None)
             )
@@ -599,6 +633,8 @@ class TopExporter:
                 initial_model = TopAdapter().build(
                     raw, initial_gro_path, mdp_path=mdp_path)
                 frames = list(initial_model.frames[:1])
+                if keep_idx is not None:
+                    frames = subset_frames(frames, keep_idx, n_atoms_full)
             else:
                 # No initial frame requested -> skeleton UDF with no Structure
                 # record. OCTA viewer will attach trajectories itself.

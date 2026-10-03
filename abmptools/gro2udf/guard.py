@@ -68,7 +68,8 @@ FATAL_SECTIONS: Dict[str, str] = {
         "Pair_Interaction entries whatsoever",
     "constraints":
         "constrained bonds. They carry no force constant to fall back on, so "
-        "the atoms would end up connected by nothing",
+        "the atoms would end up connected by nothing (pass "
+        "--constraints-as-bonds to read them as bonds of the same length)",
 }
 
 #: Dropping these loses real terms, but the loss is an absence rather than a

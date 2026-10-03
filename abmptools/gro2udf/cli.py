@@ -30,6 +30,8 @@ from __future__ import annotations
 import os
 import sys
 
+from .top_parser import DEFAULT_CONSTRAINT_K
+
 #: Built-in fallback template bundled with this package.
 _BUILTIN_TEMPLATE = os.path.join(os.path.dirname(__file__), "default_template.udf")
 
@@ -186,6 +188,38 @@ def _from_top_parser():
                              "and --edr (default: resolved on PATH). Point it "
                              "at your MD environment's gmx when that one is "
                              "not on PATH.")
+    # 値を取らないフラグにする。値を省略できる形 (nargs="?") にすると、
+    # `--constraints-as-bonds system.top conf.gro` の並びで .top のパスを
+    # 力の定数として食べ、「float として不正: system.top」で止まる。力の定数は
+    # 別のオプションに分けた。
+    parser.add_argument("--constraints-as-bonds", dest="constraints_as_bonds",
+                        action="store_true",
+                        help="Read [ constraints ] as harmonic bonds of the "
+                             "constrained length. Without it [ constraints ] is "
+                             "not read, and a molecule held together only by "
+                             "constraints -- common in Martini (rings, small "
+                             "rigid fragments) -- ends up with NO bonds in the "
+                             "UDF. Connectivity and lengths carry over "
+                             "exactly; the force constant is a stand-in "
+                             "(--constraint-k), since a constraint has none.")
+    parser.add_argument("--constraint-k", dest="constraint_k", type=float,
+                        default=None, metavar="K",
+                        help="Force constant for --constraints-as-bonds, "
+                             "kJ/mol/nm^2 (default %g). Only meaningful with "
+                             "--constraints-as-bonds; given alone it is an "
+                             "error rather than silently ignored."
+                             % DEFAULT_CONSTRAINT_K)
+    # 空白区切りで複数取る形 (nargs="+") にすると、後ろに書いた .top / .gro
+    # まで分子名として食べる。カンマ区切りの 1 値にし、繰り返しても足せる。
+    parser.add_argument("--keep-molecules", dest="keep_molecules",
+                        action="append", default=None, metavar="NAME[,NAME...]",
+                        help="Keep only these molecule types ([ moleculetype ] "
+                             "names, comma-separated; may be repeated), e.g. "
+                             "--keep-molecules POL,LIG to drop the solvent. "
+                             "The .top / .gro / trajectory stay the full "
+                             "originals: the [ molecules ] order picks the "
+                             "atoms of every frame. A name that is not in "
+                             "[ molecules ] is an error.")
     parser.add_argument("--allow-unsupported", dest="allow_unsupported",
                         action="store_true",
                         help="Convert even when the .top contains terms "
@@ -200,6 +234,32 @@ def _from_top_parser():
     return parser
 
 
+def _resolve_options(parser, args):
+    """Turn the parsed flags into what TopExporter.export takes.
+
+    Returns ``(constraints_k, keep_molecules)``: the force constant when
+    --constraints-as-bonds is on (``None`` otherwise), and the molecule names
+    from every --keep-molecules, comma-split (``None`` when not given).
+    Contradictions stop here via ``parser.error`` (exit 2, with usage).
+    """
+    if args.constraint_k is not None and not args.constraints_as_bonds:
+        parser.error("--constraint-k only applies with --constraints-as-bonds; "
+                     "add that flag, or drop --constraint-k")
+    constraints_k = None
+    if args.constraints_as_bonds:
+        constraints_k = (DEFAULT_CONSTRAINT_K if args.constraint_k is None
+                         else args.constraint_k)
+
+    keep_molecules = None
+    if args.keep_molecules is not None:
+        keep_molecules = [name.strip()
+                          for item in args.keep_molecules
+                          for name in item.split(",") if name.strip()]
+        if not keep_molecules:
+            parser.error("--keep-molecules needs at least one molecule name")
+    return constraints_k, keep_molecules
+
+
 def _run_from_top(argv: list) -> None:
     """Handle --from-top mode."""
     parser = _from_top_parser()
@@ -207,6 +267,7 @@ def _run_from_top(argv: list) -> None:
     # Strip the --from-top flag from argv before parsing
     filtered = [a for a in argv[1:] if a != "--from-top"]
     args = parser.parse_args(filtered)
+    constraints_k, keep_molecules = _resolve_options(parser, args)
 
     top_path = args.top_path
     gro_path = args.gro_path
@@ -333,6 +394,8 @@ def _run_from_top(argv: list) -> None:
                          max_frames=args.max_frames,
                          frame_step=args.frame_step,
                          allow_unsupported=args.allow_unsupported,
+                         constraints_as_bonds=constraints_k,
+                         keep_molecules=keep_molecules,
                          force_field=args.force_field,
                          nh_dof=args.nh_dof)
     print("Written: {}".format(out_path))

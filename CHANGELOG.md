@@ -2,6 +2,56 @@
 
 ## [Unreleased]
 
+### Added — gro2udf `--keep-molecules`: 指定した分子種だけを UDF に残す
+
+溶媒和した系はほとんどが溶媒で (粗視化の系では粒子の大半が水になる)、全粒子の UDF は
+ビューアで開くのが重い。溶媒を抜くには `.top` を書き換え、`.gro` / `.xtc` も合わせて
+切り出すしかなく、他の人が元のファイルから再現できなかった。
+
+```bash
+python -m abmptools.gro2udf --from-top system.top conf.gro --trajectory md.xtc \
+    --keep-molecules POL,LIG --out solute.udf
+```
+
+- `.top` / `.gro` / 軌跡は元のまま。`[ molecules ]` の並びで各インスタンスの原子が
+  決まるので、gro・軌跡・`--initial-gro` の全フレームを同じ原子番号で切る
+- カンマ区切りの 1 値で、繰り返しても足せる (空白区切りで複数取る形だと、後ろの
+  `.top` / `.gro` まで分子名として食べるため)
+- `[ molecules ]` に無い名前はエラーで止め、系にある分子種と数を表示する
+- フレームの原子数が `.top` と合わなければ止める (別の系の座標を黙って切らない)
+- API は `TopExporter.export(..., keep_molecules=[...])`、選択は
+  `abmptools.gro2udf.molecule_select` (`select_molecules` / `subset_frames`)
+- 埋め込むエネルギー (`--edr` / `--energy`) は系全体のもの、箱は元の系のまま
+  (docs/gro2udf.md に注記)
+- 確認: 実際の溶媒和した粗視化系で、`.top` / `.gro` / `.xtc` を手で切り出して作った
+  UDF と、分子の並び・結合・ポテンシャル・全レコードの座標が一致した
+
+### Added — gro2udf `--constraints-as-bonds`: `[ constraints ]` を結合として読む
+
+`[ constraints ]` は読まれないので、**拘束だけで結合を定義した分子は UDF の中で
+原子が 1 本もつながらない**。Martini では環や小さな剛体部分がこの書き方になり
+（環を拘束だけで組んだ分子で実際に起きた）、
+OCTA viewer (GOURMET) ではばらばらの点として表示される。guard はこれを fatal に
+していたが、直すには `.top` を書き換えるしかなく、**他の人が同じ手順で再現
+できなかった**。
+
+```bash
+python -m abmptools.gro2udf --from-top system.top conf.gro --constraints-as-bonds --out out.udf
+```
+
+- 拘束を同じ長さの調和結合 (funct 1) として読む。つながりと長さは正確に移る。
+  力の定数は代用で、既定 50,000 kJ/mol/nm²。変えるときは `--constraint-k K` を
+  併せて渡す (`--constraint-k` だけだとエラー)。`--constraints-as-bonds` が値を
+  取らないのは、値を省略できる形だと `--constraints-as-bonds system.top conf.gro`
+  の並びで `.top` のパスを K として食べ、「float として不正」で止まったため
+- funct 1 / 2 とも読む。結合と拘束が混ざった分子は両方残る
+- 付けると `[ constraints ]` は guard の fatal から外れる。付けなければ従来どおり
+  止まり、fatal のメッセージがこのオプションを案内する
+- API は `TopParser(constraints_as_bonds=k)` / `TopExporter.export(...,
+  constraints_as_bonds=k)`
+- 確認: 拘束だけで組んだ分子を含む実際の粗視化系で、`.top` を書き換えて拘束を
+  bonds にしたときの UDF と、結合のつながり・ポテンシャル名・R0・K・座標が全て一致した
+
 ## [2.17.0] - 2026-10-01
 
 ### Fixed — `-m pack` 後の `-m post` が IFIE を全部 0 にしていた / 読み直しでデータを上書き・削除していた

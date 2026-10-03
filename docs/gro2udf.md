@@ -149,7 +149,7 @@ abmptools/abmptools/gro2udf/
 |---|---|
 | `[ defaults ]` comb-rule 1 | `[ atomtypes ]` 末尾 2 列は `c6`/`c12` だが σ/ε として読まれる。全 LJ が誤り |
 | `[ nonbond_params ]` に行がある | 明示された非結合ペア全部。Martini はここに全 LJ を置く |
-| `[ constraints ]` に行がある | 拘束結合。力の定数を持たないので、原子が何にも繋がらなくなる |
+| `[ constraints ]` に行がある | 拘束結合。力の定数を持たないので、原子が何にも繋がらなくなる。**`--constraints-as-bonds` で結合として読める** (下記) |
 | bond funct ≠ 1 | funct に関わらず COGNAC `Harmonic` として書かれる |
 | angle funct ≠ 1 | funct に関わらず COGNAC `Theta` として書かれる。Martini の G96 角度 (funct 2) は**力の定数の単位すら違う** (kJ/mol vs kJ/mol/rad²) |
 
@@ -168,6 +168,67 @@ python -m abmptools.gro2udf --from-top martini.top conf.gro --out out.udf
 #   - [ nonbond_params ] has 10 entries but is not read; ...
 #   - angle funct 2 is written as COGNAC Theta regardless ...
 ```
+
+#### `[ constraints ]` を結合として読む（`--constraints-as-bonds`）
+
+拘束だけで結合を定義した分子は、`[ constraints ]` が読まれないので **UDF の中で
+原子が 1 本もつながらない**。Martini では環や小さな剛体部分がこの書き方になる
+（環や小さな剛体部分を、拘束だけで組んだ分子）。
+OCTA viewer (GOURMET) で開くと、その分子はばらばらの点として表示される。
+
+`.top` を書き換えずに済むよう、拘束を**同じ長さの調和結合 (funct 1)** として
+読むオプションがある。
+
+```bash
+python -m abmptools.gro2udf --from-top system.top conf.gro \
+    --constraints-as-bonds \
+    --out out.udf
+# 5 [ constraints ] read as harmonic bonds (k = 50000 kJ/mol/nm^2). ...
+```
+
+- **つながりと長さは正確に移る。** 力の定数は代用の値で、既定は
+  50,000 kJ/mol/nm²（室温の熱エネルギーで長さが ~0.01 nm しか揺れない硬さ）。
+  変えるときは `--constraint-k 200000` を**併せて**渡す。`--constraint-k` だけを
+  渡すとエラーになる（黙って無視しない）
+- `--constraints-as-bonds` は値を取らない。値を省略できる形だと、
+  `--constraints-as-bonds system.top conf.gro` の並びで `.top` のパスを力の定数
+  として食べてしまうため、力の定数を別のオプションに分けた
+- funct 1 と 2 を同じに扱う（どちらも距離を固定する。違いは除外の生成だけ）
+- 付けると `[ constraints ]` は guard の fatal から外れる（失われるものが無くなる）。
+  付けなければ従来どおり fatal で止まり、メッセージがこのオプションを案内する
+- **拘束と調和結合は別物**である。COGNAC で計算を流すときは、K と時間刻みの
+  兼ね合い（硬い結合ほど小さな時間刻みが要る）を自分で確かめること
+
+### 指定した分子だけを残す（`--keep-molecules`）
+
+溶媒和した系はほとんどが溶媒で、粗視化の系では粒子の 3/4 が水ということもある。
+全フレーム・全粒子の UDF はビューアで開くのが重い。**`.top` / `.gro` / 軌跡を元の
+まま**、残す分子種だけを指定できる。
+
+```bash
+python -m abmptools.gro2udf --from-top system.top conf.gro \
+    --trajectory md.gro --skip-nojump \
+    --keep-molecules POL,LIG \
+    --out solute.udf
+# --keep-molecules POL LIG: 3 of 8 molecules, 8 of 13 atoms kept
+```
+
+（`tests/test_gro2udf_keep_molecules.py` の系 —— POL 2 個・LIG 1 個が溶媒 SOL 5 個に
+挟まって並ぶ —— を実際に流した出力。）
+
+- 名前は `[ moleculetype ]` の名前。**カンマ区切りの 1 値**で、オプションを
+  繰り返しても足せる（`--keep-molecules POL --keep-molecules LIG`）。空白区切りで
+  並べる形にすると、後ろに書いた `.top` / `.gro` まで分子名として食べるため
+- `[ molecules ]` の並びで各インスタンスの原子が決まるので、gro・軌跡・
+  `--initial-gro` の全フレームを同じ原子番号で切る。残した分子の順は元のまま
+- `[ molecules ]` に無い名前はエラーで止まり、系にある分子種と数を表示する
+  （打ち間違いで種を黙って落とさない）
+- 力場の定義（原子タイプ・ポテンシャル）は抜いた分子のものも残る。UDF の大きさは
+  ほぼ「残した粒子数 × フレーム数」で決まる
+- **`--edr` / `--energy` で埋め込むエネルギーは系全体のもの**で、残した分子だけの
+  エネルギーではない
+- **箱 (`Unit_Cell`) は元の系のまま**なので、ビューアで密度を見ると、残した分子
+  だけの質量で割った値になる
 
 #### 検出しないもの・その理由
 

@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from ..core.top_atomtypes import fold_atomtypes
 from .guard import scan_dihedral_functs, scan_sections
@@ -99,6 +99,17 @@ class TopRawData:
     # raw text because an unsupported funct is lost during parsing.
     dihedral_functs: List[int] = field(default_factory=list)
 
+    # [ constraints ] lines read as harmonic bonds (TopParser(
+    # constraints_as_bonds=k)). 0 when the option is off.
+    n_constraints_as_bonds: int = 0
+
+
+#: Default force constant for --constraints-as-bonds, kJ/mol/nm^2. A
+#: constraint has none, so any value is a stand-in; this one is stiff enough
+#: that the bond stays at its constrained length to within ~0.01 nm at
+#: room-temperature thermal energy, which is what matters for viewing.
+DEFAULT_CONSTRAINT_K = 50000.0
+
 
 # ---------------------------------------------------------------------------
 # Pure helper functions (module level)
@@ -158,7 +169,22 @@ def is_improper(torsion_1based: List[int], bondlist_mol: List) -> bool:
 # ---------------------------------------------------------------------------
 
 class TopParser:
-    """Parse a GROMACS .top file (with resolved #include ITP) into TopRawData."""
+    """Parse a GROMACS .top file (with resolved #include ITP) into TopRawData.
+
+    Parameters
+    ----------
+    constraints_as_bonds : float, optional
+        When given, every ``[ constraints ]`` line inside a ``[ moleculetype ]``
+        is read as a harmonic bond (funct 1) of the constrained length with
+        this force constant (kJ/mol/nm^2). Without it ``[ constraints ]`` is
+        not read, and a molecule held together only by constraints (common in
+        Martini: rings, small rigid fragments) ends up with **no bonds** in the
+        UDF. A constraint has no force constant, so the value is a stand-in --
+        the connectivity and the length are what carry over exactly.
+    """
+
+    def __init__(self, constraints_as_bonds: Optional[float] = None) -> None:
+        self.constraints_as_bonds = constraints_as_bonds
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -192,6 +218,12 @@ class TopParser:
          raw.bond_types_from_mol,
          raw.angle_types_from_mol,
          raw.torsion_types_from_mol) = self._parse_topology(lines)
+        raw.n_constraints_as_bonds = self._n_constraints_as_bonds
+
+        # The constraints have been carried into the bond list, so nothing in
+        # that section is lost any more: take it off the guard's list.
+        if raw.n_constraints_as_bonds:
+            raw.sections["constraints"] = 0
 
         return raw
 
@@ -407,7 +439,9 @@ class TopParser:
         flg3 = False  # bonds
         flg4 = False  # angles
         flg5 = False  # dihedrals
+        flg_con = False  # constraints (read only with constraints_as_bonds)
         flg_mol = False  # molecules
+        self._n_constraints_as_bonds = 0
 
         mol_types: List[str] = []
         atomlist: List = []
@@ -439,6 +473,8 @@ class TopParser:
             stripped = line.strip()
 
             # --- section headers ---
+            if stripped.startswith("[") and stripped.endswith("]"):
+                flg_con = False
             if "[ moleculetype ]" in stripped:
                 logger.info("reading moleculetype")
                 if mol_types:
@@ -496,6 +532,12 @@ class TopParser:
                 flg1 = flg2 = flg3 = flg4 = flg5 = False
                 flg_mol = True
                 continue
+            elif "[ constraints ]" in stripped:
+                flg1 = flg2 = flg3 = flg4 = flg5 = False
+                flg_con = self.constraints_as_bonds is not None
+                if flg_con:
+                    logger.info("reading constraints as bonds")
+                continue
             elif stripped.startswith("[") and stripped.endswith("]"):
                 # unknown section -- stop current flags
                 flg1 = flg2 = flg3 = flg4 = flg5 = False
@@ -526,6 +568,8 @@ class TopParser:
                         params = []
                         stmp = []
                     flg5 = False
+                elif flg_con:
+                    flg_con = False
                 elif flg_mol:
                     flg_mol = False
                 continue
@@ -633,6 +677,18 @@ class TopParser:
                     atom4 = int(stmp[3])
                     ptype = int(stmp[4])
                     torsionlist_mol.append([atom1, atom2, atom3, atom4, ptype])
+
+            elif flg_con:
+                # ai aj funct b0 -- funct 1 and 2 both fix the distance at b0
+                # (2 only differs in not generating exclusions). Read as a
+                # harmonic bond of that length.
+                body = line.split(";", 1)[0].split()
+                a1, a2, b0 = int(body[0]), int(body[1]), body[3]
+                tidx = self._put_bond_type(
+                    a1, a2, 1, b0, self.constraints_as_bonds, atomlist_mol,
+                    bondtypes_map, bond_types_from_mol)
+                bondlist_mol.append([a1, a2, tidx])
+                self._n_constraints_as_bonds += 1
 
             elif flg_mol:
                 moltype = stmp[0]
