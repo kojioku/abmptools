@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.18.1] - 2026-10-05
+
 ### Fixed — `read_ifiepieda` だけ enhanced PIEDA のヘッダを見ていなかった
 
 PIEDA の列をヘッダから決める修正は `read_pieda` と `logmanager.readifiepieda` に
@@ -9,6 +11,9 @@ PIEDA の列をヘッダから決める修正は `read_pieda` と `logmanager.re
 固定 7 列のままだった。Ver.2 Rev.8 の `&LRD DISP='ON'` 付きログを渡すと
 `getpiedadf` が `7 columns passed, passed data had 8 columns` で止まる。
 同じ `pieda_columns_from_header()` を通すようにした。
+
+確認: ABINIT-MP Ver.2 Rev.8 の拡張 PIEDA の実ログ 55 本で、修正前は 55 本とも
+`getpiedadf` で止まり (8 列 / 9 列)、修正後は 55 本とも読めた。
 
 ## [2.18.0] - 2026-10-03
 
