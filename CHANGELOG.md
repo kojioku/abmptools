@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.19.0] - 2026-10-07
+
 ### Added — gro2udf `--make-whole`: 各フレームの分子を .top の結合でつなぎ直す
 
 `--trajectory` の既定の `gmx trjconv -pbc nojump` では直せない軌跡があった。
