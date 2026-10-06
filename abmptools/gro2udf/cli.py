@@ -176,6 +176,19 @@ def _from_top_parser():
                              "twice changes nothing, so this is about not "
                              "needing gmx), or when there is no gmx here: "
                              "**--trajectory needs gmx unless you pass this.**")
+    parser.add_argument("--make-whole", dest="make_whole", action="store_true",
+                        help="Put every molecule back together in every frame "
+                             "(the .gro and --trajectory) by walking its "
+                             "[ bonds ] and [ constraints ] -- like `gmx "
+                             "trjconv -pbc mol`, but from the .top, so neither "
+                             "gmx nor a .tpr is needed. Use it when the MD "
+                             "output is split across the box in every frame, "
+                             "or frames are so far apart that molecules move "
+                             "half a box between them: -pbc nojump cannot fix "
+                             "either. Replaces the -pbc nojump step, which is "
+                             "then not run. A molecule crossing the box edge "
+                             "moves to the other side between frames, but is "
+                             "never shown split.")
     parser.add_argument("--tpr", dest="tpr_path", default=None,
                         help="Reference for the -pbc nojump step. Optional: "
                              "without it the .gro argument is used, which "
@@ -333,7 +346,12 @@ def _run_from_top(argv: list) -> None:
         raise RuntimeError(
             "--skip-nojump applies to --trajectory, which was not given")
 
-    if trajectory_path and not args.skip_nojump:
+    # --make-whole は nojump の代わり (各フレームを .top の結合で直す)。
+    # 両方かけても害は無いが、gmx を要求する理由が無くなる。
+    if trajectory_path and args.make_whole and not args.skip_nojump:
+        print("Molecules are made whole from the .top (--make-whole); "
+              "-pbc nojump is not run")
+    if trajectory_path and not args.skip_nojump and not args.make_whole:
         from ..trajectory.postprocess import nojump_with_fallback
         # --tpr が無ければ、 位置引数の .gro をそのまま reference にする。
         # -pbc nojump は結合情報を使わないので .gro で成立する。
@@ -396,6 +414,7 @@ def _run_from_top(argv: list) -> None:
                          allow_unsupported=args.allow_unsupported,
                          constraints_as_bonds=constraints_k,
                          keep_molecules=keep_molecules,
+                         make_whole=args.make_whole,
                          force_field=args.force_field,
                          nh_dof=args.nh_dof)
     print("Written: {}".format(out_path))

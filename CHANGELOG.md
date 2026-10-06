@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Added — gro2udf `--make-whole`: 各フレームの分子を .top の結合でつなぎ直す
+
+`--trajectory` の既定の `gmx trjconv -pbc nojump` では直せない軌跡があった。
+nojump は最初のフレームの状態を引き継ぐだけで割れを直さず、フレーム間で原子が
+半箱以上動かないことを前提にしている。粗視化の本番 MD で、**mdrun の出力が全フレームで
+分子が割れていて、出力間隔も粗い** (小分子がフレーム間に半箱動く) と、どちらも崩れて
+分子が裂けたまま UDF に入った。`-pbc mol` は `.tpr` が要り、書いた GROMACS 以上の版で
+ないと読めない。これまでは自前のスクリプトで軌跡を直してから渡すしかなかった。
+
+```bash
+python -m abmptools.gro2udf --from-top system.top conf.gro --trajectory md.xtc --make-whole --out out.udf
+```
+
+- `.top` の `[ bonds ]` と `[ constraints ]` をたどり、各原子を結合相手に最も近い周期像へ
+  移す。フレームごとに独立なので、出力間隔に依らない。gmx も `.tpr` も使わない
+- 付けると nojump は走らない。`.gro`・`--trajectory`・`--initial-gro` の全フレームに効く
+- 座標は箱の整数倍しか動かさない (中間ファイルを書かないので、元の軌跡の精度のまま)
+- `[ constraints ]` はつながりとして常に読むようにした (`TopRawData.constraint_pairs`)。
+  結合として書くかどうかは従来どおり `--constraints-as-bonds` で決まる
+- `--keep-molecules` と併用できる (全系でつなぎ直してから絞り込む)
+- API は `TopExporter.export(..., make_whole=True)`、本体は
+  `abmptools.gro2udf.make_whole` (`unwrap_steps` / `make_frames_whole`)
+- 確認: 実際の粗視化系で、自前のスクリプトで直した軌跡から作った UDF と分子のつながりが
+  一致し、座標は元の軌跡から箱の整数倍だけずれた値になった (ずれ以外の差は float 精度)
+
 ## [2.18.1] - 2026-10-05
 
 ### Fixed — `read_ifiepieda` だけ enhanced PIEDA のヘッダを見ていなかった

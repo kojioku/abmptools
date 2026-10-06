@@ -28,6 +28,7 @@ from .top_parser import TopParser
 from .guard import raise_if_unsupported
 from .top_adapter import TopAdapter
 
+from .make_whole import make_frames_whole, unwrap_steps
 from .molecule_select import select_molecules, subset_frames
 
 logger = logging.getLogger(__name__)
@@ -548,6 +549,7 @@ class TopExporter:
         frame_step: Optional[int] = None,
         constraints_as_bonds: Optional[float] = None,
         keep_molecules: Optional[List[str]] = None,
+        make_whole: bool = False,
     ) -> None:
         """
         Parse *top_path* + *gro_path*, build :class:`TopModel`, write to *out_path*.
@@ -577,6 +579,9 @@ class TopExporter:
                         .top / .gro / trajectory are the full originals: the
                         [ molecules ] order picks the atoms of each frame.
                         ``None`` (default) keeps everything.
+        make_whole    : put every molecule back together in every frame by
+                        walking its [ bonds ] and [ constraints ] (see
+                        :mod:`.make_whole`). Needs neither gmx nor a .tpr.
         topology_only : when True, the resulting UDF contains the topology
                         (Set_of_Molecules / Molecular_Attributes / Interactions)
                         but **no** Structure record. Useful when the user
@@ -594,10 +599,12 @@ class TopExporter:
                              allow_unsupported=allow_unsupported,
                              dihedral_functs=raw.dihedral_functs)
         keep_idx = None
-        n_atoms_full = None
+        n_atoms_full = sum(len(raw.atomlist[raw.mol_types.index(m)])
+                           for m in raw.mol_instance_list)
+        # The walk runs over the full system, before any molecule is dropped:
+        # frames come in with every atom.
+        whole_steps = unwrap_steps(raw) if make_whole else None
         if keep_molecules:
-            n_atoms_full = sum(len(raw.atomlist[raw.mol_types.index(m)])
-                               for m in raw.mol_instance_list)
             n_mols_full = len(raw.mol_instance_list)
             raw, keep_idx = select_molecules(raw, keep_molecules)
             logger.warning(
@@ -605,8 +612,23 @@ class TopExporter:
                 " ".join(keep_molecules), len(raw.mol_instance_list),
                 n_mols_full, len(keep_idx), n_atoms_full)
         model = TopAdapter().build(raw, gro_path, mdp_path=mdp_path)
-        if keep_idx is not None:
-            model.frames = subset_frames(model.frames, keep_idx, n_atoms_full)
+
+        def _prepare(frames):
+            """Make whole (full system), then cut to the kept molecules."""
+            if frames is None:
+                return None
+            if whole_steps is not None:
+                for f in frames:
+                    if len(f.coord_list) != n_atoms_full:
+                        raise ValueError(
+                            "--make-whole: a frame has {} atoms but the .top "
+                            "describes {}".format(len(f.coord_list), n_atoms_full))
+                frames = make_frames_whole(frames, whole_steps)
+            if keep_idx is not None:
+                frames = subset_frames(frames, keep_idx, n_atoms_full)
+            return frames
+
+        model.frames = _prepare(model.frames)
 
         # Resolve frames:
         #   --trajectory                          : multi-frame trajectory
@@ -622,8 +644,7 @@ class TopExporter:
             frames: Optional[List[GROFrameData]] = _load_trajectory_frames(
                 trajectory_path, gro_path,
                 max_frames=max_frames, frame_step=frame_step)
-            if keep_idx is not None:
-                frames = subset_frames(frames, keep_idx, n_atoms_full)
+            frames = _prepare(frames)
             energy_times, energy_series = (
                 _load_energy_series(energy_path) if energy_path else (None, None)
             )
@@ -633,8 +654,7 @@ class TopExporter:
                 initial_model = TopAdapter().build(
                     raw, initial_gro_path, mdp_path=mdp_path)
                 frames = list(initial_model.frames[:1])
-                if keep_idx is not None:
-                    frames = subset_frames(frames, keep_idx, n_atoms_full)
+                frames = _prepare(frames)
             else:
                 # No initial frame requested -> skeleton UDF with no Structure
                 # record. OCTA viewer will attach trajectories itself.

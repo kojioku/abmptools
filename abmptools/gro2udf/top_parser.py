@@ -103,6 +103,11 @@ class TopRawData:
     # constraints_as_bonds=k)). 0 when the option is off.
     n_constraints_as_bonds: int = 0
 
+    # moleculetype name -> [(ai, aj), ...] (1-based) from [ constraints ].
+    # Always read, whether or not they become bonds: they are connectivity,
+    # which --make-whole needs to put a constraint-only molecule together.
+    constraint_pairs: Dict[str, List[Tuple[int, int]]] = field(default_factory=dict)
+
 
 #: Default force constant for --constraints-as-bonds, kJ/mol/nm^2. A
 #: constraint has none, so any value is a stand-in; this one is stiff enough
@@ -219,6 +224,7 @@ class TopParser:
          raw.angle_types_from_mol,
          raw.torsion_types_from_mol) = self._parse_topology(lines)
         raw.n_constraints_as_bonds = self._n_constraints_as_bonds
+        raw.constraint_pairs = self._constraint_pairs
 
         # The constraints have been carried into the bond list, so nothing in
         # that section is lost any more: take it off the guard's list.
@@ -439,9 +445,10 @@ class TopParser:
         flg3 = False  # bonds
         flg4 = False  # angles
         flg5 = False  # dihedrals
-        flg_con = False  # constraints (read only with constraints_as_bonds)
+        flg_con = False  # constraints
         flg_mol = False  # molecules
         self._n_constraints_as_bonds = 0
+        self._constraint_pairs: Dict[str, List[Tuple[int, int]]] = {}
 
         mol_types: List[str] = []
         atomlist: List = []
@@ -534,8 +541,10 @@ class TopParser:
                 continue
             elif "[ constraints ]" in stripped:
                 flg1 = flg2 = flg3 = flg4 = flg5 = False
-                flg_con = self.constraints_as_bonds is not None
-                if flg_con:
+                # Always read for connectivity (constraint_pairs); turned into
+                # bonds only with constraints_as_bonds.
+                flg_con = True
+                if self.constraints_as_bonds is not None:
                     logger.info("reading constraints as bonds")
                 continue
             elif stripped.startswith("[") and stripped.endswith("]"):
@@ -683,12 +692,16 @@ class TopParser:
                 # (2 only differs in not generating exclusions). Read as a
                 # harmonic bond of that length.
                 body = line.split(";", 1)[0].split()
-                a1, a2, b0 = int(body[0]), int(body[1]), body[3]
-                tidx = self._put_bond_type(
-                    a1, a2, 1, b0, self.constraints_as_bonds, atomlist_mol,
-                    bondtypes_map, bond_types_from_mol)
-                bondlist_mol.append([a1, a2, tidx])
-                self._n_constraints_as_bonds += 1
+                a1, a2 = int(body[0]), int(body[1])
+                if mol_types:
+                    self._constraint_pairs.setdefault(
+                        mol_types[-1], []).append((a1, a2))
+                if self.constraints_as_bonds is not None:
+                    tidx = self._put_bond_type(
+                        a1, a2, 1, body[3], self.constraints_as_bonds,
+                        atomlist_mol, bondtypes_map, bond_types_from_mol)
+                    bondlist_mol.append([a1, a2, tidx])
+                    self._n_constraints_as_bonds += 1
 
             elif flg_mol:
                 moltype = stmp[0]

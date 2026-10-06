@@ -199,6 +199,41 @@ python -m abmptools.gro2udf --from-top system.top conf.gro \
 - **拘束と調和結合は別物**である。COGNAC で計算を流すときは、K と時間刻みの
   兼ね合い（硬い結合ほど小さな時間刻みが要る）を自分で確かめること
 
+### 分子をつなぎ直す（`--make-whole`）
+
+`--trajectory` には既定で `gmx trjconv -pbc nojump` がかかる。nojump は原子ごとに
+「前のフレームから箱の半分以上動いていたら、境界で折り返されたとみなして戻す」
+処理で、2 つの前提がある。
+
+| 前提 | 崩れる例 |
+|---|---|
+| **最初のフレームで分子が割れていない**（nojump は基準の状態を引き継ぐだけで、割れを直さない） | mdrun の `.gro` / `.xtc` が全フレームで分子が境界をまたいで割れている |
+| **フレーム間で原子が箱の半分以上は動かない** | 出力間隔が粗く（例: 10 ns ごと）、粗視化の小分子がその間に半箱動く。本当の移動を折り返しと取り違え、分子が箱 1 つ分裂ける |
+
+`gmx trjconv -pbc mol` なら両方を避けられるが `.tpr` が要り、`.tpr` は書いた GROMACS
+以上の版でないと読めない。
+
+`--make-whole` は、`.top` の `[ bonds ]` と `[ constraints ]` をたどって、**各フレームを
+独立に**つなぎ直す（各原子を、結合相手に最も近い周期像へ移す）。gmx も `.tpr` も
+使わない。
+
+```bash
+python -m abmptools.gro2udf --from-top system.top conf.gro \
+    --trajectory md.xtc \
+    --make-whole \
+    --out out.udf
+# Molecules are made whole from the .top (--make-whole); -pbc nojump is not run
+```
+
+- 位置引数の `.gro`・`--trajectory`・`--initial-gro` の全フレームに効く
+- 付けると nojump は走らない（gmx も要らない）
+- **座標は箱の整数倍しか動かさない**。値そのものは丸めないので、元の軌跡の精度のまま
+- `[ constraints ]` は結合として書くかどうか（`--constraints-as-bonds`）に関係なく
+  つながりとして使う。拘束だけでつながった分子もつなぎ直される
+- `--keep-molecules` と併用できる（つなぎ直してから絞り込む）
+- 分子が箱の境界をまたぐと、フレーム間で反対側へ移って見える（割れて見えることはない）
+- 直方体の箱のみ
+
 ### 指定した分子だけを残す（`--keep-molecules`）
 
 溶媒和した系はほとんどが溶媒で、粗視化の系では粒子の 3/4 が水ということもある。
