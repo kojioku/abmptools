@@ -14,7 +14,7 @@ import os
 import re
 from typing import Dict, List, Tuple
 
-from .top_model import GROFrameData
+from .top_model import GROFrameData, gro_box_is_triclinic
 
 
 _GRO_TITLE_RE = re.compile(
@@ -125,6 +125,7 @@ def frames_from_multi_gro(path: str) -> List[GROFrameData]:
             frames.append(GROFrameData(
                 step=step, time=time,
                 coord_list=coords, cell=cell,
+                triclinic=gro_box_is_triclinic(box_parts),
             ))
 
     if not frames:

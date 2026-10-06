@@ -189,3 +189,80 @@ def test_cli_needs_no_gmx_and_the_udf_is_whole(tmp_path, capsys):
         chn, tri = np.asarray(pos[0]), np.asarray(pos[1])        # A
         assert np.linalg.norm(chn[1:] - chn[:-1], axis=1) == pytest.approx([4.0] * 3, abs=0.02)
         assert max(np.linalg.norm(tri[i] - tri[j]) for i, j in [(0, 1), (0, 2), (1, 2)]) < 3.1
+
+
+# --- 三斜晶の箱は止める -------------------------------------------------------
+#: .gro の箱の行は 3 値か 9 値 (v1x v2y v3z v1y v1z v2x v2z v3x v3y)。gro2udf は
+#: 対角の 3 値しか持たないので、非対角を捨てたまま箱ベクトルで原子を動かすと、
+#: 分子のつながりを誤ったまま黙って通る。--make-whole はそこで止める。
+TRICLINIC_BOX = "%10.5f%10.5f%10.5f%10.5f%10.5f%10.5f%10.5f%10.5f%10.5f" % (
+    BOX, BOX, BOX, 0.0, 0.0, 1.0, 0.0, 0.5, 0.5)
+ZERO_OFFDIAG_BOX = "%10.5f%10.5f%10.5f%10.5f%10.5f%10.5f%10.5f%10.5f%10.5f" % (
+    BOX, BOX, BOX, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+
+def _gro_with_box(coords, box_line):
+    lines = _gro(coords).splitlines()
+    lines[-1] = box_line
+    return "\n".join(lines) + "\n"
+
+
+def _export(tmp_path, gro_text, traj_text=None):
+    from abmptools.gro2udf.cli import _BUILTIN_TEMPLATE
+    from abmptools.gro2udf.top_exporter import TopExporter
+    (tmp_path / "w.top").write_text(TOP)
+    (tmp_path / "w.gro").write_text(gro_text)
+    kw = {}
+    if traj_text is not None:
+        (tmp_path / "t.gro").write_text(traj_text)
+        kw["trajectory_path"] = str(tmp_path / "t.gro")
+    TopExporter().export(str(tmp_path / "w.top"), str(tmp_path / "w.gro"),
+                         _BUILTIN_TEMPLATE, str(tmp_path / "w.udf"),
+                         force_field="", make_whole=True,
+                         constraints_as_bonds=50000.0,   # guard を外し、止まる理由を三斜晶だけにする
+                         **kw)
+
+
+class TestTriclinic:
+    def test_triclinic_gro_is_refused(self, tmp_path):
+        gro = _gro_with_box(_wrapped(_whole_coords()), TRICLINIC_BOX)
+        with pytest.raises(ValueError) as e:
+            _export(tmp_path, gro)
+        msg = str(e.value)
+        assert "rectangular boxes only" in msg and "gmx trjconv -pbc mol" in msg
+
+    def test_triclinic_trajectory_frame_is_refused(self, tmp_path):
+        ok = _gro(_wrapped(_whole_coords()))
+        bad = _gro_with_box(_wrapped(_whole_coords()), TRICLINIC_BOX)
+        with pytest.raises(ValueError) as e:
+            _export(tmp_path, ok, traj_text=ok + bad)
+        assert "rectangular boxes only" in str(e.value)
+
+    def test_nine_values_with_zero_off_diagonal_are_fine(self, tmp_path):
+        from abmptools.gro2udf.top_adapter import TopAdapter
+        p = tmp_path / "z.gro"
+        p.write_text(_gro_with_box(_wrapped(_whole_coords(shift=1.5)), ZERO_OFFDIAG_BOX))
+        frames = TopAdapter._read_gro_frames(str(p))
+        assert frames[0].triclinic is False
+        out = make_frames_whole(frames, unwrap_steps(_raw(tmp_path)))[0]
+        assert _bond_lengths(out.coord_list, CHN_BONDS) == pytest.approx([0.4] * 3)
+
+    def test_without_make_whole_triclinic_still_converts(self, tmp_path):
+        """止めるのは --make-whole のときだけ (既存の挙動は変えない)。"""
+        from abmptools.gro2udf.top_adapter import TopAdapter
+        p = tmp_path / "t.gro"
+        p.write_text(_gro_with_box(_whole_coords(), TRICLINIC_BOX))
+        frames = TopAdapter._read_gro_frames(str(p))
+        assert frames[0].triclinic is True
+        assert frames[0].cell == [BOX] * 3
+
+
+@pytest.mark.parametrize("angles,tri", [
+    ((90.0, 90.0, 90.0), False),
+    ((90.0, 90.0, 90.0004), False),       # 単精度の揺れ
+    ((90.0, 90.0, 60.0), True),
+    ((70.53, 109.47, 70.53), True),
+])
+def test_xtc_angles(angles, tri):
+    from abmptools.gro2udf.top_model import angles_are_triclinic
+    assert angles_are_triclinic(*angles) is tri

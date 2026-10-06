@@ -194,6 +194,28 @@ class GROFrameData:
     time: float             # [ps]
     coord_list: List[List[float]]   # [[x,y,z], ...] in [nm], one per atom
     cell: List[float]               # 3 values [nm] (orthogonal box)
+    # True when the source box was not rectangular (a .gro box line with
+    # non-zero off-diagonal terms, or cell angles away from 90 deg). ``cell``
+    # keeps only the diagonal, so anything that moves atoms by box vectors
+    # (--make-whole) must refuse such a frame instead of using the wrong box.
+    triclinic: bool = False
+
+
+#: Off-diagonal box terms [nm] / angle deviation [deg] below which a box is
+#: taken as rectangular (gro writes 5 decimals; xtc stores single precision).
+TRICLINIC_TOL_NM = 1e-6
+TRICLINIC_TOL_DEG = 1e-3
+
+
+def gro_box_is_triclinic(box_vals) -> bool:
+    """A .gro box line: 3 values, or 9 with the 6 off-diagonal terms last."""
+    return len(box_vals) >= 9 and any(
+        abs(float(v)) > TRICLINIC_TOL_NM for v in box_vals[3:9])
+
+
+def angles_are_triclinic(alpha, beta, gamma) -> bool:
+    return any(abs(float(a) - 90.0) > TRICLINIC_TOL_DEG
+               for a in (alpha, beta, gamma))
 
 
 # ---------------------------------------------------------------------------

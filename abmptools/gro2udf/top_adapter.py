@@ -20,6 +20,7 @@ from typing import List, Optional
 from .gro_parser import GROParser
 from .mdp_parser import MdpParams, load_mdp
 from .top_model import (
+    gro_box_is_triclinic,
     EWALD_R_CUTOFF_DEFAULT,
     AtomTypeSpec,
     BondTypeSpec,
@@ -381,6 +382,7 @@ class TopAdapter:
                 time=frame.time,
                 coord_list=coord_list,
                 cell=cell,
+                triclinic=gro_box_is_triclinic(frame.box_vals),
             ))
         return frames
 

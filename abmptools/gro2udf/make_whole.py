@@ -93,6 +93,13 @@ def make_frames_whole(frames: Optional[Sequence[GROFrameData]],
         return None
     out: List[GROFrameData] = []
     for f in frames:
+        if getattr(f, "triclinic", False):
+            raise ValueError(
+                "--make-whole handles rectangular boxes only, and the frame at "
+                "t = {} ps has a triclinic box (only its diagonal reaches "
+                "here, so molecules would be put together with the wrong box). "
+                "Make the molecules whole first with `gmx trjconv -pbc mol` "
+                "and pass that trajectory without --make-whole.".format(f.time))
         x = np.asarray(f.coord_list, dtype=float)
         box = np.asarray(f.cell[:3], dtype=float)
         if np.any(box <= 0):
@@ -102,5 +109,6 @@ def make_frames_whole(frames: Optional[Sequence[GROFrameData]],
             d = x[children] - x[parents]
             x[children] -= np.round(d / box) * box
         out.append(GROFrameData(step=f.step, time=f.time,
-                                coord_list=x.tolist(), cell=f.cell))
+                                coord_list=x.tolist(), cell=f.cell,
+                                triclinic=f.triclinic))
     return out

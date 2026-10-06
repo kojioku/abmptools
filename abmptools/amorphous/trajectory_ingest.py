@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from typing import List, Optional, Tuple
 
-from ..gro2udf.top_model import GROFrameData
+from ..gro2udf.top_model import GROFrameData, angles_are_triclinic
 
 logger = logging.getLogger(__name__)
 
@@ -286,6 +286,7 @@ def frames_from_xtc(
                 time=float(getattr(ts, "time", 0.0)),
                 coord_list=coords_nm,
                 cell=cell_nm,
+                triclinic=angles_are_triclinic(dims[3], dims[4], dims[5]),
             )
         )
     return frames

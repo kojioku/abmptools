@@ -84,5 +84,6 @@ def subset_frames(frames: Optional[Sequence[GROFrameData]],
                 .format(len(f.coord_list), n_atoms_full))
         out.append(GROFrameData(step=f.step, time=f.time,
                                 coord_list=[f.coord_list[i] for i in indices],
-                                cell=f.cell))
+                                cell=f.cell,
+                                triclinic=getattr(f, "triclinic", False)))
     return out

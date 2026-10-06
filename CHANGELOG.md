@@ -22,6 +22,11 @@ python -m abmptools.gro2udf --from-top system.top conf.gro --trajectory md.xtc -
 - `[ constraints ]` はつながりとして常に読むようにした (`TopRawData.constraint_pairs`)。
   結合として書くかどうかは従来どおり `--constraints-as-bonds` で決まる
 - `--keep-molecules` と併用できる (全系でつなぎ直してから絞り込む)
+- **三斜晶の箱はエラーで止める** (`.gro` の箱が 9 値で非対角が 0 でない / `.xtc` の
+  角度が 90° から外れている)。gro2udf は箱の対角しか持たないので、黙って動かすと
+  つながりを誤る。各フレームに `GROFrameData.triclinic` を持たせ、読み込み側
+  (`.gro`、多フレーム `.gro`、`.xtc`) で立てる。`--make-whole` を付けないときの
+  挙動は変えていない
 - API は `TopExporter.export(..., make_whole=True)`、本体は
   `abmptools.gro2udf.make_whole` (`unwrap_steps` / `make_frames_whole`)
 - 確認: 実際の粗視化系で、自前のスクリプトで直した軌跡から作った UDF と分子のつながりが
