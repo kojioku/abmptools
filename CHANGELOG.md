@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed — 作者のメールアドレスをパッケージ情報・CITATION・README から外した
+
+PyPI に出るパッケージ情報 (`Author-email`)、`CITATION.cff`、README の作者欄から
+メールアドレスを外した。連絡は GitHub の Issues で。既に公開した版 (2.19.0 以前) の
+パッケージ情報には残っている。
+
 ## [2.19.0] - 2026-10-07
 
 ### Added — gro2udf `--make-whole`: 各フレームの分子を .top の結合でつなぎ直す

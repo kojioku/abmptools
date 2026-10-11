@@ -17,7 +17,6 @@ type: software
 authors:
   - family-names: Okuwaki
     given-names: Koji
-    email: koujioku81@gmail.com
     affiliation: ABMPTools project
 repository-code: "https://github.com/kojioku/abmptools"
 url: "https://github.com/kojioku/abmptools"

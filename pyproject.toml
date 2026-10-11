@@ -9,7 +9,7 @@ description = "Pre/post-processing and analysis toolkit for ABINIT-MP Fragment M
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "Apache-2.0"
 authors = [
-    {name = "Koji Okuwaki", email = "koujioku81@gmail.com"},
+    {name = "Koji Okuwaki"},
 ]
 requires-python = ">=3.8"
 dependencies = [

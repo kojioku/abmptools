@@ -214,4 +214,4 @@ release tag; until then, use:
 
 ## Author
 
-[Koji Okuwaki](mailto:koujioku81@gmail.com)
+Koji Okuwaki ([GitHub](https://github.com/kojioku))
