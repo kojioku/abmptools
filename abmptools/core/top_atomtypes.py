@@ -20,6 +20,13 @@ OpenFF Interchange は SMIRNOFF に atom type の概念が無いので、**原�
 
 名前について: GAFF 風の名前は騙らない。SMIRNOFF から本物の GAFF 型は
 復元できないので、元素記号 + 連番という「由来を主張しない」名前にする。
+
+**畳むのは Interchange 流の原子ごとの型 (``<名前>_<数字>``) だけ。**
+GAFF2 の ``c3`` と ``c6`` のように、本物の力場の型どうしでもパラメータ列が
+一致することがある。以前はそれも畳み、**その top の型を全部** ``C1`` /
+``O1`` … に付け替えていた (エラーは出ない)。力場の型名を手がかりにする
+受け手 (UDF の型の欄で力場を判別するもの) がそれで型を失う。``opls_267``
+のような OPLS の型も ``_<数字>`` で終わるが、本物の型なので畳まない。
 """
 from __future__ import annotations
 
@@ -44,6 +51,15 @@ _SYMBOLS = {
 }
 
 _SECTION_RE = re.compile(r"^\s*\[\s*([A-Za-z_]+)\s*\]")
+
+#: Interchange が原子ごとに付ける型名 (``MOL0_4`` / ``methane_4``)。
+_PER_ATOM_TYPE_RE = re.compile(r"^\S+_\d+$")
+#: ``_<数字>`` で終わるが本物の力場の型。
+_REAL_TYPE_RE = re.compile(r"^opls_\d+$", re.IGNORECASE)
+
+
+def _is_per_atom_type(name: str) -> bool:
+    return bool(_PER_ATOM_TYPE_RE.match(name)) and not _REAL_TYPE_RE.match(name)
 
 
 def _strip_comment(line: str) -> str:
@@ -100,6 +116,8 @@ def fold_atomtypes(text: str) -> Tuple[str, Dict[str, str]]:
         fields = body.split()
         if len(fields) < 2:
             continue
+        if not _is_per_atom_type(fields[0]):
+            continue                    # 力場の型: 名前ごと残す
         entries.append((i, fields[0], tuple(fields[1:])))
 
     if not entries:
@@ -146,9 +164,10 @@ def fold_atomtypes(text: str) -> Tuple[str, Dict[str, str]]:
             body = _strip_comment(line).strip()
             if body:
                 f = body.split()
-                f[0] = mapping[f[0]]
-                out.append("  ".join(f))
-                continue
+                if f[0] in mapping:
+                    f[0] = mapping[f[0]]
+                    out.append("  ".join(f))
+                    continue
         elif section == "atoms":
             body = _strip_comment(line)
             if body.strip():

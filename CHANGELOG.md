@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Fixed — gro2udf: GAFF2 などの力場の型名を C1 / O1 に付け替えていた
+
+`.top` を読むときに `[ atomtypes ]` の重複を畳む処理 (openff-interchange が原子ごとに
+1 型を書くことへの対策) が、本物の力場の型にも効いていた。GAFF2 の `c3` と `c6` は
+LJ も質量も同じなので、β-シクロデキストリンの `.top` では重複と見なされ、**その top の
+型が全部** `oh`→`O1`、`c3`/`c6`→`C1` … に付け替わって UDF に入った (エラーも警告も無い)。
+力場のパラメータは変わらないが、UDF の型の欄から力場の型名が消える。
+畳むのを Interchange 流の名前 (`<名前>_<数字>`) の型に限り、`opls_267` のような
+OPLS の型も除いた。Interchange の `.top` の畳み方は変わらない。
+
 ### Changed — 作者のメールアドレスをパッケージ情報・CITATION・README から外した
 
 PyPI に出るパッケージ情報 (`Author-email`)、`CITATION.cff`、README の作者欄から

@@ -119,6 +119,53 @@ def test_no_duplicates_is_a_no_op():
     assert out == single
 
 
+# GAFF2 の c3 と c6 は LJ も質量も同じ (hostguest の β-CD で出る)
+GAFF = textwrap.dedent("""\
+    [ defaults ]
+    1 2 yes 0.5 0.8333
+
+    [ atomtypes ]
+    ;name  at.num  mass     charge  ptype  sigma       epsilon
+    c3     6       12.01    0.0     A      0.33977095  0.4510352
+    c6     6       12.01    0.0     A      0.33977095  0.4510352
+    oh     8       16.00    0.0     A      0.32428713  0.389112
+    opls_135  6    12.011   0.0     A      0.35        0.276144
+    opls_136  6    12.011   0.0     A      0.35        0.276144
+
+    [ moleculetype ]
+    MOL  3
+
+    [ atoms ]
+    ;  nr  type      resnr  residue  atom  cgnr  charge   mass
+       1   c3        1      MOL      C1    1     -0.1     12.01
+       2   c6        1      MOL      C2    2     -0.2     12.01
+       3   oh        1      MOL      O1    3      0.3     16.00
+       4   opls_135  1      MOL      C3    4      0.0     12.011
+       5   opls_136  1      MOL      C4    5      0.0     12.011
+
+    [ system ]
+    x
+
+    [ molecules ]
+    MOL 1
+    """)
+
+
+def test_force_field_types_keep_their_names():
+    # Identical parameters, but they are the force field's own types:
+    # folding them renamed every type in the top to C1 / O1.
+    text, mapping = fold_atomtypes(GAFF)
+    assert mapping == {}
+    assert _atomtype_names(text) == ["c3", "c6", "oh", "opls_135", "opls_136"]
+
+
+def test_only_per_atom_types_fold_in_a_mixed_top():
+    mixed = MINIMAL.replace("M_2    8", "c3     6       12.011   0.0     A      0.34    0.36\nM_2    8")
+    text, mapping = fold_atomtypes(mixed)
+    assert "c3" in _atomtype_names(text) and "c3" not in mapping
+    assert mapping["M_0"] == mapping["M_1"]
+
+
 @pytest.mark.skipif(shutil.which("gmx") is None, reason="gmx が無い")
 def test_energy_is_unchanged(tmp_path):
     """**本命**: grompp + 0 step で全エネルギー項が一致すること。
