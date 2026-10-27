@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.19.1] - 2026-10-28
+
 ### Fixed — gro2udf: GAFF2 などの力場の型名を C1 / O1 に付け替えていた
 
 `.top` を読むときに `[ atomtypes ]` の重複を畳む処理 (openff-interchange が原子ごとに
