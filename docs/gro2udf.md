@@ -644,16 +644,17 @@ python -m abmptools.gro2udf --from-top system.top md/prod.gro \
     --gmx /opt/gromacs/bin/gmx --out prod.udf
 ```
 
-- **MD 環境付属の gmx** (conda 環境、J-OCTA 同梱など) は PATH に出ていない
+- **MD 環境付属の gmx** (conda 環境、OCTA 系の GUI に同梱のものなど) は PATH に出ていない
   ことが多いので、そのときはここで指してください
-- **Windows** は J-OCTA 同梱の GROMACS が使えます
-  (`C:\J-OCTA-<版>\additional\GROMACS\bin\gmx.exe`)。`-s` に `.gro` を
+- **Windows** は、GROMACS を同梱した OCTA 系の GUI があればそれが使えます
+  (`<GUI のインストール先>\additional\GROMACS\bin\gmx.exe`)。`-s` に `.gro` を
   渡す経路では `GMXLIB` も要るので、同じ木の `share\top` を指してください ——
   指していないと `residuetypes.dat not found` で止まります
 
   ```bat
-  set "PATH=C:\J-OCTA-12.0\additional\GROMACS\bin;%PATH%"
-  set "GMXLIB=C:\J-OCTA-12.0\additional\GROMACS\share\top"
+  set "GUI=<GUI のインストール先>"
+  set "PATH=%GUI%\additional\GROMACS\bin;%PATH%"
+  set "GMXLIB=%GUI%\additional\GROMACS\share\top"
   ```
 
 - gmx が見つからないときのメッセージには、**`--skip-nojump` で止められる**

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Changed — docs: 特定の GUI 製品に依らない書き方に
+
+- `docs/INSTALL.md` §6 を短くした。UDFManager は OCTA (GOURMET) に含まれ、OCTA に
+  同梱の Python から使うか、§6.1 の方法で手元の Python に通す。特定の GUI 製品の
+  Python から使う経路 (旧 §6.2 / §6.3: `--user --no-deps`、venv と constraints) は
+  abmptools の文書から外した
+- `docs/gro2udf.md` の Windows の gmx、`NOTICE` の DPDgen の説明、この CHANGELOG の
+  過去の項目を、製品名を出さない表現に直した
+- `sample/log2config/print0-test/V2R8_nprint0.log` の謝辞の行の組織名 1 つを伏せ字に
+
 ### Fixed — amorphous: 温度結合が 2 群以上のアニールで grompp が止まっていた
 
 `tc-grps` が 2 群以上 (薬物 + ポリマーの非晶質固体分散体など) で `04_anneal.mdp` を作ると、
@@ -644,7 +654,7 @@ python -m abmptools.amorphous --help
 ```
 
 `amorphous` と `udf2gro` の両方。**2.14.1 でも同じ**で、今回の回帰では
-ない。J-OCTA のコンソールは既定 cp932 なので、**「`--help` を見てください」
+ない。Windows の GUI 同梱の Python のコンソールは既定 cp932 なので、**「`--help` を見てください」
 と案内している経路が落ちる**。
 
 **日本語そのものは cp932 で出せる。** 落ちるのは `—` `Å` `≈` のような記号
@@ -675,9 +685,9 @@ help に載っていない** (2026-09-16、利用者の指摘)。
 `--trajectory` / `--energy` を載せた。
 
 
-### Fixed — `[ atoms ]` に質量を書く (J-OCTA の CG 誤認の**本命**)
+### Fixed — `[ atoms ]` に質量を書く (GUI 側の読み込みでの CG 誤認の**本命**)
 
-**`[ atomtypes ]` に `at.num` を足しただけでは直らなかった。** J-OCTA の
+**`[ atomtypes ]` に `at.num` を足しただけでは直らなかった。** GUI 側の
 `convert_gromacs_udf.py` は、その列を**コメントアウトして読んでいない**
 (11.1 / 12.0 とも)。右から数える実装なので 6 列でも 7 列でも動くが、
 **原子番号の値は捨てられる**。
@@ -701,7 +711,7 @@ if len(stmp) > 7:                   # [ atoms ] が 8 列以上のときだけ
 
 ### Fixed — `udf2gro` の `[ atomtypes ]` に原子番号が無かった
 
-**J-OCTA の CG 誤認を追う過程で見つけた**が、**これは原因ではなかった**
+**GUI 側の CG 誤認を追う過程で見つけた**が、**これは原因ではなかった**
 (上の `[ atoms ]` の質量列が本命)。原子番号が無いこと自体は、
 他の読み手にとっては情報の欠落なので直しておく。
 
@@ -790,7 +800,7 @@ UTF-8 の `.top` を読むと落ちる**。
 UnicodeDecodeError: 'cp932' codec can't decode byte 0x87 in position 2874
 ```
 
-J-OCTA 11.1 / 12.0 の**どちらでも再現** (2026-09-13 実機)。`PYTHONUTF8=1` で
+GUI 同梱の Python 3.10 / 3.11 の**どちらでも再現** (2026-09-13 実機)。`PYTHONUTF8=1` で
 回避できるが、それを知らないと機能ごと使えない。**`moldeck.hbond` の `.top`
 経路はこのパーサを通る**ので、そこが丸ごと落ちる。
 
@@ -810,8 +820,8 @@ extra が **`rdkit-pypi`** を指していた。これは旧名で、**2022.9.5 
 出ていて cp311 wheel がある。`rdkit>=2022.09` に変更。同じ upstream なので
 API 差分は無い。
 
-J-OCTA 12.0 は Python 3.11 なので、そこで `pip install abmptools[rdkit]` を
-する人が踏む (12.0 は rdkit 2026.3.3 を同梱しているので、同梱環境では不要)。
+GUI 同梱の Python が 3.11 の版では、そこで `pip install abmptools[rdkit]` を
+する人が踏む (その版は rdkit 2026.3.3 を同梱しているので、同梱環境では不要)。
 
 ### Docs — `2π` が付く理由と、COGNAC 0.1 ps → GROMACS 0.628 ps の具体例
 
