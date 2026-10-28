@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.19.2] - 2026-10-28
+
 ### Changed — docs: 特定の GUI 製品に依らない書き方に
 
 - `docs/INSTALL.md` §6 を短くした。UDFManager は OCTA (GOURMET) に含まれ、OCTA に
