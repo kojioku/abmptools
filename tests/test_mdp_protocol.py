@@ -259,3 +259,17 @@ def test_write_udf_export_script_is_executable(tmp_path):
     path = write_udf_export_script(str(tmp_path))
     mode = os.stat(path).st_mode
     assert mode & stat.S_IXUSR
+
+
+def test_multigroup_anneal_sets_the_ensemble_temperature():
+    # Two T-coupling groups + annealing: GROMACS 2024+ grompp stops unless
+    # the ensemble temperature is given (checked on 2025.2 and 2026.3).
+    from abmptools.amorphous.mdp_protocol import generate_anneal_mdp
+    proto = AnnealProtocol(T_high=500.0, T_low=300.0)
+    two = generate_anneal_mdp(proto, tc_grps="IMC PVP")
+    lines = {l.split("=")[0].strip(): l.split("=", 1)[1].strip()
+             for l in two.splitlines() if "=" in l and not l.lstrip().startswith(";")}
+    assert lines["ensemble-temperature-setting"] == "constant"
+    assert float(lines["ensemble-temperature"]) == 500.0      # = ref-t, no warning
+    one = generate_anneal_mdp(proto, tc_grps="System")
+    assert "ensemble-temperature" not in one

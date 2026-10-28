@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### Fixed — amorphous: 温度結合が 2 群以上のアニールで grompp が止まっていた
+
+`tc-grps` が 2 群以上 (薬物 + ポリマーの非晶質固体分散体など) で `04_anneal.mdp` を作ると、
+GROMACS 2024 以降の grompp が「Simulated tempering is used with multiple T-coupling groups:
+setting the ensemble temperature ...」で止まり、`run_all.sh` は 4 段目から先に進めなかった
+(2025.2・2025.4・2026.0・2026.3 で同じ)。アニールで参照温度が変わり、群が複数あると
+GROMACS が ensemble temperature を自分で決められないため。
+
+- 群が 2 つ以上のときだけ `ensemble-temperature-setting = constant` と
+  `ensemble-temperature = <T_high>` を書く。値を参照温度 (`ref-t` = T_high) にしたのは、
+  別の値だと「does not match the reference」の警告になるため。1 群のときは書かない
+  (これまでどおり通る)
+- GROMACS 2024 より前はこの 2 つのキーを知らず「Unknown left-hand」の警告が 2 件出る。
+  `run_all.sh` の `-maxwarn 2` の範囲に収まる (2021.3 で確認)
+- 確認: 生成した `04_anneal.mdp` が 2 群の系 (インドメタシン + PVP) で、2021.3 / 2025.2 /
+  2025.4 / 2026.0 / 2026.3 のどれでも `-maxwarn 2` の grompp を通る (2025 以降は警告 0)
+
 ## [2.19.1] - 2026-10-28
 
 ### Fixed — gro2udf: GAFF2 などの力場の型名を C1 / O1 に付け替えていた

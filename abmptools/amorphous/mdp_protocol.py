@@ -227,6 +227,16 @@ def generate_anneal_mdp(protocol: AnnealProtocol,
     params["annealing-temp"] = " ".join(
         [f"{protocol.T_high} {protocol.T_low}"] * n_groups
     )
+    # With more than one T-coupling group and annealing, GROMACS 2024 and
+    # later cannot set the ensemble temperature itself and grompp stops
+    # ("Simulated tempering is used with multiple T-coupling groups ...").
+    # It is set to the reference temperature, T_high: another value gives
+    # a "does not match the reference" warning. GROMACS before 2024 does
+    # not know the two keys and warns twice ("Unknown left-hand"), within
+    # the run script's -maxwarn 2. One group needs neither.
+    if n_groups > 1:
+        params["ensemble-temperature-setting"] = "constant"
+        params["ensemble-temperature"] = protocol.T_high
     return _format_mdp(params, title="Simulated annealing")
 
 
