@@ -54,8 +54,7 @@ def test_atoms_carry_the_mass_column():
     """`[ atoms ]` の 8 列目に質量を出すこと。
 
     GROMACS では省略可 —— 無ければ `[ atomtypes ]` から引く、という規約。
-    **受け取る側の importer はその規約を実装していない。**
-    `convert_gromacs_udf.py:238-246` は
+    **`.top` を読む受け手側の変換はその規約を実装していない。** その変換は
 
         if len(stmp) > 7:
             mass = float(stmp[7])

@@ -1498,7 +1498,7 @@ class UdfAdapter:
             L    = max(a, b, c)                       [nm]
             beta = .mdp に書く compressibility         [nm^3 mol / kJ]
 
-        ``Cell_Mass`` はスキーマ上 ``[mass]`` (``def_udf/cognac*.udf``)。
+        ``Cell_Mass`` はスキーマ上 ``[mass]`` (無償 OCTA の ``ENGINES/udf/cognac*.udf``)。
         ``Q`` と違って ``sigma^2`` は掛けない。
 
         **根拠**。 どちらの側も ``tau_p`` は箱の振動の周期なので、 周期どうしを
