@@ -50,8 +50,12 @@ def amber_phase_to_gromacs(phase: float, trans_is_0: int) -> float:
     far -- the ones gro2udf writes, and GAFF2 torsions assigned by another
     program -- carry AMBER's own phase with ``trans_is_0 = 1`` all the same
     (X-c3-n3-X: phase 0, as in gaff2.dat). Taken literally, every odd
-    multiplicity would flip. So the phase passes unchanged whatever the flag,
-    until it is checked against an engine's energy for the same file.
+    multiplicity would flip. So the phase passes unchanged whatever the flag.
+
+    Checked on a GAFF2-typed benzoic acid UDF (ho-oh-c-o: 1.9, n = 1, phase
+    0, trans_is_0 = 1): passed through, the proper-dihedral energy is that of
+    the same molecule typed by antechamber (15.9933 vs 15.9955 kJ/mol); with
+    180 degrees added it is 791.9 kJ/mol.
     """
     return float(phase)
 
@@ -451,6 +455,7 @@ class UdfAdapter:
             for i in range(mol_num)
         )
         self._check_potential_types()
+        self._proper_torsions = set()       # filled by _build_dihedrals
 
         # --- OPLS detection ---
         totallyOPLS, partiallyOPLS = self._detect_opls()
@@ -661,11 +666,16 @@ class UdfAdapter:
         """Torsions may carry their own 1-4 scales (``SCNB`` / ``SCEE`` in
         ``User_Torsion.Parameters[]``). Stop when they disagree with the
         pairs' scale or the electrostatics' -- there is no telling which one
-        the source meant."""
+        the source meant.
+
+        Only the potentials of proper torsions count: an improper makes no
+        1-4 pair, and UDFs give impropers 1.0 next to 0.5 on the propers."""
         udf = self._udf
         loc = "Molecular_Attributes.Torsion_Potential[]"
         found = {"SCNB": set(), "SCEE": set()}
         for j in range(udf.size(loc)):
+            if str(udf.get(loc + ".Name", [j])) not in self._proper_torsions:
+                continue
             for item in udf.get(loc + ".User_Torsion.Parameters[]", [j]) or []:
                 name, value = str(item[0]), item[1]
                 if name in found:
@@ -1125,10 +1135,9 @@ class UdfAdapter:
                     # written as a proper.
                     if not _is_proper(a1, a2, a3, a4, bonded):
                         funct = "4"
-                    elif ":" in name:
-                        funct = "9"
                     else:
-                        funct = "1"
+                        self._proper_torsions.add(name)
+                        funct = "9" if ":" in name else "1"
                     pk    = udf.get("Molecular_Attributes.Torsion_Potential[].Amber.PK",    [j], "[kJ/mol]")
                     idivf = udf.get("Molecular_Attributes.Torsion_Potential[].Amber.IDIVF", [j])
                     pn    = udf.get("Molecular_Attributes.Torsion_Potential[].Amber.PN",    [j])
