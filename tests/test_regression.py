@@ -233,7 +233,12 @@ def test_udf2gro(tmp_path):
     nothing. It has been edited once since, deliberately: `[ atomtypes ]`
     gained the atomic number column, because without it an importer cannot
     tell an all-atom system from coarse-grained beads and the importer read one as
-    the other. Any further edit to this file needs the same kind of reason.
+    the other. Edited a second time for the six aromatic-H impropers of this
+    UDF: they were written as function 1 (proper) and are now function 4. Same
+    atoms, same parameters, same functional form -- the 0-step energy is
+    unchanged (proper + improper 1.0354 kJ/mol either way); GROMACS now counts
+    them as "Per. Imp. Dih." instead of "Proper Dih.". Any further edit to
+    this file needs the same kind of reason.
     """
     udf_src = os.path.join(SAMPLE_DIR, "udf2gro", "input", "test.udf")
     shutil.copy(udf_src, tmp_path / "test.udf")
