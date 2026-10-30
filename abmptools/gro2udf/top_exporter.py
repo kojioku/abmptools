@@ -21,7 +21,7 @@ import os
 import shutil
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Sequence
 
 from .top_model import KB_AMU_A2_PS2_K, GROFrameData, TopModel
 from .top_parser import TopParser
@@ -543,7 +543,7 @@ class TopExporter:
         trajectory_path: Optional[str] = None,
         energy_path: Optional[str] = None,
         allow_unsupported: bool = False,
-        force_field: Optional[str] = "gaff",
+        force_field: Optional[str] = "auto",
         nh_dof: str = "3N-3",
         max_frames: Optional[int] = None,
         frame_step: Optional[int] = None,
@@ -666,13 +666,15 @@ class TopExporter:
             energy_series = None
             energy_times = None
 
-        self.export_model(model, template_path, out_path,
-                          frames=frames,
-                          cognac_version=cognac_version,
-                          force_field=force_field,
-                          nh_dof=nh_dof,
-                          energy_times=energy_times,
-                          energy_series=energy_series)
+        from .ff_detect import include_names
+        return self.export_model(model, template_path, out_path,
+                                 frames=frames,
+                                 cognac_version=cognac_version,
+                                 force_field=force_field,
+                                 nh_dof=nh_dof,
+                                 energy_times=energy_times,
+                                 energy_series=energy_series,
+                                 ff_includes=include_names(top_path))
 
     def export_model(
         self,
@@ -683,11 +685,19 @@ class TopExporter:
         cognac_version: Optional[str] = None,
         energy_times: Optional[List[float]] = None,
         energy_series: Optional[dict] = None,
-        force_field: Optional[str] = "gaff",
+        force_field: Optional[str] = "auto",
         nh_dof: str = "3N-3",
-    ) -> None:
+        ff_includes: Sequence[str] = (),
+    ):
         """
         Write *model* into a new UDF at *out_path* using *template_path* as schema.
+
+        *force_field* is written as ``FF=n`` in ``Unit_Parameter.Comment``: a
+        gro2udf name (``gaff2``, ``amber`` ...), a number, ``""`` to leave it
+        unset, or ``"auto"`` (default) to name it from the topology
+        (:mod:`.ff_detect`; *ff_includes* are the ``#include`` names, which
+        :meth:`export` collects). Returns the :class:`~.ff_detect.FFDecision`,
+        also kept as ``self.force_field_decision``.
 
         Steps (UDF sections must be written in this order):
         1. copy template → out_path
@@ -784,7 +794,9 @@ class TopExporter:
 
         with _section("force-field-id", template_path, out_path):
             from .udf_writer import set_force_field_comment
-            set_force_field_comment(uobj, force_field)
+            decision = self._decide_force_field(model, force_field, ff_includes)
+            if decision.name:
+                set_force_field_comment(uobj, decision.name)
 
         with _section("default_condition", template_path, out_path):
             self._set_default_condition(uobj, model, nh_dof=nh_dof)
@@ -792,6 +804,39 @@ class TopExporter:
             self._write_molecular_attributes(uobj, model)
         with _section("Interactions", template_path, out_path):
             self._write_interactions(uobj, model)
+        return self.force_field_decision
+
+    # -------------------------------------------------------------------------
+    # Force-field id
+    # -------------------------------------------------------------------------
+
+    def _decide_force_field(self, model, force_field, includes):
+        """Resolve ``"auto"``; log one line a caller (or a GUI) can show:
+
+        ``force field: gaff2 (FF=3), from the topology: ...`` or
+        ``force field: not written (...). Name it with --ff <name>``.
+        """
+        from .ff_detect import FFDecision, detect
+        from .udf_writer import ff_comment
+        if force_field is not None and str(force_field).strip().lower() == "auto":
+            decision = detect(model, includes)
+            if decision.name:
+                logger.info("force field: %s (%s), from the topology: %s",
+                            decision.name, ff_comment(decision.name), decision.summary())
+            else:
+                logger.warning(
+                    "force field: not written (%s). Name it with --ff <name> "
+                    "(gaff, gaff2, amber, amber20, oplsaa, ... or a number). "
+                    "Evidence: %s", "; ".join(decision.reasons), decision.summary())
+        else:
+            name = None if force_field is None or not str(force_field).strip() else str(force_field)
+            decision = FFDecision(name, {"given": ["--ff %s" % force_field]} if name else {},
+                                  [] if name else ["--ff '' (left unset)"])
+            if name:
+                ff_comment(name)        # an unknown name stops here, as before
+                logger.info("force field: %s (%s), as given", name, ff_comment(name))
+        self.force_field_decision = decision
+        return decision
 
     # -------------------------------------------------------------------------
     # Writing helpers - one per UDF section

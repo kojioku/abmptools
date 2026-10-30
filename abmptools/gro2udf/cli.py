@@ -74,15 +74,18 @@ def _from_top_parser():
                              "and reproduces its output exactly. The "
                              "difference in Q is 0.03%% at 3050 atoms and "
                              "0.6%% at 80.")
-    parser.add_argument("--ff", dest="force_field", default="gaff",
+    parser.add_argument("--ff", dest="force_field", default="auto",
                         help="Force field to declare in Unit_Parameter.Comment "
-                             "as FF=n, where downstream converters read it. A .top "
-                             "does not say which force field it came from, so "
-                             "it has to be named here. Accepts gaff (default), "
-                             "gaff2, amber, amber20, dreiding, uff, oplsaa, "
-                             "loplsaa, loplsaa2023, pcff, a bare number, or "
-                             "'' to leave it unset. An existing value in the "
-                             "template is kept.")
+                             "as FF=n, where downstream converters read it. "
+                             "auto (default) names it from the topology: its "
+                             "#include names, its atom types (GAFF and GAFF2 told "
+                             "apart by their Lennard-Jones values) and [ defaults ]; "
+                             "when no single force field fits (two of them, or no "
+                             "evidence) nothing is written and the reason is "
+                             "printed. Or name it: gaff, gaff2, amber, amber20, "
+                             "dreiding, uff, oplsaa, loplsaa, loplsaa2023, pcff, "
+                             "a bare number, or '' to leave it unset. An existing "
+                             "value in the template is kept.")
     parser.add_argument("--template", dest="template_path", default=None,
                         help="Existing COGNAC UDF file (schema template). "
                              "Defaults to the built-in template; a .udf next to the "
@@ -402,7 +405,7 @@ def _run_from_top(argv: list) -> None:
         print("Energy dumped: {}".format(energy_path))
 
     from .top_exporter import TopExporter
-    TopExporter().export(top_path, gro_path, template_path, out_path,
+    decision = TopExporter().export(top_path, gro_path, template_path, out_path,
                          mdp_path=args.mdp_path,
                          cognac_version=args.cognac_version,
                          topology_only=args.topology_only,
@@ -418,6 +421,7 @@ def _run_from_top(argv: list) -> None:
                          force_field=args.force_field,
                          nh_dof=args.nh_dof)
     print("Written: {}".format(out_path))
+    print(_force_field_line(decision, args.force_field))
     if args.topology_only:
         if args.initial_gro_path:
             print(f"  (topology + 1 initial frame from {args.initial_gro_path!s}. "
@@ -452,6 +456,18 @@ def _usage(argv) -> None:
     print("place this needs gmx; --skip-nojump leaves the trajectory alone.")
     print()
     print(_from_top_parser().format_help())
+
+
+def _force_field_line(decision, requested) -> str:
+    """One line on what went into Unit_Parameter.Comment, for the log a GUI shows."""
+    from .udf_writer import ff_comment
+    if decision is None:
+        return "Force field: (not decided)"
+    if decision.name:
+        how = "decided from the topology" if str(requested).strip().lower() == "auto" else "as given"
+        return "Force field: {} ({}), {}".format(decision.name, ff_comment(decision.name), how)
+    return ("Force field: not written ({}). Name it with --ff <name>."
+            .format("; ".join(decision.reasons) or "left unset"))
 
 
 def main(argv=None):

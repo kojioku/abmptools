@@ -438,11 +438,34 @@ GROMACS 自身もその mdp に対し `degrees of freedom ... is 9150.00`
 ### 力場 ID と 1-4 スケーリング
 
 - **`Unit_Parameter.Comment` の `FF=n`** — 下流はここで力場を判定する。
-  空だと「力場が分からない」扱いになり書き出しが通らない。`--ff` で指定
-  (既定 `gaff` = `FF=2`)。番号は力場定義ファイルの並び
+  空だと「力場が分からない」扱いになり書き出しが通らない。既定 `--ff auto` は
+  `.top` から決め、決まらなければ書かない (下の「力場の印の自動判定」)。名前か番号を
+  `--ff` で指定もできる。番号は力場定義ファイルの並び
 - **`User_Torsion.Parameters[]` の `SCNB` / `SCEE`** — 1-4 のスケーリング。
   空だと下流が 1-4 の扱いを決められず NPT が流せない。`.top` の
   `fudgeLJ` / `fudgeQQ` をそのまま入れる
+
+### 力場の印の自動判定 (`--ff auto`)
+
+`.top` は、どの力場から作ったかを名乗らない。`auto` は `.top` に書かれていることから 1 つを決め、
+**1 つに決まらないときは印を書かない** (黙って `gaff` にしない)。
+
+| 材料 | 決まるもの |
+|---|---|
+| `#include` の名前 | `amber*.ff/…` → amber、`oplsaa.ff/…` → oplsaa、`charmm*.ff/…` → CHARMM、名前に `gaff2` / `gaff` を含む `.itp` → gaff2 / gaff |
+| 分子が使う型 (小文字) | GAFF と GAFF2 の LJ の表との照合で gaff か gaff2 (共通の 80 型のうち 77 型で 2% 以上の差。表は gaff.dat 1.81 と gaff2.dat 2.2.20)。c3・cl・ho・i は両者で同じなので判別に不使用 |
+| 分子が使う型 (大文字) | AMBER (parm10 / ff14SB) の型の名前で、LJ も parm10 の値のもの → amber。名前だけ同じ型 (ParmEd が付け直した `C1`・`H1` など) は対象外 |
+| `opls_123` の形の型 | oplsaa |
+| `[ defaults ]` | 組み合わせ則と fudge (AMBER 系 2 / 0.5 / 0.8333、OPLS 3 / 0.5 / 0.5、CHARMM 2 / 1.0 / 1.0)。型との矛盾なら印なし |
+
+- 水とイオン (O と H だけの 4 原子以下の分子、1 原子の分子) の型は数えない。どの力場にも付いてくるため
+- **書かない場合**: 2 つの力場の混在 (AMBER の蛋白 + GAFF2 の配位子など)、どの表にも無い型 (OpenFF の
+  `MOL0_1` など)、GAFF と GAFF2 を見分けられる型が無い、`[ defaults ]` との矛盾、`FF=n` の番号の無い力場
+  (CHARMM)。理由と「`--ff` で名前を指定できる」旨を出す
+- `amber20` / `loplsaa` / `dreiding` などは判定しない (`.top` から見分けられない)。`--ff` で指定
+- 結果は 1 行で出る: `Force field: gaff2 (FF=3), decided from the topology` /
+  `Force field: not written (<理由>). Name it with --ff <name>.`。ログにも `force field: …` の行。
+  Python からは `TopExporter().export(...)` の戻り値 (`FFDecision`: `name`・`families`・`reasons`)
 
 ### 静的セルとテンプレート
 
@@ -518,7 +541,7 @@ python -m abmptools.gro2udf --from-top system.top md/prod.gro \
 | `--mdp PATH` | 使わない | `ref_t` / `tau_t` / `rcoulomb` から `Q` と Ewald を決める | |
 | `--template PATH` | 同梱テンプレート | スキーマの元にする UDF | |
 | `--cognac-version N` | `112` | テンプレートの `cognac<N>.udf` include を差し替える (OCTA8.4 なら `101`) | |
-| `--ff NAME` | `gaff` | `Unit_Parameter.Comment` に書く力場 ID | |
+| `--ff NAME` | `auto` | `Unit_Parameter.Comment` に書く力場 ID。`auto` は `.top` からの判定 (「力場の印の自動判定」) | |
 | `--nh-dof {3N,3N-3}` | `3N-3` | `Q` の自由度の数え方 | |
 | `--topology-only` | off | Structure レコードを**書かない** (骨格だけ) | |
 | `--initial-gro PATH` | — | `--topology-only` に 1 フレームだけ足す | |

@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Changed — gro2udf: 力場の印 (`FF=n`) を `.top` から決める (`--ff auto`、既定)
+
+- `--ff` の既定を `gaff` から `auto` にした。`auto` は `.top` の `#include` の名前、分子が使う型
+  (GAFF と GAFF2 は LJ の値で見分ける。大文字の型は AMBER の parm10 の LJ と照合)、`[ defaults ]`
+  から 1 つの力場を決める。決まらないとき (混在、材料なし、矛盾、番号の無い力場) は印を書かず、
+  理由と `--ff` で指定できる旨を出す。以前は、どの `.top` にも黙って `FF=2` (gaff) を書いていた
+- 名前・番号・`''` の指定は今までどおり受け付ける
+- 決まった名前は、CLI の 1 行 (`Force field: …`)、ログ、`TopExporter.export()` の戻り値
+  (`FFDecision`) で示す。判定の本体は `abmptools.gro2udf.ff_detect`
+- udf + gro の形 (テンプレートの UDF に座標を入れる) は、テンプレートの印をそのまま使う (変更なし)
+
 ### Fixed — udf2gro: 黙って 0 や別の値を書いていた力場の項
 
 - 対応外のポテンシャルの型 (Morse の結合、Theta2 / Cosine の角度、Dreiding や表形式の二面角など)
