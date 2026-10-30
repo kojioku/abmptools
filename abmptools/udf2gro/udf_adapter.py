@@ -29,6 +29,42 @@ logger = logging.getLogger(__name__)
 # Charge conversion constant (same as original script)
 _CHARGE_UNIT = 18.224159264
 
+#: Potential types the GROMACS writers can express. Any other type in the UDF
+#: stops the conversion, naming it -- it used to be written as zeros (a bond
+#: of length 0 and force 0, an angle with another type's constant, a dihedral
+#: row with no function).
+SUPPORTED_BOND_TYPES = ("Harmonic", "FENE_LJ")
+SUPPORTED_ANGLE_TYPES = ("Theta",)
+SUPPORTED_TORSION_TYPES = ("Amber", "Cosine_Polynomial")
+
+#: Relative tolerance when telling whether a pair follows a combination rule.
+_COMB_RTOL = 1e-6
+
+
+def amber_phase_to_gromacs(phase: float, trans_is_0: int) -> float:
+    """The GROMACS phase [deg] of an ``Amber`` torsion. **The one place that
+    decides how the UDF's phase is read.**
+
+    COGNAC documents ``trans_is_0 = 1`` as "trans is 0 degree", which would
+    put the phase 180 degrees away from AMBER's (cis is 0). The UDFs seen so
+    far -- the ones gro2udf writes, and GAFF2 torsions assigned by another
+    program -- carry AMBER's own phase with ``trans_is_0 = 1`` all the same
+    (X-c3-n3-X: phase 0, as in gaff2.dat). Taken literally, every odd
+    multiplicity would flip. So the phase passes unchanged whatever the flag,
+    until it is checked against an engine's energy for the same file.
+    """
+    return float(phase)
+
+
+def _is_proper(a1: int, a2: int, a3: int, a4: int, bonded) -> bool:
+    """i-j-k-l is a proper torsion when j, k and l follow each other along
+    bonds; otherwise (one atom bonded to the other three) it is an improper."""
+    return ((a1, a2) in bonded and (a2, a3) in bonded and (a3, a4) in bonded)
+
+
+def _close(x: float, y: float) -> bool:
+    return abs(x - y) <= _COMB_RTOL * max(abs(x), abs(y), 1e-12)
+
 
 # ---------------------------------------------------------------------------
 # Helpers (ported from udf2gro.py, but now pure functions / instance methods)
@@ -414,6 +450,7 @@ class UdfAdapter:
             udf.size(udf.rlocation("Set_of_Molecules.molecule[].atom[]", [i]))
             for i in range(mol_num)
         )
+        self._check_potential_types()
 
         # --- OPLS detection ---
         totallyOPLS, partiallyOPLS = self._detect_opls()
@@ -452,6 +489,11 @@ class UdfAdapter:
         atom_types, lj_cutoff = self._build_atom_types(
             atm_type_num, int_num, totallyOPLS
         )
+        # The pairs of the UDF decide the combination rule when it has any
+        # pair between two types; the type names only when it has none.
+        lj_pairs = self._lj_pairs(int_num)
+        comb_rule, nonbond_params = self._combination_rule(
+            atom_types, lj_pairs, comb_rule)
 
         # --- mol topologies ---
         mol_topologies = self._build_mol_topologies(
@@ -460,6 +502,14 @@ class UdfAdapter:
             bnd_type_num, agl_type_num, tor_type_num,
             totallyOPLS, int_num
         )
+
+        # --- 1-4 scale: from the pairs that are 1-4 in the molecules ---
+        if flags14 != 0:
+            fudgeLJ, pair_types = self._fudge_lj(
+                mol_topologies, atom_types, lj_pairs, fudgeLJ, comb_rule)
+            self._check_torsion_scales(fudgeLJ, fudgeQQ, bool(pair_types), calcQQ)
+        else:
+            pair_types = []
 
         # --- mol sequence for [ molecules ] ---
         mol_sequence = self._build_mol_sequence(mol_num, mol_name_list, molname_map)
@@ -493,7 +543,145 @@ class UdfAdapter:
             cell=cell,
             sim_params=sim_params,
             ndx_data=ndx_data,
+            nonbond_params=nonbond_params,
+            pair_types=pair_types,
         )
+
+    # ------------------------------------------------------------------
+    # Force-field checks (stop rather than write zeros)
+    # ------------------------------------------------------------------
+
+    def _check_potential_types(self) -> None:
+        udf = self._udf
+        bad = []
+        for loc, ok in (("Molecular_Attributes.Bond_Potential[]", SUPPORTED_BOND_TYPES),
+                        ("Molecular_Attributes.Angle_Potential[]", SUPPORTED_ANGLE_TYPES),
+                        ("Molecular_Attributes.Torsion_Potential[]", SUPPORTED_TORSION_TYPES)):
+            for j in range(udf.size(loc)):
+                ptype = str(udf.get(loc + ".Potential_Type", [j]))
+                if ptype not in ok:
+                    bad.append("%s %r: %s" % (loc.split(".")[1][:-2],
+                                              str(udf.get(loc + ".Name", [j])), ptype))
+        if bad:
+            raise RuntimeError(
+                "potential types GROMACS output does not support (%d): %s%s"
+                % (len(bad), "; ".join(bad[:10]), " ..." if len(bad) > 10 else ""))
+
+    def _lj_pairs(self, int_num: int):
+        """``{(type1, type2): (sigma nm, epsilon kJ/mol, scale_1_4)}`` of the
+        Lennard_Jones pairs, both orders."""
+        udf = self._udf
+        out = {}
+        for j in range(int_num):
+            if udf.get("Interactions.Pair_Interaction[].Potential_Type", [j]) != "Lennard_Jones":
+                continue        # _build_atom_types has already stopped on these
+            s1 = udf.getArray("Interactions.Pair_Interaction[].Site1_Name", [j])
+            s2 = udf.getArray("Interactions.Pair_Interaction[].Site2_Name", [j])
+            val = (float(udf.get("Interactions.Pair_Interaction[].Lennard_Jones.sigma", [j], "[nm]")),
+                   float(udf.get("Interactions.Pair_Interaction[].Lennard_Jones.epsilon", [j], "[kJ/mol]")),
+                   float(udf.getArray("Interactions.Pair_Interaction[].Scale_1_4_Pair", [j])))
+            out[(s1, s2)] = val
+            out[(s2, s1)] = val
+        return out
+
+    @staticmethod
+    def _combination_rule(atom_types, lj_pairs, comb_rule):
+        """The combination rule the cross pairs follow, and the pairs that
+        follow neither rule (written as [ nonbond_params ]).
+
+        A pair missing between two types that both have Lennard-Jones stops
+        the conversion: COGNAC leaves such a pair without interaction, while a
+        combination rule would add one. A type with no pair at all has no
+        Lennard-Jones (sigma = epsilon = 0) and needs none.
+        """
+        self_lj = {t.name: (t.sigma, t.epsilon) for t in atom_types
+                   if (t.name, t.name) in lj_pairs}
+        names = sorted(self_lj)
+        cross = [(a, b) for k, a in enumerate(names) for b in names[k + 1:]]
+        present = [p for p in cross if p in lj_pairs]
+        if not present:
+            return comb_rule, []
+        missing = [p for p in cross if p not in lj_pairs
+                   and self_lj[p[0]][1] != 0.0 and self_lj[p[1]][1] != 0.0]
+        if missing:
+            raise RuntimeError(
+                "Lennard-Jones pairs missing between types that both have one "
+                "(%d): %s%s" % (len(missing), ", ".join("%s-%s" % p for p in missing[:10]),
+                                " ..." if len(missing) > 10 else ""))
+
+        def follows(rule, a, b):
+            (sa, ea), (sb, eb) = self_lj[a], self_lj[b]
+            sig, eps, _ = lj_pairs[(a, b)]
+            want = 0.5 * (sa + sb) if rule == 2 else math.sqrt(sa * sb)
+            return _close(sig, want) and _close(eps, math.sqrt(ea * eb))
+
+        for rule in (comb_rule, 5 - comb_rule):          # 2 <-> 3
+            if all(follows(rule, a, b) for a, b in present):
+                return rule, []
+        rows = [(a, b, lj_pairs[(a, b)][0], lj_pairs[(a, b)][1])
+                for a, b in present if not follows(comb_rule, a, b)]
+        logger.info("%d Lennard-Jones pairs follow no combination rule; "
+                    "written as [ nonbond_params ]", len(rows))
+        return comb_rule, rows
+
+    @staticmethod
+    def _fudge_lj(mol_topologies, atom_types, lj_pairs, fallback, comb_rule):
+        """fudgeLJ, and [ pairtypes ] rows for 1-4 pairs scaled otherwise.
+
+        The scale is per pair of types in the UDF (``Scale_1_4_Pair``), and
+        UDFs mix values (0.5 for the solute's types, 1.0 for water and ions).
+        Only the pairs that occur as 1-4 count. It used to be read from the
+        first pair of the list, whichever that was.
+        """
+        type_of = {}
+        seen = {}
+        for topo in mol_topologies:
+            type_of = {a.index: a.type_name for a in topo.atoms}
+            for pr in topo.pairs:
+                key = tuple(sorted((type_of[pr.atom1], type_of[pr.atom2])))
+                if key in lj_pairs:
+                    seen[key] = lj_pairs[key][2]
+        if not seen:
+            return fallback, []
+        counts = {}
+        for v in seen.values():
+            counts[v] = counts.get(v, 0) + 1
+        fudge = max(counts, key=lambda v: (counts[v], v))
+        rows = []
+        for (a, b), v in sorted(seen.items()):
+            if v != fudge:
+                sig, eps, _ = lj_pairs[(a, b)]
+                rows.append((a, b, sig, eps * v))
+        if rows:
+            logger.info("1-4 scale %s for most pairs; %d pairs scaled otherwise "
+                        "([ pairtypes ])", fudge, len(rows))
+        return fudge, rows
+
+    def _check_torsion_scales(self, fudge_lj, fudge_qq, mixed, calc_qq) -> None:
+        """Torsions may carry their own 1-4 scales (``SCNB`` / ``SCEE`` in
+        ``User_Torsion.Parameters[]``). Stop when they disagree with the
+        pairs' scale or the electrostatics' -- there is no telling which one
+        the source meant."""
+        udf = self._udf
+        loc = "Molecular_Attributes.Torsion_Potential[]"
+        found = {"SCNB": set(), "SCEE": set()}
+        for j in range(udf.size(loc)):
+            for item in udf.get(loc + ".User_Torsion.Parameters[]", [j]) or []:
+                name, value = str(item[0]), item[1]
+                if name in found:
+                    try:
+                        found[name].add(round(float(value), 6))
+                    except (TypeError, ValueError):
+                        pass
+        problems = []
+        if found["SCNB"] and not mixed and found["SCNB"] != {round(float(fudge_lj), 6)}:
+            problems.append("SCNB %s vs Scale_1_4_Pair of the 1-4 pairs %s"
+                            % (sorted(found["SCNB"]), fudge_lj))
+        if found["SCEE"] and calc_qq == 1 and found["SCEE"] != {round(float(fudge_qq), 6)}:
+            problems.append("SCEE %s vs Electrostatic_Interaction.Scale_1_4_Pair %s"
+                            % (sorted(found["SCEE"]), fudge_qq))
+        if problems:
+            raise RuntimeError("1-4 scales disagree: " + "; ".join(problems))
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -686,21 +874,33 @@ class UdfAdapter:
         ele_num = udf.size("Set_of_Molecules.molecule[].electrostatic_Site[]", [mol_no])
         logger.info("atom_num     = %d", atm_num)
 
+        # The charge goes to the atom the site names, not to the atom with the
+        # site's index: a molecule may list its sites in another order, or
+        # leave atoms without one (no charge). A site's Type_Name is the name
+        # of an Electrostatic_Site_Type, whose own Type_Name says what it is;
+        # only a point charge on one atom fits GROMACS' [ atoms ], a dipole
+        # stops the conversion.
+        charge_of = {}
+        if ele_num and calcQQ != 0:
+            kind_of = {str(t[0]): str(t[1]) for t in
+                       udf.get("Molecular_Attributes.Electrostatic_Site_Type[]") or []}
+            for k, site in enumerate(udf.get(
+                    "Set_of_Molecules.molecule[].electrostatic_Site[]", [mol_no]) or []):
+                kind = kind_of.get(str(site[0]), str(site[0]))
+                if kind != "POINT_CHARGE" or len(site[1] or []) != 1:
+                    raise RuntimeError(
+                        "molecule %d electrostatic site %d (%s) is %s on %d atoms; only a "
+                        "POINT_CHARGE on one atom can be written"
+                        % (mol_no, k, site[0], kind, len(site[1] or [])))
+                charge_of[int(site[1][0])] = round(float(site[2]) / _CHARGE_UNIT, 8)
+
         atoms = []
         for i in range(atm_num):
             atype = udf.get(
                 "Set_of_Molecules.molecule[].atom[].Atom_Type_Name", [mol_no, i]
             )
             gro_aname = atomname_in_gro[atype]
-
-            if ele_num == 0 or calcQQ == 0:
-                charge = 0.0
-            else:
-                q_raw = udf.get(
-                    "Set_of_Molecules.molecule[].electrostatic_Site[].ES_Element",
-                    [mol_no, i]
-                )
-                charge = round(q_raw / _CHARGE_UNIT, 8)
+            charge = charge_of.get(i, 0.0)
 
             atoms.append(AtomRecord(
                 index=i + 1,
@@ -724,6 +924,9 @@ class UdfAdapter:
             )
             pottype = bond_name_potmap[pot_name]
 
+            if pot_name not in bond_name_potmap:
+                raise RuntimeError("bond %d of molecule %d names potential %r, "
+                                   "which is not defined" % (i, mol_no, pot_name))
             funct = "1"
             r0 = 0.0
             kb = 0.0
@@ -846,6 +1049,9 @@ class UdfAdapter:
                         [j], "[kJ/mol/rad^2]"
                     )
                     break
+            else:
+                raise RuntimeError("angle %d of molecule %d names potential %r, "
+                                   "which is not defined" % (i, mol_no, pot_name))
             angles.append(AngleRecord(atom1=a1, atom2=a2, atom3=a3,
                                        theta0=theta0, k=k))
         return angles
@@ -857,6 +1063,12 @@ class UdfAdapter:
 
         tors_pot_type_list = udf.get("Molecular_Attributes.Torsion_Potential[].Potential_Type")
         use_amber_header = "Amber" in tors_pot_type_list
+
+        bonded = set()
+        for b in udf.get("Set_of_Molecules.molecule[].bond[]", [mol_no]) or []:
+            i1, i2 = int(b[1]) + 1, int(b[2]) + 1
+            bonded.add((i1, i2))
+            bonded.add((i2, i1))
 
         dihedrals = []
         for i in range(tor_num):
@@ -907,7 +1119,13 @@ class UdfAdapter:
                     break
 
                 elif pottype == "Amber":
-                    if ":" in name:
+                    # An improper (one atom bonded to the other three) is
+                    # function 4, whatever its name; GROMACS reports it apart
+                    # from the propers ("Per. Imp. Dih."). It used to be
+                    # written as a proper.
+                    if not _is_proper(a1, a2, a3, a4, bonded):
+                        funct = "4"
+                    elif ":" in name:
                         funct = "9"
                     else:
                         funct = "1"
@@ -915,9 +1133,13 @@ class UdfAdapter:
                     idivf = udf.get("Molecular_Attributes.Torsion_Potential[].Amber.IDIVF", [j])
                     pn    = udf.get("Molecular_Attributes.Torsion_Potential[].Amber.PN",    [j])
                     phase = udf.get("Molecular_Attributes.Torsion_Potential[].Amber.PHASE", [j])
+                    trans = udf.get("Molecular_Attributes.Torsion_Potential[].Amber.trans_is_0", [j])
                     k_val = pk / idivf
-                    params = [phase, k_val, pn]
+                    params = [amber_phase_to_gromacs(phase, trans), k_val, pn]
                     break
+            else:
+                raise RuntimeError("torsion %d of molecule %d names potential %r, "
+                                   "which is not defined" % (i, mol_no, pot_name))
 
             dihedrals.append(DihedralRecord(
                 atom1=a1, atom2=a2, atom3=a3, atom4=a4,

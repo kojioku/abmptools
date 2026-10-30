@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Fixed — udf2gro: 黙って 0 や別の値を書いていた力場の項
+
+- 対応外のポテンシャルの型 (Morse の結合、Theta2 / Cosine の角度、Dreiding や表形式の二面角など)
+  と、名前の引けないポテンシャルは、型の名前を出して止まる。以前は長さ 0・力 0 の結合、別の型の
+  定数を読んだ角度、関数の無い二面角の行として書かれていた
+- 1-4 の LJ の倍率 (fudgeLJ) を、対の表の先頭ではなく、分子の中で実際に 1-4 になる型対から決める。
+  型対ごとに値が混ざる UDF (溶質 0.5、水・イオン 1.0) で、先頭の対で決まっていた。別の値の型対は
+  `[ pairtypes ]`。二面角の SCNB / SCEE と食い違えば止まる
+- 組み合わせ則を、型の名前ではなく LJ の表の値から決める (2 か 3)。どちらにも合わない対は
+  `[ nonbond_params ]`。LJ を持つ型どうしの対が欠けていれば止まる (COGNAC では相互作用が無く、
+  組み合わせ則で書くと足されてしまう)。LJ の無い型 (同種対も無い) は σ = ε = 0 のまま
+- AMBER 型の二面角のうち、4 原子が結合の鎖でないもの (improper) を funct 4 で書く。以前は proper
+  (funct 1 / 9) として書かれ、GROMACS では Proper Dih. に数えられていた
+- 電荷を、`electrostatic_Site[]` の添字の原子ではなく、site が指す原子に付ける。site の種類は
+  `Electrostatic_Site_Type[]` から引き、1 原子の点電荷以外は止まる
+
+### Added — udf2gro: 書き手の欄
+
+- `TopWriter.write(..., split_itp=True)`: 分子種ごとの `.itp` と、それを `#include` する `.top`
+- `[ settles ]` + `[ exclusions ]` (`MoleculeTopology.settles`)、`[ nonbond_params ]` /
+  `[ pairtypes ]` (`SystemModel.nonbond_params` / `pair_types`)、`[ atoms ]` の残基番号・残基名
+  (`AtomRecord.resnr` / `resname`)。どれも既定では今までと同じ出力
+- `amber_phase_to_gromacs()`: AMBER 型の二面角の位相の読み方を決める 1 か所。`trans_is_0 = 1`
+  でも位相はそのまま (実在の UDF がそう書いている。エンジンのエネルギーとの照合は未了)
+
 ## [2.19.2] - 2026-10-28
 
 ### Changed — docs: 特定の GUI 製品に依らない書き方に

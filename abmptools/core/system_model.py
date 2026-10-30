@@ -82,6 +82,10 @@ class AtomRecord:
     type_name: str      # force-field atom type (e.g. "ca")
     gro_name: str       # name in gro/top atom column (first2 chars + hex index)
     charge: float       # [e]
+    #: Residue of the atom, when the source has residues (a protein). None
+    #: keeps the old [ atoms ] columns: residue 1, named after the molecule.
+    resnr: Optional[int] = None
+    resname: Optional[str] = None
 
 
 @dataclass
@@ -143,6 +147,10 @@ class MoleculeTopology:
     pairs: List[PairRecord] = field(default_factory=list)
     angles: List[AngleRecord] = field(default_factory=list)
     dihedrals: List[DihedralRecord] = field(default_factory=list)
+    #: Rigid 3-site water: ``(d_OH, d_HH)`` [nm] for [ settles ]. The first
+    #: atom must be the oxygen. The writer then also excludes the three
+    #: atoms from each other ([ exclusions ]).
+    settles: Optional[Tuple[float, float]] = None
 
 
 # ---------------------------------------------------------------------------
@@ -415,3 +423,12 @@ class SystemModel:
     # The writer layer checks this; adapters set it via
     # :func:`classify_ensemble` when building the SystemModel.
     ensemble_family: str = "gromacs_ok"
+
+    # --- non-bonded rows beyond the combination rule ----------------------
+    #: ``(type1, type2, sigma [nm], epsilon [kJ/mol])`` for a pair the
+    #: combination rule does not reproduce ([ nonbond_params ]).
+    nonbond_params: List[Tuple[str, str, float, float]] = field(default_factory=list)
+    #: ``(type1, type2, sigma [nm], epsilon [kJ/mol])`` for a 1-4 pair whose
+    #: scale differs from ``fudgeLJ``; epsilon is already scaled
+    #: ([ pairtypes ]).
+    pair_types: List[Tuple[str, str, float, float]] = field(default_factory=list)

@@ -8,6 +8,7 @@ All Gromacs-specific string formatting (column widths, section headers)
 is contained here.
 """
 from __future__ import annotations
+import os
 from dataclasses import replace
 from ....core.system_model import SystemModel, MoleculeTopology, DihedralRecord
 from ._validator import raise_if_cognac_only
@@ -158,12 +159,14 @@ def _atomic_number(mass: float) -> int:
 class TopWriter:
     """Generates the content of a .top file and writes it."""
 
-    def write(self, model: SystemModel, filepath: str) -> None:
+    def write(self, model: SystemModel, filepath: str, split_itp: bool = False) -> None:
         """SystemModelから .top トポロジファイルを書き出す。
 
         Args:
             model: 中間表現のシステムモデル。
             filepath: 出力先ファイルパス。
+            split_itp: True なら分子種ごとに ``<moleculetype>.itp`` を .top と
+                同じディレクトリに書き、 .top からは ``#include`` する。
 
         Raises:
             ValueError: ``model.ensemble_family == 'cognac_only'`` のとき。
@@ -172,7 +175,14 @@ class TopWriter:
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(self._build_header(model))
             for topo in model.mol_topologies:
-                self._write_moleculetype(f, model, topo)
+                if split_itp:
+                    name = topo.gro_name + ".itp"
+                    itp = os.path.join(os.path.dirname(os.path.abspath(filepath)), name)
+                    with open(itp, "w", encoding="utf-8") as g:
+                        self._write_moleculetype(g, model, topo)
+                    f.write('#include "%s"\n\n' % name)
+                else:
+                    self._write_moleculetype(f, model, topo)
             f.write(self._build_system_molecules(model))
 
     # ------------------------------------------------------------------
@@ -230,8 +240,23 @@ class TopWriter:
             s += "\n"
         s += "\n"
 
-        # [ nonbond_params ] is disabled (flg_nbp = False in original)
-        # [ bondtypes ] etc. are also disabled (flg_bondpots = False)
+        # [ nonbond_params ]: only the pairs the combination rule does not
+        # reproduce (the adapter compares every pair of the UDF with it).
+        if model.nonbond_params:
+            s += "[ nonbond_params ]\n"
+            s += "; i        j        func  sigma[nm]     epsilon[kJ mol^-1]\n"
+            for t1, t2, sig, eps in model.nonbond_params:
+                s += "%-8s %-8s 1  %s  %s\n" % (t1, t2, _f2s(sig, 12), _f2s(eps, 12))
+            s += "\n"
+        # [ pairtypes ]: 1-4 pairs whose scale is not fudgeLJ (epsilon is
+        # already scaled; gen-pairs fills in every other pair).
+        if model.pair_types:
+            s += "[ pairtypes ]\n"
+            s += "; i        j        func  sigma[nm]     epsilon[kJ mol^-1]\n"
+            for t1, t2, sig, eps in model.pair_types:
+                s += "%-8s %-8s 1  %s  %s\n" % (t1, t2, _f2s(sig, 12), _f2s(eps, 12))
+            s += "\n"
+        # [ bondtypes ] etc. are disabled (flg_bondpots = False)
 
         s += "; And here is the topology.\n"
         return s
@@ -282,8 +307,8 @@ class TopWriter:
             s = ""
             s = _strr(s, str(atom.index),     11)
             s = _strr(s, atom.type_name,      12)
-            s = _strr(s, "1",                 12)
-            s = _strr(s, topo.gro_name,       12)
+            s = _strr(s, str(atom.resnr if atom.resnr is not None else 1), 12)
+            s = _strr(s, atom.resname or topo.gro_name, 12)
             s = _strr(s, atom.gro_name,       12)
             s = _strr(s, str(atom.index),     12)
             s = _strr(s, _f2s(atom.charge, 12), 12)
@@ -424,6 +449,13 @@ class TopWriter:
             f.write(s)
 
         f.write("\n\n")
+
+        # [ settles ] + [ exclusions ]: rigid 3-site water, oxygen first.
+        if topo.settles is not None:
+            doh, dhh = topo.settles
+            f.write("[ settles ]\n; OW  funct  doh[nm]  dhh[nm]\n")
+            f.write("1  1  %s  %s\n\n" % (_f2s(doh, 12), _f2s(dhh, 12)))
+            f.write("[ exclusions ]\n1  2  3\n2  1  3\n3  1  2\n\n")
 
     # ------------------------------------------------------------------
     # [ system ] and [ molecules ]

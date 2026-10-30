@@ -424,6 +424,29 @@ diff test.mdp  ../output/test.mdp
 | 5 | OPLS |
 | 6 | OPLSUA |
 
+### ポテンシャルの対応と停止の条件
+
+| UDF | GROMACS | 換算・扱い |
+|---|---|---|
+| `Bond_Potential` Harmonic (R0, K) | `[ bonds ]` funct 1 | 形は同じ ½K(r−r0)²。単位だけの換算 |
+| `Bond_Potential` FENE_LJ | `[ bonds ]` funct 7 | 既存のまま |
+| `Angle_Potential` Theta (theta0, K) | `[ angles ]` funct 1 | θ = 180 − theta0 (COGNAC の theta0 は補角) |
+| `Torsion_Potential` Amber、結合の鎖の 4 原子 | funct 9 (多項) / 1 | k = PK / IDIVF、位相は `amber_phase_to_gromacs` の 1 か所で決定 |
+| 同、1 原子が他の 3 原子と結合 (improper) | funct 4 | 判定は結合の並び (名前は不使用)。GROMACS の項は Per. Imp. Dih. |
+| `Torsion_Potential` Cosine_Polynomial | funct 3 / 1 / 4 | 既存のまま |
+| 上記以外の型 (Morse、Theta2、Cosine、Dreiding、表形式など) | — | **停止** (型の名前を列挙)。以前は 0 として書かれていた |
+| 名前の引けないポテンシャル | — | **停止** |
+| `electrostatic_Site[]` | `[ atoms ]` の charge | site が指す原子へ。種類は `Electrostatic_Site_Type[]` の Type_Name。1 原子の POINT_CHARGE 以外は**停止** |
+| 異種対の `Pair_Interaction` (Lennard_Jones) | comb-rule 2 か 3 | 表の値から判定。どちらにも合わない対は `[ nonbond_params ]` |
+| LJ を持つ型どうしの対の欠け | — | **停止** (COGNAC では相互作用なし、組み合わせ則では有り) |
+| 同種対の無い型 | σ = ε = 0 | 対の欠けとは扱わない |
+| `Scale_1_4_Pair` (型対ごと) | fudgeLJ、別の値は `[ pairtypes ]` | 分子の中で実際に 1-4 になる型対だけで判定 |
+| 二面角の `User_Torsion` の SCNB / SCEE | fudgeLJ / fudgeQQ との照合 | 食い違いは**停止** |
+
+`TopWriter().write(model, path, split_itp=True)` で、分子種ごとの `.itp` を書いて `.top` から
+`#include` する。剛体の 3 点水は `MoleculeTopology.settles = (d_OH, d_HH)` で
+`[ settles ]` と `[ exclusions ]` (酸素が先頭)。
+
 ### アンサンブル
 
 | UDF アルゴリズム | GROMACS 設定 |
