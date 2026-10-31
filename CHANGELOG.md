@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.20.0] - 2026-11-01
+
 ### Changed — gro2udf: 力場の印 (`FF=n`) を `.top` から決める (`--ff auto`、既定)
 
 - `--ff` の既定を `gaff` から `auto` にした。`auto` は `.top` の `#include` の名前、分子が使う型
