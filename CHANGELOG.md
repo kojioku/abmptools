@@ -31,6 +31,15 @@
 - 電荷を、`electrostatic_Site[]` の添字の原子ではなく、site が指す原子に付ける。site の種類は
   `Electrostatic_Site_Type[]` から引き、1 原子の点電荷以外は止まる
 
+### Added — `abmptools.__version__`
+
+- `abmptools.__version__` が無く、`AttributeError` になっていた。版は `pyproject.toml` の 1 か所で決まり、
+  入れた wheel では `importlib.metadata` から読む。ソースの木から import したとき (editable を含む) は、
+  隣の `pyproject.toml` を読む (editable の metadata は入れた時点の版のままで、版を上げても古い番号を
+  返すため)。入っていなければ `0+unknown`
+- テスト (`tests/test_version_attr.py`): `__version__` と `pyproject.toml` と `CITATION.cff` の一致、
+  wheel の形 (隣に `pyproject.toml` が無い) では metadata の版、別の名前の `pyproject.toml` は読まないこと
+
 ### Added — udf2gro: 書き手の欄
 
 - `TopWriter.write(..., split_itp=True)`: 分子種ごとの `.itp` と、それを `#include` する `.top`
