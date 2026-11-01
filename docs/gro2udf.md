@@ -976,6 +976,10 @@ python -m abmptools.gro2udf --from-top build/system.top md/05_npt_final.gro \
 | Density | `Density.Instantaneous` | `[mass/sigma³]` ≈ 1660 kg/m³ |
 | Volume | `Volume.Instantaneous` | `[sigma³]` = 0.001 nm³ |
 
+`Pressure` は GROMACS の値をそのまま書く。`DispCorr = EnerPres` のとき GROMACS の `Pressure` は
+分散補正を含み、`.edr` に並ぶ `Pres. DC` はその内訳なので、足さない (足すと補正が 2 回入る。
+同じ座標と速度の 0 ステップで、DispCorr の有無による `Pressure` の差が `Pres. DC` と一致)。
+
 ### Simulation_Conditions.Dynamics_Conditions.Time の MDP 同期
 
 `--mdp` を渡すと、`Simulation_Conditions.Dynamics_Conditions.Time` も MDP から

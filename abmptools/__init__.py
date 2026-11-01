@@ -1,3 +1,7 @@
+from ._version import get_version as _get_version
+
+__version__ = _get_version()
+
 from .pdb_io import pdb_io
 from .abinit_io import abinit_io
 from .setfmo import setfmo

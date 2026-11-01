@@ -212,16 +212,16 @@ _XVG_TO_UDF_STATS = {
     # Bulk thermodynamic observables -- Statistics_Data.<Class>.{Instantaneous,
     # Batch_Average, Total_Average} (each leaf is a scalar, no further field).
     "Temperature":   ("Temperature", "",         "[K]"),
+    # GROMACS' `Pressure` already includes the dispersion correction: with
+    # DispCorr = EnerPres it is the virial pressure plus `Pres. DC`, which the
+    # .edr also lists on its own for information. `Pres. DC` is therefore not
+    # mapped (adding it would count it twice). Measured: the same coordinates and
+    # velocities at step 0 (SPC water, GROMACS 2021.3 and 2026.3) give Pressure
+    # 84180.04 bar with DispCorr = no and 83912.38 bar with EnerPres, a difference
+    # of -267.66 bar against Pres. DC = -267.67 bar. In an NPT run (C-rescale,
+    # ref-p 1 bar) the mean Pressure sits near 1 bar and Pressure + Pres. DC
+    # does not (67 +- 26 bar against -152 bar).
     "Pressure":      ("Pressure",    "",         "[bar]"),
-    # xvg `Pressure` is the virial pressure WITHOUT the long-range dispersion
-    # correction; the barostat-controlled (true) pressure = Pressure + Pres. DC.
-    # Both legends fold to Statistics_Data.Pressure and are summed by
-    # _aggregate_statistics_per_frame (same folding as Proper+Improper Dih. ->
-    # Torsion). Verified on a reference
-    # (DRO10-PVP10 NPT, ref_p = 1 bar, 100k steps): avg Pressure alone = 44 MPa,
-    # but avg(Pressure + Pres. DC) = 0.22 MPa ~= the 0.1 MPa barostat target
-    # (and bit-matches the reference BDF's Statistics_Data.Pressure).
-    "Pres. DC":      ("Pressure",    "",         "[bar]"),
     "Density":       ("Density",     "",         "[kg/m^3]"),
     "Volume":        ("Volume",      "",         "[nm^3]"),
 }

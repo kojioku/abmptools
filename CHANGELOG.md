@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.20.0] - 2026-11-01
+
 ### Changed — gro2udf: 力場の印 (`FF=n`) を `.top` から決める (`--ff auto`、既定)
 
 - `--ff` の既定を `gaff` から `auto` にした。`auto` は `.top` の `#include` の名前、分子が使う型
@@ -28,6 +30,27 @@
   (funct 1 / 9) として書かれ、GROMACS では Proper Dih. に数えられていた
 - 電荷を、`electrostatic_Site[]` の添字の原子ではなく、site が指す原子に付ける。site の種類は
   `Electrostatic_Site_Type[]` から引き、1 原子の点電荷以外は止まる
+
+### Fixed — gro2udf: `Statistics_Data.Pressure` に分散補正を 2 回入れていた
+
+- `--energy` (`--edr`) の経路で、`Statistics_Data.Pressure` に GROMACS の `Pressure` と `Pres. DC` の和を
+  書いていた。GROMACS の `Pressure` は `DispCorr = EnerPres` のとき既に分散補正を含み、`Pres. DC` は
+  その内訳。`Pressure` をそのまま書くように戻した (`Pres. DC` の列は読まない)
+- 実測: 同じ座標と速度の 0 ステップ (SPC の水、GROMACS 2021.3 と 2026.3) で、`Pressure` は DispCorr なしで
+  84180.04 bar、`EnerPres` で 83912.38 bar。差 −267.66 bar が `Pres. DC` (−267.67 bar) と一致。溶媒和した
+  タンパク質の NPT (C-rescale、ref-p 1 bar) では、`Pressure` の平均が 67 ± 26 bar、和は −152 bar
+- 以前の版の、和を書く変更 (DRO10-PVP10 の照合に基づくもの) を取り消す。その照合の基準は、和を書く
+  変換器の出力だった
+- テスト: DispCorr なし (`Pres. DC` の列が無い) とあり (列がある) の 2 通りで、`Pressure` がそのまま書かれること
+
+### Added — `abmptools.__version__`
+
+- `abmptools.__version__` が無く、`AttributeError` になっていた。版は `pyproject.toml` の 1 か所で決まり、
+  入れた wheel では `importlib.metadata` から読む。ソースの木から import したとき (editable を含む) は、
+  隣の `pyproject.toml` を読む (editable の metadata は入れた時点の版のままで、版を上げても古い番号を
+  返すため)。入っていなければ `0+unknown`
+- テスト (`tests/test_version_attr.py`): `__version__` と `pyproject.toml` と `CITATION.cff` の一致、
+  wheel の形 (隣に `pyproject.toml` が無い) では metadata の版、別の名前の `pyproject.toml` は読まないこと
 
 ### Added — udf2gro: 書き手の欄
 
