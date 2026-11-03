@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Sequence
 
 from .top_model import KB_AMU_A2_PS2_K, GROFrameData, TopModel
+from .angle_table import RESTRICTED_BENDING, write_angle_table
 from .top_parser import TopParser
 from .guard import raise_if_unsupported
 from .top_adapter import TopAdapter
@@ -496,6 +497,32 @@ def _scale_charges_for_epsilon_r(uobj, model) -> int:
     return n
 
 
+def _write_angle_tables(model, out_path) -> dict:
+    """Write one table file per angle type that needs one; return the names.
+
+    The files sit beside the UDF and are named after the angle type, so a
+    second conversion into the same folder overwrites its own files and
+    nobody else's.
+    """
+    out = {}
+    specs = [at for at in getattr(model, "angle_type_specs", [])
+             if getattr(at, "funct", 1) == RESTRICTED_BENDING]
+    if not specs:
+        return out
+    folder = Path(out_path).resolve().parent
+    for at in specs:
+        safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in at.name)
+        name = "angle_{}_table.udf".format(safe)
+        write_angle_table(folder / name, safe, at.k, at.theta0)
+        out[at.name] = name
+    logger.warning(
+        "%d angle type(s) use restricted bending, which has no closed form "
+        "here; each is written as a numerical table (%s). The function is "
+        "reproduced, not approximated, but the files must travel with the UDF.",
+        len(specs), ", ".join(sorted(out.values())))
+    return out
+
+
 def _put_with_unit_fallback(uobj, value, path, indices=None, unit=None):
     """Wrap ``uobj.put`` so callers can request a unit alias (e.g. ``"[nm]"``)
     that may not exist in older cognac schemas.
@@ -809,6 +836,10 @@ class TopExporter:
             ntotal = uobj.totalRecord()
             if ntotal > 0:
                 uobj.eraseRecord(0, ntotal)
+
+        # Angles with no closed form get a table file of their own, next to
+        # the UDF, before the UDF that points at them is written.
+        model._angle_tables = _write_angle_tables(model, out_path)
 
         with _section("Set_of_Molecules", template_path, out_path):
             self._write_set_of_molecules(uobj, model)
@@ -1424,11 +1455,26 @@ class TopExporter:
         # measures the angle from the other side. Cosine is unaffected by
         # that: cos(180 - t) = -cos(t) flips both terms of the difference,
         # and the difference is squared.
+        tables = getattr(model, "_angle_tables", {}) or {}
         for j, at in enumerate(model.angle_type_specs):
             q0 = 180.0 - at.theta0   # COGNAC convention: supplement of GROMACS theta0
             uobj.put(at.name,
                      "Molecular_Attributes.Angle_Potential[].Name", [j])
-            if getattr(at, "funct", 1) == 2:
+            if getattr(at, "funct", 1) == RESTRICTED_BENDING:
+                # No closed form for restricted bending, but a table of the
+                # function itself is not an approximation of its shape -- only
+                # of how finely it is sampled, which is measured.
+                uobj.put("Table_Angle",
+                         "Molecular_Attributes.Angle_Potential[].Potential_Type", [j])
+                uobj.put(q0,
+                         "Molecular_Attributes.Angle_Potential[].theta0", [j])
+                uobj.put(tables.get(at.name, at.name + "_table.udf"),
+                         "Molecular_Attributes.Angle_Potential[].Table_Angle.UDF_Name", [j])
+                uobj.put("NO",
+                         "Molecular_Attributes.Angle_Potential[].Table_Angle.Use_Fast", [j])
+                uobj.put(4,
+                         "Molecular_Attributes.Angle_Potential[].Table_Angle.NO.Order", [j])
+            elif getattr(at, "funct", 1) == 2:
                 uobj.put("Cosine",
                          "Molecular_Attributes.Angle_Potential[].Potential_Type", [j])
                 uobj.put(q0,

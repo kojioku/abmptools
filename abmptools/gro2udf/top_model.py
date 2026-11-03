@@ -84,6 +84,13 @@ class AtomTypeSpec:
     epsilon: float  # [kJ/mol]
 
 
+#: Bond potentials whose name starts with this are not bonds: they carry an
+#: explicit ``[ exclusions ]`` pair, with no force constant, because the
+#: engine drops the non-bonded interaction of a bonded pair. Never put one in
+#: a constraint (RATTLE) list.
+EXCLUSION_BOND_PREFIX = "excl_"
+
+
 @dataclass
 class BondTypeSpec:
     """One unique Harmonic bond potential type."""
