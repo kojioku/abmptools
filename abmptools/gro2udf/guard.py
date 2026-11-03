@@ -197,7 +197,8 @@ def scan_sections(lines: List[str], used: Optional[Set[str]] = None) -> Dict[str
     return counts
 
 
-def scan_dihedral_functs(lines: List[str]) -> List[int]:
+def scan_dihedral_functs(lines: List[str],
+                         used: Optional[Set[str]] = None) -> List[int]:
     """Collect the ``funct`` column of every dihedral line, from the raw text.
 
     :class:`~.top_parser.TopParser` cannot be used for this. A dihedral line
@@ -209,15 +210,36 @@ def scan_dihedral_functs(lines: List[str]) -> List[int]:
     ``[ dihedrals ]`` is ``ai aj ak al funct ...`` (atoms are integers), while
     ``[ dihedraltypes ]`` names atom types and comes in a 2-name and a 4-name
     flavour, so the funct is taken as the first integer token.
+
+    ``[ dihedrals ]`` inside a ``[ moleculetype ]`` is read **only for the
+    molecules the system actually contains**. A force field file carries
+    molecules nobody used -- the Martini ion file defines imidazolium ions
+    next to the sodium and chloride a bilayer needs -- and counting those
+    made every bilayer conversion warn that it was dropping terms that were
+    never in the box. ``[ dihedraltypes ]`` is not inside a molecule, so it
+    is always read.
     """
+    if used is None:
+        used = used_moleculetypes(lines)
     functs = set()
     current: Optional[str] = None
+    molecule: Optional[str] = None
+    expect_name = False
     for line in lines:
         m = _SECTION_RE.match(line)
         if m:
             current = m.group(1).lower()
+            if current == "moleculetype":
+                expect_name, molecule = True, None
             continue
+        if expect_name and _is_data_line(line):
+            parts = line.split(";")[0].split()
+            if parts:
+                molecule, expect_name = parts[0], False
         if current not in ("dihedrals", "dihedraltypes"):
+            continue
+        if (current == "dihedrals" and molecule is not None
+                and molecule not in used):
             continue
         if not _is_data_line(line):
             continue

@@ -312,3 +312,58 @@ def test_the_same_box_with_a_fitted_dihedral_is_not_exact(tmp_path):
     raw = TopParser(constraints_as_bonds=50000.0).parse(str(top))
     fatal, _ = check_top(raw, raw.sections)
     assert any("phase" in f for f in fatal), fatal
+
+
+def test_a_molecule_nobody_used_is_not_counted_as_dropped(tmp_path):
+    """力場ファイルには、誰も使っていない分子が入っている。
+
+    Martini のイオンのファイルは、二重膜が要る Na と Cl の隣に
+    imidazolium 系を定義している。それを数えていたので、**箱に無い項を
+    落としていると、二重膜の変換が毎回警告していた**。
+    """
+    top = tmp_path / "unused.top"
+    top.write_text(BILAYER_TOP.replace("""[ system ]""", """[moleculetype]
+  NOBODY  1
+
+[atoms]
+  1 Q5 1 NOB A1 1 0.0 72.0
+  2 C1 1 NOB B1 2 0.0 72.0
+  3 C1 1 NOB C1 3 0.0 72.0
+  4 C1 1 NOB D1 4 0.0 72.0
+
+[dihedrals]
+  1 2 3 4 2 0.0 50.0
+
+[ system ]"""), encoding="utf-8")
+    raw = TopParser(constraints_as_bonds=50000.0).parse(str(top))
+    assert raw.dihedral_functs == []            # 使われていないので数えない
+    fatal, warnings = check_top(raw, raw.sections,
+                                dihedral_functs=raw.dihedral_functs)
+    assert fatal == [], fatal
+    assert not any("funct 2" in w for w in warnings), warnings
+
+
+def test_the_same_dihedral_in_a_used_molecule_still_warns(tmp_path):
+    """箱に入っていれば、落とすことを言う。"""
+    top = tmp_path / "used.top"
+    top.write_text(BILAYER_TOP.replace("""[ molecules ]
+LIP 2""", """[ molecules ]
+LIP 2
+NOBODY 1""").replace("""[ system ]""", """[moleculetype]
+  NOBODY  1
+
+[atoms]
+  1 Q5 1 NOB A1 1 0.0 72.0
+  2 C1 1 NOB B1 2 0.0 72.0
+  3 C1 1 NOB C1 3 0.0 72.0
+  4 C1 1 NOB D1 4 0.0 72.0
+
+[dihedrals]
+  1 2 3 4 2 0.0 50.0
+
+[ system ]"""), encoding="utf-8")
+    raw = TopParser(constraints_as_bonds=50000.0).parse(str(top))
+    assert raw.dihedral_functs == [2]
+    _fatal, warnings = check_top(raw, raw.sections,
+                                 dihedral_functs=raw.dihedral_functs)
+    assert any("funct 2" in w for w in warnings), warnings

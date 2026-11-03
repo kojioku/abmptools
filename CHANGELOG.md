@@ -14,8 +14,17 @@
   `<名前>.udf.notes.txt`・(moldeck 経由で) 画面の警告
 - **CLI は `--for-viewing`** (`python -m abmptools.gro2udf --from-top … --for-viewing`)
 - **厳密な経路は変えない。** `for_viewing` 無しでは今までどおり断る
+
+### Fixed — gro2udf: 箱に無い分子の項を「落とした」と言わない
+
+- `scan_dihedral_functs` が、`[ molecules ]` に無い分子の二面角まで数えて
+  いた。力場ファイルには誰も使っていない分子が入っている (Martini の
+  イオンのファイルは、二重膜が要る Na / Cl の隣に imidazolium を定義)。
+  そのため**二重膜の変換が毎回「funct 2 を落とす」と警告していた**が、
+  その項は箱に無い。使われる分子だけを数えるようにした
+  (`[ dihedraltypes ]` は分子の中に無いので今までどおり全部読む)
 - **厳密さの境目を実測**: 脂質・水・イオンの二重膜 (POPC+W+NA+CL、4 種・
-  5692 分子) は**近似ゼロ**。同じ箱にペプチドを入れると表示用になる
+  5692 分子) は**近似ゼロ** (止める理由も警告も 0 件、実データで確認)。同じ箱にペプチドを入れると表示用になる
   (側鎖固定の位相 -33.3°)。テストで固定した
 - **torsion の壁を engine のソースで確定**: 型は 5 つだけ
   (`Cosine_Polynomial` / `Amber` / `Dreiding` / `Table_Torsion` /
