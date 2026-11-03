@@ -228,6 +228,10 @@ def test_a_viewing_file_is_written_and_says_what_it_lacks(tmp_path):
     text = notes.read_text(encoding="utf-8")
     assert "TO BE LOOKED AT" in text
     assert "phase" in text
+    # **what the writing step itself left out has to reach the file too.**
+    # It is counted while the torsions are written, which happens after the
+    # guard has had its say, so a file written too early misses this line.
+    assert "left out" in text, text
 
 
 def test_the_same_topology_is_still_refused_when_it_has_to_run(tmp_path):
