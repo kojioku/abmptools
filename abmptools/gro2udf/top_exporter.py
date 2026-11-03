@@ -788,16 +788,19 @@ class TopExporter:
             energy_times = None
 
         from .ff_detect import include_names
+        decision = self.export_model(model, template_path, out_path,
+                                     frames=frames,
+                                     cognac_version=cognac_version,
+                                     force_field=force_field,
+                                     nh_dof=nh_dof,
+                                     energy_times=energy_times,
+                                     energy_series=energy_series,
+                                     ff_includes=include_names(top_path))
+        # 注記は **書き終わってから**。どの項を外したかは、書く段で
+        # 決まるものもある (位相の書けない torsion はここで数える)
         if for_viewing:
             _write_viewing_notes(out_path, notes)
-        return self.export_model(model, template_path, out_path,
-                                 frames=frames,
-                                 cognac_version=cognac_version,
-                                 force_field=force_field,
-                                 nh_dof=nh_dof,
-                                 energy_times=energy_times,
-                                 energy_series=energy_series,
-                                 ff_includes=include_names(top_path))
+        return decision
 
     def export_model(
         self,
