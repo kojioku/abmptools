@@ -36,7 +36,7 @@ A Python toolkit for pre-processing, post-processing, and analysis of Fragment M
 ### GROMACS ↔ OCTA COGNAC Conversion
 
 - **udf2gro**: Convert OCTA UDF files to GROMACS format (`.gro`, `.top`, `.mdp`, `.itp`)
-- **gro2udf**: Convert GROMACS files to OCTA UDF format (supports `--from-top` mode)
+- **gro2udf**: Convert GROMACS files to OCTA UDF format (supports `--from-top` mode; `--for-viewing` writes a file meant to be looked at rather than run, leaving out the terms the engine cannot hold and saying which)
 - **udfcharge**: Transfer per-atom partial charges from a single-molecule UDF to bulk molecules (`transfer`), or restore a neutralized UDF's charges to a target integer formal charge (`restore`)
 
 ### Geometry Optimization (`geomopt`)

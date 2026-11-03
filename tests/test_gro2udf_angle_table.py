@@ -304,8 +304,13 @@ def test_a_lipid_carries_over_with_nothing_left_out(tmp_path):
     top = tmp_path / "bi.top"
     top.write_text(BILAYER_TOP, encoding="utf-8")
     raw = TopParser(constraints_as_bonds=50000.0).parse(str(top))
-    fatal, _ = check_top(raw, raw.sections)
+    fatal, warnings = check_top(raw, raw.sections,
+                                dihedral_functs=raw.dihedral_functs)
     assert fatal == [], fatal
+    # **nothing dropped either**: a warning here would be an approximation,
+    # and the claim is that there is none. The real bilayer was measured the
+    # same way and came through with both lists empty.
+    assert warnings == [], warnings
 
 
 def test_the_same_box_with_a_fitted_dihedral_is_not_exact(tmp_path):
