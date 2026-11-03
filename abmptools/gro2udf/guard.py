@@ -268,6 +268,31 @@ def _functs(entries, idx) -> List[int]:
     return sorted(out)
 
 
+#: How far from 0 or 180 degrees a phase may sit and still count as that
+#: value. A force field writes the phase through radians, so the number in
+#: the file is rounded: ff14SB through parmed gives **180.0000771** degrees
+#: (3.14159 rad), which an exact test refuses. The phases this check exists
+#: to catch are tens of degrees away, so a hundredth of a degree separates
+#: the two cases with room to spare.
+PHASE_TOLERANCE_DEG = 0.01
+
+
+def phase_is_writable(phase) -> bool:
+    """True when *phase* is 0 or 180 degrees, which is what the engine takes.
+
+    The value arrives as a number from an inline ``[ dihedrals ]`` line and as
+    **text** from a ``[ dihedraltypes ]`` lookup. Taking ``%`` of text is
+    string formatting, not a remainder, so the test floats it first. Anything
+    that will not float is left to the writer rather than refused here.
+    """
+    try:
+        value = float(phase) % 360.0
+    except (TypeError, ValueError):
+        return True
+    return min(abs(value), abs(value - 180.0),
+               abs(value - 360.0)) <= PHASE_TOLERANCE_DEG
+
+
 def check_top(raw, sections: Dict[str, int],
               dihedral_functs: Optional[List[int]] = None
               ) -> Tuple[List[str], List[str]]:
@@ -300,7 +325,12 @@ def check_top(raw, sections: Dict[str, int],
     # that only removes the one pair while nrexcl is 1. With a larger nrexcl
     # the same bond would also exclude the neighbours it newly puts within
     # reach, which the topology never asked for.
-    excl = getattr(raw, "exclusions", {}) or {}
+    # Only the pairs nrexcl does NOT already cover are a real request: water
+    # out of an Amber force field lists its three pairs although its bonds
+    # cover them, and refusing those refused every TIP3P system.
+    excl = getattr(raw, "exclusions_needed", None)
+    if excl is None:
+        excl = getattr(raw, "exclusions", {}) or {}
     nrexcl = getattr(raw, "nrexcl", {}) or {}
     bad = sorted({m for m, pairs in excl.items()
                   if pairs and nrexcl.get(m, 1) >= 2})
@@ -317,7 +347,7 @@ def check_top(raw, sections: Dict[str, int],
     # polynomial (even in phi), and not the table either, which is indexed
     # by cos(phi) and so cannot tell phi from -phi.
     odd = [p for p in getattr(raw, "torsion_phases", []) or []
-           if min(abs(p % 360.0), abs(p % 360.0 - 180.0), abs(p % 360.0 - 360.0)) > 1.0e-6]
+           if not phase_is_writable(p)]
     if odd:
         fatal.append(
             "{} proper dihedral(s) have a phase that is neither 0 nor 180 "

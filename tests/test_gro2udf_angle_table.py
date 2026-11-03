@@ -168,13 +168,19 @@ def test_restricted_bending_and_an_exclusion_both_pass_the_guard(raw):
     assert fatal == [], fatal
 
 
-def test_an_exclusion_with_a_larger_nrexcl_is_refused(tmp_path):
-    """The trick only removes the one pair while nrexcl is 1."""
+def test_an_exclusion_a_larger_nrexcl_already_covers_is_not_a_request(tmp_path):
+    """With nrexcl 3, the 1-3 pair is excluded before the line is read.
+
+    So the line asks for nothing and needs no bond. What a larger nrexcl
+    cannot take is an exclusion **further away than it reaches**, which the
+    next test covers.
+    """
     p = tmp_path / "n3.top"
     p.write_text(EXCL_TOP.replace("  REB  1\n", "  REB  3\n"), encoding="utf-8")
     raw = TopParser().parse(str(p))
+    assert raw.exclusions_needed["REB"] == []
     fatal, _ = check_top(raw, raw.sections)
-    assert any("nrexcl >= 2" in f for f in fatal), fatal
+    assert fatal == [], fatal
 
 
 # --- a file written to be looked at ------------------------------------------
@@ -367,3 +373,157 @@ NOBODY 1""").replace("""[ system ]""", """[moleculetype]
     _fatal, warnings = check_top(raw, raw.sections,
                                  dihedral_functs=raw.dihedral_functs)
     assert any("funct 2" in w for w in warnings), warnings
+
+
+# --- the phase a force field actually writes ---------------------------------
+
+@pytest.mark.parametrize("phase,writable", [
+    (180.0, True),
+    (0.0, True),
+    (180.0000771, True),      # ff14SB through parmed: 3.14159 rad, rounded
+    ("180.0", True),          # from a [ dihedraltypes ] lookup, as text
+    (-180.0, True),
+    (540.0, True),
+    (-120.0, False),          # a coarse-grained backbone
+    (-33.3, False),           # scFix
+    (29.5, False),
+    (179.9, False),           # a tenth of a degree is not rounding
+])
+def test_which_phases_the_engine_can_hold(phase, writable):
+    """0 and 180 degrees, and nothing else -- but as the file writes them.
+
+    A force field writes the phase through radians, so it arrives rounded:
+    **180.0000771** degrees out of parmed. An exact comparison refused every
+    ff14SB topology, which is how this was found. The phases that genuinely
+    cannot be written are tens of degrees away, so the two cases do not come
+    close to touching.
+    """
+    from abmptools.gro2udf.guard import phase_is_writable
+
+    assert phase_is_writable(phase) is writable
+
+
+# --- an exclusion nrexcl already covers --------------------------------------
+
+WATER_TOP = """\
+[ defaults ]
+1 2
+
+[ atomtypes ]
+  OW   16.0 0.000 A 0.0 0.0
+  HW    1.0 0.000 A 0.0 0.0
+
+[ nonbond_params ]
+  OW  OW  1 0.315 0.636
+  OW  HW  1 0.100 0.000
+  HW  HW  1 0.100 0.000
+
+[moleculetype]
+  WAT  2
+
+[atoms]
+  1 OW 1 WAT OW 1 -0.834 16.0
+  2 HW 1 WAT H1 1  0.417  1.0
+  3 HW 1 WAT H2 1  0.417  1.0
+
+[bonds]
+  1 2 1 0.09572 462750
+  1 3 1 0.09572 462750
+
+[angles]
+  2 1 3 1 104.52 836.8
+
+[exclusions]
+  1 2 3
+  2 1 3
+  3 1 2
+
+[ system ]
+water
+
+[ molecules ]
+WAT 1
+"""
+
+
+def test_water_is_not_refused_over_exclusions_it_did_not_need(tmp_path):
+    """A force field writes water's exclusions although its bonds cover them.
+
+    With ``nrexcl`` 2 and two bonds, all three pairs are excluded already, so
+    the lines ask for nothing. Treating them as a request refused every TIP3P
+    system -- found when the prep and gREST .gem tests stopped converting.
+    """
+    top = tmp_path / "wat.top"
+    top.write_text(WATER_TOP, encoding="utf-8")
+    raw = TopParser().parse(str(top))
+    assert raw.exclusions_needed["WAT"] == []       # nrexcl 2 covers them all
+    fatal, _ = check_top(raw, raw.sections)
+    assert fatal == [], fatal
+    # and no bond was invented for them
+    i = raw.mol_types.index("WAT")
+    assert not [b for b in raw.bondlist[i]
+                if raw.bond_types_from_mol[b[2]][3] == [0.0, 0.0]]
+
+
+CHAIN_TOP = """\
+[ defaults ]
+1 2
+
+[ atomtypes ]
+  C1   72.0 0.000 A 0.0 0.0
+
+[ nonbond_params ]
+  C1  C1  1 0.47 3.50
+
+[moleculetype]
+  CH4  2
+
+[atoms]
+  1 C1 1 CH A1 1 0.0 72.0
+  2 C1 1 CH B1 2 0.0 72.0
+  3 C1 1 CH C1 3 0.0 72.0
+  4 C1 1 CH D1 4 0.0 72.0
+
+[bonds]
+  1 2 1 0.47 1250
+  2 3 1 0.47 1250
+  3 4 1 0.47 1250
+
+[exclusions]
+  1 4
+
+[ system ]
+chain
+
+[ molecules ]
+CH4 1
+"""
+
+
+def test_an_exclusion_beyond_nrexcl_is_still_refused(tmp_path):
+    """1-4 is three bonds away, which nrexcl 2 does not reach, so the line
+    **is** a request -- and a bond cannot carry it, because that bond would
+    put 2 and 3 within reach of 4 as well."""
+    top = tmp_path / "chain.top"
+    top.write_text(CHAIN_TOP, encoding="utf-8")
+    raw = TopParser().parse(str(top))
+    assert raw.exclusions_needed["CH4"] == [(1, 4)]
+    fatal, _ = check_top(raw, raw.sections)
+    assert any("nrexcl >= 2" in f for f in fatal), fatal
+
+
+def test_the_same_pair_with_nrexcl_1_is_carried_as_a_bond(tmp_path):
+    """With nrexcl 1 the bond removes exactly that pair, which is the whole
+    trick, so it is carried."""
+    top = tmp_path / "chain1.top"
+    top.write_text(CHAIN_TOP.replace("  CH4  2\n", "  CH4  1\n"),
+                   encoding="utf-8")
+    raw = TopParser().parse(str(top))
+    assert raw.exclusions_needed["CH4"] == [(1, 4)]
+    fatal, _ = check_top(raw, raw.sections)
+    assert fatal == [], fatal
+    # 力の定数 0 の結合として入っている (この段では型に名前が無い)
+    i = raw.mol_types.index("CH4")
+    zero = [b for b in raw.bondlist[i]
+            if raw.bond_types_from_mol[b[2]][3] == [0.0, 0.0]]
+    assert [b[:2] for b in zero] == [[1, 4]]

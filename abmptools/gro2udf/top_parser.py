@@ -257,6 +257,36 @@ def is_improper(torsion_1based: List[int], bondlist_mol: List) -> bool:
 # TopParser class
 # ---------------------------------------------------------------------------
 
+def redundant_exclusions(pairs, bonds, nrexcl: int):
+    """Split *pairs* into the ones ``nrexcl`` already excludes, and the rest.
+
+    ``[ exclusions ]`` usually repeats what ``nrexcl`` already does: water
+    out of an Amber force field lists its three pairs although its two bonds
+    and ``nrexcl`` of 2 cover them. Such a line asks for nothing, so it needs
+    no bond of its own -- and refusing the topology over it, as happened to
+    every TIP3P system, was wrong. Only a pair **further than nrexcl bonds
+    away** is a real request.
+
+    *bonds* is ``[[i, j, ...], ...]`` (1-based). Returns
+    ``(already, needed)``.
+    """
+    adj = {}
+    for b in bonds:
+        if len(b) >= 2:
+            adj.setdefault(b[0], set()).add(b[1])
+            adj.setdefault(b[1], set()).add(b[0])
+    already, needed = [], []
+    for i, j in pairs:
+        # breadth-first, no deeper than nrexcl
+        seen, front, depth = {i}, {i}, 0
+        while front and depth < max(nrexcl, 0):
+            front = {n for f in front for n in adj.get(f, ())} - seen
+            seen |= front
+            depth += 1
+        (already if j in seen else needed).append((i, j))
+    return already, needed
+
+
 class TopParser:
     """Parse a GROMACS .top file (with resolved #include ITP) into TopRawData.
 
@@ -331,6 +361,29 @@ class TopParser:
         raw.torsion_phases = [
             tt[6][0] for tt in raw.torsion_types_from_mol
             if len(tt) > 6 and tt[4] in (1, 9, 4) and tt[6]]
+        # ``[ exclusions ]`` that nrexcl already covers asks for nothing: drop
+        # the bond that was put in for it, and leave it out of what the guard
+        # has to judge. Water lists its pairs although its bonds cover them.
+        raw.exclusions_needed = {}
+        for mol, pairs in (raw.exclusions or {}).items():
+            if mol not in raw.mol_types:
+                continue
+            idx = raw.mol_types.index(mol)
+            real = [b for b in raw.bondlist[idx]
+                    if not self._is_exclusion_bond(b, raw, idx)]
+            already, needed = redundant_exclusions(
+                pairs, real, raw.nrexcl.get(mol, 1))
+            raw.exclusions_needed[mol] = needed
+            if already:
+                drop = {(min(i, j), max(i, j)) for i, j in already}
+                raw.bondlist[idx] = [
+                    b for b in raw.bondlist[idx]
+                    if not (self._is_exclusion_bond(b, raw, idx)
+                            and (min(b[0], b[1]), max(b[0], b[1])) in drop)]
+                logger.info(
+                    "%s: %d of %d [ exclusions ] pair(s) are already excluded "
+                    "by nrexcl %d; no bond added for those",
+                    mol, len(already), len(pairs), raw.nrexcl.get(mol, 1))
         raw.n_constraints_as_bonds = self._n_constraints_as_bonds
         raw.n_virtual_sites_as_bonds = self._n_virtual_sites_as_bonds
         if raw.n_virtual_sites_as_bonds:
@@ -974,6 +1027,22 @@ class TopParser:
     # ------------------------------------------------------------------
     # Internal helpers: put*Type -- deduplicate and register type entries
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_exclusion_bond(bond, raw, mol_index: int) -> bool:
+        """``bond`` が除外のために入れたものか。
+
+        この段では型に名前が無い (``['C1', 'C1', 1, [r0, k]]``) ので、
+        ``excl_`` の接頭辞では見分けられない。**長さも力の定数も 0** の結合が
+        それで、本物の結合がそうなることはない。
+        """
+        if len(bond) < 3:
+            return False
+        try:
+            params = raw.bond_types_from_mol[bond[2]][3]
+            return float(params[0]) == 0.0 and float(params[1]) == 0.0
+        except (IndexError, TypeError, ValueError):
+            return False
 
     @staticmethod
     def _put_bond_type(atom1, atom2, funct, para1, para2,

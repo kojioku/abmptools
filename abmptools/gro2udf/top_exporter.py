@@ -26,7 +26,7 @@ from typing import Iterable, List, Optional, Sequence
 from .top_model import KB_AMU_A2_PS2_K, GROFrameData, TopModel
 from .angle_table import RESTRICTED_BENDING, write_angle_table
 from .top_parser import TopParser
-from .guard import check_top, raise_if_unsupported
+from .guard import check_top, phase_is_writable, raise_if_unsupported
 from .top_adapter import TopAdapter
 
 from .make_whole import make_frames_whole, unwrap_steps
@@ -1558,11 +1558,9 @@ class TopExporter:
             # such a term is odd in phi. In a file meant to be looked at,
             # leave it out and say so, rather than write a different one.
             if (getattr(model, "for_viewing", False) and funct in (1, 9, 4)
-                    and params):
-                phase = float(params[0]) % 360.0
-                if min(abs(phase), abs(phase - 180.0), abs(phase - 360.0)) > 1.0e-6:
-                    skipped_phase.append((tt.name, float(params[0])))
-                    continue
+                    and params and not phase_is_writable(params[0])):
+                skipped_phase.append((tt.name, float(params[0])))
+                continue
 
             if funct in (1, 9, 4):
                 # Amber: params = [PHASE, PK, PN]
