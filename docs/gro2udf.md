@@ -1264,6 +1264,39 @@ the difference is settled, **a converted system's electrostatic energy is not
 comparable with the GROMACS one**, though the forces differ only through the
 excluded pairs' correction.
 
+### The forces, atom by atom
+
+Same structure, same zero step, forces compared one bead at a time
+(2,612 beads; GROMACS' force RMS is 7.98 kJ/mol/nm):
+
+| beads | difference RMS | largest |
+|---|---|---|
+| **without charge (2,332)** | **0.00** | **0.0** |
+| with charge (280) | 2.65 | 2.9 |
+| all (2,612) | 0.87 (10.9 % of the force RMS) | 2.9 |
+
+**Every bonded and LJ force is identical.** The whole difference sits on the
+charges, and within them on the pairs that are bonded to each other
+(a lipid's NC3 and PO4): that is the reaction-field correction GROMACS adds
+for excluded pairs and this engine does not. The analytic size of that
+correction, `f q_i q_j 2 k_rf r`, is 2.78 kJ/mol/nm for such a pair at
+0.40 nm -- which is what the table shows.
+
+### 100 ps, both engines
+
+The same minimised bilayer, 100 ps at 20 fs, velocities generated at 300 K
+(independent trajectories -- they are not expected to agree step by step):
+
+| | bilayer thickness (mean PO4 z, upper - lower) |
+|---|---|
+| start | 4.213 nm |
+| GROMACS after 100 ps | 4.337 nm (+0.125) |
+| converted, after 100 ps | 4.293 nm (+0.081) |
+
+The membrane stays a membrane and thickens by the same small amount; the two
+end 0.044 nm apart, 1.0 % of the thickness. Area per lipid is fixed here
+(both runs are NVT), so it says nothing yet -- an NPT comparison would.
+
 **Molecules must be whole.** The bonded terms are computed from the
 coordinates as given; a molecule split across the periodic boundary turns
 into one enormous bond (one came out at 59.8 A instead of 4.0). Pass
