@@ -12,6 +12,7 @@
   要求する (`Some atoms in a molecule are not connected by bond.`)
 - **入っていないものを 4 か所に残す**: 警告のログ・`viewing_notes`・
   `<名前>.udf.notes.txt`・(moldeck 経由で) 画面の警告
+- **CLI は `--for-viewing`** (`python -m abmptools.gro2udf --from-top … --for-viewing`)
 - **厳密な経路は変えない。** `for_viewing` 無しでは今までどおり断る
 - **厳密さの境目を実測**: 脂質・水・イオンの二重膜 (POPC+W+NA+CL、4 種・
   5692 分子) は**近似ゼロ**。同じ箱にペプチドを入れると表示用になる
