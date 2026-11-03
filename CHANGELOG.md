@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Fixed — gro2udf: top の行末コメントで落ちていた
+
+- top のパーサが、データの後ろの `;` 以降のコメントを、一部の節でしか落としていなかった。Martini 3 の
+  `martini_v3.0.0.itp` の `[ defaults ]` (`1 2 ; sigma-epsilon format of LJ parameters`) で
+  `ValueError: could not convert string to float: 'sigma-epsilon'` になって止まり、`[ atomtypes ]` の
+  空白なしのコメント (`2.30;…`) や、質量の欄の無い `[ atoms ]` の行のコメントでも同じ型で落ちた。
+  全部の節を、行末のコメントを落としてから分ける形にそろえた
+- `[ defaults ]` の gen-pairs / fudgeLJ / fudgeQQ は GROMACS では任意で、無ければ fudgeLJ = fudgeQQ = 1.0
+  (Martini 3 は 2 欄だけ)。以前は 5 欄を前提に読んでいた
+- テスト: Martini 3 の `[ defaults ]` をそのまま、各節の行末コメント、コメントの有無で読んだ値が同じこと
+
 ## [2.20.0] - 2026-11-01
 
 ### Changed — gro2udf: 力場の印 (`FF=n`) を `.top` から決める (`--ff auto`、既定)

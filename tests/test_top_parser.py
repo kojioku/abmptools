@@ -151,3 +151,89 @@ class TestTopParserParse:
     def test_molecules_section(self, raw):
         # "MOL 2" means 2 instances
         assert raw.mol_instance_list == ["MOL", "MOL"]
+
+
+# ---------------------------------------------------------------------------
+# End-of-line comments, in every section
+# ---------------------------------------------------------------------------
+
+#: The ``[ defaults ]`` of Martini 3's martini_v3.0.0.itp, verbatim: two
+#: fields (the optional gen-pairs / fudgeLJ / fudgeQQ left out) and a comment.
+MARTINI3_DEFAULTS = "[ defaults ]\n1 2 ; sigma-epsilon format of LJ parameters\n"
+
+COMMENTED_TOP = MARTINI3_DEFAULTS + """
+[ atomtypes ]
+; name mass charge ptype sigma epsilon
+P5  72.0 0.000 A 0.470 4.99 ; polar bead
+C1  72.0 0.000 A 0.470 2.30;no space before the comment
+
+[ bondtypes ]
+P5 C1 1 0.47 1250.0 ; a bond type
+
+[ angletypes ]
+P5 C1 P5 2 120.0 25.0 ; GROMOS-96 angle
+
+[ moleculetype ]
+; molname nrexcl
+PEP 1 ; one molecule
+
+[ atoms ]
+; nr type resnr residue atom cgnr charge
+1 P5 1 ALA BB 1 0.0 ; no mass column, then a comment
+2 C1 1 ALA SC1 2 0.0 72.0 ; mass and a comment
+3 P5 2 GLY BB 3 0.0
+
+[ bonds ]
+1 2 1 0.47 1250.0 ; backbone-side chain
+2 3 1 0.47 1250.0
+
+[ angles ]
+1 2 3 2 120.0 25.0 ; comment
+
+[ system ]
+test
+
+[ molecules ]
+PEP 2 ; two copies
+"""
+
+
+class TestEndOfLineComments:
+
+    def test_martini3_defaults_line(self, tmp_path):
+        """Martini 3's own [ defaults ] used to stop the parser:
+        ValueError: could not convert string to float: 'sigma-epsilon'."""
+        top = tmp_path / "m3.top"
+        top.write_text(MARTINI3_DEFAULTS)
+        raw = TopParser().parse(str(top))
+        assert raw.comb_rule == 2
+        # GROMACS' defaults for the optional fields
+        assert raw.fudge_lj == pytest.approx(1.0)
+        assert raw.fudge_qq == pytest.approx(1.0)
+
+    def test_comments_after_data_in_every_section(self, tmp_path):
+        top = tmp_path / "commented.top"
+        top.write_text(COMMENTED_TOP)
+        raw = TopParser().parse(str(top))
+        assert [a[0] for a in raw.atomtypes] == ["P5", "C1"]
+        assert raw.atomtypes[1][4] == pytest.approx(2.30)      # "2.30;no space"
+        assert raw.mol_types == ["PEP"]
+        atoms = raw.atomlist[0]
+        assert [a[0] for a in atoms] == ["BB", "SC1", "BB"]
+        assert atoms[0][3] == 0.0 and atoms[1][3] == pytest.approx(72.0)
+        assert len(raw.bondlist[0]) == 2
+        assert raw.mol_instance_list == ["PEP", "PEP"]
+
+    def test_the_comment_does_not_change_the_numbers(self, tmp_path):
+        """The same topology with and without the comments reads the same."""
+        # drop the comments after data; whole-line comments stay (a blank line
+        # would end the section in this parser, as in GROMACS' own files)
+        plain = "\n".join(line if line.lstrip().startswith(";") else line.split(";", 1)[0].rstrip()
+                          for line in COMMENTED_TOP.splitlines()) + "\n"
+        a, b = tmp_path / "a.top", tmp_path / "b.top"
+        a.write_text(COMMENTED_TOP)
+        b.write_text(plain)
+        ra, rb = TopParser().parse(str(a)), TopParser().parse(str(b))
+        for field in ("comb_rule", "fudge_lj", "fudge_qq", "atomtypes", "mol_types",
+                      "atomlist", "bondlist", "mol_instance_list"):
+            assert getattr(ra, field) == getattr(rb, field), field
