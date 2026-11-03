@@ -122,6 +122,12 @@ class TopAdapter:
         nsteps = mdp.nsteps if mdp is not None else 0
         nstxout_compressed = mdp.nstxout_compressed if mdp is not None else 0
         nstenergy = mdp.nstenergy if mdp is not None else 0
+        vdw_cutoff = mdp.rvdw if mdp is not None else None
+        coulombtype = (mdp.coulombtype or "").lower() if mdp is not None else ""
+        epsilon_r = mdp.epsilon_r if mdp is not None else 1.0
+        coulomb_cutoff = mdp.rcoulomb if mdp is not None else None
+        epsilon_rf = mdp.epsilon_rf if mdp is not None else 0.0
+        dispcorr = mdp.dispcorr if mdp is not None else None
 
         # --- Ewald R_cutoff: Deserno & Holm (JCP 1998) optimal formula ---
         # R_cutoff = sqrt(11.5) / alpha
@@ -131,6 +137,16 @@ class TopAdapter:
 
         return TopModel(
             comb_rule=raw.comb_rule,
+            nonbond_params=getattr(raw, "nonbond_params", {}) or {},
+            vdw_cutoff=vdw_cutoff,
+            nrexcl={k: v for k, v in (getattr(raw, "nrexcl", {}) or {}).items()
+                    if k in set(raw.mol_instance_list)},
+            coulombtype=coulombtype,
+            epsilon_r=epsilon_r,
+            coulomb_cutoff=coulomb_cutoff,
+            epsilon_rf=epsilon_rf,
+            sections=dict(getattr(raw, "sections", {}) or {}),
+            dispcorr=dispcorr,
             fudge_lj=raw.fudge_lj,
             fudge_qq=raw.fudge_qq,
             atom_type_specs=atom_type_specs,

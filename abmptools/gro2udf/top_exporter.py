@@ -455,6 +455,47 @@ def _display_type_name(
     return type_name
 
 
+#: COGNAC takes "the medium outside the cutoff is a conductor" as a large
+#: number; GROMACS writes the same thing as ``epsilon_rf = 0``.
+_RF_INFINITY = 1.0e9
+
+
+def _scale_charges_for_epsilon_r(uobj, model) -> int:
+    """Fold ``epsilon_r`` into the charges, and say so. Returns how many.
+
+    GROMACS divides every Coulomb term by ``epsilon_r`` (coarse-grained
+    fields set it to 15). COGNAC's reaction field has no such field -- its
+    one dielectric is the medium outside the cutoff -- so the only way to
+    carry it is in the charges: U goes as q_i q_j / eps, which is the same
+    as (q_i/sqrt(eps))(q_j/sqrt(eps)) with eps = 1.
+
+    The energies and forces come out exactly right. **The charges in the
+    file are then not the ones the topology lists**, which is why this is
+    logged and recorded, not done quietly.
+    """
+    eps_r = float(getattr(model, "epsilon_r", 1.0) or 1.0)
+    if abs(eps_r - 1.0) < 1e-12:
+        return 0
+    scale = 1.0 / math.sqrt(eps_r)
+    loc = "Set_of_Molecules.molecule[].electrostatic_Site[].ES_Element"
+    n = 0
+    for m in range(uobj.size("Set_of_Molecules.molecule[]")):
+        for k in range(uobj.size("Set_of_Molecules.molecule[].electrostatic_Site[]", [m])):
+            q = uobj.get(loc, [m, k])
+            if q:
+                uobj.put(q * scale, loc, [m, k])
+                n += 1
+    if n:
+        logger.warning(
+            "epsilon_r = %g has been folded into %d charges (each multiplied "
+            "by 1/sqrt(epsilon_r) = %.6f). The energies and forces match the "
+            "original, but THE CHARGES IN THIS FILE ARE NOT THE TOPOLOGY'S: "
+            "COGNAC's reaction field has no permittivity inside the cutoff. "
+            "Anything that reads charges back from this file must undo it.",
+            eps_r, n, scale)
+    return n
+
+
 def _put_with_unit_fallback(uobj, value, path, indices=None, unit=None):
     """Wrap ``uobj.put`` so callers can request a unit alias (e.g. ``"[nm]"``)
     that may not exist in older cognac schemas.
@@ -771,6 +812,9 @@ class TopExporter:
 
         with _section("Set_of_Molecules", template_path, out_path):
             self._write_set_of_molecules(uobj, model)
+            # epsilon_r has no home in COGNAC's reaction field, so it rides
+            # on the charges. Done here, right after they are written.
+            _scale_charges_for_epsilon_r(uobj, model)
 
         frames_to_write = frames if frames is not None else model.frames
         # Pre-aggregate per-frame statistics (energy + temperature + pressure
@@ -1091,7 +1135,7 @@ class TopExporter:
         nh_dof : "3N" か "3N-3"。 熱浴に結合する自由度の数え方。
         """
         uobj.jump(-1)
-        TopExporter._write_potential_flags(uobj)
+        TopExporter._write_potential_flags(uobj, model)
         TopExporter._normalize_deformation_method(uobj)
         TopExporter._write_coupling_masses(uobj, model, nh_dof)
         TopExporter._write_ewald_defaults(uobj, model)
@@ -1099,8 +1143,8 @@ class TopExporter:
         uobj.write()
 
     @staticmethod
-    def _write_potential_flags(uobj) -> None:
-        """どの相互作用を計算するか。 AMBER / GAFF の規約で明示する。"""
+    def _write_potential_flags(uobj, model: TopModel) -> None:
+        """どの相互作用を計算するか。**topology が言うとおりに**書く。"""
         # --- potential flags ---
         # The COGNAC template ships with Angle / Torsion / Non_Bonding_1_4 set
         # to 0.  Leaving them there produces a UDF whose bonded terms are
@@ -1113,9 +1157,39 @@ class TopExporter:
         uobj.put(1, flags + "Torsion")
         uobj.put(1, flags + "Non_Bonding_Interchain")
         uobj.put(1, flags + "Non_Bonding_Intrachain")
-        uobj.put(0, flags + "Non_Bonding_1_3")
-        uobj.put(1, flags + "Non_Bonding_1_4")
+        # 1-3 / 1-4 come from nrexcl, not from a convention:
+        #   nrexcl 1 -> only the bonded neighbour is excluded (1-3 and 1-4 count)
+        #   nrexcl 2 -> 1-3 excluded as well
+        #   nrexcl 3 -> 1-4 too (the all-atom default)
+        # Fixing these at the all-atom values drops interactions a
+        # coarse-grained field expects, which shows up as a non-bonded
+        # energy that is too low and is otherwise invisible.
+        values = sorted(set((getattr(model, "nrexcl", {}) or {}).values()))
+        nrexcl = values[-1] if values else 3
+        if len(values) > 1:
+            logger.warning(
+                "the molecules do not share one nrexcl (%s); COGNAC has only "
+                "system-wide 1-3/1-4 flags, so the largest (%d) is used and "
+                "the molecules with a smaller one lose some non-bonded pairs",
+                ", ".join(str(v) for v in values), nrexcl)
+        # [ pairs ] puts the 1-4 interaction back, scaled by fudgeLJ/fudgeQQ
+        # (the all-atom convention: exclude up to 1-4, then re-add it at 5/6).
+        # COGNAC spells that as 1_4 on with Scale_1_4_Pair, so the section's
+        # presence decides, not nrexcl alone.
+        has_pairs = bool((getattr(model, "sections", {}) or {}).get("pairs"))
+        uobj.put(1 if nrexcl < 2 else 0, flags + "Non_Bonding_1_3")
+        uobj.put(1 if (nrexcl < 3 or has_pairs) else 0, flags + "Non_Bonding_1_4")
         uobj.put(1, flags + "Electrostatic")
+        # Tail correction follows the .mdp's DispCorr. With it on, COGNAC
+        # does not shift the LJ to zero at the cutoff, so every pair inside
+        # carries an offset; GROMACS shifts by default (vdw-modifier =
+        # Potential-shift) and corrects only when DispCorr says so.
+        # Without a .mdp the template's value is left alone, so conversions
+        # that never passed one keep behaving as before.
+        disp = getattr(model, "dispcorr", None)
+        if disp is not None:
+            uobj.put(0 if disp in ("", "no", "none") else 1,
+                     flags + "Tail_Correction")
 
     @staticmethod
     def _write_coupling_masses(uobj, model: TopModel, nh_dof: str) -> None:
@@ -1211,12 +1285,38 @@ class TopExporter:
 
     @staticmethod
     def _write_ewald_defaults(uobj, model: TopModel) -> None:
-        """静電の既定。 ``Scale_1_4_Pair`` は 5/6 (AMBER 規約)。"""
-        # --- Ewald electrostatic interaction defaults ---
+        """静電。``Scale_1_4_Pair`` は 5/6 (AMBER 規約)。
+
+        **``.mdp`` が reaction-field と言っているなら、そのとおりに書く。**
+        COGNAC の Reaction_Field は、外側の誘電率を無限とした式
+
+            U = q_i q_j / (eps r) [1 + r^3 / (2 rc^3)] - 3 q_i q_j / (2 eps rc)
+
+        (COGNAC manual eq. 2.89) で、これは GROMACS の
+        ``coulombtype = reaction-field`` + ``epsilon_rf = 0`` と同じ形。
+        ``epsilon_r`` も ``rcoulomb`` もそのまま渡せる。Ewald のまま書くと、
+        誘電率 (粗視化では 15) が落ちて静電が何倍にもなる。
+        """
         loc = "Interactions.Electrostatic_Interaction[0]"
         uobj.put("POINT_CHARGE",      loc + ".Name")
-        uobj.put("Ewald",             loc + ".Algorithm")
         uobj.put(0.83333333333333,    loc + ".Scale_1_4_Pair")
+        ctype = (getattr(model, "coulombtype", "") or "").lower()
+        rc = getattr(model, "coulomb_cutoff", None)
+        if ctype.startswith("reaction") and rc:
+            uobj.put("Reaction_Field", loc + ".Algorithm")
+            # COGNAC's Dielectric_Constant here is the medium *outside* the
+            # cutoff (eq. 2.89 of its manual), the counterpart of GROMACS'
+            # epsilon_rf; 0 in a .mdp means infinity, and COGNAC takes a
+            # large number for that. The permittivity *inside* the cutoff
+            # (GROMACS epsilon_r) has no field at all -- see
+            # _scale_charges_for_epsilon_r for how it is carried.
+            eps_rf = float(getattr(model, "epsilon_rf", 0.0) or 0.0)
+            uobj.put(_RF_INFINITY if eps_rf <= 0.0 else eps_rf,
+                     loc + ".Reaction_Field.Dielectric_Constant")
+            _put_with_unit_fallback(uobj, rc,
+                                    loc + ".Reaction_Field.cutoff", None, "[nm]")
+            return
+        uobj.put("Ewald",             loc + ".Algorithm")
         uobj.put(0.0,                 loc + ".Ewald.Dielectric_Constant")
         uobj.put(model.ewald_r_cutoff, loc + ".Ewald.R_cutoff")
         uobj.put("Auto",              loc + ".Ewald.Ewald_Parameters")
@@ -1310,18 +1410,40 @@ class TopExporter:
                      "Molecular_Attributes.Bond_Potential[].Harmonic.K",
                      [j], "[kJ/mol/nm^2]")
 
-        # --- Angle_Potential (Theta) ---
+        # --- Angle_Potential ---
+        # funct 1 (harmonic in theta)  -> COGNAC "Theta"  : U = k/2 (t - t0)^2
+        # funct 2 (GROMOS-96 cosine)   -> COGNAC "Cosine" : U = k/2 (cos t - cos t0)^2
+        #
+        # The two forms are not interchangeable and their k do not even share
+        # a unit (kJ/mol/rad^2 against kJ/mol), so writing a funct 2 angle as
+        # "Theta" puts the right number in the wrong potential. Coarse-grained
+        # fields use funct 2 throughout; it also appears in GROMOS and in
+        # hand-written .itp files for any resolution.
+        #
+        # theta0 is written as its supplement either way, because COGNAC
+        # measures the angle from the other side. Cosine is unaffected by
+        # that: cos(180 - t) = -cos(t) flips both terms of the difference,
+        # and the difference is squared.
         for j, at in enumerate(model.angle_type_specs):
             q0 = 180.0 - at.theta0   # COGNAC convention: supplement of GROMACS theta0
             uobj.put(at.name,
                      "Molecular_Attributes.Angle_Potential[].Name", [j])
-            uobj.put("Theta",
-                     "Molecular_Attributes.Angle_Potential[].Potential_Type", [j])
-            uobj.put(q0,
-                     "Molecular_Attributes.Angle_Potential[].theta0", [j])
-            _put_with_unit_fallback(uobj, at.k,
-                     "Molecular_Attributes.Angle_Potential[].Theta.K",
-                     [j], "[kJ/mol/rad^2]")
+            if getattr(at, "funct", 1) == 2:
+                uobj.put("Cosine",
+                         "Molecular_Attributes.Angle_Potential[].Potential_Type", [j])
+                uobj.put(q0,
+                         "Molecular_Attributes.Angle_Potential[].theta0", [j])
+                _put_with_unit_fallback(uobj, at.k,
+                         "Molecular_Attributes.Angle_Potential[].Cosine.K",
+                         [j], "[kJ/mol]")
+            else:
+                uobj.put("Theta",
+                         "Molecular_Attributes.Angle_Potential[].Potential_Type", [j])
+                uobj.put(q0,
+                         "Molecular_Attributes.Angle_Potential[].theta0", [j])
+                _put_with_unit_fallback(uobj, at.k,
+                         "Molecular_Attributes.Angle_Potential[].Theta.K",
+                         [j], "[kJ/mol/rad^2]")
 
         # --- Torsion_Potential ---
         # Each TorsionTypeSpec is already one term (params = [PHASE, PK, PN] for Amber).
@@ -1406,11 +1528,28 @@ class TopExporter:
                 used_types.add(atom.type_name)
 
         # Molecular_Attributes.Interaction_Site_Type
+        #
+        # Range comes from sigma, and a field that keeps its LJ in
+        # [ nonbond_params ] has sigma = 0 in [ atomtypes ]; the self pair is
+        # then the only place the size of the site is written down.
+        explicit = getattr(model, "nonbond_params", {}) or {}
         ncount = 0
         for at in model.atom_type_specs:
             if at.name not in used_types:
                 continue
-            rval = at.sigma * 1.5
+            sigma_self = at.sigma
+            own = explicit.get((at.name, at.name))
+            if own and own[0] > 0.0:
+                sigma_self = own[0]
+            rval = sigma_self * 1.5
+            # COGNAC needs Range(i) + Range(j) >= Cutoff for every pair it has
+            # to find, and refuses the input otherwise. With the old per-pair
+            # cutoff of 2.5 sigma the 1.5 sigma range always covered it
+            # (3 sigma > 2.5 sigma); a cutoff read from the .mdp does not
+            # scale with sigma, so the smallest site sets the floor.
+            cut = getattr(model, "vdw_cutoff", None)
+            if cut:
+                rval = max(rval, cut * 0.55)
             uobj.put(display_map.get(at.name, at.name),
                      "Molecular_Attributes.Interaction_Site_Type[].Name",
                      [ncount])
@@ -1441,18 +1580,28 @@ class TopExporter:
                 s1, s2 = at1.sigma, at2.sigma
                 e1, e2 = at1.epsilon, at2.epsilon
 
-                if combrule == 2:       # Lorentz-Berthelot
-                    sigma = (s1 + s2) * 0.5
-                elif combrule == 3:     # OPLS geometric
-                    sigma = (s1 * s2) ** 0.5
+                # An explicit [ nonbond_params ] pair wins over the
+                # combination rule: that is what the section is for, and a
+                # coarse-grained field puts *every* pair there.
+                pair = explicit.get(tuple(sorted((at1.name, at2.name))))
+                if pair is not None:
+                    sigma, epsilon = pair
                 else:
-                    sigma = (s1 + s2) * 0.5
+                    if combrule == 2:       # Lorentz-Berthelot
+                        sigma = (s1 + s2) * 0.5
+                    elif combrule == 3:     # OPLS geometric
+                        sigma = (s1 * s2) ** 0.5
+                    else:
+                        sigma = (s1 + s2) * 0.5
+                    epsilon = (e1 * e2) ** 0.5
 
                 if sigma < 1.0e-10:
                     continue
 
-                epsilon = (e1 * e2) ** 0.5
-                cutoff = sigma * s2c
+                # The LJ energy depends on where it is cut, so use the cutoff
+                # the original run used when the .mdp said so.
+                cutoff = model.vdw_cutoff if getattr(model, "vdw_cutoff", None) \
+                    else sigma * s2c
                 d1 = display_map.get(at1.name, at1.name)
                 d2 = display_map.get(at2.name, at2.name)
                 name = "{}-{}".format(d1, d2)
