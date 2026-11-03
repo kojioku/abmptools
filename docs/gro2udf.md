@@ -1301,3 +1301,66 @@ end 0.044 nm apart, 1.0 % of the thickness. Area per lipid is fixed here
 coordinates as given; a molecule split across the periodic boundary turns
 into one enormous bond (one came out at 59.8 A instead of 4.0). Pass
 `make_whole=True`, or make the frame whole before converting.
+
+## Coarse-grained proteins: what works and what cannot
+
+Three of the four things a coarse-grained protein needs are now written.
+The fourth cannot be written at all, and it is not a question of accuracy.
+
+### Restricted bending (angle funct 10) -- written as a table, exactly
+
+The engine has no such function but does read a **table**, indexed by the
+cosine of the exterior angle (its own ``src/tableangle.cpp``). Writing the
+function into a table is not an approximation of its shape, only of its
+sampling. Measured on a three-bead molecule, same structure through both
+engines:
+
+| angle | GROMACS | converted |
+|---|---|---|
+| 100 deg | 2.82845 | 2.82845 |
+| 130 deg (the minimum) | 1.9e-7 | 0.00000 |
+| 160 deg | 9.40144 | 9.40145 |
+
+The sampling costs at most 0.054 kJ/mol between 20 and 170 degrees (worst
+case, straight-line interpolation; the engine is asked for 4th order). Past
+170 degrees the potential itself diverges and no run goes there.
+
+### Explicit exclusions -- written as bonds with no force constant, exactly
+
+The engine drops the non-bonded interaction of a bonded pair and has no
+per-pair switch, so each ``[ exclusions ]`` pair becomes a bond with
+``k = 0``: it removes the pair and adds no energy. Measured against
+GROMACS' own exclusion, on three and four beads:
+
+| | GROMACS LJ | converted LJ |
+|---|---|---|
+| no exclusion | -0.4725 / -1.6485 | -0.4725 / -1.6485 |
+| 1-3 (or 1-4) excluded | **0.0000 / -1.6102** | **0.0000 / -1.6102** |
+
+The four-bead case is the one that matters: the LJ agrees exactly, so the
+extra bond removes **only** that pair -- 1-3 and 2-4 keep interacting. That
+holds because ``nrexcl`` is 1 and 1-3 pairs are therefore computed; with
+``nrexcl >= 2`` the same bond would exclude further neighbours, and the
+conversion refuses such a topology.
+
+Those bonds are named ``excl_...`` so they can be counted and, above all,
+**kept out of any constraint (RATTLE) list** -- constraining one would fix
+two atoms at a length that was never a bond length.
+
+### Proper dihedrals with a phase of neither 0 nor 180 -- cannot be written
+
+A coarse-grained protein's backbone dihedrals come out of a fit, so their
+phases are arbitrary: the test protein has 108 distinct ones. None of the
+engine's torsion forms can hold such a term.
+
+* its Amber form refuses them outright ("Phase in Amber torsion potential
+  must be 0 or 180 degree");
+* the cosine polynomial is a polynomial in ``cos phi``, which is even in
+  ``phi``;
+* the table is indexed by ``cos phi`` as well (``src/tabletorsion.cpp``), so
+  it cannot tell ``phi`` from ``-phi`` either.
+
+`(1 + cos(n phi - phase))` carries a `sin(n phi) sin(phase)` part, odd in
+``phi``, and nothing even in ``phi`` can represent it. This is a wall on the
+engine's side, not something the writer can approximate around, so such a
+topology is refused.

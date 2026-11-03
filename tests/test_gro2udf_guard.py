@@ -140,12 +140,16 @@ class TestCoarseGrainedIsCarried:
         fatal, _ = check_top(raw, raw.sections)
         assert fatal == [], fatal
 
-    def test_restricted_bending_is_still_fatal(self, tmp_path):
-        """funct 10 (ReB) には COGNAC に同じ式が無い。黙って別の形にしない。"""
+    def test_restricted_bending_is_carried_as_a_table(self, tmp_path):
+        """funct 10 (ReB) に閉じた形は無いが、**数値の表で厳密に書ける**。
+
+        表にするのは形の近似ではなく、刻みの細かさだけの問題
+        (大きさは tests/test_gro2udf_angle_table.py で測っている)。
+        """
         text = MARTINI_TOP.replace("  1 2 3 2 ", "  1 2 3 10 ")
         raw = TopParser().parse(_write(tmp_path, "reb.top", text))
         fatal, _ = check_top(raw, raw.sections)
-        assert any("funct 10" in f for f in fatal), fatal
+        assert not any("funct 10" in f for f in fatal), fatal
 
 
 class TestPlainTopStillPasses:

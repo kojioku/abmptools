@@ -20,6 +20,7 @@ from typing import List, Optional
 from .gro_parser import GROParser
 from .mdp_parser import MdpParams, load_mdp
 from .top_model import (
+    EXCLUSION_BOND_PREFIX,
     gro_box_is_triclinic,
     EWALD_R_CUTOFF_DEFAULT,
     AtomTypeSpec,
@@ -193,7 +194,15 @@ class TopAdapter:
         specs, used = [], {}
         for j, bt in enumerate(bond_types_from_mol):
             a1, a2, funct, params = bt
-            name = _unique(get_bond_name(a1, a2), used)
+            # A bond with no force constant is not a bond: it is how an
+            # explicit exclusion is carried. Name it so, so that it can be
+            # counted in the summary and kept out of the constraint list --
+            # RATTLE would otherwise fix two atoms at a length that was
+            # never a bond length.
+            base = get_bond_name(a1, a2)
+            if params[1] == 0.0:
+                base = EXCLUSION_BOND_PREFIX + base
+            name = _unique(base, used)
             specs.append(BondTypeSpec(
                 name=name,
                 name1=a1,

@@ -135,6 +135,12 @@ class TopRawData:
     #: **どこまでの隣を非結合から外すか**。読まないと 1-3 の扱いが力場に
     #: 関わらず固定になる (全原子の「1-2 と 1-3 を外す」流儀のまま)。
     nrexcl: Dict = field(default_factory=dict)
+    #: ``[ exclusions ]``: ``{molecule: [(i, j), ...]}`` (1-based, i < j).
+    #: One line lists several partners, so a line is several pairs.
+    exclusions: Dict = field(default_factory=dict)
+    #: Phases [deg] of the proper dihedrals that are written as the engine's
+    #: Amber form. It only takes 0 or 180, so anything else has to be caught.
+    torsion_phases: List = field(default_factory=list)
     bondtypes: List = field(default_factory=list)
     angletypes: List = field(default_factory=list)
     torsiontypes: List = field(default_factory=list)
@@ -303,7 +309,12 @@ class TopParser:
          raw.bond_types_from_mol,
          raw.angle_types_from_mol,
          raw.torsion_types_from_mol,
-         raw.nrexcl) = self._parse_topology(lines)
+         raw.nrexcl,
+         raw.exclusions) = self._parse_topology(lines)
+        # [a1, a2, a3, a4, funct, improper, [PHASE, PK, PN]]
+        raw.torsion_phases = [
+            tt[6][0] for tt in raw.torsion_types_from_mol
+            if len(tt) > 6 and tt[4] in (1, 9, 4) and tt[6]]
         raw.n_constraints_as_bonds = self._n_constraints_as_bonds
         raw.constraint_pairs = self._constraint_pairs
 
@@ -564,6 +575,8 @@ class TopParser:
            bond_types_from_mol, angle_types_from_mol, torsion_types_from_mol)
         """
         nrexcl_map = {}         # moleculetype -> nrexcl
+        exclusion_map = {}      # moleculetype -> [(i, j), ...]
+        flg_excl = False        # inside [ exclusions ] of a kept molecule
         skip_molecule = False   # inside a molecule this system does not use
         flg1 = False  # moleculetype
         flg2 = False  # atoms
@@ -618,6 +631,12 @@ class TopParser:
                         # a file-wide section ends the skipped molecule;
                         # [ molecules ] lives here and must not be skipped
                         skip_molecule = False
+            if _is_section(stripped, "exclusions"):
+                flg_excl = not skip_molecule
+                flg1 = flg2 = flg3 = flg4 = flg5 = False
+                continue
+            if stripped.startswith("[") and stripped.endswith("]"):
+                flg_excl = False
             if _is_section(stripped, "moleculetype"):
                 logger.info("reading moleculetype")
                 # Flush the molecule that just ended -- but only if it was
@@ -724,6 +743,33 @@ class TopParser:
 
             stmp = _fields(line)
             if not stmp:
+                continue
+
+            if flg_excl:
+                # A pair listed here must not interact. The engine has no
+                # per-pair switch, but it does drop the non-bonded
+                # interaction of a **bonded** pair, so each exclusion is
+                # written as a bond whose force constant is zero: it removes
+                # the pair and adds no energy of its own. This only works
+                # while nrexcl is 1 (checked in the guard) -- with a larger
+                # nrexcl the extra bond would exclude further neighbours too.
+                try:
+                    first = int(stmp[0])
+                    partners = [int(x) for x in stmp[1:]]
+                except ValueError:
+                    continue
+                here = exclusion_map.setdefault(mol_types[-1] if mol_types else "", [])
+                for other in partners:
+                    if other == first:
+                        continue
+                    pair = (min(first, other), max(first, other))
+                    if pair in here:
+                        continue
+                    here.append(pair)
+                    tidx = self._put_bond_type(
+                        pair[0], pair[1], 1, "0.0", 0.0,
+                        atomlist_mol, bondtypes_map, bond_types_from_mol)
+                    bondlist_mol.append([pair[0], pair[1], tidx])
                 continue
 
             if flg1:
@@ -866,7 +912,7 @@ class TopParser:
         return (mol_types, atomlist, bondlist, anglelist, torsionlist,
                 mol_instance_list,
                 bond_types_from_mol, angle_types_from_mol,
-                torsion_types_from_mol, nrexcl_map)
+                torsion_types_from_mol, nrexcl_map, exclusion_map)
 
     # ------------------------------------------------------------------
     # Internal helpers: put*Type -- deduplicate and register type entries

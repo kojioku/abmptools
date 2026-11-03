@@ -83,7 +83,6 @@ DROPPED_SECTIONS: Dict[str, str] = {
     "pairtypes": "per-type 1-4 LJ overrides. The plain [ pairs ] list is\n                  fine -- COGNAC reproduces it from Scale_1_4_Pair, which\n                  gro2udf sets from fudgeLJ -- but a [ pairtypes ] override\n                  cannot be expressed by that single scale factor",
     "settles": "rigid water geometry (note that #ifdef is not evaluated, so a "
                "FLEXIBLE branch in the same .itp is read instead)",
-    "exclusions": "explicit non-bonded exclusions",
     "virtual_sites1": "virtual sites",
     "virtual_sites2": "virtual sites",
     "virtual_sites3": "virtual sites",
@@ -106,13 +105,11 @@ DROPPED_SECTIONS: Dict[str, str] = {
 #: ``top_exporter`` writes every bond as COGNAC ``Harmonic``, whatever the funct.
 SUPPORTED_BOND_FUNCTS = frozenset({1})
 #: funct 1 -> COGNAC ``Theta``, funct 2 -> ``Cosine`` (same form, same units).
-SUPPORTED_ANGLE_FUNCTS = frozenset({1, 2})
+SUPPORTED_ANGLE_FUNCTS = frozenset({1, 2, 10})
 #: funct 1/9/4 -> ``Amber``, 3 -> ``Cosine_Polynomial``; others are skipped.
 SUPPORTED_TORSION_FUNCTS = frozenset({1, 3, 4, 9})
 
 _FUNCT_NOTE = {
-    ("angle", 10):
-        "restricted bending (ReB). COGNAC has no closed-form equivalent",
 }
 _SECTION_RE = re.compile(r"^\s*\[\s*([A-Za-z_0-9]+)\s*\]")
 
@@ -276,6 +273,36 @@ def check_top(raw, sections: Dict[str, int],
         elif name in DROPPED_SECTIONS:
             warnings.append("[ {} ] has {} {} but is not read; this drops {}"
                             .format(name, count, plural, DROPPED_SECTIONS[name]))
+
+    # An explicit exclusion is written as a bond with no force constant, and
+    # that only removes the one pair while nrexcl is 1. With a larger nrexcl
+    # the same bond would also exclude the neighbours it newly puts within
+    # reach, which the topology never asked for.
+    excl = getattr(raw, "exclusions", {}) or {}
+    nrexcl = getattr(raw, "nrexcl", {}) or {}
+    bad = sorted({m for m, pairs in excl.items()
+                  if pairs and nrexcl.get(m, 1) >= 2})
+    if bad:
+        fatal.append(
+            "[ exclusions ] in {} with nrexcl >= 2. An exclusion is carried "
+            "as a bond with no force constant, which removes exactly the one "
+            "pair only while nrexcl is 1; with a larger nrexcl that bond "
+            "would exclude further neighbours as well".format(", ".join(bad)))
+
+    # A proper dihedral is written as the engine's Amber form, whose phase
+    # must be 0 or 180 degrees. Any other phase carries a sin(n phi) part,
+    # which none of the engine's torsion forms can hold -- not the cosine
+    # polynomial (even in phi), and not the table either, which is indexed
+    # by cos(phi) and so cannot tell phi from -phi.
+    odd = [p for p in getattr(raw, "torsion_phases", []) or []
+           if min(abs(p % 360.0), abs(p % 360.0 - 180.0), abs(p % 360.0 - 360.0)) > 1.0e-6]
+    if odd:
+        fatal.append(
+            "{} proper dihedral(s) have a phase that is neither 0 nor 180 "
+            "degrees ({} distinct, e.g. {:.1f}). The engine's Amber torsion "
+            "takes only those two, and its other forms are even in phi, so "
+            "such a term cannot be written at all".format(
+                len(odd), len({round(p, 3) for p in odd}), odd[0]))
 
     # A bond or angle is written unconditionally as Harmonic / Theta, so an
     # unsupported funct becomes a wrong number rather than a missing term.
