@@ -236,6 +236,19 @@ def _from_top_parser():
                              "originals: the [ molecules ] order picks the "
                              "atoms of every frame. A name that is not in "
                              "[ molecules ] is an error.")
+    parser.add_argument("--for-viewing", dest="for_viewing",
+                        action="store_true",
+                        help="Write a file to be LOOKED AT, not run. Terms "
+                             "the engine cannot hold (a dihedral whose phase "
+                             "is neither 0 nor 180, for one) are left out "
+                             "instead of failing the conversion, never "
+                             "rewritten into a different one, and each "
+                             "virtual site becomes a particle tied to its "
+                             "first host. What the file does not reproduce is "
+                             "warned about and written to <out>.notes.txt "
+                             "beside it. The structure, the molecules and the "
+                             "trajectory are complete; the force field is "
+                             "not.")
     parser.add_argument("--allow-unsupported", dest="allow_unsupported",
                         action="store_true",
                         help="Convert even when the .top contains terms "
@@ -415,6 +428,7 @@ def _run_from_top(argv: list) -> None:
                          max_frames=args.max_frames,
                          frame_step=args.frame_step,
                          allow_unsupported=args.allow_unsupported,
+                         for_viewing=args.for_viewing,
                          constraints_as_bonds=constraints_k,
                          keep_molecules=keep_molecules,
                          make_whole=args.make_whole,

@@ -197,7 +197,8 @@ def scan_sections(lines: List[str], used: Optional[Set[str]] = None) -> Dict[str
     return counts
 
 
-def scan_dihedral_functs(lines: List[str]) -> List[int]:
+def scan_dihedral_functs(lines: List[str],
+                         used: Optional[Set[str]] = None) -> List[int]:
     """Collect the ``funct`` column of every dihedral line, from the raw text.
 
     :class:`~.top_parser.TopParser` cannot be used for this. A dihedral line
@@ -209,15 +210,36 @@ def scan_dihedral_functs(lines: List[str]) -> List[int]:
     ``[ dihedrals ]`` is ``ai aj ak al funct ...`` (atoms are integers), while
     ``[ dihedraltypes ]`` names atom types and comes in a 2-name and a 4-name
     flavour, so the funct is taken as the first integer token.
+
+    ``[ dihedrals ]`` inside a ``[ moleculetype ]`` is read **only for the
+    molecules the system actually contains**. A force field file carries
+    molecules nobody used -- the Martini ion file defines imidazolium ions
+    next to the sodium and chloride a bilayer needs -- and counting those
+    made every bilayer conversion warn that it was dropping terms that were
+    never in the box. ``[ dihedraltypes ]`` is not inside a molecule, so it
+    is always read.
     """
+    if used is None:
+        used = used_moleculetypes(lines)
     functs = set()
     current: Optional[str] = None
+    molecule: Optional[str] = None
+    expect_name = False
     for line in lines:
         m = _SECTION_RE.match(line)
         if m:
             current = m.group(1).lower()
+            if current == "moleculetype":
+                expect_name, molecule = True, None
             continue
+        if expect_name and _is_data_line(line):
+            parts = line.split(";")[0].split()
+            if parts:
+                molecule, expect_name = parts[0], False
         if current not in ("dihedrals", "dihedraltypes"):
+            continue
+        if (current == "dihedrals" and molecule is not None
+                and molecule not in used):
             continue
         if not _is_data_line(line):
             continue
@@ -244,6 +266,31 @@ def _functs(entries, idx) -> List[int]:
         if len(e) > idx and isinstance(e[idx], int):
             out.add(e[idx])
     return sorted(out)
+
+
+#: How far from 0 or 180 degrees a phase may sit and still count as that
+#: value. A force field writes the phase through radians, so the number in
+#: the file is rounded: ff14SB through parmed gives **180.0000771** degrees
+#: (3.14159 rad), which an exact test refuses. The phases this check exists
+#: to catch are tens of degrees away, so a hundredth of a degree separates
+#: the two cases with room to spare.
+PHASE_TOLERANCE_DEG = 0.01
+
+
+def phase_is_writable(phase) -> bool:
+    """True when *phase* is 0 or 180 degrees, which is what the engine takes.
+
+    The value arrives as a number from an inline ``[ dihedrals ]`` line and as
+    **text** from a ``[ dihedraltypes ]`` lookup. Taking ``%`` of text is
+    string formatting, not a remainder, so the test floats it first. Anything
+    that will not float is left to the writer rather than refused here.
+    """
+    try:
+        value = float(phase) % 360.0
+    except (TypeError, ValueError):
+        return True
+    return min(abs(value), abs(value - 180.0),
+               abs(value - 360.0)) <= PHASE_TOLERANCE_DEG
 
 
 def check_top(raw, sections: Dict[str, int],
@@ -278,7 +325,12 @@ def check_top(raw, sections: Dict[str, int],
     # that only removes the one pair while nrexcl is 1. With a larger nrexcl
     # the same bond would also exclude the neighbours it newly puts within
     # reach, which the topology never asked for.
-    excl = getattr(raw, "exclusions", {}) or {}
+    # Only the pairs nrexcl does NOT already cover are a real request: water
+    # out of an Amber force field lists its three pairs although its bonds
+    # cover them, and refusing those refused every TIP3P system.
+    excl = getattr(raw, "exclusions_needed", None)
+    if excl is None:
+        excl = getattr(raw, "exclusions", {}) or {}
     nrexcl = getattr(raw, "nrexcl", {}) or {}
     bad = sorted({m for m, pairs in excl.items()
                   if pairs and nrexcl.get(m, 1) >= 2})
@@ -295,7 +347,7 @@ def check_top(raw, sections: Dict[str, int],
     # polynomial (even in phi), and not the table either, which is indexed
     # by cos(phi) and so cannot tell phi from -phi.
     odd = [p for p in getattr(raw, "torsion_phases", []) or []
-           if min(abs(p % 360.0), abs(p % 360.0 - 180.0), abs(p % 360.0 - 360.0)) > 1.0e-6]
+           if not phase_is_writable(p)]
     if odd:
         fatal.append(
             "{} proper dihedral(s) have a phase that is neither 0 nor 180 "

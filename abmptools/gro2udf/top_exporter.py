@@ -26,7 +26,7 @@ from typing import Iterable, List, Optional, Sequence
 from .top_model import KB_AMU_A2_PS2_K, GROFrameData, TopModel
 from .angle_table import RESTRICTED_BENDING, write_angle_table
 from .top_parser import TopParser
-from .guard import raise_if_unsupported
+from .guard import check_top, phase_is_writable, raise_if_unsupported
 from .top_adapter import TopAdapter
 
 from .make_whole import make_frames_whole, unwrap_steps
@@ -497,6 +497,29 @@ def _scale_charges_for_epsilon_r(uobj, model) -> int:
     return n
 
 
+def _write_viewing_notes(out_path, notes) -> "Optional[Path]":
+    """Put the notes in a file beside the UDF, so it cannot be separated.
+
+    The UDF's own ``Unit_Parameter.Comment`` carries the force-field id that
+    the downstream reads, so it must not be used for prose.
+    """
+    if not notes:
+        return None
+    path = Path(str(out_path) + ".notes.txt")
+    path.write_text(
+        "This file was written TO BE LOOKED AT, not to be run.\n"
+        "Opening it and playing the trajectory is what it is for. Running it\n"
+        "would stop, or would use a force field that is not the original,\n"
+        "because of:\n\n"
+        + "".join("  - {}\n".format(n) for n in notes)
+        + "\nThe structure, the molecules, the bonds and the trajectory are\n"
+          "complete. What is listed above is missing from the force field.\n",
+        encoding="utf-8", newline="\n")
+    logger.warning("what this file does not reproduce is written in %s",
+                   path.name)
+    return path
+
+
 def _write_angle_tables(model, out_path) -> dict:
     """Write one table file per angle type that needs one; return the names.
 
@@ -611,6 +634,7 @@ class TopExporter:
         trajectory_path: Optional[str] = None,
         energy_path: Optional[str] = None,
         allow_unsupported: bool = False,
+        for_viewing: bool = False,
         force_field: Optional[str] = "auto",
         nh_dof: str = "3N-3",
         max_frames: Optional[int] = None,
@@ -634,6 +658,13 @@ class TopExporter:
                         directive in the template (e.g. ``"110"`` to fall back
                         from the bundled cognac112 default to the cognac110 schema
                         shipped with OCTA84 / OCTA viewer 9.1).
+        for_viewing   : write a file meant to be **looked at**, not run.
+                        Terms the engine cannot hold are left out instead of
+                        failing the conversion, and every one of them is
+                        written into the file's Comment, logged, and returned
+                        in ``viewing_notes`` so the caller can show it. The
+                        structure, the molecules and the trajectory are
+                        complete; the force field is not.
         allow_unsupported : convert even when the .top contains terms that
                         gro2udf writes incorrectly (see :mod:`.guard`).
                         Off by default: such a conversion reports success and
@@ -656,16 +687,30 @@ class TopExporter:
                         loads coordinates from a separate .gro/.xtc and energy
                         from a .xvg directly in OCTA viewer (GOURMET).
         """
-        raw = TopParser(constraints_as_bonds=constraints_as_bonds).parse(top_path)
+        raw = TopParser(constraints_as_bonds=constraints_as_bonds,
+                        virtual_sites_as_bonds=for_viewing).parse(top_path)
         if raw.n_constraints_as_bonds:
             logger.warning(
                 "%d [ constraints ] read as harmonic bonds (k = %g kJ/mol/nm^2). "
                 "Connectivity and lengths are exact; the force constant is a "
                 "stand-in, since a constraint has none",
                 raw.n_constraints_as_bonds, constraints_as_bonds)
-        raise_if_unsupported(raw, raw.sections,
-                             allow_unsupported=allow_unsupported,
-                             dihedral_functs=raw.dihedral_functs)
+        notes = []
+        if for_viewing:
+            fatal, warnings = check_top(raw, raw.sections,
+                                        dihedral_functs=raw.dihedral_functs)
+            notes = list(fatal) + list(warnings)
+            if notes:
+                logger.warning(
+                    "FOR VIEWING ONLY: this file is written so the system can "
+                    "be opened and looked at. Running it would stop or use a "
+                    "different force field, because of:\n  - %s",
+                    "\n  - ".join(notes))
+        else:
+            raise_if_unsupported(raw, raw.sections,
+                                 allow_unsupported=allow_unsupported,
+                                 dihedral_functs=raw.dihedral_functs)
+        self.viewing_notes = notes
         keep_idx = None
         n_atoms_full = sum(len(raw.atomlist[raw.mol_types.index(m)])
                            for m in raw.mol_instance_list)
@@ -680,6 +725,14 @@ class TopExporter:
                 " ".join(keep_molecules), len(raw.mol_instance_list),
                 n_mols_full, len(keep_idx), n_atoms_full)
         model = TopAdapter().build(raw, gro_path, mdp_path=mdp_path)
+        model.for_viewing = for_viewing
+        model.viewing_notes = notes
+        if for_viewing and raw.n_virtual_sites_as_bonds:
+            notes.append(
+                "{} virtual site(s) written as particles tied to their first "
+                "host with a bond of no force constant (the engine refuses a "
+                "molecule whose atoms are not all connected)".format(
+                    raw.n_virtual_sites_as_bonds))
 
         def _prepare(frames):
             """Make whole (full system), then cut to the kept molecules."""
@@ -735,6 +788,8 @@ class TopExporter:
             energy_times = None
 
         from .ff_detect import include_names
+        if for_viewing:
+            _write_viewing_notes(out_path, notes)
         return self.export_model(model, template_path, out_path,
                                  frames=frames,
                                  cognac_version=cognac_version,
@@ -1493,9 +1548,19 @@ class TopExporter:
 
         # --- Torsion_Potential ---
         # Each TorsionTypeSpec is already one term (params = [PHASE, PK, PN] for Amber).
+        skipped_phase = []
         for j, tt in enumerate(model.torsion_type_specs):
             funct = tt.funct
             params = tt.params
+
+            # A phase that is neither 0 nor 180 cannot be written at all:
+            # every torsion the engine has is a polynomial in cos(phi), and
+            # such a term is odd in phi. In a file meant to be looked at,
+            # leave it out and say so, rather than write a different one.
+            if (getattr(model, "for_viewing", False) and funct in (1, 9, 4)
+                    and params and not phase_is_writable(params[0])):
+                skipped_phase.append((tt.name, float(params[0])))
+                continue
 
             if funct in (1, 9, 4):
                 # Amber: params = [PHASE, PK, PN]
@@ -1559,6 +1624,19 @@ class TopExporter:
                                funct, tt.name)
 
         uobj.write()
+
+        if skipped_phase:
+            logger.warning(
+                "%d torsion type(s) left out: their phase is neither 0 nor "
+                "180 degrees, which no torsion here can hold (e.g. %s at "
+                "%.1f deg). The structure and the molecules are complete; "
+                "these terms are not in the file",
+                len(skipped_phase), skipped_phase[0][0], skipped_phase[0][1])
+            getattr(model, "viewing_notes", []).append(
+                "{} torsion type(s) left out (phase neither 0 nor 180 deg; "
+                "e.g. {} at {:.1f})".format(len(skipped_phase),
+                                            skipped_phase[0][0],
+                                            skipped_phase[0][1]))
 
     @staticmethod
     def _write_interactions(uobj, model: TopModel) -> None:
