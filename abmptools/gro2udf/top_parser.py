@@ -13,6 +13,7 @@ TopParser().parse(top_path) -> TopRawData
 from __future__ import annotations
 
 import logging
+import re
 import os
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
@@ -21,6 +22,56 @@ from ..core.top_atomtypes import fold_atomtypes
 from .guard import scan_dihedral_functs, scan_sections
 
 logger = logging.getLogger(__name__)
+
+#: ``[ section ]`` header.
+_SECTION_RE = re.compile(r"^\s*\[\s*([A-Za-z_0-9]+)\s*\]")
+
+
+#: Sections that belong to the ``[ moleculetype ]`` above them. Anything else
+#: is file-wide ([ molecules ], [ system ], [ atomtypes ] ...) and is read
+#: even while a molecule is being skipped.
+_MOLECULE_SCOPED = frozenset({
+    "atoms", "bonds", "angles", "dihedrals", "constraints", "exclusions",
+    "pairs", "settles", "position_restraints", "distance_restraints",
+    "dihedral_restraints", "angle_restraints", "orientation_restraints",
+    "virtual_sites1", "virtual_sites2", "virtual_sites3", "virtual_sites4",
+    "virtual_sitesn", "dummies1", "dummies2", "dummies3", "dummies4", "cmap",
+})
+
+
+def _molecules_listed(lines) -> "Optional[set]":
+    """``[ molecules ]`` に並ぶ分子の名前。
+
+    その節が無ければ ``None`` (単体の ``.itp`` などで「分からない」の意)。
+    """
+    names = set()
+    seen = False
+    in_section = False
+    for line in lines:
+        s = line.strip()
+        m = _SECTION_RE.match(s)
+        if m:
+            in_section = m.group(1).lower() == "molecules"
+            seen = seen or in_section
+            continue
+        if not in_section:
+            continue
+        s = s.split(";")[0].strip()
+        if s and not s.startswith("#"):
+            names.add(s.split()[0])
+    return names if seen else None
+
+
+def _is_section(stripped: str, name: str) -> bool:
+    """*stripped* が ``[ name ]`` の見出しか。
+
+    **``[x]`` と ``[ x ]`` を同じに扱う。**GROMACS はどちらも読むので、
+    片方しか見ないと、その書き方の ``.itp`` の中身が黙って落ちる
+    (Martini の脂質ライブラリは空白なしで書かれていて、112 個の
+    ``[moleculetype]`` が 1 つも読まれていなかった)。
+    """
+    m = _SECTION_RE.match(stripped)
+    return bool(m) and m.group(1).lower() == name
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +125,16 @@ class TopRawData:
 
     # global defs
     atomtypes: List = field(default_factory=list)
+    #: ``[ nonbond_params ]``: ``{(type1, type2): (V, W)}``, the pair written
+    #: with the smaller name first. With ``comb-rule`` 2 or 3 the two numbers
+    #: are sigma [nm] and epsilon [kJ/mol]; with 1 they are c6 and c12.
+    #: A force field that keeps all of its LJ here (coarse-grained ones do)
+    #: leaves ``[ atomtypes ]`` at zero, so without this the pairs are lost.
+    nonbond_params: Dict = field(default_factory=dict)
+    #: ``[ moleculetype ]`` の 2 つめの欄: ``{分子名: nrexcl}``。
+    #: **どこまでの隣を非結合から外すか**。読まないと 1-3 の扱いが力場に
+    #: 関わらず固定になる (全原子の「1-2 と 1-3 を外す」流儀のまま)。
+    nrexcl: Dict = field(default_factory=dict)
     bondtypes: List = field(default_factory=list)
     angletypes: List = field(default_factory=list)
     torsiontypes: List = field(default_factory=list)
@@ -219,11 +280,20 @@ class TopParser:
         # Global type definitions (atomtypes, bondtypes, …)
         at, bt, agt, tt = self._parse_definitions(lines)
         raw.atomtypes = at
+        raw.nonbond_params = self._parse_nonbond_params(lines)
+        # The explicit pairs are read now, so they are no longer dropped.
+        if raw.nonbond_params:
+            raw.sections["nonbond_params"] = 0
         raw.bondtypes = bt
         raw.angletypes = agt
         raw.torsiontypes = tt
 
-        # Per-molecule topology + molecule instances
+        # Per-molecule topology + molecule instances.
+        # The names in [ molecules ] are read first so that the molecules the
+        # system never contains can be skipped: a force field shipped as one
+        # .itp library carries hundreds of them, and reading those only costs
+        # time and raises features (functs, sections) the system does not use.
+        self._used_molecules = _molecules_listed(lines)
         (raw.mol_types,
          raw.atomlist,
          raw.bondlist,
@@ -232,7 +302,8 @@ class TopParser:
          raw.mol_instance_list,
          raw.bond_types_from_mol,
          raw.angle_types_from_mol,
-         raw.torsion_types_from_mol) = self._parse_topology(lines)
+         raw.torsion_types_from_mol,
+         raw.nrexcl) = self._parse_topology(lines)
         raw.n_constraints_as_bonds = self._n_constraints_as_bonds
         raw.constraint_pairs = self._constraint_pairs
 
@@ -242,6 +313,42 @@ class TopParser:
             raw.sections["constraints"] = 0
 
         return raw
+
+    # ------------------------------------------------------------------
+    # [ nonbond_params ]
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _parse_nonbond_params(lines: List[str]) -> Dict:
+        """``[ nonbond_params ]`` -> ``{(t1, t2): (V, W)}`` (keys sorted).
+
+        Each line is ``type1 type2 funct V W``. Only ``funct = 1`` (LJ) is
+        taken; a different funct would mean another functional form, and
+        guessing one is worse than leaving the pair to the combination rule.
+        """
+        out: Dict = {}
+        in_section = False
+        for line in lines:
+            s = line.split(";")[0].strip()
+            m = _SECTION_RE.match(line)
+            if m:
+                in_section = m.group(1).strip().lower() == "nonbond_params"
+                continue
+            if not in_section or not s or s.startswith("#"):
+                continue
+            f = s.split()
+            if len(f) < 5:
+                continue
+            try:
+                funct = int(f[2])
+                v, w = float(f[3]), float(f[4])
+            except ValueError:
+                continue
+            if funct != 1:
+                continue
+            key = tuple(sorted((f[0], f[1])))
+            out[key] = (v, w)
+        return out
 
     # ------------------------------------------------------------------
     # Step 1: resolve #include
@@ -313,7 +420,7 @@ class TopParser:
         in_section = False
         for line in lines:
             stripped = line.strip()
-            if "[ defaults ]" in stripped:
+            if _is_section(stripped, "defaults"):
                 in_section = True
                 continue
             if in_section:
@@ -356,19 +463,19 @@ class TopParser:
         for line in lines:
             stripped = line.strip()
 
-            if "[ atomtypes ]" in stripped:
+            if _is_section(stripped, "atomtypes"):
                 logger.info("reading atomtypes")
                 flg_atom, flg_bond, flg_angle, flg_torsion = True, False, False, False
                 continue
-            elif "[ bondtypes ]" in stripped:
+            elif _is_section(stripped, "bondtypes"):
                 logger.info("reading bondtypes")
                 flg_atom, flg_bond, flg_angle, flg_torsion = False, True, False, False
                 continue
-            elif "[ angletypes ]" in stripped:
+            elif _is_section(stripped, "angletypes"):
                 logger.info("reading angletypes")
                 flg_atom, flg_bond, flg_angle, flg_torsion = False, False, True, False
                 continue
-            elif "[ dihedraltypes ]" in stripped:
+            elif _is_section(stripped, "dihedraltypes"):
                 logger.info("reading torsiontypes")
                 flg_atom, flg_bond, flg_angle, flg_torsion = False, False, False, True
                 continue
@@ -456,6 +563,8 @@ class TopParser:
            mol_instance_list,
            bond_types_from_mol, angle_types_from_mol, torsion_types_from_mol)
         """
+        nrexcl_map = {}         # moleculetype -> nrexcl
+        skip_molecule = False   # inside a molecule this system does not use
         flg1 = False  # moleculetype
         flg2 = False  # atoms
         flg3 = False  # bonds
@@ -498,9 +607,23 @@ class TopParser:
             # --- section headers ---
             if stripped.startswith("[") and stripped.endswith("]"):
                 flg_con = False
-            if "[ moleculetype ]" in stripped:
+                if skip_molecule:
+                    sec = _SECTION_RE.match(stripped)
+                    name = sec.group(1).lower() if sec else ""
+                    if name in _MOLECULE_SCOPED:
+                        # inside a molecule this system does not contain
+                        flg1 = flg2 = flg3 = flg4 = flg5 = False
+                        continue
+                    if name != "moleculetype":
+                        # a file-wide section ends the skipped molecule;
+                        # [ molecules ] lives here and must not be skipped
+                        skip_molecule = False
+            if _is_section(stripped, "moleculetype"):
                 logger.info("reading moleculetype")
-                if mol_types:
+                # Flush the molecule that just ended -- but only if it was
+                # kept. Flushing a skipped one would push an empty entry into
+                # atomlist and put every later molecule at the wrong index.
+                if mol_types and not skip_molecule:
                     atomlist.append(atomlist_mol)
                     bondlist.append(bondlist_mol)
                     anglelist.append(anglelist_mol)
@@ -511,19 +634,19 @@ class TopParser:
                     torsionlist_mol = []
                 flg1, flg2, flg3, flg4, flg5 = True, False, False, False, False
                 continue
-            elif "[ atoms ]" in stripped:
+            elif _is_section(stripped, "atoms"):
                 logger.info("reading atoms")
                 flg1, flg2, flg3, flg4, flg5 = False, True, False, False, False
                 continue
-            elif "[ bonds ]" in stripped:
+            elif _is_section(stripped, "bonds"):
                 logger.info("reading bonds")
                 flg1, flg2, flg3, flg4, flg5 = False, False, True, False, False
                 continue
-            elif "[ angles ]" in stripped:
+            elif _is_section(stripped, "angles"):
                 logger.info("reading angles")
                 flg1, flg2, flg3, flg4, flg5 = False, False, False, True, False
                 continue
-            elif "[ dihedrals ]" in stripped:
+            elif _is_section(stripped, "dihedrals"):
                 logger.info("reading dihedrals")
                 # flush pending torsion
                 if len(stmp) == 8 and len(params) > 0:
@@ -538,7 +661,7 @@ class TopParser:
                 params = []
                 stmp = []
                 continue
-            elif "[ molecules ]" in stripped:
+            elif _is_section(stripped, "molecules"):
                 logger.info("reading molecules")
                 # flush pending torsion
                 if flg5 and len(stmp) == 8 and len(params) > 0:
@@ -555,7 +678,7 @@ class TopParser:
                 flg1 = flg2 = flg3 = flg4 = flg5 = False
                 flg_mol = True
                 continue
-            elif "[ constraints ]" in stripped:
+            elif _is_section(stripped, "constraints"):
                 flg1 = flg2 = flg3 = flg4 = flg5 = False
                 # Always read for connectivity (constraint_pairs); turned into
                 # bonds only with constraints_as_bonds.
@@ -604,7 +727,20 @@ class TopParser:
                 continue
 
             if flg1:
-                mol_types.append(stmp[0])
+                name = stmp[0]
+                if len(stmp) > 1:
+                    try:
+                        nrexcl_map[name] = int(stmp[1])
+                    except ValueError:
+                        pass
+                used = getattr(self, "_used_molecules", None)
+                if used is not None and name not in used:
+                    # Not in this system: skip its sections entirely.
+                    skip_molecule = True
+                    flg1 = flg2 = flg3 = flg4 = flg5 = False
+                    continue
+                skip_molecule = False
+                mol_types.append(name)
 
             elif flg2:
                 # nr type resnr residu atom cgnr charge [mass]
@@ -730,7 +866,7 @@ class TopParser:
         return (mol_types, atomlist, bondlist, anglelist, torsionlist,
                 mol_instance_list,
                 bond_types_from_mol, angle_types_from_mol,
-                torsion_types_from_mol)
+                torsion_types_from_mol, nrexcl_map)
 
     # ------------------------------------------------------------------
     # Internal helpers: put*Type -- deduplicate and register type entries

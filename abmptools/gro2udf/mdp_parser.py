@@ -76,6 +76,47 @@ class MdpParams:
         return float(self._raw.get("rcoulomb", "0.9"))
 
     @property
+    def dispcorr(self) -> str:
+        """``DispCorr``: the long-range dispersion correction. Default ``no``."""
+        return str(self._raw.get("dispcorr", "no")).strip().lower()
+
+    @property
+    def epsilon_r(self) -> float:
+        """Relative permittivity inside the cutoff. GROMACS default 1.
+
+        Coarse-grained fields scale their charges with this (Martini uses
+        15), so dropping it makes every electrostatic energy that many times
+        too large.
+        """
+        try:
+            return float(self._raw.get("epsilon_r", "1"))
+        except (TypeError, ValueError):
+            return 1.0
+
+    @property
+    def epsilon_rf(self) -> float:
+        """Permittivity outside the cutoff; 0 means infinity (conducting)."""
+        try:
+            return float(self._raw.get("epsilon_rf", "0"))
+        except (TypeError, ValueError):
+            return 0.0
+
+    @property
+    def rvdw(self) -> Optional[float]:
+        """LJ cutoff [nm], or ``None`` when the file does not say.
+
+        The LJ energy depends on where it is cut, so a converted system has
+        to be cut at the same distance as the original run.
+        """
+        v = self._raw.get("rvdw")
+        if v is None:
+            v = self._raw.get("rlist")
+        try:
+            return float(v) if v is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    @property
     def constraints(self) -> str:
         """拘束アルゴリズム (none, h-bonds, all-bonds 等)。"""
         return self._raw.get("constraints", "none")

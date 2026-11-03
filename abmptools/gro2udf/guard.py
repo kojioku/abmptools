@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,8 @@ __all__ = [
     "SUPPORTED_BOND_FUNCTS",
     "SUPPORTED_ANGLE_FUNCTS",
     "SUPPORTED_TORSION_FUNCTS",
+    "PER_MOLECULE_SECTIONS",
+    "used_moleculetypes",
     "scan_sections",
     "scan_dihedral_functs",
     "check_top",
@@ -62,10 +64,13 @@ PARSED_SECTIONS = frozenset({
 
 #: Dropping these leaves a UDF that cannot describe the system at all.
 FATAL_SECTIONS: Dict[str, str] = {
+    # [ nonbond_params ] is read since 2026-11: TopParser puts it in
+    # raw.nonbond_params and zeroes the section count, so it only reaches
+    # this table when the parser could not use it (a funct other than 1).
     "nonbond_params":
-        "every explicit non-bonded pair. Martini keeps ALL of its LJ here and "
-        "leaves [ atomtypes ] at c6 = c12 = 0, so the UDF would have no "
-        "Pair_Interaction entries whatsoever",
+        "explicit non-bonded pairs written with a funct this reader does not "
+        "know (only funct 1, plain LJ, is read). A field that keeps all of "
+        "its LJ here would end up with no Pair_Interaction entries at all",
     "constraints":
         "constrained bonds. They carry no force constant to fall back on, so "
         "the atoms would end up connected by nothing (pass "
@@ -100,17 +105,12 @@ DROPPED_SECTIONS: Dict[str, str] = {
 
 #: ``top_exporter`` writes every bond as COGNAC ``Harmonic``, whatever the funct.
 SUPPORTED_BOND_FUNCTS = frozenset({1})
-#: ``top_exporter`` writes every angle as COGNAC ``Theta``, whatever the funct.
-SUPPORTED_ANGLE_FUNCTS = frozenset({1})
+#: funct 1 -> COGNAC ``Theta``, funct 2 -> ``Cosine`` (same form, same units).
+SUPPORTED_ANGLE_FUNCTS = frozenset({1, 2})
 #: funct 1/9/4 -> ``Amber``, 3 -> ``Cosine_Polynomial``; others are skipped.
 SUPPORTED_TORSION_FUNCTS = frozenset({1, 3, 4, 9})
 
 _FUNCT_NOTE = {
-    ("angle", 2):
-        "GROMOS-96 cosine angle, which Martini uses everywhere. COGNAC has a "
-        "matching 'Cosine' potential but gro2udf does not emit it, so the term "
-        "is written as harmonic-in-theta 'Theta' with a force constant that is "
-        "not even in the right units (kJ/mol vs kJ/mol/rad^2)",
     ("angle", 10):
         "restricted bending (ReB). COGNAC has no closed-form equivalent",
 }
@@ -122,23 +122,81 @@ def _is_data_line(line: str) -> bool:
     return bool(s) and not s.startswith((";", "#", "*"))
 
 
-def scan_sections(lines: List[str]) -> Dict[str, int]:
+#: Sections that live inside one ``[ moleculetype ]``. Lines in a molecule the
+#: system never instantiates cost nothing, so they must not fail a conversion:
+#: a force field shipped as one ``.itp`` library carries hundreds of molecules
+#: the system does not use.
+PER_MOLECULE_SECTIONS = frozenset({
+    "atoms", "bonds", "angles", "dihedrals", "constraints", "exclusions",
+    "pairs", "settles", "position_restraints", "distance_restraints",
+    "dihedral_restraints", "angle_restraints", "orientation_restraints",
+    "virtual_sites1", "virtual_sites2", "virtual_sites3", "virtual_sites4",
+    "virtual_sitesn", "dummies1", "dummies2", "dummies3", "dummies4",
+    "cmap",
+})
+
+
+def used_moleculetypes(lines: List[str]) -> Optional[Set[str]]:
+    """The molecule names listed in ``[ molecules ]``.
+
+    ``None`` when the file has no ``[ molecules ]`` section (an ``.itp`` on
+    its own), which means "cannot tell" -- then everything counts.
+    """
+    names: Set[str] = set()
+    seen = False
+    in_section = False
+    for line in lines:
+        m = _SECTION_RE.match(line)
+        if m:
+            in_section = m.group(1).lower() == "molecules"
+            seen = seen or in_section
+            continue
+        if in_section and _is_data_line(line):
+            parts = line.split(";")[0].split()
+            if parts:
+                names.add(parts[0])
+    return names if seen else None
+
+
+def scan_sections(lines: List[str], used: Optional[Set[str]] = None) -> Dict[str, int]:
     """Count data (non-comment, non-blank) lines per ``[ section ]``.
 
     *lines* must already have ``#include`` resolved -- otherwise a section
-    living in an ``.itp`` is missed, which is exactly where a Martini force
-    field keeps ``[ nonbond_params ]``.
+    living in an ``.itp`` is missed, which is exactly where a coarse-grained
+    force field keeps ``[ nonbond_params ]``.
+
+    Sections inside a ``[ moleculetype ]`` are counted **only for the
+    molecules the system actually contains** (:data:`PER_MOLECULE_SECTIONS`).
+    Pass *used* to override the names read from ``[ molecules ]``. Without
+    this, one library ``.itp`` fails every conversion that includes it: the
+    Martini lipid library, for instance, carries imidazolium ions whose
+    ``[ constraints ]`` have nothing to do with a bilayer of POPC.
     """
+    if used is None:
+        used = used_moleculetypes(lines)
     counts: Dict[str, int] = {}
     current: Optional[str] = None
+    molecule: Optional[str] = None
+    expect_name = False
     for line in lines:
         m = _SECTION_RE.match(line)
         if m:
             current = m.group(1).lower()
+            if current == "moleculetype":
+                expect_name, molecule = True, None
             counts.setdefault(current, 0)
             continue
-        if current is not None and _is_data_line(line):
-            counts[current] += 1
+        if current is None or not _is_data_line(line):
+            continue
+        if expect_name:
+            parts = line.split(";")[0].split()
+            if parts:
+                molecule = parts[0]
+                expect_name = False
+        if (used is not None and current in PER_MOLECULE_SECTIONS
+                and molecule is not None and molecule not in used):
+            continue
+        counts[current] += 1
     return counts
 
 

@@ -1201,3 +1201,70 @@ python -m abmptools.gro2udf --from-top build\system.top md\05_npt_final.gro ^
 OCTA の `python3/` ディレクトリへ `PYTHONPATH` を通していない。section 1.2 の
 `OCTA85_HOME` / `UDF_DEF_PATH` / `PYTHONPATH` × 2 (GOURMET + ENGINES)
 の 4 行を `~/.bashrc` に追記してから `source ~/.bashrc` で反映する。
+
+## Coarse-grained topologies (checked against GROMACS)
+
+A coarse-grained force field differs from an all-atom one in four places,
+and each of them used to be written as something else without a message.
+
+| What | Where it is | What is written now |
+|---|---|---|
+| Every LJ parameter | `[ nonbond_params ]` (`[ atomtypes ]` is all zeros) | one `Pair_Interaction` per pair that occurs in the system |
+| Angles | funct 2, the GROMOS-96 cosine | `Cosine`, which is the same function |
+| Exclusions | `nrexcl` (1, not 3) | `Non_Bonding_1_3` / `1_4` from `nrexcl` and `[ pairs ]` |
+| Permittivity | `epsilon_r` (15, not 1) | folded into the charges (see below) |
+
+### The angle is the same function, in a different box
+
+The engine's manual gives three angle forms (§2.6.2):
+
+| equation | name | form | unit of k |
+|---|---|---|---|
+| 2.51 | Theta | `U = k/2 (t - t0)^2` | energy / rad^2 |
+| 2.52 | Theta2 | `U = k {1 - cos(t - t0)}` | energy |
+| **2.53** | **Cosine** | **`U = k/2 (cos t - cos t0)^2`** | **energy** |
+
+Equation 2.53 is GROMACS' angle funct 2 exactly, including the unit of k.
+Writing such an angle as `Theta`, as this writer did until now, put the right
+number into the wrong function -- and into one whose k is not even in the
+same unit. `theta0` is written as its supplement either way, which the cosine
+form does not notice: `cos(180 - t) = -cos(t)` flips both halves of a
+difference that is then squared.
+
+### epsilon_r rides on the charges
+
+The reaction field (manual eq. 2.89) matches GROMACS'
+`coulombtype = reaction-field` with `epsilon_rf = 0`, but its one dielectric
+is the medium *outside* the cutoff. There is no field for the permittivity
+*inside* it, so `epsilon_r` is folded into the charges: `q / sqrt(epsilon_r)`
+gives the same energies and forces, because the energy goes as `q_i q_j`.
+**The charges in such a file are then not the topology's**, and the converter
+says so, loudly, every time it does this.
+
+### What was measured
+
+A POPC bilayer (128 lipids, 1052 waters, 24 ions, minimised), the same
+structure through both engines, zero steps:
+
+| term | GROMACS | converted | difference |
+|---|---|---|---|
+| Bond | 208.777 | 208.777 | 0.000 |
+| Angle (G96) | 970.618 | 970.619 | 0.001 |
+| LJ | -61690.400 | -61690.415 | -0.015 |
+| Coulomb | -557.829 | 599.321 | **1157.150** |
+
+Bond, angle and LJ agree to the rounding. **The electrostatics do not**, and
+the reason is not the parameters: the two engines count different terms.
+GROMACS' reported Coulomb includes the reaction-field correction for the
+pairs it excludes, and a self term for every charge; this engine includes
+neither, and also leaves out the constant `-3 q_i q_j / (2 eps r_c)` that its
+own manual writes. Summing the same pairs by hand reproduces the converted
+number to 0.02 %, so the conversion writes what it was asked to write. Until
+the difference is settled, **a converted system's electrostatic energy is not
+comparable with the GROMACS one**, though the forces differ only through the
+excluded pairs' correction.
+
+**Molecules must be whole.** The bonded terms are computed from the
+coordinates as given; a molecule split across the periodic boundary turns
+into one enormous bond (one came out at 59.8 A instead of 4.0). Pass
+`make_whole=True`, or make the frame whole before converting.

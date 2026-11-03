@@ -108,37 +108,44 @@ class TestScanSections:
         assert counts["nonbond_params"] == 1
 
 
-class TestMartiniIsRejected:
-    """Martini は fatal 3 件 (comb-rule 1 / nonbond_params / angle funct 2)。"""
+class TestCoarseGrainedIsCarried:
+    """粗視化の top で**前は止めていた 2 つ**が、いまは変換できること。
+
+    - ``[ nonbond_params ]``: 読んで ``Pair_Interaction`` に入れる
+    - 角度 funct 2 (GROMOS-96): COGNAC の ``Cosine`` が同じ式
+
+    残る comb-rule 1 (c6/c12) は、まだ読めないので fatal のまま。
+    """
 
     @pytest.fixture
     def raw(self, tmp_path):
         return TopParser().parse(_write(tmp_path, "m.top", MARTINI_TOP))
 
-    def test_parser_records_sections(self, raw):
-        assert raw.sections["nonbond_params"] == 3
+    def test_the_explicit_pairs_are_read_not_counted_as_lost(self, raw):
+        """読んだ節は ``sections`` から降ろす (guard が蒸し返さないように)。"""
+        assert raw.nonbond_params           # 読めている
+        assert raw.sections["nonbond_params"] == 0
 
-    def test_all_three_are_fatal(self, raw):
-        fatal, warnings = check_top(raw, raw.sections)
-        assert len(fatal) == 3
+    def test_only_the_comb_rule_is_left(self, raw):
+        fatal, _ = check_top(raw, raw.sections)
         joined = "\n".join(fatal)
         assert "comb-rule 1" in joined
-        assert "[ nonbond_params ]" in joined
-        assert "angle funct 2" in joined
+        assert "[ nonbond_params ]" not in joined
+        assert "angle funct 2" not in joined
 
-    def test_raises(self, raw):
-        with pytest.raises(UnsupportedTopFeatureError) as exc:
-            raise_if_unsupported(raw, raw.sections)
-        # 何が起きるはずだったかを本文に含めること
-        assert "Pair_Interaction" in str(exc.value)
-        assert "--allow-unsupported" in str(exc.value)
+    def test_a_sigma_epsilon_coarse_top_passes(self, tmp_path):
+        """comb-rule 2 (sigma/epsilon) なら、止めるものが無いこと。"""
+        text = MARTINI_TOP.replace("1  1  no", "1  2  no", 1)
+        raw = TopParser().parse(_write(tmp_path, "m2.top", text))
+        fatal, _ = check_top(raw, raw.sections)
+        assert fatal == [], fatal
 
-    def test_allow_unsupported_converts_but_warns(self, raw, caplog):
-        with caplog.at_level(logging.WARNING):
-            fatal, _ = raise_if_unsupported(raw, raw.sections,
-                                            allow_unsupported=True)
-        assert len(fatal) == 3
-        assert "WRONG" in caplog.text
+    def test_restricted_bending_is_still_fatal(self, tmp_path):
+        """funct 10 (ReB) には COGNAC に同じ式が無い。黙って別の形にしない。"""
+        text = MARTINI_TOP.replace("  1 2 3 2 ", "  1 2 3 10 ")
+        raw = TopParser().parse(_write(tmp_path, "reb.top", text))
+        fatal, _ = check_top(raw, raw.sections)
+        assert any("funct 10" in f for f in fatal), fatal
 
 
 class TestPlainTopStillPasses:
@@ -215,4 +222,7 @@ class TestIncludedItpIsSeen:
             '#include "ff.itp"\n')
         assert "[ nonbond_params ]" not in text
         raw = TopParser().parse(_write(tmp_path, "i.top", text))
-        assert raw.sections["nonbond_params"] == 1
+        # The include is resolved, so the section is found and **read**
+        # (its count is then zeroed: nothing is lost any more).
+        assert raw.nonbond_params
+        assert raw.sections["nonbond_params"] == 0

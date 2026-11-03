@@ -268,3 +268,30 @@ class TopModel:
     nstxout_compressed: int = 0
     #: Energy output interval, steps  (from mdp: nstenergy)
     nstenergy: int = 0
+    #: ``[ nonbond_params ]``: ``{(type1, type2): (sigma, epsilon)}`` with the
+    #: names sorted. An explicit pair wins over the combination rule, which is
+    #: the only way a coarse-grained field's LJ survives: it keeps every pair
+    #: here and leaves ``[ atomtypes ]`` at zero.
+    nonbond_params: Dict = field(default_factory=dict)
+    #: LJ cutoff [nm] from the ``.mdp`` (``rvdw``). ``None`` keeps the old
+    #: per-pair ``2.5 * sigma``.
+    vdw_cutoff: Optional[float] = None
+    #: ``{molecule: nrexcl}`` for the molecules in the system. It decides how
+    #: far along the bonds the non-bonded interaction is switched off, and
+    #: differs between force fields (all-atom fields use 3, coarse-grained
+    #: ones often 1), so it cannot be a constant.
+    nrexcl: Dict = field(default_factory=dict)
+    #: ``coulombtype`` from the ``.mdp``, lower-cased. Empty when unknown.
+    coulombtype: str = ""
+    #: ``epsilon_r`` (inside the cutoff) and ``rcoulomb`` [nm].
+    epsilon_r: float = 1.0
+    coulomb_cutoff: Optional[float] = None
+    #: ``epsilon_rf``; 0 means the medium outside the cutoff is a conductor.
+    epsilon_rf: float = 0.0
+    #: ``{section: line count}`` as parsed; used to tell whether the topology
+    #: re-adds its 1-4 pairs with ``[ pairs ]``.
+    sections: Dict = field(default_factory=dict)
+    #: ``DispCorr`` from the ``.mdp``; ``None`` when no .mdp was given, which
+    #: leaves the template's tail-correction flag alone.
+    dispcorr: Optional[str] = None
+
