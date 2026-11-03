@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Added — gro2udf: 見るための .gem (`for_viewing`)
+
+- **`export(..., for_viewing=True)`**: 走らせない前提のファイルを書く。
+  engine が持てない項は**書き換えずに外す**だけで、変換は止めない。
+  構造・分子・結合・軌跡は揃う
+- **仮想サイトを粒として書く** (`[ virtual_sites* ]` を読み、最初の親へ
+  力の定数 0 の結合で繋ぐ)。engine は**全原子が結合で繋がっていること**を
+  要求する (`Some atoms in a molecule are not connected by bond.`)
+- **入っていないものを 4 か所に残す**: 警告のログ・`viewing_notes`・
+  `<名前>.udf.notes.txt`・(moldeck 経由で) 画面の警告
+- **厳密な経路は変えない。** `for_viewing` 無しでは今までどおり断る
+- **厳密さの境目を実測**: 脂質・水・イオンの二重膜 (POPC+W+NA+CL、4 種・
+  5692 分子) は**近似ゼロ**。同じ箱にペプチドを入れると表示用になる
+  (側鎖固定の位相 -33.3°)。テストで固定した
+- **torsion の壁を engine のソースで確定**: 型は 5 つだけ
+  (`Cosine_Polynomial` / `Amber` / `Dreiding` / `Table_Torsion` /
+  `User_Torsion`)。`Dreiding` の `phi0` も 180° の倍数に限られ、実装は
+  `ene += k_phi0*an0[i]*pow(cos_phi,i)` の **cos φ の多項式**で、
+  `sin_phi` と `acos` はコメントアウト (**φ に符号が付かない**)
+
 ### Added — gro2udf: 粗視化のタンパク質で、書けるものは厳密に
 
 - **拘束された曲げ (角度 funct 10) を数値の表で書く。**閉じた形は無いが、

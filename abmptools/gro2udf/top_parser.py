@@ -141,6 +141,11 @@ class TopRawData:
     #: Phases [deg] of the proper dihedrals that are written as the engine's
     #: Amber form. It only takes 0 or 180, so anything else has to be caught.
     torsion_phases: List = field(default_factory=list)
+    #: ``[ virtual_sites* ]``: ``{molecule: [(site, [hosts...]), ...]}``
+    #: (1-based). A site has no bond of its own, and the engine refuses a
+    #: molecule whose atoms are not all connected, so a file written for
+    #: viewing ties each site to its first host.
+    virtual_sites: Dict = field(default_factory=dict)
     bondtypes: List = field(default_factory=list)
     angletypes: List = field(default_factory=list)
     torsiontypes: List = field(default_factory=list)
@@ -169,6 +174,8 @@ class TopRawData:
     # [ constraints ] lines read as harmonic bonds (TopParser(
     # constraints_as_bonds=k)). 0 when the option is off.
     n_constraints_as_bonds: int = 0
+    #: How many virtual sites were tied to a host (viewing files only).
+    n_virtual_sites_as_bonds: int = 0
 
     # moleculetype name -> [(ai, aj), ...] (1-based) from [ constraints ].
     # Always read, whether or not they become bonds: they are connectivity,
@@ -265,8 +272,16 @@ class TopParser:
         the connectivity and the length are what carry over exactly.
     """
 
-    def __init__(self, constraints_as_bonds: Optional[float] = None) -> None:
+    def __init__(self, constraints_as_bonds: Optional[float] = None,
+                 virtual_sites_as_bonds: bool = False) -> None:
         self.constraints_as_bonds = constraints_as_bonds
+        #: Tie each virtual site to its first host with a bond of no force
+        #: constant. A site carries no bond of its own, and the engine
+        #: refuses a molecule whose atoms are not all connected, so a file
+        #: written to be **looked at** needs this; a file written to be run
+        #: does not get it, because the site is not really bonded.
+        self.virtual_sites_as_bonds = virtual_sites_as_bonds
+        self._n_virtual_sites_as_bonds = 0
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -310,12 +325,20 @@ class TopParser:
          raw.angle_types_from_mol,
          raw.torsion_types_from_mol,
          raw.nrexcl,
-         raw.exclusions) = self._parse_topology(lines)
+         raw.exclusions,
+         raw.virtual_sites) = self._parse_topology(lines)
         # [a1, a2, a3, a4, funct, improper, [PHASE, PK, PN]]
         raw.torsion_phases = [
             tt[6][0] for tt in raw.torsion_types_from_mol
             if len(tt) > 6 and tt[4] in (1, 9, 4) and tt[6]]
         raw.n_constraints_as_bonds = self._n_constraints_as_bonds
+        raw.n_virtual_sites_as_bonds = self._n_virtual_sites_as_bonds
+        if raw.n_virtual_sites_as_bonds:
+            # Tied to a host, so they are in the file -- as particles, not as
+            # the massless points they were. Said in the notes, not here.
+            for key in list(raw.sections):
+                if key.startswith(("virtual_sites", "dummies")):
+                    raw.sections[key] = 0
         raw.constraint_pairs = self._constraint_pairs
 
         # The constraints have been carried into the bond list, so nothing in
@@ -576,6 +599,8 @@ class TopParser:
         """
         nrexcl_map = {}         # moleculetype -> nrexcl
         exclusion_map = {}      # moleculetype -> [(i, j), ...]
+        vsite_map = {}          # moleculetype -> [(site, [hosts...]), ...]
+        flg_vs = False          # inside [ virtual_sites* ] of a kept molecule
         flg_excl = False        # inside [ exclusions ] of a kept molecule
         skip_molecule = False   # inside a molecule this system does not use
         flg1 = False  # moleculetype
@@ -620,6 +645,7 @@ class TopParser:
             # --- section headers ---
             if stripped.startswith("[") and stripped.endswith("]"):
                 flg_con = False
+                flg_excl = flg_vs = False
                 if skip_molecule:
                     sec = _SECTION_RE.match(stripped)
                     name = sec.group(1).lower() if sec else ""
@@ -633,6 +659,14 @@ class TopParser:
                         skip_molecule = False
             if _is_section(stripped, "exclusions"):
                 flg_excl = not skip_molecule
+                flg_vs = False
+                flg1 = flg2 = flg3 = flg4 = flg5 = False
+                continue
+            _vs = _SECTION_RE.match(stripped)
+            if _vs and _vs.group(1).lower().startswith(("virtual_sites",
+                                                        "dummies")):
+                flg_vs = not skip_molecule
+                flg_excl = False
                 flg1 = flg2 = flg3 = flg4 = flg5 = False
                 continue
             if stripped.startswith("[") and stripped.endswith("]"):
@@ -743,6 +777,28 @@ class TopParser:
 
             stmp = _fields(line)
             if not stmp:
+                continue
+
+            if flg_vs:
+                # funct differs by kind; the first number is always the site
+                # and the rest, past the funct, are the atoms it hangs on.
+                try:
+                    nums = [int(x) for x in stmp]
+                except ValueError:
+                    continue
+                if len(nums) >= 3:
+                    site, hosts = nums[0], nums[2:]
+                    if hosts:
+                        vsite_map.setdefault(
+                            mol_types[-1] if mol_types else "", []
+                        ).append((site, hosts))
+                        if self.virtual_sites_as_bonds:
+                            tidx = self._put_bond_type(
+                                site, hosts[0], 1, "0.0", 0.0,
+                                atomlist_mol, bondtypes_map,
+                                bond_types_from_mol)
+                            bondlist_mol.append([site, hosts[0], tidx])
+                            self._n_virtual_sites_as_bonds += 1
                 continue
 
             if flg_excl:
@@ -912,7 +968,8 @@ class TopParser:
         return (mol_types, atomlist, bondlist, anglelist, torsionlist,
                 mol_instance_list,
                 bond_types_from_mol, angle_types_from_mol,
-                torsion_types_from_mol, nrexcl_map, exclusion_map)
+                torsion_types_from_mol, nrexcl_map, exclusion_map,
+                vsite_map)
 
     # ------------------------------------------------------------------
     # Internal helpers: put*Type -- deduplicate and register type entries

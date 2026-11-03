@@ -301,4 +301,8 @@ class TopModel:
     #: ``DispCorr`` from the ``.mdp``; ``None`` when no .mdp was given, which
     #: leaves the template's tail-correction flag alone.
     dispcorr: Optional[str] = None
+    #: True when the file is written to be looked at, not run.
+    for_viewing: bool = False
+    #: What such a file does not reproduce, in plain words.
+    viewing_notes: List = field(default_factory=list)
 

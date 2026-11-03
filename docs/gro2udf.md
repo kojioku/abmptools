@@ -1363,4 +1363,84 @@ engine's torsion forms can hold such a term.
 `(1 + cos(n phi - phase))` carries a `sin(n phi) sin(phase)` part, odd in
 ``phi``, and nothing even in ``phi`` can represent it. This is a wall on the
 engine's side, not something the writer can approximate around, so such a
-topology is refused.
+topology is refused -- unless the file is only to be looked at, which is the
+next section.
+
+#### Why it is a wall, from the source
+
+The engine has exactly five torsion types (``cognac112.udf`` lines 720-734):
+``Cosine_Polynomial``, ``Amber``, ``Dreiding``, ``Table_Torsion`` and
+``User_Torsion``. There is no CHARMM form, no Ryckaert-Bellemans, and no
+harmonic in ``phi``.
+
+``Dreiding`` does carry a phase of its own, and it is restricted the same way
+(``include/dreidingtorsion.h``)::
+
+    int phase = (int)abs(phi0*n) % 360;
+    if (phase != 0 && phase != 180)
+        throw InputError("Phi0 in Dreiding torsion potential must be multiple
+                          of 180 degree");
+
+The reason both are restricted is in the shared base class. ``AmberTorsion``
+and ``DreidingTorsion`` both derive from ``RigTorsion``, which folds the phase
+into polynomial coefficients ``an0[]`` and evaluates
+(``src/rigtorsion.cpp``)::
+
+    for (i = 0; i < n0; i++) ene += k_phi0 * an0[i] * pow(cos_phi, i);
+
+A polynomial in ``cos phi``, and nothing else. In the same function the lines
+that would compute ``sin_phi`` and ``phi = acos(cos_phi)`` are commented out:
+**the angle is never formed with a sign**, and no cross-product orientation
+is taken. So no torsion the engine has -- table included -- can tell ``phi``
+from ``-phi``. ``User_Torsion`` is the one escape, and it means rebuilding the
+engine from source, which is not a choice the writer gets to make.
+
+### A file written to be looked at (``for_viewing=True``)
+
+Opening a Martini system in a viewer and playing its trajectory needs the
+structure, the molecules, the bonds and the frames -- not a force field that
+runs. ``export(..., for_viewing=True)`` writes that file:
+
+* terms the engine cannot hold are **left out instead of failing the
+  conversion** (a dihedral whose phase is neither 0 nor 180 is skipped, never
+  rewritten into a different one);
+* each virtual site becomes a particle tied to its first host by a bond with
+  no force constant, because the engine refuses a molecule whose atoms are
+  not all connected ("Some atoms in a molecule are not connected by bond.");
+* everything that *can* be carried over is carried over unchanged.
+
+What such a file does not reproduce is said in four places, so it cannot
+travel without its caveat: a loud log line, the ``viewing_notes`` the caller
+gets back, a ``<name>.udf.notes.txt`` written beside the file, and -- through
+moldeck -- the step's own warning on screen.
+
+Keep in mind that the structure is complete and the force field is not. Such
+a file is for looking at a run that already happened; it is not an input.
+
+### Where the exact route ends
+
+The boundary is not "membranes work, proteins do not" -- it is which terms
+are in the box:
+
+| 系 | 結果 |
+|---|---|
+| 脂質・水・イオンの二重膜 | **厳密** (力場ごと、COGNAC でも走る) |
+| 同じ膜 + ペプチド | 表示用 (ペプチドの側鎖固定が位相 -33.3 deg) |
+| 粗視化タンパク質 | 表示用 (主鎖の二面角 + 仮想サイト) |
+| 粗視化ペプチド | 表示用 (``scFix`` が位相 -33.3 / 29.5 deg) |
+
+Measured on the real systems: a POPC bilayer with water and ions (4 molecule
+types, 5692 molecules) came through with nothing left out, and adding the KGG
+peptide to the same box was enough to need the viewing mode.
+
+### Secondary structure, if the dihedrals are to be avoided
+
+A protein built **without** secondary-structure dihedrals converts without
+them being left out -- but that is a different model, not the same one
+written more carefully. Martini 3 puts backbone dihedrals on helices and
+sheets; a chain built as all-coil (no DSSP) gets none, and with none it
+**does not hold a helix or a sheet**. Choosing that route to make the
+conversion exact changes the physics, not the file format. Two further
+conditions come with it: ``-scfix`` must be off (its side-chain dihedrals
+have arbitrary phases too), and the virtual sites still have to become
+particles.

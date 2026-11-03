@@ -14,6 +14,7 @@ replacement changes the physics:
 from __future__ import annotations
 
 import math
+import pathlib
 
 import pytest
 
@@ -174,3 +175,140 @@ def test_an_exclusion_with_a_larger_nrexcl_is_refused(tmp_path):
     raw = TopParser().parse(str(p))
     fatal, _ = check_top(raw, raw.sections)
     assert any("nrexcl >= 2" in f for f in fatal), fatal
+
+
+# --- a file written to be looked at ------------------------------------------
+
+VIEW_TOP = EXCL_TOP.replace("""[angles]
+  1 2 3 10 130.0 25.0""", """[angles]
+  1 2 3 10 130.0 25.0
+
+[dihedrals]
+  1 2 3 1 1 -120.0 400.0 1
+
+[virtual_sitesn]
+  3 2 1 2""")
+
+
+def test_a_viewing_file_is_written_and_says_what_it_lacks(tmp_path):
+    """The point of such a file is to be opened, so it must not be refused.
+
+    What it cannot reproduce is written down instead: the caller gets it in
+    ``viewing_notes``, and a file beside the UDF carries the same words so
+    the two cannot be separated.
+    """
+    from abmptools.gro2udf.top_exporter import TopExporter
+
+    top = tmp_path / "v.top"
+    top.write_text(VIEW_TOP, encoding="utf-8")
+    gro = tmp_path / "v.gro"
+    gro.write_text("v\n    3\n"
+                   "    1REB     A1    1   2.000   2.000   2.000\n"
+                   "    1REB     B1    2   2.470   2.000   2.000\n"
+                   "    1REB     C1    3   2.800   2.340   2.000\n"
+                   "   6.00000   6.00000   6.00000\n", encoding="utf-8")
+    out = tmp_path / "v.udf"
+    tpl = pathlib.Path(__file__).resolve().parents[1] / \
+        "abmptools" / "gro2udf" / "default_template.udf"
+    x = TopExporter()
+    x.export(str(top), str(gro), str(tpl), str(out), for_viewing=True)
+    assert out.is_file()
+
+    joined = "\n".join(x.viewing_notes)
+    assert "phase" in joined                      # the dihedral it left out
+    assert "virtual site" in joined               # and what it did with those
+    notes = pathlib.Path(str(out) + ".notes.txt")
+    assert notes.is_file()
+    text = notes.read_text(encoding="utf-8")
+    assert "TO BE LOOKED AT" in text
+    assert "phase" in text
+
+
+def test_the_same_topology_is_still_refused_when_it_has_to_run(tmp_path):
+    """Without that flag nothing changes: a file meant to be run is still
+    refused rather than written wrong."""
+    from abmptools.gro2udf.guard import UnsupportedTopFeatureError
+    from abmptools.gro2udf.top_exporter import TopExporter
+
+    top = tmp_path / "v.top"
+    top.write_text(VIEW_TOP, encoding="utf-8")
+    gro = tmp_path / "v.gro"
+    gro.write_text("v\n    3\n"
+                   "    1REB     A1    1   2.000   2.000   2.000\n"
+                   "    1REB     B1    2   2.470   2.000   2.000\n"
+                   "    1REB     C1    3   2.800   2.340   2.000\n"
+                   "   6.00000   6.00000   6.00000\n", encoding="utf-8")
+    tpl = pathlib.Path(__file__).resolve().parents[1] / \
+        "abmptools" / "gro2udf" / "default_template.udf"
+    with pytest.raises(UnsupportedTopFeatureError):
+        TopExporter().export(str(top), str(gro), str(tpl),
+                             str(tmp_path / "r.udf"))
+
+
+# --- where the exact route ends ----------------------------------------------
+
+BILAYER_TOP = """\
+[ defaults ]
+1 2
+
+[ atomtypes ]
+  Q5   72.0 0.000 A 0.0 0.0
+  C1   72.0 0.000 A 0.0 0.0
+
+[ nonbond_params ]
+  Q5  Q5  1 0.47 3.50
+  Q5  C1  1 0.47 2.00
+  C1  C1  1 0.47 3.50
+
+[moleculetype]
+  LIP  1
+
+[atoms]
+  1 Q5 1 LIP H1 1 -1.0 72.0
+  2 C1 1 LIP T1 2  0.0 72.0
+  3 C1 1 LIP T2 3  0.0 72.0
+
+[bonds]
+  1 2 1 0.47 1250
+
+[constraints]
+  2 3 1 0.47
+
+[angles]
+  1 2 3 2 180.0 35.0
+
+[ system ]
+bilayer
+
+[ molecules ]
+LIP 2
+"""
+
+
+def test_a_lipid_carries_over_with_nothing_left_out(tmp_path):
+    """The shape a bilayer actually has -- a bond, a constraint, a GROMOS-96
+    angle and per-pair LJ -- goes across whole.
+
+    This is the line to hold: a lipid-and-water box needs no viewing mode,
+    and the real one was checked the same way (a POPC bilayer with water and
+    ions: 4 molecule types, 5692 molecules, nothing left out). What breaks it
+    is a peptide or a protein in the same box, whose fitted dihedrals have
+    phases no torsion here can hold -- not the bilayer.
+    """
+    top = tmp_path / "bi.top"
+    top.write_text(BILAYER_TOP, encoding="utf-8")
+    raw = TopParser(constraints_as_bonds=50000.0).parse(str(top))
+    fatal, _ = check_top(raw, raw.sections)
+    assert fatal == [], fatal
+
+
+def test_the_same_box_with_a_fitted_dihedral_is_not_exact(tmp_path):
+    """And the cause is named, so the boundary cannot quietly move."""
+    top = tmp_path / "bi2.top"
+    top.write_text(BILAYER_TOP.replace("""[ system ]""", """[dihedrals]
+  1 2 3 1 1 -33.3 75.0 1
+
+[ system ]"""), encoding="utf-8")
+    raw = TopParser(constraints_as_bonds=50000.0).parse(str(top))
+    fatal, _ = check_top(raw, raw.sections)
+    assert any("phase" in f for f in fatal), fatal
