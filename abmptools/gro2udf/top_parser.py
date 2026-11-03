@@ -129,6 +129,16 @@ def _is_blank(line: str) -> bool:
     return line.strip() == ""
 
 
+def _fields(line: str) -> List[str]:
+    """The whitespace-separated fields of a topology line, with the
+    end-of-line comment (from the first ``;``) dropped. Every section is
+    split through this: a comment can follow the data on any line (Martini 3
+    writes ``1 2 ; sigma-epsilon format of LJ parameters`` under
+    ``[ defaults ]``), and a field count or a positional float read from
+    ``line.split()`` then picks up a word of the comment."""
+    return line.split(";", 1)[0].split()
+
+
 def get_bond_name(type1: str, type2: str) -> str:
     """2つの原子名からソート済みの結合名を生成する。"""
     if type1 <= type2:
@@ -278,7 +288,7 @@ class TopParser:
         for line in lines:
             stripped = line.strip()
             if stripped.startswith("#include") and ".itp" in stripped:
-                parts = stripped.split()
+                parts = _fields(stripped)
                 if len(parts) >= 2:
                     itp_name = parts[1].strip('"\'')
                     itp_path = os.path.join(dirpath, itp_name)
@@ -309,11 +319,15 @@ class TopParser:
             if in_section:
                 if _is_comment(line) or _is_blank(line):
                     continue
-                parts = line.split()
-                # nbfunc comb_rule gen-pairs fudgeLJ fudgeQQ
+                parts = _fields(line)
+                if not parts:
+                    continue
+                # nbfunc comb_rule [gen-pairs [fudgeLJ [fudgeQQ]]]. The last
+                # three are optional in GROMACS and default to no / 1.0 / 1.0
+                # (Martini 3 writes only "1 2").
                 comb_rule = int(parts[1])
-                fudge_lj = float(parts[3])
-                fudge_qq = float(parts[4])
+                fudge_lj = float(parts[3]) if len(parts) > 3 else 1.0
+                fudge_qq = float(parts[4]) if len(parts) > 4 else 1.0
                 return comb_rule, fudge_lj, fudge_qq
         return 2, 0.5, 0.8333
 
@@ -366,7 +380,9 @@ class TopParser:
             if _is_comment(line) or _is_blank(line):
                 continue
 
-            parts = line.split()
+            parts = _fields(line)
+            if not parts:
+                continue
 
             if flg_atom:
                 # name [atnum] mass charge ptype sigma epsilon
@@ -583,7 +599,9 @@ class TopParser:
                     flg_mol = False
                 continue
 
-            stmp = line.split()
+            stmp = _fields(line)
+            if not stmp:
+                continue
 
             if flg1:
                 mol_types.append(stmp[0])
