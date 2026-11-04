@@ -497,6 +497,34 @@ def _scale_charges_for_epsilon_r(uobj, model) -> int:
     return n
 
 
+def _warn_if_triclinic(frames, notes) -> None:
+    """A triclinic box is written as a rectangle, so say how far off it is.
+
+    ``Cell_Size`` holds six values (a, b, c and the three angles), but the
+    frames come in carrying only the three lengths, so the angles go out as
+    90 degrees. A viewer then draws a rectangular box around a
+    non-rectangular configuration: a rhombic dodecahedron comes out 41%
+    too large and the atoms fill one part of it, which is what a reader
+    sees as "solvent on one side, vacuum on the other".
+
+    Nothing here is wrong about the structure, or about the volume the data
+    came from -- it is the drawn box that is wrong -- but it is the first
+    thing anybody notices, so it does not get to be silent.
+    """
+    tri = [f for f in (frames or []) if getattr(f, "triclinic", False)]
+    if not tri:
+        return
+    msg = ("{} of {} frame(s) have a non-rectangular (triclinic) box. Only "
+           "its three lengths are written, with the angles at 90 degrees, "
+           "so a viewer draws a rectangular box around it: the drawn box is "
+           "larger than the real cell and the atoms fill only part of it (a "
+           "rhombic dodecahedron is 41% too large). The coordinates and the "
+           "cell lengths are unchanged".format(len(tri), len(frames or [])))
+    logger.warning(msg)
+    if isinstance(notes, list):
+        notes.append(msg)
+
+
 def _write_viewing_notes(out_path, notes) -> "Optional[Path]":
     """Put the notes in a file beside the UDF, so it cannot be separated.
 
@@ -750,6 +778,7 @@ class TopExporter:
             return frames
 
         model.frames = _prepare(model.frames)
+        _warn_if_triclinic(model.frames, notes)
 
         # Resolve frames:
         #   --trajectory                          : multi-frame trajectory
