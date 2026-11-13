@@ -371,7 +371,9 @@ def _is_tpx_version_error(exc: "GmxError") -> bool:
     と言う。 これは入力が壊れているのではなく、 **この gmx が新しすぎる
     tpr を読めない**というだけなので、 reference を差し替えれば先へ進める。
     """
-    text = (exc.stderr or "") + (exc.stdout or "")
+    # gmx はエラー文を幅で折り返す。 パスが長いと "reading tpx file" の直後で
+    # 改行が入る (2021.3 で確認) ので、 空白と改行を 1 つの空白に詰めてから見る
+    text = " ".join(((exc.stderr or "") + " " + (exc.stdout or "")).split())
     return "reading tpx file" in text and "with version" in text
 
 
