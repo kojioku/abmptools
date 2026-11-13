@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed — trajectory: tpr の版が新しすぎるときの判定が、gmx の折り返しで外れていた
+
+- 古い gmx に新しい tpr を渡すと `reading tpx file (x.tpr) version 137 with version 122 program`
+  と言うが、gmx はこの文を**幅で折り返す**。ファイル名の長さによっては `with` と `version` の間に
+  改行が入り (GROMACS 2021.3 で 31〜35 文字のファイル名で確認)、`"with version" in text` が外れて、
+  `.gro` への差し替えをせずにそのまま止まっていた
+- 空白と改行を 1 つの空白に詰めてから照合する。実際に折り返した 2 つの形をテストに入れた
+
 ### Added — gro2udf: 三斜の箱を直方体として書くときに、必ず言う
 
 - `Cell_Size` は長さ 3 つと角度 3 つを持てるが、軌跡から来るフレームは

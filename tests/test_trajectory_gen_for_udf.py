@@ -250,6 +250,22 @@ class TestTpxVersionFallback:
                           stderr=self.TPX_ERR)
         assert pp._is_tpx_version_error(err)
 
+    def test_detects_the_message_when_gmx_wraps_it(self):
+        """gmx はエラー文を幅で折り返す。 パスの長さによっては "with" と "version"
+        の間に改行が入る (GROMACS 2021.3 に 2025.2 の tpr を渡したときの実際の出力。
+        ファイル名が 31〜35 文字でこうなった)。 長いパスでは "reading tpx file" の
+        直後で折り返す。"""
+        for wrapped in (
+                "Fatal error:\n"
+                "reading tpx file (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.tpr) version 137 with\n"
+                "version 122 program\n",
+                "Fatal error:\n"
+                "reading tpx file\n"
+                "(/data/project/simulation/production_run_0001/prod.tpr)\n"
+                "version 137 with version 122 program\n"):
+            err = pp.GmxError(cmd=["gmx"], returncode=1, stdout="", stderr=wrapped)
+            assert pp._is_tpx_version_error(err), wrapped
+
     def test_other_failures_are_not_mistaken_for_it(self):
         err = pp.GmxError(cmd=["gmx"], returncode=1, stdout="",
                           stderr="Fatal error:\nAtom C not found in residue")
