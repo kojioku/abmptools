@@ -203,6 +203,7 @@ def test_a_viewing_file_is_written_and_says_what_it_lacks(tmp_path):
     ``viewing_notes``, and a file beside the UDF carries the same words so
     the two cannot be separated.
     """
+    pytest.importorskip("UDFManager")
     from abmptools.gro2udf.top_exporter import TopExporter
 
     top = tmp_path / "v.top"
