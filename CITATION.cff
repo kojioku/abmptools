@@ -33,5 +33,5 @@ keywords:
   - Python
 # Replace with the actual release version and Zenodo DOI when published.
 version: "2.20.0"
-date-released: "2026-11-01"
+date-released: "2026-11-14"
 # doi: "10.5281/zenodo.XXXXXXX"   # Zenodo DOI to be added on first GitHub release tag.

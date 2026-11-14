@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.20.0] - 2026-11-14
+
 ### Fixed — trajectory: tpr の版が新しすぎるときの判定が、gmx の折り返しで外れていた
 
 - 古い gmx に新しい tpr を渡すと `reading tpx file (x.tpr) version 137 with version 122 program`
@@ -147,7 +149,6 @@ GROMACS は除外した組の reaction field 補正と自己項を足し、engin
   (Martini 3 は 2 欄だけ)。以前は 5 欄を前提に読んでいた
 - テスト: Martini 3 の `[ defaults ]` をそのまま、各節の行末コメント、コメントの有無で読んだ値が同じこと
 
-## [2.20.0] - 2026-11-01
 
 ### Changed — gro2udf: 力場の印 (`FF=n`) を `.top` から決める (`--ff auto`、既定)
 
