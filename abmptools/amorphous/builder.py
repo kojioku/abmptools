@@ -19,6 +19,7 @@ from ..core.system_model import AnnealProtocol
 from .models import BuildConfig, ComponentSpec
 from .density import estimate_box_size_nm, weight_fractions_to_counts
 from .molecule_prep import (
+    charges_preassigned,
     prepare_molecule,
     get_molecular_weight,
     write_single_mol_pdb,
@@ -243,7 +244,8 @@ class AmorphousBuilder:
         # invoking AM1-BCC via sqm (which has no Windows build).
         # A component with charges of its own is precomputed by definition;
         # Interchange must be told to keep them rather than re-deriving.
-        use_precomputed = (self.config.charge_method in ("nagl", "gasteiger")
+        # AM1-BCC on Windows is pre-assigned too (charges_preassigned).
+        use_precomputed = (charges_preassigned(self.config.charge_method)
                            or any(c.charges_path for c in self.config.components))
         interchange = create_interchange(
             molecules=self._molecules,

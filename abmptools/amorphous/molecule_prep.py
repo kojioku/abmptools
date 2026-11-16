@@ -282,11 +282,18 @@ def _maybe_assign_partial_charges(mol: Any, method: str, nagl_model: str) -> Non
 
     AM1-BCC is handled downstream by Interchange itself (when we pass the
     topology without `charge_from_molecules`), so we deliberately skip it
-    here. Anything else is assigned up-front on the Molecule object; the
+    here -- except on Windows, where :mod:`.antechamber_am1bcc` assigns it
+    (see :func:`charges_preassigned`). Anything else is assigned up-front on the Molecule object; the
     caller (Interchange) must then be told to use those charges via
     ``charge_from_molecules=[...]``.
     """
     if not method or method == "am1bcc":
+        # Windows: OpenFF cannot start AmberTools' antechamber there
+        # (antechamber.bat; ``-pf yes`` runs ``rm``), so assign AM1-BCC here
+        # with the real antechamber.exe and keep the charges.
+        from . import antechamber_am1bcc
+        if antechamber_am1bcc.needed():
+            antechamber_am1bcc.assign_am1bcc(mol)
         return
     if method == "nagl":
         # NAGLToolkitWrapper は global toolkit registry に自動登録されないため
@@ -313,6 +320,17 @@ def _maybe_assign_partial_charges(mol: Any, method: str, nagl_model: str) -> Non
         f"Unknown charge_method '{method}'. "
         "Choose from: '', 'am1bcc', 'nagl', 'gasteiger'."
     )
+
+
+def charges_preassigned(method: str) -> bool:
+    """Whether :func:`prepare_molecule` put the charges on the molecule for *method*,
+    so that Interchange must keep them (``use_precomputed_charges``)."""
+    if method in ("nagl", "gasteiger"):
+        return True
+    if not method or method == "am1bcc":
+        from . import antechamber_am1bcc
+        return antechamber_am1bcc.needed()
+    return False
 
 
 def _molecular_weight(mol: Any) -> float:

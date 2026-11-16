@@ -112,7 +112,7 @@ abmptools 本体 (main, 2026-04-24 以降) には `--charge_method` フラグが
 
 | `--charge_method` | 動作 | Windows native |
 |---|---|---|
-| `""` (default) / `am1bcc` | Interchange の AM1-BCC (AmberTools `sqm` 必須) | ❌ |
+| `""` (default) / `am1bcc` | AM1-BCC (AmberTools の `antechamber` / `sqm` 必須)。Linux / macOS は Interchange (OpenFF) が計算する。Windows は Windows ネイティブの AmberTools があれば、abmptools が `bin\wrapped_progs\antechamber.exe` を直接起動して OpenFF と同じ 2 つのコマンドで事前に付け、`charge_from_molecules` で渡す (2.20.1 から。OpenFF は `antechamber.bat` を起動できず、`-pf yes` が `rm` を呼ぶため) | △ (Windows 版 AmberTools があれば) |
 | `nagl` | `openff-nagl` の ML AM1-BCC 近似を **各分子に事前焼き込み** し、Interchange には `charge_from_molecules=molecules` で渡す (sqm を呼ばない) | ✅ |
 | `gasteiger` | Gasteiger 電荷 (高速、精度は低め、saneness check 向け) | ✅ |
 

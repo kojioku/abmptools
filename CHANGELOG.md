@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Fixed — amorphous: Windows で AM1-BCC の電荷付けが antechamber を起動できず止まっていた
+
+- Windows ネイティブの AmberTools は `antechamber` を `bin\antechamber.bat` (その奥に
+  `bin\wrapped_progs\antechamber.exe`) として置く。OpenFF の `AmberToolsToolkitWrapper` は
+  `subprocess` で素の `antechamber` を起動するので、Windows では `.bat` に届かず、さらに
+  `-pf yes` がシェルで `rm -f` を呼ぶ (Windows に無い) ため、`charge_method` が既定 (`""` / `am1bcc`)
+  のとき電荷付けで止まっていた (packmol を通った後)
+- Windows では `abmptools.amorphous.antechamber_am1bcc` が、OpenFF と同じ手順 (RDKit の配座 1 つ・
+  RMS 0.25 Å、同じ 2 つの antechamber のコマンド、原子順で読み戻し、形式電荷に合わせる) で
+  `antechamber.exe` を直接起動し (`AMBERHOME` と `bin` を PATH に、`-pf n`)、電荷を分子に付けてから
+  Interchange に `charge_from_molecules` で渡す (`nagl` / `gasteiger` と同じ)。Linux / macOS は従来どおり
+  OpenFF が計算する
+- 確かめたこと: Linux で OpenFF 自身の AM1-BCC と電荷が一致 (差 0、3 分子)。Windows の実機で PVA 10 量体
+  (30 分子、密度 1.2) の組み立てが AM1-BCC を通って最後まで完了
+
 ## [2.20.0] - 2026-11-14
 
 ### Fixed — trajectory: tpr の版が新しすぎるときの判定が、gmx の折り返しで外れていた
