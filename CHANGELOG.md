@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.20.1] - 2026-11-17
+
 ### Fixed — amorphous: Windows で AM1-BCC の電荷付けが antechamber を起動できず止まっていた
 
 - Windows ネイティブの AmberTools は `antechamber` を `bin\antechamber.bat` (その奥に
